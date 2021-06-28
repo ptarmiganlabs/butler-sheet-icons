@@ -17,9 +17,9 @@ on:
   #   tags: [ 'v*.*.*' ]    
   release:
     types: 
-      # - created
-      - released
-      - prereleased
+      - created
+      # - released
+      # - prereleased
 
 jobs:
   build:
