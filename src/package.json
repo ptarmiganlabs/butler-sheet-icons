@@ -1,0 +1,37 @@
+{
+  "name": "butler-sheet-icon",
+  "version": "0.4.0",
+  "description": "Creates thumbnail images based on sheets in QLik Sense applications",
+  "main": "butler-sheet-icons.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Göran Sander mountaindude@ptarmiganlabs.com",
+  "license": "MIT",
+  "keywords": [
+    "qlik",
+    "sense",
+    "qliksense",
+    "butler",
+    "butler-sheet-icons",
+    "thumbnails",
+    "screenshot"
+  ],
+  "dependencies": {
+    "commander": "^8.0.0",
+    "enigma.js": "^2.7.3",
+    "fs-extra": "^10.0.0",
+    "puppeteer": "^10.0.0",
+    "qrs-interact": "^6.3.1",
+    "winston": "^3.3.3",
+    "winston-daily-rotate-file": "^4.5.5"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/ptarmiganlabs/butler-sheet-icons.git"
+  },
+  "homepage": "https://github.com/ptarmiganlabs/butler-sheet-icons",
+  "bugs": {
+    "url": "https://github.com/ptarmiganlabs/butler-sheet-icons/issues"
+  }
+}

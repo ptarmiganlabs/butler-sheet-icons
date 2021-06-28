@@ -1,0 +1,9 @@
+cert/*
+img/*.png
+img/*.jpg
+.dockerignore
+.gitignore
+docker-compose.yml
+Dockerfile
+package-lock.json
+node_modules
