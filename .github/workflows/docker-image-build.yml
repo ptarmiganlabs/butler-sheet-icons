@@ -7,10 +7,10 @@
 name: build-docker-image
 
 on:
-  # push:
+  push:
   #   branches: [ main ]
     # Publish semver tags as releases.
-    # tags: [ 'v*.*.*' ]
+    tags: [ 'v*.*.*' ]
   release:
     types: [published, created, edited]
 
