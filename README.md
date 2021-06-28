@@ -6,7 +6,6 @@
 <a href="https://codeclimate.com/github/ptarmiganlabs/butler-sheet-icons/maintainability"><img src="https://api.codeclimate.com/v1/badges/a09f483b0a075dca1096/maintainability" /></a>
 </p>
 
-
 A cross platform, command line tool for creating sheet thumbnails based on the actual layout of sheets in Qlik Sense Enterprise on Windows applications.
 
 Table of contents
