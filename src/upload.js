@@ -7,6 +7,10 @@ var qrsInteract = require('qrs-interact');
 const { logger, setLoggingLevel } = require('./globals.js');
 const { setupQseowQrsConnection } = require('./qrs.js');
 
+/**
+ * 
+ * @param {*} options 
+ */
 const qseowUploadToContentLibrary = async options => {
   try {
     // Set log level
