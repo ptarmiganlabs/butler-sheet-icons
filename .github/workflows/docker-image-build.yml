@@ -7,19 +7,12 @@
 name: Build Docker image CI
 
 on:
-  push:
+  # push:
     # branches: [ main ]
     # Publish semver tags as releases.
-    tags: [ 'v*.*.*' ]
-  # push:
-  #   branches: [ main ]
-  #   # Publish semver tags as releases.
-  #   tags: [ 'v*.*.*' ]    
+    # tags: [ 'v*.*.*' ]
   release:
-    types: 
-      - created
-      # - released
-      # - prereleased
+    types: [published, created, edited]
 
 jobs:
   build:
