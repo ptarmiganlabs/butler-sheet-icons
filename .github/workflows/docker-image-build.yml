@@ -4,11 +4,11 @@
 # Inspiration
 # https://github.com/actions/starter-workflows/blob/main/ci/docker-publish.yml
 
-name: Build Docker image CI
+name: build-docker-image
 
 on:
   # push:
-    # branches: [ main ]
+  #   branches: [ main ]
     # Publish semver tags as releases.
     # tags: [ 'v*.*.*' ]
   release:
