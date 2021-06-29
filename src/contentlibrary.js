@@ -5,6 +5,10 @@ var qrsInteract = require('qrs-interact');
 const { logger } = require('./globals.js');
 const { setupQseowQrsConnection } = require('./qrs.js');
 
+/**
+ * 
+ * @param {*} options 
+ */
 const qseowVerifyContentLibraryExists = async options => {
   try {
     logger.debug('Checking if QSEoW content library already exists');

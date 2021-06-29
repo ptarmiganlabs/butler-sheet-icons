@@ -15,6 +15,11 @@ const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
 const selectorLoginPageLoginButton = '#loginbtn';
 
+/**
+ * 
+ * @param {*} options 
+ * @param {*} command 
+ */
 const qseowCreateThumbnails = async (options, command) => {
   try {
     // Set log level

@@ -3,6 +3,11 @@
 const path = require('path');
 const { logger } = require('./globals.js');
 
+/**
+ * 
+ * @param {*} options 
+ * @returns 
+ */
 const setupQseowQrsConnection = options => {
   logger.debug('Setting up connection to QSEoW QRS...');
 

@@ -28,13 +28,20 @@ const logger = winston.createLogger({
   ),
 });
 
-// Functions to get/set current console logging level
+/**
+ * Functions to get/set current console logging level
+ * @returns 
+ */
 const getLoggingLevel = () => {
   return logTransports.find(transport => {
     return transport.name == 'console';
   }).level;
 };
 
+/**
+ * 
+ * @param {*} newLevel 
+ */
 const setLoggingLevel = newLevel => {
   logTransports.find(transport => {
     return transport.name == 'console';

@@ -5,6 +5,10 @@ const { setupEnigmaConnection } = require('./enigma.js');
 
 const { logger } = require('./globals.js');
 
+/**
+ * 
+ * @param {*} options 
+ */
 const qseowUpdateSheetThumbnails = async options => {
   try {
     logger.info('Starting update of sheet icons');

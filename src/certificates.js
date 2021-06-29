@@ -14,6 +14,11 @@ async function exists(path) {
   }
 }
 
+/**
+ * 
+ * @param {*} options 
+ * @returns 
+ */
 const qseowVerifyCertificatesExist = options => {
   return new Promise(async (resolve, reject) => {
     try {

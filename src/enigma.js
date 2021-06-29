@@ -6,9 +6,19 @@ const fs = require('fs-extra');
 const path = require('path');
 const { logger } = require('./globals.js');
 
-// Helper function to read the contents of the certificate files:
+/**
+ * Helper function to read the contents of the certificate files:
+ * @param {*} filename 
+ * @returns 
+ */
 const readCert = filename => fs.readFileSync(filename);
 
+/**
+ * 
+ * @param {*} options 
+ * @param {*} command 
+ * @returns 
+ */
 const setupEnigmaConnection = (options, command) => {
   logger.debug('Prepping for Enigma connection...');
 
