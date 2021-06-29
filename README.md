@@ -26,13 +26,6 @@ Table of contents
   
 ---
 
-***NOTE!***
-
-***This tool has been developed and so far primarily tested on MacOS.***
-
-Limited testing has been done on Windows 10, but there may still be bugs when running on that platform.  
-Please [report issues in GitHub](https://github.com/ptarmiganlabs/butler-sheet-icons/issues).
-
 # 1. Summary
 
 - Qlik Sense applications contains zero or more *sheets*.
