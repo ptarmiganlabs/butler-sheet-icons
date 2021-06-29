@@ -4,7 +4,7 @@
   "description": "Creates thumbnail images based on sheets in QLik Sense applications",
   "main": "butler-sheet-icons.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "Göran Sander mountaindude@ptarmiganlabs.com",
   "license": "MIT",
@@ -33,5 +33,8 @@
   "homepage": "https://github.com/ptarmiganlabs/butler-sheet-icons",
   "bugs": {
     "url": "https://github.com/ptarmiganlabs/butler-sheet-icons/issues"
+  },
+  "devDependencies": {
+    "jest": "^27.0.6"
   }
 }

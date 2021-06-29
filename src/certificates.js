@@ -5,6 +5,11 @@ const { logger } = require('./globals.js');
 
 const { promises: Fs } = require('fs');
 
+/**
+ *
+ * @param {*} path
+ * @returns
+ */
 async function exists(path) {
   try {
     await Fs.access(path);
@@ -15,9 +20,9 @@ async function exists(path) {
 }
 
 /**
- * 
- * @param {*} options 
- * @returns 
+ *
+ * @param {*} options
+ * @returns
  */
 const qseowVerifyCertificatesExist = options => {
   return new Promise(async (resolve, reject) => {
@@ -47,7 +52,7 @@ const qseowVerifyCertificatesExist = options => {
       resolve(true);
     } catch (err) {
       logger.error(`CERT CHECK: ${JSON.stringify(err, null, 2)}`);
-      reject();
+      resolve(false);
     }
   });
 };

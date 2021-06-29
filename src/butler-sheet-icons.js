@@ -26,7 +26,13 @@ const program = new Command();
     .action(async (options, command) => {
       logger.verbose('appid=' + options.appid);
       logger.verbose('itemid=' + options.itemid);
-      qseowCreateThumbnails(options, command);
+      try {
+        let res = await qseowCreateThumbnails(options, command);
+        logger.debug(`Call to qseowCreateThumbnails succeeded: ${res}`);
+      } catch (err) {
+        logger.error(`MAIN: ${JSON.stringify(err, null, 2)}`);
+        return
+      }
     })
     .option('--loglevel <level>', 'log level (error, warning, info, verbose, debug, silly)', 'info')
     .requiredOption('--host <host>', 'Qlik Sense server IP/FQDN')
