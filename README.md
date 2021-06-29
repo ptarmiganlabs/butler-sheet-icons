@@ -17,7 +17,7 @@ Table of contents
   - [2.2. Content libraries](#22-content-libraries)
   - [2.3. Notes on using Butler Sheet Icons with Qlik Sense Enterprise on Windows](#23-notes-on-using-butler-sheet-icons-with-qlik-sense-enterprise-on-windows)
     - [2.3.1. Login method](#231-login-method)
-    - [Using QSEoW's built-in Node.js](#using-qseows-built-in-nodejs)
+    - [2.3.2. Using QSEoW's built-in Node.js](#232-using-qseows-built-in-nodejs)
 - [3. Running as Node.js app](#3-running-as-nodejs-app)
 - [4. Running as Docker container](#4-running-as-docker-container)
 - [5. Commands](#5-commands)
@@ -171,7 +171,7 @@ When set to `Form` the user will see a web form in which username and password i
 Butler Sheet Icons only supports the `Form` method.  
 Thus, if you use BSI on Windows you should make sure to specify a virtual proxy (`--prefix` option) that uses `Form` authentication!
 
-### Using QSEoW's built-in Node.js
+### 2.3.2. Using QSEoW's built-in Node.js
 
 While this might sound like a good idea, there are several reasons to stay away from it:
 
