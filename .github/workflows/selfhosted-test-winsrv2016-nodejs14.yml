@@ -1,4 +1,4 @@
-name: test-macos
+name: test-windows
 on:
   push:
     branches:
@@ -6,7 +6,7 @@ on:
 
 # Test case below assumes a) Node.js 14.x and b) Jest are installed globally on the server running the tests.
 # Install Jest with npm install jest --global
-
+# Test runner is in this case running on one of the servers that make up the Sense cluster.
 jobs:
   test-winsrv2016-nodejs14:
     runs-on: [self-hosted, windows, X64, sp53, winsrv2016, nodejs14]
@@ -32,8 +32,8 @@ jobs:
         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
         BSI_TEST_TIMEOUT: 120000
-        BSI_CERT_FILE: ${{ secrets.BSI_CERT_FILE }}
-        BSI_CERT_KEY_FILE: ${{ secrets.BSI_CERT_KEY_FILE }}
+        BSI_CERT_FILE: 'C:\ProgramData\Qlik\Sense\Repository\Exported Certificates\.Local Certificates\client.pem'
+        BSI_CERT_KEY_FILE: 'C:\ProgramData\Qlik\Sense\Repository\Exported Certificates\.Local Certificates\client_key.pem'
         # BSI_CERT: ${{ secrets.BSI_CERT }}
         # BSI_CERT_KEY: ${{ secrets.BSI_CERT_KEY }}
         
