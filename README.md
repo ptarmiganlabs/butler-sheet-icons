@@ -2,7 +2,9 @@
 <h3 align="center">Automatically create Qlik Sense sheet thumbnail images</h3>
 <p align="center">
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons"><img src="https://img.shields.io/badge/Source---" alt="Source"></a>
-<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml/badge.svg" alt="Continuous Integration"></a>
+<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml/badge.svg" alt="Continuous Integration"></a>
+<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-macos.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-macos.yml/badge.svg" alt="Continuous Integration"></a>
+<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-winsrv2016-nodejs14.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-winsrv2016-nodejs14.yml/badge.svg" alt="Continuous Integration"></a>
 <a href="https://codeclimate.com/github/ptarmiganlabs/butler-sheet-icons/maintainability"><img src="https://api.codeclimate.com/v1/badges/a09f483b0a075dca1096/maintainability" /></a>
 </p>
 
