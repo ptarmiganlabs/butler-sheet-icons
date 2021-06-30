@@ -17,7 +17,7 @@ jobs:
     - name: Run tests
       run: cd src && npm run test
       env:
-        BSI_CONTENT_LIBRARY: 'abc 123'
+        BSI_CONTENT_LIBRARY: 'abc 12'
         BSI_HOST: ${{ secrets.BSI_HOST }}
         BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
         BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
