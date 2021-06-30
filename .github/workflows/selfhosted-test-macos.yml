@@ -9,7 +9,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install modules
-      run: npm install
+      run: cd src && npm install
     - name: Run tests
       run: npm run test
       env:
