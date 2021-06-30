@@ -11,7 +11,7 @@ jobs:
     - name: Install modules
       run: npm install
     - name: Run tests
-      run: npm test
+      run: npm run test
       env:
         BSI_CONTENT_LIBRARY: 'abc 123'
         BSI_HOST: ${{ secrets.BSI_HOST }}
