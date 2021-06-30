@@ -8,8 +8,12 @@ jobs:
     runs-on: [self-hosted, macOS]
     steps:
     - uses: actions/checkout@v2
+    - name: Debugging 1
+      run: pwd && ls -la
     - name: Install modules
       run: cd src && npm install
+    - name: Debugging 2
+      run: pwd && ls -la
     - name: Run tests
       run: npm run test
       env:
