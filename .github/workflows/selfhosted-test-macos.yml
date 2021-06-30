@@ -15,7 +15,7 @@ jobs:
     - name: Debugging 2
       run: pwd && ls -la
     - name: Run tests
-      run: npm run test
+      run: cd src && npm run test
       env:
         BSI_CONTENT_LIBRARY: 'abc 123'
         BSI_HOST: ${{ secrets.BSI_HOST }}
