@@ -25,6 +25,7 @@ Table of contents
 - [5. Commands](#5-commands)
   - [5.1. Command: create-qseow](#51-command-create-qseow)
 - [6. Logging](#6-logging)
+- [7. Testing](#7-testing)
   
 ---
 
@@ -388,3 +389,18 @@ Valid values are (in order of increasing verbosity): error, warning, info, verbo
 
 When using log level silly all websocket communication to/from the Sense server will be logged to the console.  
 This will give you *very* detailed logging, but this can be useful when investigating bugs or other issues.
+
+# 7. Testing
+
+Whenever changes are made to any part of Butler Sheet Icons the new version is automatically tested against a real Qlik Sense Enterprise on Windows server. Tests are made on the following platforms:
+
+- Windows Server 2016: Node.js 14.17.1, Node.js 16.4.0
+- MacOS: Node.js 16.4.0
+
+The current status of each test suite is shown as badges at the top of the [readme file](https://github.com/ptarmiganlabs/butler-sheet-icons/blob/main/README.md).
+
+These test serve a purpose.  
+If you struggle to get Butler Sheet Icons working you can check those badges.  
+If they show that the platform you're interested in works, you should look at your command line parameters etc. The probably is problably on your side.  
+
+If on the other hand the badges show that the platform you're interested in is broken, you might want to raise an issue (if someone hasn't already). Alerts are also sent to the project maintaners, so they should already be aware of the issue.
