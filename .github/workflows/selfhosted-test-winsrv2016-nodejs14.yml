@@ -3,8 +3,12 @@ on:
   push:
     branches:
       - main
+
+# Test case below assumes a) Node.js 14.x and b) Jest are installed globally on the server running the tests.
+# Install Jest with npm install jest --global
+
 jobs:
-  test-macos:
+  test-winsrv2016-nodejs14:
     runs-on: [self-hosted, windows, X64, sp53, winsrv2016, nodejs14]
     steps:
     - uses: actions/checkout@v2
