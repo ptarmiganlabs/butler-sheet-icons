@@ -10,12 +10,16 @@ jobs:
     - uses: actions/checkout@v2
     - name: Debugging 1
       run: pwd && ls -la
+      working-directory: src
     - name: Install modules
-      run: cd src && npm install
+      run: npm install
+      working-directory: src
     - name: Debugging 2
       run: pwd && ls -la
+      working-directory: src
     - name: Run tests
-      run: cd src && npm run test
+      run: npm run test
+      working-directory: src
       env:
         BSI_CONTENT_LIBRARY: 'abc 123'
         BSI_HOST: ${{ secrets.BSI_HOST }}
