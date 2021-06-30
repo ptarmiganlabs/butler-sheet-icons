@@ -46,7 +46,7 @@ const qseowCreateThumbnails = options => {
       if (contentLibraryExists === false) {
         logger.error(`Content library '${options.contentlibrary}' does not exist - aborting`);
         throw('Content library does not exist')
-        reject(false);
+        resolve(false);
       } else {
         logger.verbose(`Content library '${options.contentlibrary}' exists`);
       }
@@ -251,7 +251,7 @@ const qseowCreateThumbnails = options => {
     } catch (err) {
       logger.error(`CREATE THUMBNAILS 2: ${JSON.stringify(err, null, 2)}`);
 
-      reject(false);
+      resolve(false);
     }
   });
 };

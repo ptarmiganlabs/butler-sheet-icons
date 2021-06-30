@@ -2,7 +2,7 @@ const { qseowCreateThumbnails } = require('../createthumbnails.js');
 
 const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 120000; // 2 minute default timeout
 
-const options = {
+var options = {
   loglevel: process.env.BSI_LOG_LEVEL || 'debug',
   engineport: process.env.BSI_ENGINE_PORT || '4747',
   qrsport: process.env.BSI_QRS_PORT || '4242',
@@ -28,7 +28,15 @@ const options = {
 
 jest.setTimeout(defaultTestTimeout);
 
-test('create sheet humbnails', async () => {
+console.log('dsd' + options.contentlibrary);
+
+
+/**
+ * Create thumbnails with non-existing content library specified
+ * Should fail
+ */
+options.contentlibrary = 'abc 12';
+test('create sheet thumbnails, non-existing content library (should fail)', async () => {
   const data = await qseowCreateThumbnails(options);
-  expect(data).toBe(true);
+  expect(data).toBe(false);
 });
