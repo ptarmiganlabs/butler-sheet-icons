@@ -28,9 +28,6 @@ var options = {
 
 jest.setTimeout(defaultTestTimeout);
 
-console.log('dsd' + options.contentlibrary);
-
-
 /**
  * Create thumbnails with non-existing content library specified
  * Should fail
