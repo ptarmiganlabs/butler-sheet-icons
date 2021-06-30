@@ -9,9 +9,11 @@ on:
 # Test runner is in this case running on one of the servers that make up the Sense cluster.
 jobs:
   test-winsrv2016-nodejs14:
-    runs-on: [self-hosted, windows, X64, sp53, winsrv2016, nodejs14]
+    runs-on: [self-hosted, windows, X64, winsrv2016, nodejs14]
     steps:
     - uses: actions/checkout@v2
+    - name: Switch to target Node version
+      run: nvm use 14.17.1
     - name: Debugging 1
       run: dir
       working-directory: src
