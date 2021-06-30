@@ -4,7 +4,7 @@ on:
     branches:
       - main
 jobs:
-  release-please:
+  test-macos:
     runs-on: [self-hosted, macOS]
     steps:
     - uses: actions/checkout@v2
