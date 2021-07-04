@@ -401,6 +401,6 @@ The current status of each test suite is shown as badges at the top of the [read
 
 These test serve a purpose.  
 If you struggle to get Butler Sheet Icons working you can check those badges.  
-If they show that the platform you're interested in works, you should look at your command line parameters etc. The probably is problably on your side.  
+If they show that the platform you're interested in works, you should look at your command line parameters etc. The error is probably on your side.  
 
-If on the other hand the badges show that the platform you're interested in is broken, you might want to raise an issue (if someone hasn't already). Alerts are also sent to the project maintaners, so they should already be aware of the issue.
+If on the other hand the badges show that the platform you're interested in is broken, you might want to raise an issue (if someone else hasn't already). Alerts are also sent to the project maintaners, so they should already be aware of the issue.
