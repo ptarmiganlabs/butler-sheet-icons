@@ -34,7 +34,7 @@ const qseowCreateThumbnails = options => {
       let certsExist = await qseowVerifyCertificatesExist(options);
       if (certsExist === false) {
         logger.error('Missing certificate file(s). Aborting');
-        throw('Missing certificate file(s)');
+        throw ('Missing certificate file(s)');
         resolve(false);
         // process.exit(1);
       } else {
@@ -45,7 +45,7 @@ const qseowCreateThumbnails = options => {
       let contentLibraryExists = await qseowVerifyContentLibraryExists(options);
       if (contentLibraryExists === false) {
         logger.error(`Content library '${options.contentlibrary}' does not exist - aborting`);
-        throw('Content library does not exist')
+        throw ('Content library does not exist')
         resolve(false);
       } else {
         logger.verbose(`Content library '${options.contentlibrary}' exists`);
