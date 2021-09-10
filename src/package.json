@@ -18,7 +18,7 @@
     "screenshot"
   ],
   "dependencies": {
-    "commander": "^8.1.0",
+    "commander": "^8.2.0",
     "enigma.js": "^2.7.3",
     "fs-extra": "^10.0.0",
     "puppeteer": "^10.2.0",
@@ -35,6 +35,6 @@
     "url": "https://github.com/ptarmiganlabs/butler-sheet-icons/issues"
   },
   "devDependencies": {
-    "jest": "27.1.0"
+    "jest": "^27.1.1"
   }
 }
