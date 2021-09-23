@@ -5,7 +5,7 @@ on:
       - main
 jobs:
   test-macos:
-    runs-on: [self-hosted, macOS, X64, nodejs14]
+    runs-on: [self-hosted, macOS, X64, sp53]
 
     steps:
     - uses: actions/checkout@v2
