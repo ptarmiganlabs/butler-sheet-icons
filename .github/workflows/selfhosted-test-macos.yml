@@ -39,8 +39,8 @@ jobs:
         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
         BSI_TEST_TIMEOUT: 120000
-        BSI_CERT_FILE: ${{ secrets.BSI_CERT_FILE }}
-        BSI_CERT_KEY_FILE: ${{ secrets.BSI_CERT_KEY_FILE }}
+        BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
+        BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
         # BSI_CERT: ${{ secrets.BSI_CERT }}
         # BSI_CERT_KEY: ${{ secrets.BSI_CERT_KEY }}
         
