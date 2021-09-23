@@ -6,12 +6,22 @@ on:
 jobs:
   test-macos:
     runs-on: [self-hosted, macOS, X64, sp53]
+    strategy:
+      matrix: 
+        node: 
+          - 14
+          - 16
+          - lts/*
 
     steps:
     - uses: actions/checkout@v2
     - name: Debugging 1
       run: pwd && ls -la
       working-directory: src
+    - name: Setup node
+      uses: actions/setup-node@v2
+      with: 
+        node-version: ${{ matrix.node }}
     - name: Install modules
       run: npm install
       working-directory: src
