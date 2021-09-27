@@ -44,36 +44,36 @@ jobs:
         # BSI_CERT: ${{ secrets.BSI_CERT }}
         # BSI_CERT_KEY: ${{ secrets.BSI_CERT_KEY }}
 
-    - name: Dump job status
-      if: always()
-      env:
-        status: ${{job.status}}        
-      run: echo $status
-
-    - name: Dump GitHub context
-      env:
-        GITHUB_CONTEXT: ${{ toJSON(github) }}
-      run: echo "$GITHUB_CONTEXT"
-    - name: Dump job context
-      env:
-        JOB_CONTEXT: ${{ toJSON(job) }}
-      run: echo "$JOB_CONTEXT"
-    - name: Dump steps context
-      env:
-        STEPS_CONTEXT: ${{ toJSON(steps) }}
-      run: echo "$STEPS_CONTEXT"
-    - name: Dump runner context
-      env:
-        RUNNER_CONTEXT: ${{ toJSON(runner) }}
-      run: echo "$RUNNER_CONTEXT"
-    - name: Dump strategy context
-      env:
-        STRATEGY_CONTEXT: ${{ toJSON(strategy) }}
-      run: echo "$STRATEGY_CONTEXT"
-    - name: Dump matrix context
-      env:
-        MATRIX_CONTEXT: ${{ toJSON(matrix) }}
-      run: echo "$MATRIX_CONTEXT"
+    # - name: Dump GitHub context
+    #   if: always()
+    #   env:
+    #     GITHUB_CONTEXT: ${{ toJSON(github) }}
+    #   run: echo "$GITHUB_CONTEXT"
+    # - name: Dump job context
+    #   if: always()
+    #   env:
+    #     JOB_CONTEXT: ${{ toJSON(job) }}
+    #   run: echo "$JOB_CONTEXT"
+    # - name: Dump steps context
+    #   if: always()
+    #   env:
+    #     STEPS_CONTEXT: ${{ toJSON(steps) }}
+    #   run: echo "$STEPS_CONTEXT"
+    # - name: Dump runner context
+    #   if: always()
+    #   env:
+    #     RUNNER_CONTEXT: ${{ toJSON(runner) }}
+    #   run: echo "$RUNNER_CONTEXT"
+    # - name: Dump strategy context
+    #   if: always()
+    #   env:
+    #     STRATEGY_CONTEXT: ${{ toJSON(strategy) }}
+    #   run: echo "$STRATEGY_CONTEXT"
+    # - name: Dump matrix context
+    #   if: always()
+    #   env:
+    #     MATRIX_CONTEXT: ${{ toJSON(matrix) }}
+    #   run: echo "$MATRIX_CONTEXT"
       
     - name: Send job status to MQTT when done
       uses: potaesm/github-actions-mqtt-request@1.0.0
@@ -84,7 +84,7 @@ jobs:
       with:
         url: mqtt://192.168.100.20:1884
         topic: control/sp53/mac-build1/action-runner
-        payload: '{ "repo": "ptarmiganlabs/butler-sheet-icons", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
+        payload: '{ "type":"ci-test", "repo": "ptarmiganlabs/butler-sheet-icons", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
         # wsOptions: '{ "port": 443 }'
         # username: user
         # password: p@ssw0rd
