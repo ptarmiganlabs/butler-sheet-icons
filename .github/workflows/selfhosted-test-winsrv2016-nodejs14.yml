@@ -41,6 +41,20 @@ jobs:
         BSI_CERT_KEY_FILE: 'C:\ProgramData\Qlik\Sense\Repository\Exported Certificates\.Local Certificates\client_key.pem'
         # BSI_CERT: ${{ secrets.BSI_CERT }}
         # BSI_CERT_KEY: ${{ secrets.BSI_CERT_KEY }}
+    - name: Send job status to MQTT when done
+      uses: potaesm/github-actions-mqtt-request@1.0.0
+      if: always()
+      env:
+        JOB_STATUS: ${{ job.status }}
+        NODE_VERSION: 14
+      with:
+        url: mqtt://192.168.100.20:1884
+        topic: control/sp53/pro2-win2/action-runner
+        payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
+        # wsOptions: '{ "port": 443 }'
+        # username: user
+        # password: p@ssw0rd
+        connectTimeout: 30000
         
   test-winsrv2016-nodejs16:
     runs-on: [self-hosted, windows, X64, winsrv2016, nodejs16]
@@ -75,5 +89,19 @@ jobs:
         BSI_CERT_KEY_FILE: 'C:\ProgramData\Qlik\Sense\Repository\Exported Certificates\.Local Certificates\client_key.pem'
         # BSI_CERT: ${{ secrets.BSI_CERT }}
         # BSI_CERT_KEY: ${{ secrets.BSI_CERT_KEY }}
+    - name: Send job status to MQTT when done
+      uses: potaesm/github-actions-mqtt-request@1.0.0
+      if: always()
+      env:
+        JOB_STATUS: ${{ job.status }}
+        NODE_VERSION: 16
+      with:
+        url: mqtt://192.168.100.20:1884
+        topic: control/sp53/pro2-win2/action-runner
+        payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
+        # wsOptions: '{ "port": 443 }'
+        # username: user
+        # password: p@ssw0rd
+        connectTimeout: 30000
         
         
