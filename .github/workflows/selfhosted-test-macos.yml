@@ -79,11 +79,12 @@ jobs:
       uses: potaesm/github-actions-mqtt-request@1.0.0
       if: always()
       env:
-        status: ${{job.status}}        
+        JOB_STATUS: ${{ job.status }}
+        NODE_VERSION: ${{ matrix.node }}
       with:
         url: mqtt://192.168.100.20:1884
         topic: control/sp53/mac-build1/action-runner
-        payload: '{ "repo": "ptarmiganlabs/butler-sheet-icons", "status":"${{ env.status }}" }'
+        payload: '{ "repo": "ptarmiganlabs/butler-sheet-icons", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
         # wsOptions: '{ "port": 443 }'
         # username: user
         # password: p@ssw0rd
