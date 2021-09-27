@@ -43,4 +43,24 @@ jobs:
         BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
         # BSI_CERT: ${{ secrets.BSI_CERT }}
         # BSI_CERT_KEY: ${{ secrets.BSI_CERT_KEY }}
+
+    - name: Debug - job status
+      if: always()
+      env:
+        status: ${{job.status}}        
+      run: echo $status
+
+    - name: Send job status to MQTT when done
+      uses: potaesm/github-actions-mqtt-request@1.0.0
+      if: always()
+      env:
+        status: ${{job.status}}        
+      with:
+        url: mqtt://192.168.100.20:1884
+        topic: control/sp53/mac-build1/action-runner
+        payload: '{ "repo": "ptarmiganlabs/butler-sheet-icons", "status":"${{ env.status }}" }'
+        # wsOptions: '{ "port": 443 }'
+        # username: user
+        # password: p@ssw0rd
+        connectTimeout: 30000
         
