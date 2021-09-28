@@ -1,4 +1,5 @@
 name: release-please
+
 on:
   push:
     branches:
@@ -7,8 +8,16 @@ on:
 jobs:
   release-please:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_REF: ${{ github.ref }}
+      GITHUB_USER: ${{ secrets.GITHUB_USER }}
+      GITHUB_TOKEN: ${{ secrets.PAT }}
     steps:
-      - uses: GoogleCloudPlatform/release-please-action@v2.32.0
+      - name: Show github.ref
+        run: echo "$GITHUB_REF"
+
+      - uses: GoogleCloudPlatform/release-please-action@v2
+        id: release
         if: |
           github.repository_owner == 'ptarmiganlabs'
         with:
@@ -16,3 +25,17 @@ jobs:
           release-type: node
           package-name: butler-sheet-icons
           path: src
+          pull-request-title-pattern: "chore${scope}: 🔖 ${{ steps.extract_sp.outputs.servicepack }} release${component} ${version}"
+
+      - name: Show output from Release-Please
+        if: ${{ steps.release.outputs.release_created }}
+        run: |
+          echo "release_created: ${{ steps.release.outputs.release_created }}"
+          echo "upload_url: ${{ steps.release.outputs.upload_url }}"
+          echo "html_url: ${{ steps.release.outputs.html_url }}"
+          echo "tag_name: ${{ steps.release.outputs.tag_name }}"
+          echo "major: ${{ steps.release.outputs.major }}"
+          echo "minor: ${{ steps.release.outputs.minor }}"
+          echo "patch: ${{ steps.release.outputs.patch }}"
+          echo "sha: ${{ steps.release.outputs.sha }}"
+          echo "pr: ${{ steps.release.outputs.pr }}"
