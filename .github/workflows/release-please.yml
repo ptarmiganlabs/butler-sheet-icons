@@ -25,7 +25,6 @@ jobs:
           release-type: node
           package-name: butler-sheet-icons
           path: src
-          pull-request-title-pattern: "chore${scope}: 🔖 ${{ steps.extract_sp.outputs.servicepack }} release${component} ${version}"
 
       - name: Show output from Release-Please
         if: ${{ steps.release.outputs.release_created }}
