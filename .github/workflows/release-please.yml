@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_REF: ${{ github.ref }}
-      GITHUB_USER: ${{ secrets.GITHUB_USER }}
+      # GITHUB_USER: ${{ secrets.GITHUB_USER }}
       GITHUB_TOKEN: ${{ secrets.PAT }}
     steps:
       - name: Show github.ref
@@ -21,7 +21,7 @@ jobs:
         if: |
           github.repository_owner == 'ptarmiganlabs'
         with:
-          token: ${{ secrets.PAT }}
+          token: ${{ env.GITHUB_TOKEN }}
           release-type: node
           package-name: butler-sheet-icons
           path: src
