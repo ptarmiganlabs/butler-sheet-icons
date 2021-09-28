@@ -21,7 +21,7 @@ jobs:
         if: |
           github.repository_owner == 'ptarmiganlabs'
         with:
-          token: ${{ env.GITHUB_TOKEN }}
+          token: ${{ secrets.PAT }}
           release-type: node
           package-name: butler-sheet-icons
           path: src
