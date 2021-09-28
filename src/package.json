@@ -36,6 +36,6 @@
   },
   "devDependencies": {
     "jest": "27.2.3",
-    "snyk": "1.726.0"
+    "snyk": "1.727.0"
   }
 }
