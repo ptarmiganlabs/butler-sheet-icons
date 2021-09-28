@@ -86,10 +86,21 @@ jobs:
       - name: Image digest
         run: echo ${{ steps.docker_build.outputs.digest }}
 
+      - name: Send job status to MQTT when done
+        uses: potaesm/github-actions-mqtt-request@1.0.0
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          NODE_VERSION: ${{ matrix.node }}
+        with:
+          url: ${{ secrets.PUBLIC_MQTT_BROKER_URL }}
+          topic: control/github_actions_action_runner
+          payload: '{ "type":"docker-build", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
+          # wsOptions: '{ "port": 443 }'
+          username: ${{ secrets.PUBLIC_MQTT_BROKER_USER }}
+          # password: p@ssw0rd
+          connectTimeout: 30000
+
+
     env:
       CI: true
-      # IMAGE_NAME: mountaindude/butler-sheet-icons
-
-    # defaults:
-    #   run:
-    #     working-directory: src
