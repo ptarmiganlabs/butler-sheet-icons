@@ -54,6 +54,13 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
       
+      - name: Debug1
+        run: |
+          echo "Version ${{ version }}"
+          echo "Major ${{ major }}"
+          echo "Minor ${{ minor }}"
+          echo "Patch ${{ patch }}"
+
       # Extract metadata (tags, labels) for Docker
       # https://github.com/marketplace/actions/docker-metadata-action
       - name: Extract Docker metadata
@@ -68,8 +75,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern=butler-sheet-icons-v{{version}}
-            type=semver,pattern=butler-sheet-icons-v{{major}}.{{minor}}
+            type=semver,prefix=butler-sheet-icons-v,pattern={{version}}
+            type=semver,prefix=butler-sheet-icons-v,pattern={{major}}.{{minor}}
 
       - name: Show Docker tags that will be used
         if: |
