@@ -25,7 +25,7 @@ jobs:
           package-name: butler-sheet-icons
           path: src
           default-branch: main
-          changelog-types: '[{"type":"feat","section":"Features","hidden":false},{"type":"fix","section":"Bug Fixes","hidden":false},{"type":"chore","section":"Miscellaneous","hidden":false}, {"type":"docs","section":"Documentation","hidden":false}]'
+          changelog-types: '[{"type":"feat","section":"Features","hidden":false},{"type":"fix","section":"Bug Fixes","hidden":false},{"type":"chore","section":"Miscellaneous","hidden":true}, {"type":"refactor","section":"Refactoring","hidden":true}, {"type":"docs","section":"Documentation","hidden":false}]'
 
       - name: Show output from Release-Please
         if: ${{ steps.release.outputs.release_created }}
