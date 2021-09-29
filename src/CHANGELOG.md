@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.0.6](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.0.5...butler-sheet-icons-v1.0.6) (2021-09-29)
+
+
+### Documentation
+
+* Docker build debugging ([925c2c6](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/925c2c630cd5349170b05e86803de84a429d6095))
+
 ### [1.0.5](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.0.4...butler-sheet-icons-v1.0.5) (2021-09-29)
 
 
