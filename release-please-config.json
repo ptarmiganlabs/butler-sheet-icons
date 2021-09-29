@@ -31,8 +31,7 @@
   ],
   "packages": {
     "src": {
-      "package-name": "butler-sheet-icons",
-      "release-as": "1.0.4"
+      "package-name": "butler-sheet-icons"
     }
   }
 }
