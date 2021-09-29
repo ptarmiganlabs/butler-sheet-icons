@@ -30,6 +30,8 @@ jobs:
     - name: Install modules
       run: npm install
       working-directory: src
+    - name: Make sure Jest is installed
+      run: npm install jest --global
     - name: Debugging 2
       run: dir
       working-directory: src
