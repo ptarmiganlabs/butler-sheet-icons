@@ -85,6 +85,10 @@ jobs:
           MATRIX_CONTEXT: ${{ toJSON(matrix) }}
         run: echo "$MATRIX_CONTEXT"
 
+      - name: Create clean tag for Docker
+        run: |
+          export echo "${${{ github.ref }}##*-}"
+
       # Extract metadata (tags, labels) for Docker
       # https://github.com/marketplace/actions/docker-metadata-action
       - name: Extract Docker metadata
