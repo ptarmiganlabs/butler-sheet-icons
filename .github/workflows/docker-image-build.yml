@@ -68,8 +68,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,prefix=butler-sheet-icons-,pattern={{version}}
-            type=semver,prefix=butler-sheet-icons-,pattern={{major}}.{{minor}}
+            type=semver,pattern=butler-sheet-icons-{{version}}
+            type=semver,pattern=butler-sheet-icons-{{major}}.{{minor}}
 
       - name: Show Docker tags that will be used
         if: |
