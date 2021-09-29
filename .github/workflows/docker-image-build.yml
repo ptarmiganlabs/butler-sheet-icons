@@ -87,7 +87,9 @@ jobs:
 
       - name: Create clean tag for Docker
         run: |
-          export echo "${${{ github.ref }}##*-}"
+          export TAGTMP1=${{ github.ref }}
+          export TAG=$(echo "${TAGTMP1##*-}")
+          echo "Tag: $TAG"
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/marketplace/actions/docker-metadata-action
@@ -103,8 +105,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,prefix=butler-sheet-icons-v,pattern={{version}}
-            type=semver,prefix=butler-sheet-icons-v,pattern={{major}}.{{minor}}
+            type=semver,prefix=butler-sheet-icons-v,pattern={{version}},value=${{ env.TAG }}
+            type=semver,prefix=butler-sheet-icons-v,pattern={{major}}.{{minor}},value=${{ env.TAG }}
 
       - name: Show Docker tags that will be used
         if: |
