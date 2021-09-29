@@ -6,7 +6,7 @@ on:
 
 jobs:
   test-winsrv2016:
-    runs-on: [self-hosted, windows, x64, sp53, pro2-win1]
+    runs-on: [self-hosted, windows, x64, sp53, pro2-win2]
     strategy:
       matrix: 
         node: 
