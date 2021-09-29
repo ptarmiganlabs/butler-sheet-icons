@@ -23,7 +23,15 @@ jobs:
         node-version: [16]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
+    env:
+      TAGTMP1: ${{ github.ref }}
+      TAG: $(echo "${TAGTMP1##*-}")
+
     steps:
+      - name: Show tag
+        run: |
+          echo "Tag: $TAG"
+
       - name: Checkout repository
         uses: actions/checkout@v2
         if: |
@@ -105,8 +113,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,prefix=butler-sheet-icons-v,pattern={{version}},value=${{ env.TAG }}
-            type=semver,prefix=butler-sheet-icons-v,pattern={{major}}.{{minor}},value=${{ env.TAG }}
+            type=semver,pattern={{version}},value=${{ env.TAG }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG }}
 
       - name: Show Docker tags that will be used
         if: |
@@ -151,11 +159,5 @@ jobs:
           url: ${{ secrets.PUBLIC_MQTT_BROKER_URL }}
           topic: control/github_actions_action_runner
           payload: '{ "type":"docker-build", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
-          # wsOptions: '{ "port": 443 }'
           username: ${{ secrets.PUBLIC_MQTT_BROKER_USER }}
-          # password: p@ssw0rd
           connectTimeout: 30000
-
-
-    env:
-      CI: true
