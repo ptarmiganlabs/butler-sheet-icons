@@ -34,7 +34,6 @@ const qseowVerifyContentLibraryExists = options => {
             // Content library mpt found
             // logger.error(`Content library '${contentlibrary}' does not exist - aborting`);
             resolve(false);
-            // process.exit(1);
           }
         })
         .catch(err => {

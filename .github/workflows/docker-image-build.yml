@@ -68,8 +68,8 @@ jobs:
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
+            type=semver,prefix=butler-sheet-icons-,pattern={{version}}
+            type=semver,prefix=butler-sheet-icons-,pattern={{major}}.{{minor}}
 
       - name: Show Docker tags that will be used
         if: |
@@ -94,8 +94,6 @@ jobs:
           # file: Dockerfile
           platforms: |
             linux/amd64
-            linux/arm64
-            linux/arm/v7            
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
