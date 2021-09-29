@@ -5,7 +5,7 @@ on:
       - main
 jobs:
   test-macos:
-    runs-on: [self-hosted, macOS, X64, sp53]
+    runs-on: [self-hosted, macos, x64, sp53]
     strategy:
       matrix: 
         node: 
