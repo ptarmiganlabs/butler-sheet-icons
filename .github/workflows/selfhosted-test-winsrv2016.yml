@@ -5,8 +5,12 @@ on:
       - main
 
 jobs:
-  test-winsrv2016:
-    runs-on: [self-hosted, ${{ matrix.os }}, ${{ matrix.architecture }}, sp53]
+  test-winsrv-2016:
+    runs-on: 
+      - self-hosted
+      - ${{ matrix.os }}
+      - ${{ matrix.architecture }}
+      - sp53
     strategy:
       matrix: 
         node: 
