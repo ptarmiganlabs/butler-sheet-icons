@@ -6,13 +6,17 @@ on:
 
 jobs:
   test-winsrv2016:
-    runs-on: [self-hosted, windows, x64, sp53, pro2-win2]
+    runs-on: [self-hosted, ${{ matrix.os }}, ${{ matrix.architecture }}, sp53]
     strategy:
       matrix: 
         node: 
           - 14
           - 16
           - lts/*
+        architecture:
+          - x64
+        os:
+          - winsrv-2016
 
     steps:
     - uses: actions/checkout@v2
