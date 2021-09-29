@@ -32,7 +32,7 @@
   "packages": {
     "src": {
       "package-name": "butler-sheet-icons",
-      "release-as": ""
+      "release-as": "1.0.4"
     }
   }
 }
