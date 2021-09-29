@@ -4,74 +4,8 @@ on:
     branches:
       - main
 
-# jobs:
-#   test-winsrv-2016:
-#     runs-on: 
-#       - self-hosted
-#       - ${{ matrix.os }}
-#       - ${{ matrix.architecture }}
-#       - sp53
-#     strategy:
-#       matrix: 
-#         node: 
-#           - 14
-#           - 16
-#           - lts/*
-#         architecture:
-#           - x64
-#         os:
-#           - winsrv-2016
-
-#     steps:
-#     - uses: actions/checkout@v2
-#     - name: Debugging 1
-#       run: dir
-#       working-directory: src
-#     - name: Setup node
-#       uses: actions/setup-node@v2
-#       with: 
-#         node-version: ${{ matrix.node }}
-#     - name: Install modules
-#       run: npm install
-#       working-directory: src
-#     - name: Make sure Jest is installed
-#       run: npm install jest --global
-#     - name: Debugging 2
-#       run: dir
-#       working-directory: src
-#     - name: Run tests
-#       run: npm run test
-#       working-directory: src
-#       env:
-#         BSI_CONTENT_LIBRARY: 'abc 123'
-#         BSI_HOST: ${{ secrets.BSI_HOST }}
-#         BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-#         BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-#         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-#         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-#         BSI_TEST_TIMEOUT: 120000
-#         BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
-#         BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
-#     - name: Send job status to MQTT when done
-#       uses: potaesm/github-actions-mqtt-request@1.0.0
-#       if: always()
-#       env:
-#         JOB_STATUS: ${{ job.status }}
-#         NODE_VERSION: 16
-#       with:
-#         url: mqtt://192.168.100.20:1884
-#         topic: control/sp53/pro2-win2/action-runner
-#         payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
-#         # wsOptions: '{ "port": 443 }'
-#         # username: user
-#         # password: p@ssw0rd
-#         connectTimeout: 30000
-        
-
-        
-
 jobs:
-  test-winsrv:
+  test-winsrv-2016:
     runs-on: 
       - self-hosted
       - ${{ matrix.os }}
@@ -87,18 +21,21 @@ jobs:
           - x64
         os:
           - winsrv-2016
+
     steps:
     - uses: actions/checkout@v2
-    - name: Switch to target Node version
-      run: nvm use ${{ matrix.node }}
-    - name: Make sure Jest is installed for this Node version
-      run: npm install jest --global
     - name: Debugging 1
       run: dir
       working-directory: src
+    - name: Setup node
+      uses: actions/setup-node@v2
+      with: 
+        node-version: ${{ matrix.node }}
     - name: Install modules
       run: npm install
       working-directory: src
+    - name: Make sure Jest is installed
+      run: npm install jest
     - name: Debugging 2
       run: dir
       working-directory: src
@@ -113,20 +50,83 @@ jobs:
         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
         BSI_TEST_TIMEOUT: 120000
-        BSI_PREFIX: form
-        BSI_CERT_FILE: 'C:\ProgramData\Qlik\Sense\Repository\Exported Certificates\.Local Certificates\client.pem'
-        BSI_CERT_KEY_FILE: 'C:\ProgramData\Qlik\Sense\Repository\Exported Certificates\.Local Certificates\client_key.pem'
+        BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
+        BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
     - name: Send job status to MQTT when done
       uses: potaesm/github-actions-mqtt-request@1.0.0
       if: always()
       env:
         JOB_STATUS: ${{ job.status }}
-        NODE_VERSION: 14
+        NODE_VERSION: 16
       with:
         url: mqtt://192.168.100.20:1884
         topic: control/sp53/pro2-win2/action-runner
         payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
-        connectTimeout: 30000        
+        # wsOptions: '{ "port": 443 }'
+        # username: user
+        # password: p@ssw0rd
+        connectTimeout: 30000
+        
+
+        
+
+# jobs:
+#   test-winsrv:
+#     runs-on: 
+#       - self-hosted
+#       - ${{ matrix.os }}
+#       - ${{ matrix.architecture }}
+#       - sp53
+#     strategy:
+#       matrix: 
+#         node: 
+#           - 14
+#           - 16
+#           - lts/*
+#         architecture:
+#           - x64
+#         os:
+#           - winsrv-2016
+#     steps:
+#     - uses: actions/checkout@v2
+#     - name: Switch to target Node version
+#       run: nvm use ${{ matrix.node }}
+#     - name: Make sure Jest is installed for this Node version
+#       run: npm install jest --global
+#     - name: Debugging 1
+#       run: dir
+#       working-directory: src
+#     - name: Install modules
+#       run: npm install
+#       working-directory: src
+#     - name: Debugging 2
+#       run: dir
+#       working-directory: src
+#     - name: Run tests
+#       run: npm run test
+#       working-directory: src
+#       env:
+#         BSI_CONTENT_LIBRARY: 'abc 123'
+#         BSI_HOST: ${{ secrets.BSI_HOST }}
+#         BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
+#         BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
+#         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
+#         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
+#         BSI_TEST_TIMEOUT: 120000
+#         BSI_PREFIX: form
+#         BSI_CERT_FILE: 'C:\ProgramData\Qlik\Sense\Repository\Exported Certificates\.Local Certificates\client.pem'
+#         BSI_CERT_KEY_FILE: 'C:\ProgramData\Qlik\Sense\Repository\Exported Certificates\.Local Certificates\client_key.pem'
+#     - name: Send job status to MQTT when done
+#       uses: potaesm/github-actions-mqtt-request@1.0.0
+#       if: always()
+#       env:
+#         JOB_STATUS: ${{ job.status }}
+#         NODE_VERSION: 14
+#       with:
+#         url: mqtt://192.168.100.20:1884
+#         topic: control/sp53/pro2-win2/action-runner
+#         payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
+#         connectTimeout: 30000        
 
 
 # Test case below assumes a) Node.js 14.x and b) Jest are installed globally on the server running the tests.

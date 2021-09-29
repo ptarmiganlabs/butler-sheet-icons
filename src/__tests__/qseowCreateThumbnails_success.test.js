@@ -15,7 +15,7 @@ var options = {
   hosttype: process.env.BSI_HOST_TYPE || 'qseow',
   headless: process.env.BSI_HEADLESS || 'true',
   pagewait: process.env.BSI_PAGE_WAIT || '3',
-  imagedir: process.env.BSI_IAMGE_DIR || 'img',
+  imagedir: process.env.BSI_IMAGE_DIR || 'img',
   contentlibrary: process.env.BSI_CONTENT_LIBRARY,
   host: process.env.BSI_HOST,
   appid: process.env.BSI_APP_ID || 'a3e0f5d2-000a-464f-998d-33d333b175d7',
