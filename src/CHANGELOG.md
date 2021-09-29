@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.0.7](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.0.6...butler-sheet-icons-v1.0.7) (2021-09-29)
+
+
+### Documentation
+
+* wip ([6a25789](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/6a25789164bf57301e1aeca04002e0aa0bfb5d4e))
+
 ### [1.0.6](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.0.5...butler-sheet-icons-v1.0.6) (2021-09-29)
 
 
