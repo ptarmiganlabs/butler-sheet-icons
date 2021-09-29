@@ -23,14 +23,14 @@ jobs:
         node-version: [16]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
-    env:
-      TAGTMP1: ${{ github.ref }}
-      TAG: $(echo "${TAGTMP1##*-}")
+    # env:
+    #   TAGTMP1: ${{ github.ref }}
+    #   TAG: $(echo "${TAGTMP1##*-}")
 
     steps:
-      - name: Show tag
-        run: |
-          echo "Tag: $TAG"
+      # - name: Show tag
+      #   run: |
+      #     echo "Tag: $TAG"
 
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -96,8 +96,9 @@ jobs:
       - name: Create clean tag for Docker
         run: |
           export TAGTMP1=${{ github.ref }}
-          export TAG=$(echo "${TAGTMP1##*-}")
-          echo "Tag: $TAG"
+          echo "TAG=$(echo "${TAGTMP1##*-}")" >> $GITHUB_ENV
+          echo "Tag 1: $TAG"
+          echo "Tag 2: ${{ env.TAG }}"
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/marketplace/actions/docker-metadata-action
