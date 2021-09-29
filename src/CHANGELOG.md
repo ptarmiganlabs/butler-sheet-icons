@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.0.15...butler-sheet-icons-v1.1.0) (2021-09-29)
+
+
+### Features
+
+* Make cert validation optional ([ab3e331](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/ab3e3315497b04c1103e28b170b3c90ee29d5ada))
+
+
+### Bug Fixes
+
+* Update dependencies ([2174796](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/217479629841b3dbfa23ccc9d0449134c536342e))
+
 ### [1.0.15](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.0.14...butler-sheet-icons-v1.0.15) (2021-09-29)
 
 
