@@ -17,7 +17,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Debugging 1
-      run: pwd && ls -la
+      run: dir
       working-directory: src
     - name: Setup node
       uses: actions/setup-node@v2
@@ -27,7 +27,7 @@ jobs:
       run: npm install
       working-directory: src
     - name: Debugging 2
-      run: pwd && ls -la
+      run: dir
       working-directory: src
     - name: Run tests
       run: npm run test
