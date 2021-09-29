@@ -18,20 +18,13 @@ jobs:
       contents: read
       packages: write
 
-    strategy:
-      matrix:
-        node-version: [16]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+    # strategy:
+    #   matrix:
+    #     node-version: [16]
+    #     # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
-    # env:
-    #   TAGTMP1: ${{ github.ref }}
-    #   TAG: $(echo "${TAGTMP1##*-}")
 
     steps:
-      # - name: Show tag
-      #   run: |
-      #     echo "Tag: $TAG"
-
       - name: Checkout repository
         uses: actions/checkout@v2
         if: |
@@ -62,6 +55,11 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Create clean tag for Docker
+        run: |
+          export TAGTMP1=${{ github.ref }}
+          echo "TAG=$(echo "${TAGTMP1##*-}")" >> $GITHUB_ENV
+
       - name: Dump GitHub context
         if: always()
         env:
@@ -87,18 +85,12 @@ jobs:
         env:
           STRATEGY_CONTEXT: ${{ toJSON(strategy) }}
         run: echo "$STRATEGY_CONTEXT"
-      - name: Dump matrix context
-        if: always()
-        env:
-          MATRIX_CONTEXT: ${{ toJSON(matrix) }}
-        run: echo "$MATRIX_CONTEXT"
+      # - name: Dump matrix context
+      #   if: always()
+      #   env:
+      #     MATRIX_CONTEXT: ${{ toJSON(matrix) }}
+      #   run: echo "$MATRIX_CONTEXT"
 
-      - name: Create clean tag for Docker
-        run: |
-          export TAGTMP1=${{ github.ref }}
-          echo "TAG=$(echo "${TAGTMP1##*-}")" >> $GITHUB_ENV
-          echo "Tag 1: $TAG"
-          echo "Tag 2: ${{ env.TAG }}"
 
       # Extract metadata (tags, labels) for Docker
       # https://github.com/marketplace/actions/docker-metadata-action
@@ -155,10 +147,10 @@ jobs:
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
-          NODE_VERSION: ${{ matrix.node }}
+          # NODE_VERSION: ${{ matrix.node }}
         with:
           url: ${{ secrets.PUBLIC_MQTT_BROKER_URL }}
           topic: control/github_actions_action_runner
-          payload: '{ "type":"docker-build", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
+          payload: '{ "type":"docker-build", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "tags": "${{ steps.meta.outputs.tags }}","status":"${{ env.JOB_STATUS }}" }'
           username: ${{ secrets.PUBLIC_MQTT_BROKER_USER }}
           connectTimeout: 30000
