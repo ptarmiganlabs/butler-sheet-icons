@@ -56,6 +56,11 @@ const program = new Command();
       'Qlik Sense root certificate file (exported from QMC)',
       './cert/root.pem',
     )
+    .option(
+      '--rejectUnauthorized <true|false>',
+      'Ignore warnings when Sense certificate doesn\'t match the --host paramater',
+      false,
+    )
     .requiredOption('--prefix <prefix>', 'Qlik Sense virtual proxy prefix', '')
     .requiredOption('--secure <true|false>', 'connection to Qlik Sense engine is via https', true)
     .requiredOption(

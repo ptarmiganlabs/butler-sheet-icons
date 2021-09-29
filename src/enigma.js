@@ -40,7 +40,7 @@ const setupEnigmaConnection = (options, command) => {
         headers: {
           'X-Qlik-User': `UserDirectory=${options.apiuserdir};UserId=${options.apiuserid}`,
         },
-        rejectUnauthorized: false,
+        rejectUnauthorized: options.rejectUnauthorized === 'true'? true : false,
       }),
   };
 };
