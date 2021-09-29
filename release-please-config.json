@@ -1,5 +1,4 @@
 {
-  "bootstrap-sha": "f7718aef3143460a74a2b7fb4d9d0d8f71dab044",
   "release-type": "node",
   "draft": true,
   "changelog-sections": [
@@ -31,8 +30,7 @@
   ],
   "packages": {
     "src": {
-      "package-name": "butler-sheet-icons",
-      "release-as": "1.0.4"
+      "package-name": "butler-sheet-icons"
     }
   }
 }
