@@ -7,3 +7,12 @@ docker-compose.yml
 Dockerfile
 package-lock.json
 node_modules
+.eslintrc.yml
+.jshintrc
+.prettierignore
+.prettierrc
+.snyk
+
+__tests__
+jest.config.js
+
