@@ -252,42 +252,40 @@ Commands:
 If we pass in proper parameters we will get new sheet icons in the specified app:
 
 ```bash
-➜  docker run -it --name butler-sheet-icons -v /Users/goran/code/temp/cert:/nodeapp/cert --rm ptarmiganlabs/butler-sheet-icons:0.2.0 create-qseow --host 192.168.100.109 --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --logonuserdir LAB --logonuserid goran --logonpwd supersecret --contentlibrary 'abc 123' --pagewait 5 --secure true --headless true --imagedir img
-Unable to find image 'ptarmiganlabs/butler-sheet-icons:0.2.0' locally
-0.2.0: Pulling from ptarmiganlabs/butler-sheet-icons
-199ebcd83264: Already exists
-ddbb155879c0: Already exists
-c194bbaa3d8b: Already exists
-6154ac87d7f3: Already exists
-0c283e88ced7: Already exists
-dba101298560: Already exists
-1d8bfd4e555f: Already exists
-757e41ffbdcc: Already exists
-6e055c4b8721: Already exists
-ac5632f1f587: Pull complete
-9eca73989691: Pull complete
-683b59017a4e: Pull complete
-c429f6803e05: Pull complete
-461dad23e04d: Pull complete
-32635c423cf4: Pull complete
-c621eb1478ea: Pull complete
-Digest: sha256:d81d3151ef56cc1d183b453c6d11fb52a28c8f00e93b58748802d0c4d0112e24
-Status: Downloaded newer image for ptarmiganlabs/butler-sheet-icons:0.2.0
-2021-06-27T12:44:33.808Z info: Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)
-2021-06-27T12:44:34.185Z info: Opened app a3e0f5d2-000a-464f-998d-33d333b175d7
-2021-06-27T12:44:34.197Z info: Number of sheets in app: 3
-2021-06-27T12:44:48.107Z info: Processing sheet 1: 'Sheet 1', ID d22edb36-d572-4b4d-84a0-529e59bc42a9, description '', approved 'false', published 'false'
-2021-06-27T12:44:56.384Z info: Processing sheet 2: 'Sheet 2', ID 860464a5-ad6c-401d-bbd2-9b435ed2c025, description '', approved 'false', published 'false'
-2021-06-27T12:45:04.126Z info: Processing sheet 3: 'Sheet 3', ID 6e590831-2911-421e-9a31-541364f0f82d, description '', approved 'false', published 'false'
-2021-06-27T12:45:11.880Z info: Uploading images in folder: /nodeapp/img
-2021-06-27T12:45:11.880Z info: Uploading images to Qlik Sense content library: abc 123
-2021-06-27T12:45:11.887Z info: Starting update of sheet icons
-2021-06-27T12:45:12.270Z info: Opened app a3e0f5d2-000a-464f-998d-33d333b175d7
-2021-06-27T12:45:12.282Z info: UPDATE: Number of sheets in app: 3
-2021-06-27T12:45:12.282Z info: Updating thumbnail for sheet 1: Name 'Sheet 1', ID d22edb36-d572-4b4d-84a0-529e59bc42a9, description ''
-2021-06-27T12:45:12.627Z info: Updating thumbnail for sheet 2: Name 'Sheet 2', ID 860464a5-ad6c-401d-bbd2-9b435ed2c025, description ''
-2021-06-27T12:45:12.928Z info: Updating thumbnail for sheet 3: Name 'Sheet 3', ID 6e590831-2911-421e-9a31-541364f0f82d, description ''
-2021-06-27T12:45:13.262Z info: Done
+➜  docker run -it --name butler-sheet-icons -v /Users/goran/code/temp/cert:/nodeapp/cert --rm ptarmiganlabs/butler-sheet-icons:1.1.0 create-qseow --host 192.168.100.109 --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --imagedir ./img --logonuserdir MYDIR --logonuserid goran --logonpwd supersecret --contentlibrary "abc 123" --pagewait 3 --secure true --headless true --prefix form
+Unable to find image 'ptarmiganlabs/butler-sheet-icons:1.1.0' locally
+1.1.0: Pulling from ptarmiganlabs/butler-sheet-icons
+07aded7c29c6: Pull complete
+92706508d124: Pull complete
+29e8836fa52b: Pull complete
+c69c406f761b: Pull complete
+1ad0d9e4f0be: Pull complete
+3d7ea9abcdb8: Pull complete
+4fbec49c8828: Pull complete
+4a70bb69a4a3: Pull complete
+b9e0544b64a9: Pull complete
+c862eadcc6b5: Pull complete
+184eab8c49d2: Pull complete
+5c87f2fa6820: Pull complete
+Digest: sha256:8074a0f298410f4a609b993c50647db941fab7e75b6c802d2c5cc369da5bc509
+Status: Downloaded newer image for ptarmiganlabs/butler-sheet-icons:1.1.0
+2021-09-30T03:34:08.258Z info: Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)
+2021-09-30T03:34:08.916Z info: Opened app a3e0f5d2-000a-464f-998d-33d333b175d7
+2021-09-30T03:34:08.937Z info: Number of sheets in app: 4
+2021-09-30T03:34:23.618Z info: Processing sheet 1: 'Thumbnail demo', ID 934a2724-8eae-4463-8307-0a8917471090, description '', approved 'false', published 'false'
+2021-09-30T03:34:32.982Z info: Processing sheet 2: 'Sheet 1', ID d22edb36-d572-4b4d-84a0-529e59bc42a9, description '', approved 'false', published 'false'
+2021-09-30T03:34:42.301Z info: Processing sheet 3: 'Sheet 2', ID 860464a5-ad6c-401d-bbd2-9b435ed2c025, description '', approved 'false', published 'false'
+2021-09-30T03:34:50.941Z info: Processing sheet 4: 'Sheet 3', ID 6e590831-2911-421e-9a31-541364f0f82d, description '', approved 'false', published 'false'
+2021-09-30T03:34:59.846Z info: Uploading images in folder: /nodeapp/img
+2021-09-30T03:34:59.847Z info: Uploading images to Qlik Sense content library: abc 123
+2021-09-30T03:34:59.868Z info: Starting update of sheet icons
+2021-09-30T03:35:00.249Z info: Opened app a3e0f5d2-000a-464f-998d-33d333b175d7
+2021-09-30T03:35:00.278Z info: UPDATE: Number of sheets in app: 4
+2021-09-30T03:35:00.278Z info: Updating thumbnail for sheet 1: Name 'Thumbnail demo', ID 934a2724-8eae-4463-8307-0a8917471090, description ''
+2021-09-30T03:35:00.594Z info: Updating thumbnail for sheet 2: Name 'Sheet 1', ID d22edb36-d572-4b4d-84a0-529e59bc42a9, description ''
+2021-09-30T03:35:00.891Z info: Updating thumbnail for sheet 3: Name 'Sheet 2', ID 860464a5-ad6c-401d-bbd2-9b435ed2c025, description ''
+2021-09-30T03:35:01.185Z info: Updating thumbnail for sheet 4: Name 'Sheet 3', ID 6e590831-2911-421e-9a31-541364f0f82d, description ''
+2021-09-30T03:35:01.546Z info: Done
 ➜  
 ```
 
@@ -327,7 +325,7 @@ All required options must be specified before the tool will proceed and do any a
 
 ## 5.1. Command: create-qseow
 
-The command assumes there is standard Windows, form based authentication (username + password) available on the specified virtual proxy.
+The command assumes there is standard Windows, form based authentication (username + password) available on the specified virtual proxy (which is specified using the `--prefix` option).
 
 A complete session using this command is described [here](./docs/qseow-demo_1.md).
 
@@ -338,29 +336,30 @@ Usage: butler-sheet-icons create-qseow [options]
 create thumbnail images based on the layout of each sheet in a Qlik Sense Enterprise on Windows (QSEoW) application
 
 Options:
-  --loglevel <level>               log level (error, warning, info, verbose, debug, silly) (default: "info")
-  --host <host>                    Qlik Sense server IP/FQDN
-  --engineport <port>              Qlik Sense server engine port (default: "4747")
-  --qrsport <port>                 Qlik Sense server repository service (QRS) port (default: "4242")
-  --port <port>                    Qlik Sense http/https port. 443 is default for https, 80 for http
-  --schemaversion <string>         Qlik Sense engine schema version (default: "12.612.0")
-  --appid <id>                     Qlik Sense app whose master items should be modified
-  --certfile <file>                Qlik Sense certificate file (exported from QMC) (default: "./cert/client.pem")
-  --certkeyfile <file>             Qlik Sense certificate key file (exported from QMC) (default: "./cert/client_key.pem")
-  --rootcertfile <file>            Qlik Sense root certificate file (exported from QMC) (default: "./cert/root.pem")
-  --prefix <prefix>                Qlik Sense virtual proxy prefix (default: "")
-  --secure <true|false>            connection to Qlik Sense engine is via https (default: true)
-  --apiuserdir <directory>         user directory for user to connect with when using Sense APIs
-  --apiuserid <userid>             user ID for user to connect with when using Sense APIs
-  --logonuserdir <directory>       user directory for user to connect with when logging into web UI
-  --logonuserid <userid>           user ID for user to connect with when logging into web UI
-  --logonpwd <password>            password for user to connect with
-  --hosttype <type>                type of Qlik Sense server (qseow) (default: "qseow")
-  --headless <true|false>          headless (=not visible) browser (true, false) (default: true)
-  --pagewait <seconds>             number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
-  --imagedir <directory>           directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
-  --contentlibrary <library-name>  Qlik Sense content library to which thumbnails will be uploaded (default: "Butler sheet thumbnails")
-  -h, --help                       display help for command
+  --loglevel <level>                 log level (error, warning, info, verbose, debug, silly) (default: "info")
+  --host <host>                      Qlik Sense server IP/FQDN
+  --engineport <port>                Qlik Sense server engine port (default: "4747")
+  --qrsport <port>                   Qlik Sense server repository service (QRS) port (default: "4242")
+  --port <port>                      Qlik Sense http/https port. 443 is default for https, 80 for http
+  --schemaversion <string>           Qlik Sense engine schema version (default: "12.612.0")
+  --appid <id>                       Qlik Sense app whose master items should be modified
+  --certfile <file>                  Qlik Sense certificate file (exported from QMC) (default: "./cert/client.pem")
+  --certkeyfile <file>               Qlik Sense certificate key file (exported from QMC) (default: "./cert/client_key.pem")
+  --rootcertfile <file>              Qlik Sense root certificate file (exported from QMC) (default: "./cert/root.pem")
+  --rejectUnauthorized <true|false>  Ignore warnings when Sense certificate doesn\'t match the --host paramater (default: false)
+  --prefix <prefix>                  Qlik Sense virtual proxy prefix (default: "")
+  --secure <true|false>              connection to Qlik Sense engine is via https (default: true)
+  --apiuserdir <directory>           user directory for user to connect with when using Sense APIs
+  --apiuserid <userid>               user ID for user to connect with when using Sense APIs
+  --logonuserdir <directory>         user directory for user to connect with when logging into web UI
+  --logonuserid <userid>             user ID for user to connect with when logging into web UI
+  --logonpwd <password>              password for user to connect with
+  --hosttype <type>                  type of Qlik Sense server (qseow) (default: "qseow")
+  --headless <true|false>            headless (=not visible) browser (true, false) (default: true)
+  --pagewait <seconds>               number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
+  --imagedir <directory>             directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
+  --contentlibrary <library-name>    Qlik Sense content library to which thumbnails will be uploaded (default: "Butler sheet thumbnails")
+  -h, --help                         display help for command
 ➜  src git:(master)
 ```
 
