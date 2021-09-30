@@ -346,7 +346,7 @@ Options:
   --certfile <file>                  Qlik Sense certificate file (exported from QMC) (default: "./cert/client.pem")
   --certkeyfile <file>               Qlik Sense certificate key file (exported from QMC) (default: "./cert/client_key.pem")
   --rootcertfile <file>              Qlik Sense root certificate file (exported from QMC) (default: "./cert/root.pem")
-  --rejectUnauthorized <true|false>  Ignore warnings when Sense certificate doesn\'t match the --host paramater (default: false)
+  --rejectUnauthorized <true|false>  Ignore warnings when Sense certificate doesn't match the --host paramater (default: false)
   --prefix <prefix>                  Qlik Sense virtual proxy prefix (default: "")
   --secure <true|false>              connection to Qlik Sense engine is via https (default: true)
   --apiuserdir <directory>           user directory for user to connect with when using Sense APIs
