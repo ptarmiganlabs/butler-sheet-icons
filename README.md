@@ -289,6 +289,9 @@ Status: Downloaded newer image for ptarmiganlabs/butler-sheet-icons:1.1.0
 ➜  
 ```
 
+Note: The command above assumes the certificates exported from QSEoW are available in `/Users/goran/code/temp/cert`.
+
+
 # 5. Commands
 
 List available commands using the --help option:
