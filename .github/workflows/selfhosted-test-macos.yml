@@ -1,5 +1,6 @@
 name: test-macos
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
@@ -68,6 +69,6 @@ jobs:
       with:
         url: mqtt://192.168.100.20:1884
         topic: control/sp53/mac-build1/action-runner
-        payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status":"${{ env.JOB_STATUS }}" }'
+        payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","conclusion":"${{ env.JOB_STATUS }}" }'
         connectTimeout: 30000
         
