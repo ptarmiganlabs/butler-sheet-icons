@@ -1,5 +1,13 @@
 # Changelog
 
+### [1.1.1](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.0...butler-sheet-icons-v1.1.1) (2021-10-04)
+
+
+### Miscellaneous
+
+* **deps:** update dependency snyk to v1.730.0 ([eb43937](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/eb439372aebce349d9cea0dc610e080e69607391))
+* Use latest & greatest foundation for created Docker images ([1655ba3](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/1655ba3d233ae9d8aeb41bfbc1915e7103bc52ca))
+
 ## [1.1.0](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.0.15...butler-sheet-icons-v1.1.0) (2021-09-29)
 
 
