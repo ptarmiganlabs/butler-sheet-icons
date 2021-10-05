@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.1.3](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.2...butler-sheet-icons-v1.1.3) (2021-10-05)
+
+
+### Bug Fixes
+
+* Tweaking Docker builds ([18b43d0](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/18b43d0b42c4220f521e7a1b7ae3fa2f5f863403))
+
 ### [1.1.2](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.1...butler-sheet-icons-v1.1.2) (2021-10-05)
 
 
