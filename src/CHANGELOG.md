@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.1.4](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.3...butler-sheet-icons-v1.1.4) (2021-10-05)
+
+
+### Bug Fixes
+
+* Twaeking Docker builds ([#63](https://www.github.com/ptarmiganlabs/butler-sheet-icons/issues/63)) ([cc860c9](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/cc860c9ae20cef15f7251c98510f6d2797c181de))
+
 ### [1.1.3](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.2...butler-sheet-icons-v1.1.3) (2021-10-05)
 
 
