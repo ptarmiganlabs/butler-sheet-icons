@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.1.6](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.5...butler-sheet-icons-v1.1.6) (2021-10-07)
+
+
+### Miscellaneous
+
+* **deps:** update dependency snyk to v1.733.0 ([7d9f644](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/7d9f644c3cf8c29e8dbf71f5410b01052e43081a))
+
 ### [1.1.5](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.4...butler-sheet-icons-v1.1.5) (2021-10-05)
 
 
