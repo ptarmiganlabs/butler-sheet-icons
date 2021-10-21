@@ -32,7 +32,7 @@ jobs:
       with:
         url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
         topic: control/sp53/mac-build1/action-runner
-        payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "started","conclusion":"${{ env.JOB_CONCLUSION }}" }'
+        payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
         connectTimeout: 30000
 
     - uses: actions/checkout@v2
