@@ -1,5 +1,15 @@
 # Changelog
 
+### [1.1.8](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.7...butler-sheet-icons-v1.1.8) (2021-10-21)
+
+
+### Miscellaneous
+
+* **deps:** update dependency jest to v27.2.5 ([caacfd3](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/caacfd324dcaac6ed6118546995601627b5ae2d3))
+* **deps:** update dependency jest to v27.3.1 ([c3ccbfe](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/c3ccbfee9e108808886e497802309722bf4f1b2c))
+* **deps:** update dependency snyk to v1.741.0 ([2c23796](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/2c23796edfbba9a5a390d6c6ced7569145489b6f))
+* **deps:** update dependency snyk to v1.742.0 ([4bc3649](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/4bc3649e4fc50b8a81e93ae5faeb5b51cc4e6932))
+
 ### [1.1.7](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.6...butler-sheet-icons-v1.1.7) (2021-10-13)
 
 
