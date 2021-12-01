@@ -1,5 +1,13 @@
 # Changelog
 
+### [1.1.9](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.8...butler-sheet-icons-v1.1.9) (2021-12-01)
+
+
+### Miscellaneous
+
+* **deps:** pin dependencies ([687dd42](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/687dd42d0e4c32ba2111152ff5f669a7d82bf504))
+* **deps:** Update dependencies ([656f62e](https://www.github.com/ptarmiganlabs/butler-sheet-icons/commit/656f62eee3e09646c115eb01163ca0afb4be4854))
+
 ### [1.1.8](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.7...butler-sheet-icons-v1.1.8) (2021-10-21)
 
 
