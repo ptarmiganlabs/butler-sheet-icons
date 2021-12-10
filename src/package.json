@@ -35,7 +35,7 @@
     "url": "https://github.com/ptarmiganlabs/butler-sheet-icons/issues"
   },
   "devDependencies": {
-    "jest": "27.4.3",
+    "jest": "27.4.4",
     "snyk": "1.780.0"
   }
 }
