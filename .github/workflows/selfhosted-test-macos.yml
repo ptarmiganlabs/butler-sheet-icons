@@ -35,7 +35,7 @@ jobs:
           payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
           connectTimeout: 30000
 
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
 
       - name: Debugging 1
         run: pwd && ls -la
