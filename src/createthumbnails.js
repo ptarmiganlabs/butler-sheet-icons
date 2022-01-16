@@ -249,7 +249,7 @@ const qseowCreateThumbnails = options => {
 
       resolve(true);
     } catch (err) {
-      logger.error(`CREATE THUMBNAILS 2: ${JSON.stringify(err, null, 2)}`);
+      logger.error(`CREATE THUMBNAILS 2: ${err}`);
 
       resolve(false);
     }

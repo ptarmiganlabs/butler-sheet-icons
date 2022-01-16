@@ -38,7 +38,7 @@ const qseowVerifyContentLibraryExists = options => {
         })
         .catch(err => {
           // Return error msg
-          logger.error(`CONTENT LIBRARY 1: ${JSON.stringify(err, null, 2)}`);
+          logger.error(`CONTENT LIBRARY 1: ${err}`);
           reject(false);
         });
     } catch (err) {
