@@ -395,10 +395,16 @@ This will give you *very* detailed logging, but this can be useful when investig
 
 # 7. Testing
 
-Whenever changes are made to any part of Butler Sheet Icons the new version is automatically tested against a real Qlik Sense Enterprise on Windows server. Tests are made on the following platforms:
+Whenever changes are made to any part of Butler Sheet Icons the new version is automatically tested against a real Qlik Sense Enterprise on Windows server. Tests are made on the following platforms and Node.js versions
 
-- Windows Server 2016: Node.js 14.17.1, Node.js 16.4.0
-- MacOS: Node.js 16.4.0
+- Windows Server 2016
+  - Latest available Node.js 14
+  - Latest available Node.js 16
+  - Latest available Node.js LTS
+- MacOS Monterey
+  - Latest available Node.js 14
+  - Latest available Node.js 16
+  - Latest available Node.js LTS
 
 The current status of each test suite is shown as badges at the top of the [readme file](https://github.com/ptarmiganlabs/butler-sheet-icons/blob/main/README.md).
 
