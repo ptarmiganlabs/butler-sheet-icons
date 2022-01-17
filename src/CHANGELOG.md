@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.10...butler-sheet-icons-v1.2.0) (2022-01-17)
+
+
+### Features
+
+* Control part of sheet used as thumbnail ([5da0929](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5da092973ef2a5d823b9cc9ce863eb6c3ea9d468)), closes [#6](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/6)
+* Refine automated CI testing ([2259815](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/225981594cf8fa82bacabc741c64ad169269e72e)), closes [#7](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/7)
+
+
+### Miscellaneous
+
+* **deps:** update dependency jest to v27.4.7 ([30a6aac](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/30a6aacfe7c046e4248f1f443d6e7e875d3af40e))
+* Update dependencies ([13f0c67](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/13f0c679b9afb4ad48150f29bb0512a9b18e6dcb))
+
 ### [1.1.10](https://www.github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.9...butler-sheet-icons-v1.1.10) (2021-12-10)
 
 
