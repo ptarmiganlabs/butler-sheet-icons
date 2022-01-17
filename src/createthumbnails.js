@@ -32,6 +32,19 @@ const qseowCreateThumbnails = (options) =>
             );
             logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
+            // If --includesheetpart has been specifed it should contain a valid value
+            if (
+                options.includesheetpart !== '1' &&
+                options.includesheetpart !== '2' &&
+                options.includesheetpart !== '3' &&
+                options.includesheetpart !== '4'
+            ) {
+                logger.error(
+                    `Invalid --includesheetpart paramater: ${options.includesheetpart}. Aborting`
+                );
+                throw 'Invalid --includesheetpart paramater';
+            }
+
             // Verify QSEoW certificates exist
             const certsExist = await qseowVerifyCertificatesExist(options);
             if (certsExist === false) {
@@ -246,15 +259,22 @@ const qseowCreateThumbnails = (options) =>
                     await page.waitForTimeout(options.pagewait * 1000);
                     const fileName = `${imgDir}/app-${options.appid}-sheet-${iSheetNum}.png`;
 
-                    // 1: Only chart part of sheet (no sheet title, selections or app info)
-                    // const selector = '#grid-wrap'
-                    // 2: Include sheet title  (no selections or app info)
-                    // const selector = '#qv-stage-container > div > div.qv-panel-content.flex-row'
-                    // 3: Include sheet title and selection bar (no app info)
-                    // const selector = '#qv-stage-container > div'
-                    // 4: Take screen shot of entire sheet, including sheet title, top menu and status bars.
-                    const selector = '#qv-page-container';
-                    // or: await page.screenshot({ path: fileName });
+                    let selector = '';
+                    if (options.includesheetpart === '1') {
+                        // 1: Only chart part of sheet (no sheet title, selections or app info)
+                        selector = '#grid-wrap';
+                    } else if (options.includesheetpart === '2') {
+                        // 2: Include sheet title  (no selections or app info)
+                        selector = '#qv-stage-container > div > div.qv-panel-content.flex-row';
+                    } else if (options.includesheetpart === '3') {
+                        // 3: Include sheet title and selection bar (no app info)
+                        selector = '#qv-stage-container > div';
+                    } else if (options.includesheetpart === '4') {
+                        // 4: Take screen shot of entire sheet, including sheet title, top menu and status bars.
+                        // or: await page.screenshot({ path: fileName });
+                        selector = '#qv-page-container';
+                    }
+
                     // Ensure that the element we're interested in is loaded
                     await page.waitForSelector(selector);
                     const sheetMainPart = await page.$(selector);

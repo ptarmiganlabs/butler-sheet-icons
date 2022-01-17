@@ -68,7 +68,7 @@ const program = new Command();
         )
         .option(
             '--rejectUnauthorized <true|false>',
-            "Ignore warnings when Sense certificate doesn't match the --host paramater",
+            'Ignore warnings when Sense certificate does not match the --host paramater',
             false
         )
         .requiredOption('--prefix <prefix>', 'Qlik Sense virtual proxy prefix', '')
@@ -110,6 +110,12 @@ const program = new Command();
             '--contentlibrary <library-name>',
             'Qlik Sense content library to which thumbnails will be uploaded',
             'Butler sheet thumbnails'
+        )
+
+        .option(
+            '--includesheetpart <value>',
+            'which part of sheets should be use to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar',
+            '1'
         );
 
     // Parse command line params
