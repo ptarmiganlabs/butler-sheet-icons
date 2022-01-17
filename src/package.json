@@ -20,11 +20,17 @@
   "dependencies": {
     "commander": "^8.3.0",
     "enigma.js": "^2.7.3",
+    "eslint": "^7.32.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "8.3.0",
+    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-prettier": "^4.0.0",
     "fs-extra": "^10.0.0",
     "puppeteer": "^13.0.0",
     "qrs-interact": "^6.3.1",
     "winston": "^3.3.3",
-    "winston-daily-rotate-file": "^4.5.5"
+    "winston-daily-rotate-file": "^4.5.5",
+    "ws": "^8.4.2"
   },
   "repository": {
     "type": "git",
@@ -36,6 +42,7 @@
   },
   "devDependencies": {
     "jest": "27.4.7",
+    "prettier": "2.5.1",
     "snyk": "1.827.0"
   }
 }
