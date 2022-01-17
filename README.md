@@ -17,9 +17,10 @@ Table of contents
 - [2. Install](#2-install)
   - [2.1. Certificates](#21-certificates)
   - [2.2. Content libraries](#22-content-libraries)
-  - [2.3. Notes on using Butler Sheet Icons with Qlik Sense Enterprise on Windows](#23-notes-on-using-butler-sheet-icons-with-qlik-sense-enterprise-on-windows)
-    - [2.3.1. Login method](#231-login-method)
-    - [2.3.2. Using QSEoW's built-in Node.js](#232-using-qseows-built-in-nodejs)
+  - [2.3. Which part of each sheet to use as thumbnails](#23-which-part-of-each-sheet-to-use-as-thumbnails)
+  - [2.4. Using Butler Sheet Icons with Qlik Sense Enterprise on Windows](#24-using-butler-sheet-icons-with-qlik-sense-enterprise-on-windows)
+    - [2.4.1. Login method](#241-login-method)
+    - [2.4.2. Using QSEoW's built-in Node.js](#242-using-qseows-built-in-nodejs)
 - [3. Running as Node.js app](#3-running-as-nodejs-app)
 - [4. Running as Docker container](#4-running-as-docker-container)
 - [5. Commands](#5-commands)
@@ -153,9 +154,35 @@ Butler Sheet Icons (BSI) will create image thumbnails for all sheets in a QSEoW 
 
 If not told otherwise by means of the `--contentlibrary` option, BSI will try to upload the images to a content library called "Butler sheet thumbnails".
 
-## 2.3. Notes on using Butler Sheet Icons with Qlik Sense Enterprise on Windows
+## 2.3. Which part of each sheet to use as thumbnails
 
-### 2.3.1. Login method
+A sheet in a standard Qlik Sense application consists of several parts.  
+Starting at the bottom of the screen we have
+
+1. The main part of the sheet. This is where tables, charts etc are shown.
+2. A sheet title.
+3. A selection bar. Shows what selections are currently made in the app.
+4. A menu bar. Here we find the main menu to the left, the app name, a drop-down menu showing all sheets etc.
+
+Butler Sheet Icons lets you control which part of each sheet will be used as the thumbnail for that sheet.
+
+The parameter `--includesheetpart` is used to control this.  
+The allowed values are:
+
+1: The main sheet area only. I.e. no sheet title, selection bar or menu bar.  
+2: Same as 1 but with sheet title added.  
+3: Same as 2 but with selection bar added.  
+4: Same as 3 but with menu bar added, i.e. the entire page
+
+Looking at a Qlik Sense sheet we have:
+
+![Using different parts of Sense sheet's as thumbnails](./docs/img/create-qseow_sheetpart_1.png "Using different parts of Sense sheet's as thumbnails")
+
+`--includesheetpart` is an optional parameter with a default value of 1.
+
+## 2.4. Using Butler Sheet Icons with Qlik Sense Enterprise on Windows
+
+### 2.4.1. Login method
 
 QSEoW offers two different built-in ways to log in using username/pwd.  
 These are set per virtual proxy in the "Windows authentication pattern" field. Valid options are `Windows` and `Form`.
@@ -167,7 +194,7 @@ When set to `Form` the user will see a web form in which username and password i
 Butler Sheet Icons only supports the `Form` method.  
 Thus, if you use BSI on Windows you should make sure to specify a virtual proxy (`--prefix` option) that uses `Form` authentication!
 
-### 2.3.2. Using QSEoW's built-in Node.js
+### 2.4.2. Using QSEoW's built-in Node.js
 
 While this might sound like a good idea, there are several reasons to stay away from it:
 
@@ -252,7 +279,7 @@ Commands:
 If we pass in proper parameters we will get new sheet icons in the specified app:
 
 ```bash
-➜  ~ docker run -it --name butler-sheet-icons -v /Users/goran/code/temp/cert:/nodeapp/cert --rm ptarmiganlabs/butler-sheet-icons:1.1.5 create-qseow --host 192.168.100.109 --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --imagedir ./img --logonuserdir MYDIR --logonuserid goran --logonpwd supersecret --contentlibrary "abc 123" --pagewait 3 --secure true --headless true --prefix form
+➜  ~ docker run -it --name butler-sheet-icons -v /Users/goran/code/temp/cert:/nodeapp/cert --rm ptarmiganlabs/butler-sheet-icons:1.1.5 create-qseow --host 192.168.100.109 --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --imagedir ./img --logonuserdir MYDIR --logonuserid goran --logonpwd supersecret --contentlibrary "abc 123" --pagewait 3 --secure true --headless true --prefix form --includesheetpart 1
 Unable to find image 'ptarmiganlabs/butler-sheet-icons:1.1.5' locally
 1.1.5: Pulling from ptarmiganlabs/butler-sheet-icons
 bd897bb914af: Already exists
@@ -291,7 +318,6 @@ Status: Downloaded newer image for ptarmiganlabs/butler-sheet-icons:1.1.5
 ```
 
 Note: The command above assumes the certificates exported from QSEoW are available in `/Users/goran/code/temp/cert`.
-
 
 # 5. Commands
 
@@ -350,7 +376,7 @@ Options:
   --certfile <file>                  Qlik Sense certificate file (exported from QMC) (default: "./cert/client.pem")
   --certkeyfile <file>               Qlik Sense certificate key file (exported from QMC) (default: "./cert/client_key.pem")
   --rootcertfile <file>              Qlik Sense root certificate file (exported from QMC) (default: "./cert/root.pem")
-  --rejectUnauthorized <true|false>  Ignore warnings when Sense certificate doesn not match the --host paramater (default: false)
+  --rejectUnauthorized <true|false>  Ignore warnings when Sense certificate does not match the --host paramater (default: false)
   --prefix <prefix>                  Qlik Sense virtual proxy prefix (default: "")
   --secure <true|false>              connection to Qlik Sense engine is via https (default: true)
   --apiuserdir <directory>           user directory for user to connect with when using Sense APIs
@@ -363,6 +389,7 @@ Options:
   --pagewait <seconds>               number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
   --imagedir <directory>             directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
   --contentlibrary <library-name>    Qlik Sense content library to which thumbnails will be uploaded (default: "Butler sheet thumbnails")
+  --includesheetpart <value>         which part of sheets should be use to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar (default: "1")
   -h, --help                         display help for command
 ➜  src git:(master)
 ```
@@ -372,7 +399,7 @@ Here we see all options available for the create-qseow command. When possible th
 A command specifying many (but not all) options can look like this:
 
 ```bash
-node butler-sheet-icons.js  create-qseow --host 192.168.100.109 --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --logonuserdir LAB --logonuserid goran --logonpwd supersecret --contentlibrary 'abc 123' --pagewait 5 --secure true --headless true --imagedir './img'
+node butler-sheet-icons.js  create-qseow --host 192.168.100.109 --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --logonuserdir LAB --logonuserid goran --logonpwd supersecret --contentlibrary 'abc 123' --pagewait 5 --secure true --headless true --imagedir './img'  --includesheetpart 2
 ```
 
 Actually running the command will
