@@ -72,6 +72,7 @@ jobs:
           BSI_TEST_TIMEOUT: 120000
           BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
           BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
+          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
 
       - name: Send job status to MQTT when done
         uses: potaesm/github-actions-mqtt-request@1.0.0
