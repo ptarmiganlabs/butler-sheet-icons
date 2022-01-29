@@ -37,7 +37,11 @@ const qseowCreateThumbnails = (options) =>
                 options.includesheetpart !== '1' &&
                 options.includesheetpart !== '2' &&
                 options.includesheetpart !== '3' &&
-                options.includesheetpart !== '4'
+                options.includesheetpart !== '4' &&
+                options.includesheetpart !== 1 &&
+                options.includesheetpart !== 2 &&
+                options.includesheetpart !== 3 &&
+                options.includesheetpart !== 4
             ) {
                 logger.error(
                     `Invalid --includesheetpart paramater: ${options.includesheetpart}. Aborting`
