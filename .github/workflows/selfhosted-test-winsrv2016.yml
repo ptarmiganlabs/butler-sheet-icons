@@ -69,7 +69,7 @@ jobs:
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-          BSI_TEST_TIMEOUT: 120000
+          BSI_TEST_TIMEOUT: 300000
           BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
           BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
