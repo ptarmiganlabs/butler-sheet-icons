@@ -2,6 +2,8 @@ const { qseowCreateThumbnails } = require('../createthumbnails');
 
 const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 120000; // 2 minute default timeout
 
+console.log(`Jest timeout: ${defaultTestTimeout}`);
+
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'debug',
     engineport: process.env.BSI_ENGINE_PORT || '4747',
