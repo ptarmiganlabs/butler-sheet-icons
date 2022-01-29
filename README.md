@@ -245,21 +245,20 @@ When running BSI in a Docker container on MacOs it looks like this (Linux will b
 ➜  docker run -it --rm ptarmiganlabs/butler-sheet-icons:latest --help
 Unable to find image 'ptarmiganlabs/butler-sheet-icons:latest' locally
 latest: Pulling from ptarmiganlabs/butler-sheet-icons
-199ebcd83264: Pull complete
-ddbb155879c0: Pull complete
-c194bbaa3d8b: Pull complete
-6154ac87d7f3: Pull complete
-0c283e88ced7: Pull complete
-dba101298560: Pull complete
-1d8bfd4e555f: Pull complete
-757e41ffbdcc: Pull complete
-6e055c4b8721: Pull complete
-219ea737f9ad: Pull complete
-0f3b7b7db5b8: Pull complete
-319d4c5dd422: Pull complete
-7bd723a22158: Pull complete
-754be9fb2e15: Pull complete
-Digest: sha256:b570b19e1e8a4320f4bae43a5c6a8c3f8acec27c157137c3418a1311d737054f
+a2abf6c4d29d: Pull complete
+716b0e096692: Pull complete
+eb13b01b6650: Pull complete
+d19607afd777: Pull complete
+664676c8ede0: Pull complete
+4a21f35a6c5c: Pull complete
+dfce2b7742ee: Pull complete
+dd84a4ac7dc0: Pull complete
+8e52b3ceabb7: Pull complete
+0865bf6d480e: Pull complete
+26cf010d1aa0: Pull complete
+f7c0d126f4c0: Pull complete
+c6ac444a3a7e: Pull complete
+Digest: sha256:bfaba0612a8eb75f49ad627fa6f866ee9282770cf4a7404e8df9684abe657983
 Status: Downloaded newer image for ptarmiganlabs/butler-sheet-icons:latest
 Usage: butler-sheet-icons [options] [command]
 
@@ -279,42 +278,26 @@ Commands:
 If we pass in proper parameters we will get new sheet icons in the specified app:
 
 ```bash
-➜  ~ docker run -it --name butler-sheet-icons -v /Users/goran/code/temp/cert:/nodeapp/cert --rm ptarmiganlabs/butler-sheet-icons:1.1.5 create-qseow --host 192.168.100.109 --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --imagedir ./img --logonuserdir MYDIR --logonuserid goran --logonpwd supersecret --contentlibrary "abc 123" --pagewait 3 --secure true --headless true --prefix form --includesheetpart 1
-Unable to find image 'ptarmiganlabs/butler-sheet-icons:1.1.5' locally
-1.1.5: Pulling from ptarmiganlabs/butler-sheet-icons
-bd897bb914af: Already exists
-c3372b6b7e1b: Pull complete
-7fada2085a69: Pull complete
-26091d44ab20: Pull complete
-66ece138605a: Pull complete
-0637a6c12355: Pull complete
-67ec3cc96d61: Pull complete
-6a620d6bab74: Pull complete
-db89fe2121d6: Pull complete
-7ed0278baf44: Pull complete
-8244fa0a7074: Pull complete
-f4e971f1bfbd: Pull complete
-77eb25d67f07: Pull complete
-Digest: sha256:cdebd205b4db7ae7189530c81456736b106275293f1608514179155c0eba2ae0
-Status: Downloaded newer image for ptarmiganlabs/butler-sheet-icons:1.1.5
-2021-10-05T07:31:51.469Z info: Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)
-2021-10-05T07:31:51.909Z info: Opened app a3e0f5d2-000a-464f-998d-33d333b175d7
-2021-10-05T07:31:51.927Z info: Number of sheets in app: 4
-2021-10-05T07:32:03.474Z info: Processing sheet 1: 'Thumbnail demo', ID 934a2724-8eae-4463-8307-0a8917471090, description '', approved 'false', published 'false'
-2021-10-05T07:32:11.794Z info: Processing sheet 2: 'Sheet 1', ID d22edb36-d572-4b4d-84a0-529e59bc42a9, description '', approved 'false', published 'false'
-2021-10-05T07:32:19.862Z info: Processing sheet 3: 'Sheet 2', ID 860464a5-ad6c-401d-bbd2-9b435ed2c025, description '', approved 'false', published 'false'
-2021-10-05T07:32:27.308Z info: Processing sheet 4: 'Sheet 3', ID 6e590831-2911-421e-9a31-541364f0f82d, description '', approved 'false', published 'false'
-2021-10-05T07:32:34.341Z info: Uploading images in folder: /nodeapp/img
-2021-10-05T07:32:34.341Z info: Uploading images to Qlik Sense content library: abc 123
-2021-10-05T07:32:34.358Z info: Starting update of sheet icons
-2021-10-05T07:32:34.727Z info: Opened app a3e0f5d2-000a-464f-998d-33d333b175d7
-2021-10-05T07:32:34.738Z info: UPDATE: Number of sheets in app: 4
-2021-10-05T07:32:34.739Z info: Updating thumbnail for sheet 1: Name 'Thumbnail demo', ID 934a2724-8eae-4463-8307-0a8917471090, description ''
-2021-10-05T07:32:35.060Z info: Updating thumbnail for sheet 2: Name 'Sheet 1', ID d22edb36-d572-4b4d-84a0-529e59bc42a9, description ''
-2021-10-05T07:32:35.402Z info: Updating thumbnail for sheet 3: Name 'Sheet 2', ID 860464a5-ad6c-401d-bbd2-9b435ed2c025, description ''
-2021-10-05T07:32:35.706Z info: Updating thumbnail for sheet 4: Name 'Sheet 3', ID 6e590831-2911-421e-9a31-541364f0f82d, description ''
-2021-10-05T07:32:36.033Z info: Done
-➜  ~
+➜  docker run -it --name butler-sheet-icons -v /Users/goran/code/temp/cert:/nodeapp/cert --rm ptarmiganlabs/butler-sheet-icons:latest create-qseow --host 10.11.12.13 --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --imagedir ./img --logonuserdir MYDIR --logonuserid userjoe --logonpwd supersecret --contentlibrary "abc 123" --pagewait 15 --secure true --headless true --prefix form --includesheetpart 1
+
+2022-01-17T09:35:43.537Z info: Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)
+2022-01-17T09:35:43.898Z info: Opened app a3e0f5d2-000a-464f-998d-33d333b175d7
+2022-01-17T09:35:43.908Z info: Number of sheets in app: 4
+2022-01-17T09:36:17.642Z info: Processing sheet 1: 'Thumbnail demo', ID 934a2724-8eae-4463-8307-0a8917471090, description '', approved 'false', published 'false'
+2022-01-17T09:36:35.723Z info: Processing sheet 2: 'Sheet 1', ID d22edb36-d572-4b4d-84a0-529e59bc42a9, description '', approved 'false', published 'false'
+2022-01-17T09:36:53.841Z info: Processing sheet 3: 'Sheet 2', ID 860464a5-ad6c-401d-bbd2-9b435ed2c025, description '', approved 'false', published 'false'
+2022-01-17T09:37:11.577Z info: Processing sheet 4: 'Sheet 3', ID 6e590831-2911-421e-9a31-541364f0f82d, description '', approved 'false', published 'false'
+2022-01-17T09:37:29.339Z info: Uploading images in folder: /nodeapp/img
+2022-01-17T09:37:29.340Z info: Uploading images to Qlik Sense content library: abc 123
+2022-01-17T09:37:29.347Z info: Starting update of sheet icons
+2022-01-17T09:37:29.745Z info: Opened app a3e0f5d2-000a-464f-998d-33d333b175d7
+2022-01-17T09:37:29.759Z info: UPDATE: Number of sheets in app: 4
+2022-01-17T09:37:29.760Z info: Updating thumbnail for sheet 1: Name 'Thumbnail demo', ID 934a2724-8eae-4463-8307-0a8917471090, description ''
+2022-01-17T09:37:30.088Z info: Updating thumbnail for sheet 2: Name 'Sheet 1', ID d22edb36-d572-4b4d-84a0-529e59bc42a9, description ''
+2022-01-17T09:37:30.398Z info: Updating thumbnail for sheet 3: Name 'Sheet 2', ID 860464a5-ad6c-401d-bbd2-9b435ed2c025, description ''
+2022-01-17T09:37:30.779Z info: Updating thumbnail for sheet 4: Name 'Sheet 3', ID 6e590831-2911-421e-9a31-541364f0f82d, description ''
+2022-01-17T09:37:31.136Z info: Done
+➜ 
 ```
 
 Note: The command above assumes the certificates exported from QSEoW are available in `/Users/goran/code/temp/cert`.
