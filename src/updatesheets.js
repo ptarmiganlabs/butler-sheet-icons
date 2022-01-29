@@ -9,7 +9,8 @@ const { logger } = require('./globals');
  * @param {*} options
  */
 const qseowUpdateSheetThumbnails = async (options) =>
-    new Promise(async (resolve, reject) => {
+    // new Promise(async (resolve, reject) =>
+    {
         try {
             logger.info('Starting update of sheet icons');
 
@@ -103,7 +104,8 @@ const qseowUpdateSheetThumbnails = async (options) =>
         } catch (err) {
             logger.error(`UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
         }
-    });
+    };
+// );
 
 module.exports = {
     qseowUpdateSheetThumbnails,
