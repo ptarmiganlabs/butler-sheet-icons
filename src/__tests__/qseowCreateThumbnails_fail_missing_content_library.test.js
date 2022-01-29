@@ -24,7 +24,7 @@ const options = {
     logonuserdir: process.env.BSI_LOGON_USER_DIR,
     logonuserid: process.env.BSI_LOGON_USER_ID,
     logonpwd: process.env.BSI_LOGON_PWD,
-    includesheetpart: process.env.BSI_INCLUDE_SHEET_PART,
+    includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || 1,
 };
 
 jest.setTimeout(defaultTestTimeout);
