@@ -1,4 +1,4 @@
-const { qseowCreateThumbnails } = require('../createthumbnails.js');
+const { qseowCreateThumbnails } = require('../createthumbnails');
 
 const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 120000; // 2 minute default timeout
 
