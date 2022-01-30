@@ -1,5 +1,5 @@
 const { Command, Option } = require('commander');
-const { logger, appVersion, getLoggingLevel, setLoggingLevel } = require('./globals');
+const { logger, appVersion } = require('./globals');
 
 const { qseowCreateThumbnails } = require('./createthumbnails');
 
@@ -50,7 +50,11 @@ const program = new Command();
             'Qlik Sense http/https port. 443 is default for https, 80 for http'
         )
         .requiredOption('--schemaversion <string>', 'Qlik Sense engine schema version', '12.612.0')
-        .requiredOption('--appid <id>', 'Qlik Sense app whose master items should be modified')
+        .requiredOption(
+            '--appid <id>',
+            'Qlik Sense app whose master items should be modified. Ignored if --qliksensetag is specified',
+            ''
+        )
         .requiredOption(
             '--certfile <file>',
             'Qlik Sense certificate file (exported from QMC)',
@@ -116,8 +120,14 @@ const program = new Command();
             '--includesheetpart <value>',
             'which part of sheets should be use to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar',
             '1'
+        )
+
+        .option(
+            '--qliksensetag <value>',
+            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. If this parameter is specified the --appid parameter will be ignored',
+            ''
         );
 
     // Parse command line params
-    const a = await program.parseAsync(process.argv);
+    await program.parseAsync(process.argv);
 })();

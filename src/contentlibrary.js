@@ -27,22 +27,22 @@ const qseowVerifyContentLibraryExists = (options) =>
                 .then((result) => {
                     if (result.statusCode === 200 && result.body.length > 0) {
                         // Content library found
-                        // logger.verbose(`Content library '${contentlibrary}' exists`);
+                        logger.debug(`Content library '${contentlibrary}' exists`);
                         resolve(true);
                     } else {
                         // Content library mpt found
-                        // logger.error(`Content library '${contentlibrary}' does not exist - aborting`);
+                        logger.debug(`Content library '${contentlibrary}' does not exist`);
                         resolve(false);
                     }
                 })
                 .catch((err) => {
                     // Return error msg
                     logger.error(`CONTENT LIBRARY 1: ${err}`);
-                    reject(false);
+                    reject(new Error(`CONTENT LIBRARY 1: ${err}`));
                 });
         } catch (err) {
             logger.error(`CONTENT LIBRARY 2: ${JSON.stringify(err, null, 2)}`);
-            reject(false);
+            reject(new Error(`CONTENT LIBRARY 2: ${err}`));
         }
     });
 
