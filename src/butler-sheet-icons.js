@@ -21,7 +21,7 @@ const program = new Command();
     program
         .command('create-qseow')
         .description(
-            'create thumbnail images based on the layout of each sheet in a Qlik Sense Enterprise on Windows (QSEoW) application'
+            'Create thumbnail images based on the layout of each sheet in a Qlik Sense Enterprise on Windows (QSEoW) application.\nMultiple apps can be updated with a single command. In this case a Qlik Sense tag is used to identify which apps will be updated.'
         )
         .action(async (options, command) => {
             logger.verbose(`appid=${options.appid}`);
