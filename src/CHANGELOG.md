@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.3.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.2.1...butler-sheet-icons-v1.3.0) (2022-01-30)
+
+
+### Features
+
+* Update multiple apps using Sense tags ([3e01242](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3e0124277ef81a22f8418331796964628633e1c9)), closes [#113](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/113)
+
+
+### Bug Fixes
+
+* Only upload images from the processed app to content library ([3e01242](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3e0124277ef81a22f8418331796964628633e1c9)), closes [#114](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/114)
+
+
+### Documentation
+
+* Update docs for 1.3.0 ([2d98cde](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2d98cde81b9473de2efc7e60ef4425b41c83bafa))
+
 ### [1.2.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.2.0...butler-sheet-icons-v1.2.1) (2022-01-29)
 
 
