@@ -15,12 +15,14 @@ const readCert = (filename) => fs.readFileSync(filename);
 
 /**
  *
+ * @param {*} appId
  * @param {*} options
  * @param {*} command
  * @returns
  */
-const setupEnigmaConnection = (options, command) => {
-    logger.debug('Prepping for Enigma connection...');
+// eslint-disable-next-line no-unused-vars
+const setupEnigmaConnection = (appId, options, command) => {
+    logger.debug(`Prepping for Enigma connection for app ${appId}`);
 
     const qixSchema = require(`enigma.js/schemas/${options.schemaversion}`);
 
@@ -31,7 +33,7 @@ const setupEnigmaConnection = (options, command) => {
             port: options.engineport,
             prefix: options.prefix,
             secure: options.secure === 'true',
-            appId: options.appid,
+            appId,
         }),
         createSocket: (url) =>
             new WebSocket(url, {
