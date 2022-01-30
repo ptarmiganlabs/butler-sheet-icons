@@ -116,7 +116,7 @@ const processApp = async (appId, g, options) => {
             appUrl = `${appUrl}http://`;
         }
 
-        if (options.prefix.length > 0) {
+        if (options.prefix && options.prefix.length > 0) {
             appUrl = `${appUrl + options.host}/${options.prefix}/sense/app/${appId}`;
         } else {
             appUrl = `${appUrl + options.host}/sense/app/${appId}`;
@@ -315,7 +315,7 @@ const qseowCreateThumbnails = async (options) => {
         // If --qliksensetag exists we should loop over all matching apps.
         // If --qliksensetag does not exist the app specified by --appid should be processed.
 
-        if (options.qliksensetag.length > 0) {
+        if (options.qliksensetag && options.qliksensetag.length > 0) {
             // Get all apps matching the tag in --qliksensetag
             const qseowConfigQrs = setupQseowQrsConnection(options);
 
