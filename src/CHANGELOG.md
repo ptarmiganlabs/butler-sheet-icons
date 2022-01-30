@@ -1,5 +1,21 @@
 # Changelog
 
+### [1.2.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.2.0...butler-sheet-icons-v1.2.1) (2022-01-29)
+
+
+### Bug Fixes
+
+* **ci:** CI tests handle --includesheetpart flag ([55ba659](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/55ba659b987a4b0a08bfcec111ddb398b4ab7030)), closes [#107](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/107)
+* Correct thumbnails when using virtual proxies ([dadc6e7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/dadc6e792c35ad39aa0fe6e8a56b56542e1c79f2))
+* **deps:** update dependency commander to v9 ([8c67249](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8c67249b0c5d7cba0b0f1d21dc03b8e3345b2c51))
+* src/package.json & src/package-lock.json to reduce vulnerabilities ([cb3c439](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cb3c4398c944947968d48030eea0cf5c192cc2fe))
+* src/package.json & src/package-lock.json to reduce vulnerabilities ([c48e629](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c48e629178f76470b33c830f1df9c89a87568641))
+
+
+### Miscellaneous
+
+* **deps:** update dependency snyk to v1.840.0 ([75d51e0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/75d51e0b3488bd411880097b5c3729789e743a6d))
+
 ## [1.2.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.1.10...butler-sheet-icons-v1.2.0) (2022-01-17)
 
 
