@@ -5,13 +5,13 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const qrsInteract = require('qrs-interact');
 
-const { setupEnigmaConnection } = require('./enigma.js');
-const { logger, setLoggingLevel } = require('./globals.js');
-const { qseowUploadToContentLibrary } = require('./upload.js');
-const { qseowVerifyContentLibraryExists } = require('./contentlibrary.js');
-const { qseowUpdateSheetThumbnails } = require('./updatesheets.js');
-const { qseowVerifyCertificatesExist } = require('./certificates.js');
-const { setupQseowQrsConnection } = require('./qrs.js');
+const { setupEnigmaConnection } = require('./qseow-enigma.js');
+const { logger, setLoggingLevel } = require('../../globals.js');
+const { qseowUploadToContentLibrary } = require('./qseow-upload.js');
+const { qseowVerifyContentLibraryExists } = require('./qseow-contentlibrary.js');
+const { qseowUpdateSheetThumbnails } = require('./qseow-updatesheets.js');
+const { qseowVerifyCertificatesExist } = require('./qseow-certificates.js');
+const { setupQseowQrsConnection } = require('./qseow-qrs.js');
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -23,7 +23,7 @@ const selectorLoginPageLoginButton = '#loginbtn';
  * @param {*} g
  * @param {*} options
  */
-const processApp = async (appId, g, options) => {
+const processQSEoWApp = async (appId, g, options) => {
     // eslint-disable-next-line no-unused-vars
 
     // Configure Enigma.js
@@ -111,9 +111,9 @@ const processApp = async (appId, g, options) => {
         let appUrl = '';
 
         if (options.secure === 'true') {
-            appUrl = `${appUrl}https://`;
+            appUrl = 'https://';
         } else {
-            appUrl = `${appUrl}http://`;
+            appUrl = 'http://';
         }
 
         if (options.prefix && options.prefix.length > 0) {
@@ -334,11 +334,11 @@ const qseowCreateThumbnails = async (options) => {
                 logger.info(`--------------------------------------------------`);
                 logger.info(`About to process app ${app.id}`);
 
-                await processApp(app.id, global, options);
+                await processQSEoWApp(app.id, global, options);
                 logger.verbose(`Done processing app ${app.id}`);
             }
         } else {
-            await processApp(options.appid, global, options);
+            await processQSEoWApp(options.appid, global, options);
         }
 
         return true;

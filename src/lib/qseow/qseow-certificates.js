@@ -1,7 +1,7 @@
 const path = require('path');
 const { promises: Fs } = require('fs');
 
-const { logger } = require('./globals');
+const { logger } = require('../../globals');
 
 /**
  *

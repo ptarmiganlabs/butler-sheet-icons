@@ -3,8 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const qrsInteract = require('qrs-interact');
 
-const { logger, setLoggingLevel } = require('./globals.js');
-const { setupQseowQrsConnection } = require('./qrs.js');
+const { logger, setLoggingLevel } = require('../../globals.js');
+const { setupQseowQrsConnection } = require('./qseow-qrs.js');
 
 /**
  *

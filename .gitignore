@@ -3,6 +3,7 @@ cert/
 .vscode/launch.json
 src/img/*.png
 .DS_Store
+src/bin/*
 
 # Logs
 logs

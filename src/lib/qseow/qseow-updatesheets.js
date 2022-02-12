@@ -1,8 +1,8 @@
 /* eslint-disable no-await-in-loop */
 const enigma = require('enigma.js');
 
-const { setupEnigmaConnection } = require('./enigma');
-const { logger } = require('./globals');
+const { setupEnigmaConnection } = require('./qseow-enigma');
+const { logger } = require('../../globals');
 
 /**
  *

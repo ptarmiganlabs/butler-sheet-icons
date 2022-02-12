@@ -1,5 +1,5 @@
 const path = require('path');
-const { logger } = require('./globals');
+const { logger } = require('../../globals');
 
 /**
  *
