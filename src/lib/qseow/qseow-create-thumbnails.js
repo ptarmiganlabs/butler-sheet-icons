@@ -81,7 +81,7 @@ const processQSEoWApp = async (appId, g, options) => {
 
         let iSheetNum = 1;
         const browser = await puppeteer.launch({
-            headless: options.headless === 'true',
+            headless: options.headless === true || options.headless.toLowerCase() === 'true',
             ignoreHTTPSErrors: true,
             acceptInsecureCerts: true,
             args: [
