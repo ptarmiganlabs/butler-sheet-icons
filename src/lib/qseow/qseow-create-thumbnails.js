@@ -103,8 +103,8 @@ const processQSEoWApp = async (appId, g, options) => {
 
         // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
         await page.setViewport({
-            width: 820,
-            height: 540,
+            width: 1230,
+            height: 810,
             deviceScaleFactor: 1,
         });
 
