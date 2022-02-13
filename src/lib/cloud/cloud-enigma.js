@@ -21,20 +21,14 @@ const setupEnigmaConnection = (appId, options, command) => {
         schema: qixSchema,
         url: SenseUtilities.buildUrl({
             host: options.tenanturl,
-            // port: options.engineport,
-            // prefix: options.prefix,
             secure: true,
             appId,
         }),
         createSocket: (url) =>
             new WebSocket(url, {
-                // key: readCert(path.resolve(__dirname, options.certkeyfile)),
-                // cert: readCert(path.resolve(__dirname, options.certfile)),
                 headers: {
-                    // 'X-Qlik-User': `UserDirectory=${options.apiuserdir};UserId=${options.apiuserid}`,
                     Authorization: `Bearer ${options.apikey}`,
                 },
-                // rejectUnauthorized: options.rejectUnauthorized === 'true',
             }),
     };
 };

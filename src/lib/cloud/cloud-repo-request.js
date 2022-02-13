@@ -10,7 +10,7 @@ axios.interceptors.response.use(
                 responseType: 'arraybuffer',
                 url: `${response.config.baseURL}${response.headers.location}`,
                 headers: {
-                    Authorization: response.config.headers['Authorization'],
+                    Authorization: response.config.headers.Authorization,
                 },
             };
 
@@ -23,13 +23,37 @@ axios.interceptors.response.use(
         return response;
     },
     (e) => {
-        throw {
+        throw Error({
             status: e.response.status,
             statusText: e.response.statusText,
             message: e.message,
-        };
+        });
     }
 );
+
+function bufferToStream(buffer) {
+    const stream = new Readable();
+    stream.push(buffer);
+    stream.push(null);
+
+    return stream;
+}
+
+async function makeRequest(config, data = []) {
+    let returnData = [...data];
+
+    await axios(config).then(async (d) => {
+        if (d.data.data) returnData = [...returnData, ...d.data.data];
+        if (!d.data.data) returnData = { data: d.data, status: d.status };
+
+        if (d.data.links && (d.data.links.next || d.data.links.Next)) {
+            config.url = d.data.links.next.href ? d.data.links.next.href : d.data.links.Next.Href;
+            return makeRequest(config, returnData);
+        }
+    });
+
+    return returnData;
+}
 
 module.exports = async function (
     mainConfig,
@@ -68,33 +92,9 @@ module.exports = async function (
         config.data = bufferToStream(data);
     }
 
-    let response = await makeRequest(config);
+    const response = await makeRequest(config);
 
     if (response.data) return response.data;
-    if (type == 'post') return response.status;
+    if (type === 'post') return response.status;
     return response;
 };
-
-async function makeRequest(config, data = []) {
-    returnData = [...data];
-
-    await axios(config).then(async (d) => {
-        if (d.data.data) returnData = [...returnData, ...d.data.data];
-        if (!d.data.data) returnData = { data: d.data, status: d.status };
-
-        if (d.data.links && (d.data.links.next || d.data.links.Next)) {
-            config.url = d.data.links.next.href ? d.data.links.next.href : d.data.links.Next.Href;
-            return makeRequest(config, returnData);
-        }
-    });
-
-    return returnData;
-}
-
-function bufferToStream(buffer) {
-    const stream = new Readable();
-    stream.push(buffer);
-    stream.push(null);
-
-    return stream;
-}

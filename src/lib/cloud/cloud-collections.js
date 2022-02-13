@@ -3,11 +3,6 @@
 const { logger, setLoggingLevel } = require('../../globals.js');
 const QlikSaas = require('./cloud-repo');
 
-
-const qscloudGetAllCollections = async (options) => {
-    
-}
-
 /**
  *
  * @param {*} options
