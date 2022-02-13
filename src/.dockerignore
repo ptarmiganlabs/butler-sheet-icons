@@ -13,6 +13,8 @@ node_modules
 .prettierrc
 .snyk
 src/bin/*
+src/img/**
+img/**
 
 __tests__
 jest.config.js
