@@ -6,28 +6,51 @@ const fs = require('fs');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
 const { logger, setLoggingLevel } = require('../../globals.js');
-// const { cloudUploadToContentLibrary } = require('./lib/qseow-upload.js');
-// const { qscloudVerifyCollectionExists } = require('./cloud-collections');
-// const { cloudUpdateSheetThumbnails } = require('./lib/qseow-updatesheets.js');
-// const { cloudVerifyCertificatesExist } = require('./certificates.js');
-// const { setupQseowQrsConnection } = require('./lib/qseow-qrs.js');
+const { qscloudUploadToApp } = require('./cloud-upload.js');
+const { qscloudUpdateSheetThumbnails } = require('./cloud-updatesheets.js');
 const QlikSaas = require('./cloud-repo');
 
 const selectorLoginPageUserName =
     '#lock-container > div > div > form > div > div > div:nth-child(3) > span > div > div > div > div > div > div > div > div > div > div.auth0-lock-input-block.auth0-lock-input-email > div.auth0-lock-input-wrap.auth0-lock-input-wrap-with-icon > input';
-const selectorLoginPageUserPwd = '#lock-container > div > div > form > div > div > div:nth-child(3) > span > div > div > div > div > div > div > div > div > div > div.auth0-lock-input-block.auth0-lock-input-show-password > div > div.auth0-lock-input-wrap.auth0-lock-input-wrap-with-icon > input';
-const selectorLoginPageLoginButton = '#lock-container > div > div > form > div > div > div.login-form--actions > button';
+const selectorLoginPageUserPwd =
+    '#lock-container > div > div > form > div > div > div:nth-child(3) > span > div > div > div > div > div > div > div > div > div > div.auth0-lock-input-block.auth0-lock-input-show-password > div > div.auth0-lock-input-wrap.auth0-lock-input-wrap-with-icon > input';
+const selectorLoginPageLoginButton =
+    '#lock-container > div > div > form > div > div > div.login-form--actions > button';
 
 /**
  *
  * @param {*} appId
- * @param {*} g
+ * @param {*} saasInstance
  * @param {*} options
  */
-const processCloudApp = async (appId, options) => {
+const processCloudApp = async (appId, saasInstance, options) => {
     // eslint-disable-next-line no-unused-vars
 
+    // Create image directory for this app
     try {
+        fs.mkdirSync(`${options.imagedir}/cloud/${appId}`, { recursive: true });
+        logger.verbose(`Created image cloud directory '${options.imagedir}/cloud/${appId}'`);
+    } catch (err) {
+        logger.error(`CREATE THUMBNAILS 1: Error creating image directory: ${err}`);
+        throw Error('Error checking existence/creation of image directory');
+    }
+
+    try {
+        // Remove all existing thumbnail images from this app
+        const existingThumbnails = await saasInstance.Get(`apps/${appId}/media/list/thumbnails`);
+
+        // eslint-disable-next-line no-restricted-syntax
+        for (const thumbnailImg of existingThumbnails) {
+            if (thumbnailImg.type === 'image') {
+                const result = await saasInstance.Delete(
+                    `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
+                );
+                logger.debug(
+                    `CLOUD PROCESS: Deleted existing file ${thumbnailImg.name}, result=${result}`
+                );
+            }
+        }
+
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
         const imgDir = options.imagedir;
@@ -112,7 +135,6 @@ const processCloudApp = async (appId, options) => {
 
             // Qlik cloud URL format:
             // https://<tenant FQDN>/sense/app/<app ID>>
-            // https://<tenant FQDN>/sense/app/<app ID>>/overview
 
             const appUrl = `https://${options.tenanturl}/sense/app/${appId}`;
             logger.debug(`App URL: ${appUrl}`);
@@ -123,7 +145,7 @@ const processCloudApp = async (appId, options) => {
             ]);
 
             await page.waitForTimeout(options.pagewait * 1000);
-            await page.screenshot({ path: `${imgDir}/cloud-${appId}-loginpage-1.png` });
+            await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-1.png` });
 
             // Enter credentials
             // User
@@ -143,7 +165,7 @@ const processCloudApp = async (appId, options) => {
             });
             await page.keyboard.type(options.logonpwd);
 
-            await page.screenshot({ path: `${imgDir}/cloud-${appId}-loginpage-2.png` });
+            await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-2.png` });
 
             // Click login button and wait for page to load
             await Promise.all([
@@ -157,7 +179,7 @@ const processCloudApp = async (appId, options) => {
             await page.waitForTimeout(options.pagewait * 1000);
 
             // Take screenshot of app overview page
-            await page.screenshot({ path: `${imgDir}/cloud-${appId}-overview-1.png` });
+            await page.screenshot({ path: `${imgDir}/cloud/${appId}/overview-1.png` });
 
             // Sort sheets
             sheetListObj.qAppObjectList.qItems.sort((sheet1, sheet2) => {
@@ -182,8 +204,8 @@ const processCloudApp = async (appId, options) => {
                 ]);
 
                 await page.waitForTimeout(options.pagewait * 1000);
-                const fileName = `${imgDir}/cloud-${appId}-sheet-${iSheetNum}.png`;
-                const fileNameShort = `cloud-${appId}-sheet-${iSheetNum}.png`;
+                const fileName = `${imgDir}/cloud/${appId}/thumbnail-${iSheetNum}.png`;
+                const fileNameShort = `thumbnail-${iSheetNum}.png`;
 
                 let selector = '';
                 if (options.includesheetpart === '1') {
@@ -221,6 +243,12 @@ const processCloudApp = async (appId, options) => {
             logger.error(`Error closing session for QSEoW app ${appId} on host ${options.host}`);
         }
 
+        // Upload to QS Cloud app
+        await qscloudUploadToApp(createdFiles, appId, options);
+
+        // Update sheets in app
+        await qscloudUpdateSheetThumbnails(createdFiles, appId, options);
+
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
         logger.error(`CLOUD APP: ${err}`);
@@ -245,11 +273,9 @@ const qscloudCreateThumbnails = async (options, command) => {
         if (
             options.includesheetpart !== '1' &&
             options.includesheetpart !== '2' &&
-            options.includesheetpart !== '3' &&
             options.includesheetpart !== '4' &&
             options.includesheetpart !== 1 &&
             options.includesheetpart !== 2 &&
-            options.includesheetpart !== 3 &&
             options.includesheetpart !== 4
         ) {
             logger.error(
@@ -258,37 +284,12 @@ const qscloudCreateThumbnails = async (options, command) => {
             throw Error('Invalid --includesheetpart paramater');
         }
 
-        // Verify that image directory exist. Create it if not.
-        try {
-            logger.debug('Checking if specified image directory exists');
-            if (fs.existsSync(options.imagedir)) {
-                logger.verbose(
-                    `Image directory already exists, will not create it: ${options.imagedir}`
-                );
-            } else {
-                logger.verbose(
-                    `Image directory does not exist, trying to create it: ${options.imagedir}`
-                );
-
-                // Create image directory
-                fs.mkdirSync(options.imagedir, { recursive: true });
-                logger.verbose(`Created image directory '${options.imagedir}'`);
-            }
-        } catch (err) {
-            logger.error(
-                `CREATE THUMBNAILS 1: Error checking existence/creation of image directory: ${err}`
-            );
-
-            throw Error('Error checking existence/creation of image directory');
-        }
-
         // Get array of all available collections
         const cloudConfig = {
             url: options.tenanturl,
             token: options.apikey,
             // version: X, // optional. default is: 1
         };
-
         const saasInstance = new QlikSaas(cloudConfig);
 
         // If --collection exists we should loop over all matching apps.
@@ -301,24 +302,19 @@ const qscloudCreateThumbnails = async (options, command) => {
             const index = allCollections.map((e) => e.id).indexOf(options.collectionid);
 
             if (index === -1) {
-                // Content library mpt found
+                // Content library not found
                 logger.error(`Collection '${options.collectionid}' does not exist - aborting`);
                 throw Error('Collection does not exist');
             } else {
                 // Collection found
                 logger.verbose(`Collection '${options.collectionid}' exists`);
 
-                // Get collection details
-                // let filterCollection = allCollections.find(
-                //     (item) => item.id === options.collectionid
-                // );
-
                 // Get all items within collection
                 const collectionItems = await saasInstance.Get(
                     `collections/${options.collectionid}/items`
                 );
 
-                // Process all apps with this tag
+                // Process all apps in this collection
                 // eslint-disable-next-line no-restricted-syntax
                 for (const item of collectionItems) {
                     logger.info(`--------------------------------------------------`);
@@ -328,7 +324,7 @@ const qscloudCreateThumbnails = async (options, command) => {
                         const appId = item.resourceAttributes.id;
                         logger.info(`About to process app ${appId}`);
 
-                        await processCloudApp(appId, options);
+                        await processCloudApp(appId, saasInstance, options);
                         logger.verbose(`Done processing app ${appId}`);
                     } else {
                         logger.verbose(
@@ -338,7 +334,7 @@ const qscloudCreateThumbnails = async (options, command) => {
                 }
             }
         } else {
-            await processCloudApp(options.appid, options);
+            await processCloudApp(options.appid, saasInstance, options);
         }
 
         return true;

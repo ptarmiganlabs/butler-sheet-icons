@@ -9,7 +9,7 @@ const program = new Command();
 
 /**
  * Top level async function.
- * Workaround to deal with the fact that Node.js doesn't currently support top level async functions...
+ * Workaround to deal with the fact that Node.js doesn't currently support top level async functions.
  */
 (async () => {
     // Basic app info
@@ -36,7 +36,7 @@ const program = new Command();
                 logger.error(`MAIN qseow: ${err}`);
             }
         })
-        .option(
+        .requiredOption(
             '--loglevel <level>',
             'log level (error, warning, info, verbose, debug, silly)',
             'info'
@@ -73,7 +73,7 @@ const program = new Command();
             'Qlik Sense root certificate file (exported from QMC)',
             './cert/root.pem'
         )
-        .option(
+        .requiredOption(
             '--rejectUnauthorized <true|false>',
             'Ignore warnings when Sense certificate does not match the --host paramater',
             false
@@ -102,13 +102,17 @@ const program = new Command();
         )
         .requiredOption('--logonpwd <password>', 'password for user to connect with')
         .requiredOption('--hosttype <type>', 'type of Qlik Sense server (qseow)', 'qseow')
-        .option('--headless <true|false>', 'headless (=not visible) browser (true, false)', true)
-        .option(
+        .requiredOption(
+            '--headless <true|false>',
+            'headless (=not visible) browser (true, false)',
+            true
+        )
+        .requiredOption(
             '--pagewait <seconds>',
             'number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly',
             5
         )
-        .option(
+        .requiredOption(
             '--imagedir <directory>',
             'directory in which thumbnail images will be stored. Relative or absolute path',
             './img'
@@ -118,9 +122,9 @@ const program = new Command();
             'Qlik Sense content library to which thumbnails will be uploaded',
             'Butler sheet thumbnails'
         )
-        .option(
+        .requiredOption(
             '--includesheetpart <value>',
-            'which part of sheets should be use to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar',
+            'which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar',
             '1'
         )
         .option(
@@ -148,7 +152,7 @@ const program = new Command();
                     logger.error(`MAIN cloud: ${err}`);
                 }
             })
-            .option(
+            .requiredOption(
                 '--loglevel <level>',
                 'log level (error, warning, info, verbose, debug, silly)',
                 'info'
@@ -184,19 +188,14 @@ const program = new Command();
                 'directory in which thumbnail images will be stored. Relative or absolute path',
                 './img'
             )
-            .option(
+            .requiredOption(
                 '--includesheetpart <value>',
-                'which part of sheets should be use to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar',
+                'which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen',
                 '1'
             )
             .option(
                 '--collectionid <id>',
-                'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated. If this parameter is specified the --appid parameter will be ignored',
-                ''
-            )
-            .option(
-                '--qliksensetag <value>',
-                'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. If this parameter is specified the --appid parameter will be ignored',
+                'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated',
                 ''
             );
 
@@ -213,7 +212,7 @@ const program = new Command();
                     logger.error(`MAIN cloud: ${err}`);
                 }
             })
-            .option(
+            .requiredOption(
                 '--loglevel <level>',
                 'log level (error, warning, info, verbose, debug, silly)',
                 'info'

@@ -11,7 +11,7 @@ body:
   - type: input
     attributes:
       label: What version of Butler Sheet Icons are you using?
-      description: '`node butler_sheet_icons.js --version` or `butler-sheet-icons --version` - For example: 2.3.1'
+      description: '`node butler-sheet-icons.js --version` or `butler-sheet-icons --version` - For example: 2.3.1'
     validations:
       required: true
   - type: input
