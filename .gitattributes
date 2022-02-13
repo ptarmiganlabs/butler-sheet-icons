@@ -27,6 +27,11 @@ renovate.json export-ignore
 # general text files
 changelog.md export-ignore
 
+# Screenshots
+src/img/** export-ignore
+img/** export-ignore
+
+
 # -----------------------------
 # Enforce Unix newlines
 * text eol=lf

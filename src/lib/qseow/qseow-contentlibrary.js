@@ -1,7 +1,7 @@
 const qrsInteract = require('qrs-interact');
 
-const { logger } = require('./globals');
-const { setupQseowQrsConnection } = require('./qrs');
+const { logger } = require('../../globals');
+const { setupQseowQrsConnection } = require('./qseow-qrs');
 
 /**
  *

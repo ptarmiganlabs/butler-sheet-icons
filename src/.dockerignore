@@ -12,6 +12,9 @@ node_modules
 .prettierignore
 .prettierrc
 .snyk
+src/bin/*
+src/img/**
+img/**
 
 __tests__
 jest.config.js

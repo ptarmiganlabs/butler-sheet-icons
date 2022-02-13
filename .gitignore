@@ -1,8 +1,10 @@
 # Project specific ignores
 cert/
 .vscode/launch.json
-src/img/*.png
+src/img/**
+img/**
 .DS_Store
+src/bin/*
 
 # Logs
 logs
