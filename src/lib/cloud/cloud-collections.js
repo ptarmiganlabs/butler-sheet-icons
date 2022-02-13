@@ -1,5 +1,7 @@
 /* eslint-disable import/extensions */
 /* eslint-disable no-await-in-loop */
+
+const { table } = require('table');
 const { logger, setLoggingLevel } = require('../../globals.js');
 const QlikSaas = require('./cloud-repo');
 
@@ -14,7 +16,7 @@ const qscloudListCollections = async (options, command) => {
         // Set log level
         setLoggingLevel(options.loglevel);
 
-        logger.info('Starting listing of available collections');
+        logger.verbose('Starting listing of available collections');
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
         const cloudConfig = {
@@ -27,7 +29,47 @@ const qscloudListCollections = async (options, command) => {
 
         // Get all available collections
         const allCollections = await saasInstance.Get('collections');
-        logger.info(`Collections:\n${JSON.stringify(allCollections, null, 2)}`);
+
+        if (options.outputformat === 'table') {
+            const tableConfig = {
+                header: {
+                    alignment: 'center',
+                    content: `Butler Sheet Icons\nAvailable collections in tenant ${options.tenanturl}`,
+                },
+                columns: {
+                    1: { width: 30, wrapWord: true },
+                },
+            };
+
+            const collectionsTable = [];
+
+            // Column headers
+            collectionsTable.push([
+                'Name',
+                'Description',
+                'ID',
+                'Type',
+                'Item count',
+                'Created at',
+                'Updated at',
+            ]);
+
+            allCollections.forEach((collection) => {
+                collectionsTable.push([
+                    collection.name,
+                    collection.description === undefined ? '' : collection.description,
+                    collection.id,
+                    collection.type,
+                    collection.itemCount,
+                    collection.createdAt,
+                    collection.updatedAt,
+                ]);
+            });
+
+            logger.info(`Collections:\n${table(collectionsTable, tableConfig)}`);
+        } else if (options.outputformat === 'json') {
+            logger.info(`Collections:\n${JSON.stringify(allCollections, null, 2)}`);
+        }
 
         return true;
     } catch (err) {

@@ -1,4 +1,4 @@
-const { Command, Option, CommanderError } = require('commander');
+const { Command, Option } = require('commander');
 const { logger, appVersion } = require('./globals');
 
 const { qseowCreateThumbnails } = require('./lib/qseow/qseow-create-thumbnails');
@@ -218,7 +218,12 @@ const program = new Command();
                 'info'
             )
             .requiredOption('--tenanturl <url>', 'URL to Qlik Sense cloud tenant')
-            .requiredOption('--apikey <key>', 'API key used to access the Sense APIs');
+            .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
+            .addOption(
+                new Option('--outputformat <key>', 'Output format')
+                    .choices(['table', 'json'])
+                    .default('table')
+            );
 
         return cloud;
     }
