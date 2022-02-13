@@ -1,4 +1,4 @@
-const { qseowCreateThumbnails } = require('../createthumbnails');
+const { qseowCreateThumbnails } = require('../lib/qseow/qseow-create-thumbnails');
 
 const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 120000; // 2 minute default timeout
 
@@ -9,9 +9,9 @@ const options = {
     engineport: process.env.BSI_ENGINE_PORT || '4747',
     qrsport: process.env.BSI_QRS_PORT || '4242',
     schemaversion: process.env.BSI_SCHEMA_VERSION || '12.612.0',
-    certfile: process.env.BSI_CERT_FILE || './cert/client.pem',
-    certkeyfile: process.env.BSI_CERT_KEY_FILE || './cert/client_key.pem',
-    rootcertfile: process.env.BSI_ROOT_CERT_FILE || './cert/root.pem',
+    certfile: process.env.BSI_CERT_FILE || '../../cert/client.pem',
+    certkeyfile: process.env.BSI_CERT_KEY_FILE || '../../cert/client_key.pem',
+    rootcertfile: process.env.BSI_ROOT_CERT_FILE || '../../cert/root.pem',
     prefix: process.env.BSI_PREFIX || '',
     secure: process.env.BSI_SECURE || 'true',
     hosttype: process.env.BSI_HOST_TYPE || 'qseow',

@@ -1,3 +1,4 @@
+/* eslint-disable no-param-reassign */
 const axios = require('axios');
 const FormData = require('form-data');
 const { Readable } = require('stream');
@@ -15,8 +16,6 @@ axios.interceptors.response.use(
             };
 
             const redirectData = await axios(redirectConfig);
-
-            const b = redirectData.data;
             return redirectData;
         }
 
@@ -55,7 +54,7 @@ async function makeRequest(config, data = []) {
     return returnData;
 }
 
-module.exports = async function (
+module.exports = async (
     mainConfig,
     path,
     type,
@@ -63,7 +62,7 @@ module.exports = async function (
     contentType = 'application/json',
     file,
     fileName
-) {
+) => {
     const config = {
         method: type,
         baseURL: mainConfig.baseURL,
