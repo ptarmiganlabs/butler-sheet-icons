@@ -55,9 +55,7 @@ const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
 
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // dimObj.qAppObjectList.qItems[] now contains array of app sheets.
-            logger.info(
-                `CLOUD UPDATE: Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`
-            );
+            logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             // Sort sheets
             sheetListObj.qAppObjectList.qItems.sort((sheet1, sheet2) => {
