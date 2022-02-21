@@ -24,30 +24,44 @@ const selectorLoginPageLoginButton =
  * @param {*} options
  */
 const processCloudApp = async (appId, saasInstance, options) => {
-    // eslint-disable-next-line no-unused-vars
-
-    // Create image directory for this app
+    // Create image directory on disk for this app
     try {
         fs.mkdirSync(`${options.imagedir}/cloud/${appId}`, { recursive: true });
-        logger.verbose(`Created image cloud directory '${options.imagedir}/cloud/${appId}'`);
+        logger.verbose(`Created cloud image directory '${options.imagedir}/cloud/${appId}'`);
     } catch (err) {
-        logger.error(`CREATE THUMBNAILS 1: Error creating image directory: ${err}`);
-        throw Error('Error checking existence/creation of image directory');
+        logger.error(`CREATE THUMBNAILS 1: Error creating cloud image directory: ${err}`);
+        throw Error('Error creating cloud image directory');
     }
 
     try {
-        // Remove all existing thumbnail images from this app
-        const existingThumbnails = await saasInstance.Get(`apps/${appId}/media/list/thumbnails`);
+        // Does the app have a thumbnail folder in its media library?
+        const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
 
-        // eslint-disable-next-line no-restricted-syntax
-        for (const thumbnailImg of existingThumbnails) {
-            if (thumbnailImg.type === 'image') {
-                const result = await saasInstance.Delete(
-                    `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
-                );
-                logger.debug(
-                    `CLOUD PROCESS: Deleted existing file ${thumbnailImg.name}, result=${result}`
-                );
+        if (
+            mediaList.find((item) => {
+                const thumbnailFolderExists =
+                    item.type === 'directory' && item.name === 'thumbnails';
+                return thumbnailFolderExists;
+            })
+        ) {
+            // "thumbnails" folder exists in app's media library
+            // Remove all existing thumbnail images from this app
+            const existingThumbnails = await saasInstance.Get(
+                `apps/${appId}/media/list/thumbnails`
+            );
+
+            // eslint-disable-next-line no-restricted-syntax
+            for (const thumbnailImg of existingThumbnails) {
+                if (thumbnailImg.type === 'image') {
+                    const result = await saasInstance.Delete(
+                        `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
+                    );
+                    logger.debug(
+                        `CLOUD PROCESS: Deleted existing file ${
+                            thumbnailImg.name
+                        }, result=${JSON.stringify(result, null, 2)}`
+                    );
+                }
             }
         }
 
@@ -237,10 +251,12 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
         if ((await session.close()) === true) {
             logger.verbose(
-                `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
+                `Closed session after generating sheet thumbnail images for all sheets in QS Cloud app ${appId} on tenant ${options.tenanturl}`
             );
         } else {
-            logger.error(`Error closing session for QSEoW app ${appId} on host ${options.host}`);
+            logger.error(
+                `Error closing session for QS Cloud app ${appId} on host ${options.tenanturl}`
+            );
         }
 
         // Upload to QS Cloud app
@@ -258,16 +274,17 @@ const processCloudApp = async (appId, saasInstance, options) => {
 /**
  *
  * @param {*} options
- * @param {*} command
  * @returns
  */
-const qscloudCreateThumbnails = async (options, command) => {
+const qscloudCreateThumbnails = async (options) => {
     try {
         // Set log level
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Cloud');
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+
+        const appIdsToProcess = [];
 
         // If --includesheetpart has been specifed it should contain a valid value
         if (
@@ -292,6 +309,11 @@ const qscloudCreateThumbnails = async (options, command) => {
         };
         const saasInstance = new QlikSaas(cloudConfig);
 
+        // Is there a specific app ID specified?
+        if (options.appid) {
+            appIdsToProcess.push(options.appid);
+        }
+
         // If --collection exists we should loop over all matching apps.
         // If --collection does not exist the app specified by --appid should be processed.
         if (options.collectionid && options.collectionid.length > 0) {
@@ -302,7 +324,7 @@ const qscloudCreateThumbnails = async (options, command) => {
             const index = allCollections.map((e) => e.id).indexOf(options.collectionid);
 
             if (index === -1) {
-                // Content library not found
+                // Collection not found
                 logger.error(`Collection '${options.collectionid}' does not exist - aborting`);
                 throw Error('Collection does not exist');
             } else {
@@ -317,15 +339,9 @@ const qscloudCreateThumbnails = async (options, command) => {
                 // Process all apps in this collection
                 // eslint-disable-next-line no-restricted-syntax
                 for (const item of collectionItems) {
-                    logger.info(`--------------------------------------------------`);
-
                     // Is item an app?
                     if (item.resourceType === 'app') {
-                        const appId = item.resourceAttributes.id;
-                        logger.info(`About to process app ${appId}`);
-
-                        await processCloudApp(appId, saasInstance, options);
-                        logger.verbose(`Done processing app ${appId}`);
+                        appIdsToProcess.push(item.resourceAttributes.id);
                     } else {
                         logger.verbose(
                             `Skipping collection item ${item.id} as it is not an app: ${item.resourceType}`
@@ -333,8 +349,30 @@ const qscloudCreateThumbnails = async (options, command) => {
                     }
                 }
             }
-        } else {
-            await processCloudApp(options.appid, saasInstance, options);
+        }
+
+        // Remove duplicates (if any) from list of app IDs that will be processed
+        const uniqueAppIds = [...new Set(appIdsToProcess)];
+
+        // Debug output of apps that will be processed
+        logger.debug('Will process these app IDs:');
+        uniqueAppIds.forEach((appId) => {
+            logger.debug(appId);
+        });
+
+        // Process all apps
+        // eslint-disable-next-line no-restricted-syntax
+        for (const appId of uniqueAppIds) {
+            try {
+                logger.info(`--------------------------------------------------`);
+                logger.info(`About to process app ${appId}`);
+
+                await processCloudApp(appId, saasInstance, options);
+
+                logger.verbose(`Done processing app ${appId}`);
+            } catch (err) {
+                logger.error(`QSEOW PROCESS APP: ${err}`);
+            }
         }
 
         return true;

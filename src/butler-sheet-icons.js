@@ -17,14 +17,14 @@ const program = new Command();
         .version(appVersion)
         .name('butler-sheet-icons')
         .description(
-            'This is a tool that creates thumbnail images based on the actual layout of sheets in Qlik Sense applications.\nThe created thumbnails are saved to disk and uploaded to the Sense app as new sheet thumbnail images.'
+            'This is a tool that creates thumbnail images based on the actual layout of sheets in Qlik Sense applications.\nQlik Cloud and Qlik Sense Enterprise on Windows are both supported.\nThe created thumbnails are saved to disk and uploaded to the Sense app as new sheet thumbnail images.'
         );
 
     const qseow = program.command('qseow');
     qseow
         .command('create-sheet-thumbnails')
         .description(
-            'Create thumbnail images based on the layout of each sheet in Qlik Sense Enterprise on Windows (QSEoW) applications.\nMultiple apps can be updated with a single command. In this case a Qlik Sense tag is used to identify which apps will be updated.'
+            'Create thumbnail images based on the layout of each sheet in Qlik Sense Enterprise on Windows (QSEoW) applications.\nMultiple apps can be updated with a single command, using a Qlik Sense tag to identify  which apps will be updated.'
         )
         .action(async (options, command) => {
             logger.verbose(`appid=${options.appid}`);
@@ -141,7 +141,7 @@ const program = new Command();
         cloud
             .command('create-sheet-thumbnails')
             .description(
-                'Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.\nMultiple apps can be updated with a single command. In this case a Qlik Sense collection is used to identify which apps will be updated.'
+                'Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.\nMultiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.'
             )
             .action(async (options, command) => {
                 logger.verbose(`appid=${options.appid}`);
@@ -220,7 +220,7 @@ const program = new Command();
             .requiredOption('--tenanturl <url>', 'URL to Qlik Sense cloud tenant')
             .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
             .addOption(
-                new Option('--outputformat <key>', 'Output format')
+                new Option('--outputformat <table|json>', 'Output format')
                     .choices(['table', 'json'])
                     .default('table')
             );

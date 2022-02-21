@@ -9,9 +9,10 @@ const { setupQseowQrsConnection } = require('./qseow-qrs.js');
 /**
  *
  * @param {*} filesToUpload
+ * @param {*} appId
  * @param {*} options
  */
-const qseowUploadToContentLibrary = async (filesToUpload, options) => {
+const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
     try {
         // Set log level
         setLoggingLevel(options.loglevel);
@@ -25,11 +26,15 @@ const qseowUploadToContentLibrary = async (filesToUpload, options) => {
 
         logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
 
-        const iconFolderAbsolute = path.resolve(options.imagedir);
+        const iconFolderAbsolute = path.resolve(`${options.imagedir}/qseow/${appId}`);
+
         const { contentlibrary } = options;
 
         logger.info(`Uploading images in folder: ${iconFolderAbsolute}`);
         logger.info(`Uploading images to Qlik Sense content library: ${contentlibrary}`);
+
+        logger.debug(`Files to be uploaded to Qlik Sense Cloud`);
+        filesToUpload.forEach((file) => logger.debug(file));
 
         // eslint-disable-next-line no-restricted-syntax
         for (const file of filesToUpload) {
@@ -44,7 +49,7 @@ const qseowUploadToContentLibrary = async (filesToUpload, options) => {
 
             if (
                 fileStat.isFile() &&
-                file.substring(0, 4) === 'app-' &&
+                file.substring(0, 10) === 'thumbnail-' &&
                 path.extname(file) === '.png'
             ) {
                 logger.verbose(`Uploading file: ${file}`);

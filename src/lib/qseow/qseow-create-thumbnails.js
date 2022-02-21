@@ -197,8 +197,8 @@ const processQSEoWApp = async (appId, g, options) => {
                 ]);
 
                 await page.waitForTimeout(options.pagewait * 1000);
-                const fileName = `${imgDir}/qseow/${appId}/${appId}-${iSheetNum}.png`;
-                const fileNameShort = `${appId}-${iSheetNum}.png`;
+                const fileName = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}.png`;
+                const fileNameShort = `thumbnail-${appId}-${iSheetNum}.png`;
 
                 let selector = '';
                 if (options.includesheetpart === '1') {
@@ -240,7 +240,7 @@ const processQSEoWApp = async (appId, g, options) => {
         }
 
         // Upload to  QSEoW content library
-        await qseowUploadToContentLibrary(createdFiles, options);
+        await qseowUploadToContentLibrary(createdFiles, appId, options);
 
         // Update sheets in app
         await qseowUpdateSheetThumbnails(createdFiles, appId, options);
@@ -263,6 +263,8 @@ const qseowCreateThumbnails = async (options) => {
 
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+
+        const appIdsToProcess = [];
 
         // If --includesheetpart has been specifed it should contain a valid value
         if (
@@ -299,6 +301,11 @@ const qseowCreateThumbnails = async (options) => {
             logger.verbose(`Content library '${options.contentlibrary}' exists`);
         }
 
+        // Is there a specific app ID specified?
+        if (options.appid) {
+            appIdsToProcess.push(options.appid);
+        }
+
         // If --qliksensetag exists we should loop over all matching apps.
         // If --qliksensetag does not exist the app specified by --appid should be processed.
         if (options.qliksensetag && options.qliksensetag.length > 0) {
@@ -314,17 +321,35 @@ const qseowCreateThumbnails = async (options) => {
                 `app/full?filter=tags.name eq '${options.qliksensetag}'`
             );
 
-            // Process all apps with this tag
+            // Add all apps with this tag
             // eslint-disable-next-line no-restricted-syntax
             for (const app of result.body) {
-                logger.info(`--------------------------------------------------`);
-                logger.info(`About to process app ${app.id}`);
-
-                await processQSEoWApp(app.id, global, options);
-                logger.verbose(`Done processing app ${app.id}`);
+                appIdsToProcess.push(app.id);
             }
-        } else {
-            await processQSEoWApp(options.appid, global, options);
+        }
+
+        // Remove duplicates (if any) from list of app IDs that will be processed
+        const uniqueAppIds = [...new Set(appIdsToProcess)];
+
+        // Debug output of apps that will be processed
+        logger.debug('Will process these app IDs:');
+        uniqueAppIds.forEach((appId) => {
+            logger.debug(appId);
+        });
+
+        // Process all apps
+        // eslint-disable-next-line no-restricted-syntax
+        for (const appId of uniqueAppIds) {
+            try {
+                logger.info(`--------------------------------------------------`);
+                logger.info(`About to process app ${appId}`);
+
+                await processQSEoWApp(appId, global, options);
+
+                logger.verbose(`Done processing app ${appId}`);
+            } catch (err) {
+                logger.error(`QSEOW PROCESS APP: ${err}`);
+            }
         }
 
         return true;

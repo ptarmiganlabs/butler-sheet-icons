@@ -8,10 +8,9 @@ const QlikSaas = require('./cloud-repo');
 /**
  *
  * @param {*} options
- * @param {*} command
  * @returns
  */
-const qscloudListCollections = async (options, command) => {
+const qscloudListCollections = async (options) => {
     try {
         // Set log level
         setLoggingLevel(options.loglevel);

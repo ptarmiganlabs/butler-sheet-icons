@@ -23,6 +23,7 @@ async function exists(pathToCheck) {
  * @returns
  */
 const qseowVerifyCertificatesExist = (options) =>
+    // eslint-disable-next-line no-unused-vars
     new Promise(async (resolve, reject) => {
         try {
             logger.debug('Checking if QSEoW certificates exists');
