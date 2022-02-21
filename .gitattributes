@@ -24,6 +24,11 @@ src/jest.config.js export-ignore
 .release-please-manifest.json export-ignore
 release-please-config.json export-ignore
 renovate.json export-ignore
+
+release-config export-ignore
+release export-ignore
+release-macos export-ignore
+
 # general text files
 changelog.md export-ignore
 

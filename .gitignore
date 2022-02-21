@@ -5,6 +5,9 @@ src/img/**
 img/**
 .DS_Store
 src/bin/*
+release
+release-macos
+.DS_Store
 
 # Logs
 logs
