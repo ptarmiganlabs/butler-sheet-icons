@@ -385,3 +385,4 @@ const qscloudCreateThumbnails = async (options) => {
 module.exports = {
     qscloudCreateThumbnails,
 };
+

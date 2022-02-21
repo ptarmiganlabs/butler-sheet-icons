@@ -362,3 +362,4 @@ const qseowCreateThumbnails = async (options) => {
 module.exports = {
     qseowCreateThumbnails,
 };
+
