@@ -134,6 +134,11 @@ jobs:
           echo ${{ needs.release-please.outputs.release_tag_name }} 
           echo ${{ needs.release-please.outputs.release_upload_url }} 
 
+      - name: Setup node
+        uses: actions/setup-node@v3
+        with:
+          node-version: lts/*
+
       - name: Checkout
         uses: actions/checkout@v3
 
@@ -152,7 +157,6 @@ jobs:
           pwd
           ls -la
           cd src
-          nvm use --lts
           npm install
           cd ..
           cp -r ./src/node_modules/puppeteer/.local-chromium release-macos/chromium
