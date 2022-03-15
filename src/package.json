@@ -38,7 +38,7 @@
   "devDependencies": {
     "jest": "27.5.1",
     "prettier": "2.5.1",
-    "snyk": "1.870.0"
+    "snyk": "1.872.0"
   },
   "repository": {
     "type": "git",
