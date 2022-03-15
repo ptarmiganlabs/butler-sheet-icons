@@ -9,6 +9,7 @@ src/bin/*
 release
 release-macos
 .DS_Store
+snyk.sarif
 
 # Logs
 logs

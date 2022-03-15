@@ -29,6 +29,7 @@ release
 release-macos
 release-config
 release-please-config.json
+snyk.sarif
 src/.DS_Store
 src/.eslintrc.yml
 src/.prettierignore
