@@ -18,6 +18,9 @@ const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
 const selectorLoginPageLoginButton = '#loginbtn';
 
+const xpathHubUserPageButton = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
+const xpathLogoutButton = '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
+
 /**
  *
  * @param {*} appId
@@ -133,20 +136,25 @@ const processQSEoWApp = async (appId, g, options) => {
             });
 
             let appUrl = '';
+            let hubUrl = '';
 
             if (options.secure === 'true') {
                 appUrl = 'https://';
             } else {
                 appUrl = 'http://';
             }
+            hubUrl = appUrl;
 
             if (options.prefix && options.prefix.length > 0) {
                 appUrl = `${appUrl + options.host}/${options.prefix}/sense/app/${appId}`;
+                hubUrl = `${hubUrl + options.host}/${options.prefix}/hub`;
             } else {
                 appUrl = `${appUrl + options.host}/sense/app/${appId}`;
+                hubUrl = `${hubUrl + options.host}/hub`;
             }
 
             logger.debug(`App URL: ${appUrl}`);
+            logger.debug(`Hub URL: ${hubUrl}`);
 
             await Promise.all([
                 page.goto(appUrl),
@@ -242,6 +250,32 @@ const processQSEoWApp = async (appId, g, options) => {
 
                 iSheetNum += 1;
             }
+
+            // Log out
+            await Promise.all([
+                page.goto(hubUrl),
+                page.waitForNavigation({ waitUntil: ['networkidle2'] }),
+            ]);
+
+            // wait for element defined by XPath appear in page
+            await page.waitForXPath(xpathHubUserPageButton);
+
+            // evaluate XPath expression of the target selector (it returns array of ElementHandle)
+            let elementHandle = await page.$x(xpathHubUserPageButton);
+
+            await page.waitForTimeout(options.pagewait * 1000);
+
+            // Click user button and wait for page to load
+            await Promise.all([elementHandle[0].click()]);
+
+            await page.waitForXPath(xpathLogoutButton);
+            elementHandle = await page.$x(xpathLogoutButton);
+
+            await page.waitForTimeout(options.pagewait * 1000);
+
+            // Click logout button and wait for page to load
+            await Promise.all([elementHandle[0].click()]);
+            await page.waitForTimeout(options.pagewait * 1000);
 
             await browser.close();
             logger.verbose('Closed virtual browser');
