@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.0.0-alpha3](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.0.0-alpha1...butler-sheet-icons-v2.0.0-alpha3) (2022-03-15)
+
+
+### Documentation
+
+* Dummy update ([c2d9383](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c2d93836a5ef68f858379f76ee7eba96db1c84f6))
+
+
+### Miscellaneous
+
+* Tweak CI ([1c6b9e4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1c6b9e4bcb4e6d01f22b821727a735b58080e394))
+* tweaking CI ([f5b9168](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f5b91680e3d8c858452e392eebe1a877b913167f))
+
 ## 2.0.0-alpha1 (2022-03-15)
 
 
