@@ -63,8 +63,8 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --file=src/package.json
-          command: monitor    
+          args: --file=./src/package.json
+          # command: test
 
       - name: Install dependencies
         if: ${{ steps.release.outputs.releases_created }}
