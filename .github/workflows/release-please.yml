@@ -25,7 +25,7 @@ jobs:
         id: release
         if: github.repository_owner == 'ptarmiganlabs'
         with:
-          command: manifest  
+          command: manifest-pr
 
       # - uses: google-github-actions/release-please-action@v3
       #   id: release
