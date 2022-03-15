@@ -149,6 +149,8 @@ jobs:
 
       - name: Install dependencies & copy Chromium to release folder
         run: |
+          pwd
+          ls -la
           cd src
           npm install
           cd ..
