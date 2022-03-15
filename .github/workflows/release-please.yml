@@ -56,6 +56,11 @@ jobs:
         if: github.repository_owner == 'ptarmiganlabs'
         uses: actions/checkout@v3
 
+      - name: Install dependencies
+        if: ${{ steps.release.outputs.releases_created }}
+        run: |
+          npm install
+
       - name: Run Snyk to check for vulnerabilities
         if: github.repository_owner == 'ptarmiganlabs'
         uses: snyk/actions/node@master
@@ -65,12 +70,6 @@ jobs:
         with:
           args: --file=./src/package.json
           # command: test
-
-      - name: Install dependencies
-        if: ${{ steps.release.outputs.releases_created }}
-        run: |
-          ls -la
-          npm install
 
       - name: Install tool for creating stand-alone executables
         if: ${{ steps.release.outputs.releases_created }}
