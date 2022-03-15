@@ -1,5 +1,79 @@
 # Changelog
 
+## [1.9.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/v1.0.4...v1.9.0) (2022-03-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* Store screenshots in app-specific folders, separate for QSEoW and QS Cloud
+* Sheet thumbnails for Qlik Sense Cloud apps
+
+### Features
+
+* Add command for listing all available QS Cloud collections ([a173bf4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a173bf4cd7ded1d29bb47e96775e9659cac9e44e))
+* Add qscloud list-collections command ([b19d92b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b19d92b6c4d4f4f02d2775b69cf10d933bf84627))
+* Add Snyk test and  binaries building ([2c09927](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2c0992728731ff3018e8e91862c5f2fdd6f36aa6))
+* Build stand-alone binaries for Windows, Linux and macOS ([aa17a3c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/aa17a3c7d79d2c6b74f76c83063a8a238022d6f6)), closes [#148](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/148)
+* Control part of sheet used as thumbnail ([5da0929](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5da092973ef2a5d823b9cc9ce863eb6c3ea9d468)), closes [#6](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/6)
+* Make app selection additive across appid/tags and appid/collections ([223d80a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/223d80a22c9b4d3ea04a8e62ee1c35c7a5a3dbcd)), closes [#142](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/142)
+* Make cert validation optional ([ab3e331](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ab3e3315497b04c1103e28b170b3c90ee29d5ada))
+* Refine automated CI testing ([2259815](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/225981594cf8fa82bacabc741c64ad169269e72e)), closes [#7](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/7)
+* Sheet thumbnails for Qlik Sense Cloud apps ([59f0c5b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/59f0c5bd743b70347ad5a42b966665b1dad31074)), closes [#123](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/123)
+* Store screenshots in app-specific folders, separate for QSEoW and QS Cloud ([eeb7633](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/eeb763317f3bce5469ec06f96e7e519244565e86)), closes [#124](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/124)
+* Update multiple apps using Sense tags ([3e01242](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3e0124277ef81a22f8418331796964628633e1c9)), closes [#113](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/113)
+
+
+### Bug Fixes
+
+* add comments ([de5b041](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/de5b04171c50fa83db940461700373acb0c80c8b))
+* Add more detail in QSEoW thumbnail images ([ffb5942](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ffb5942d6a35c1c7a2e0217616a1c37e6d1a5d91)), closes [#122](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/122)
+* Add README file ([d40d429](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d40d429fcca5a5784271e91df540836220331255))
+* Adopt QSEoW test cases to new command/sub-command structure ([1ef5829](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1ef5829108d352281dced987fbb3734172f55d53)), closes [#139](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/139)
+* app name in package.json ([ff35688](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ff356888ed513ff482dc41875bafffd0d2522de7))
+* CI debug ([7794d4f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7794d4fff36bf8ac532e9611b82a014fc0eab049))
+* **ci:** CI tests handle --includesheetpart flag ([55ba659](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/55ba659b987a4b0a08bfcec111ddb398b4ab7030)), closes [#107](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/107)
+* Correct thumbnails when using virtual proxies ([dadc6e7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/dadc6e792c35ad39aa0fe6e8a56b56542e1c79f2))
+* **deps:** update dependency commander to v9 ([8c67249](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8c67249b0c5d7cba0b0f1d21dc03b8e3345b2c51))
+* **deps:** update dependency puppeteer to v13 ([5e1b8c5](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5e1b8c51a2f361a588aacacb3b136948ee355d2d))
+* Fix failing Docker builds ([#63](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/63)) ([44e8e99](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/44e8e99409a808b9d15d8aecb4979c899b8bd904))
+* Handle bool or string for --headless option ([64aa66a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/64aa66a761c0e6525d349b11347c5ac5ba65a26f)), closes [#121](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/121)
+* improved info texts in app ([1934e0c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1934e0ccae7789539debe65eee044587150b7229))
+* Only upload images from the processed app to content library ([3e01242](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3e0124277ef81a22f8418331796964628633e1c9)), closes [#114](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/114)
+* src/package.json & src/package-lock.json to reduce vulnerabilities ([cb3c439](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cb3c4398c944947968d48030eea0cf5c192cc2fe))
+* src/package.json & src/package-lock.json to reduce vulnerabilities ([c48e629](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c48e629178f76470b33c830f1df9c89a87568641))
+* Twaeking Docker builds ([#63](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/63)) ([cc860c9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cc860c9ae20cef15f7251c98510f6d2797c181de))
+* Tweaking Docker builds ([18b43d0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/18b43d0b42c4220f521e7a1b7ae3fa2f5f863403))
+* Tweaking Docker builds ([#63](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/63)) ([577deca](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/577deca2deea1b9ea69c0e416cdd1c5803a0d929))
+* Update dependencies ([2174796](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/217479629841b3dbfa23ccc9d0449134c536342e))
+* Updated dependencies ([db95b23](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/db95b2326f7d2ffb54dd62bff5306edad4029da7))
+
+
+### Documentation
+
+* . ([56c5f55](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/56c5f55582336f8e4940ebf3d3686638a959744a))
+* . ([61b385c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/61b385c9df508582c7c0d22f2bc9b41fae352cdf))
+* . ([4b7616f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4b7616f03e2ca35830772ed6d1cb329182e7b1c1))
+* . ([78849b9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/78849b97f8e95cb4077525568da6368c40b590c9))
+* . ([2eb8251](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2eb8251207ff0acfc8914e584dcfcda4a8b0d81d))
+* . ([6cb7a8a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6cb7a8a4dc038be0408ca7233901544625e63836))
+* . ([63733eb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/63733eb3759c91805fe83fb97ade805e2b70d2de))
+* . ([60ba008](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/60ba00849a47b73864ff36b8275b25fd19b7cff8))
+* add basic jsdoc to functions in source code ([61b6bea](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/61b6beaa261c7bd4cd1d99d34a05d70c7fd0b144))
+* Docker build debugging ([925c2c6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/925c2c630cd5349170b05e86803de84a429d6095))
+* Dummy update ([c2d9383](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c2d93836a5ef68f858379f76ee7eba96db1c84f6))
+* release process wip ([87b90ad](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/87b90ad6b291b291fb323e02bfdcdc3a7daf5cb7))
+* release process wip ([a222293](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a22229325b321ee48042ce5eccb2bc86180f899e))
+* Update docs for 1.3.0 ([2d98cde](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2d98cde81b9473de2efc7e60ef4425b41c83bafa))
+* Update src readme ([b058b5f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b058b5f78797e87f5b307531dde1554238a39051))
+* wip ([6a25789](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6a25789164bf57301e1aeca04002e0aa0bfb5d4e))
+
+
+### Miscellaneous
+
+* Move to 2.0 alpha release ([a4d0c6b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a4d0c6b8576261666e3be5760c63e49ba3746e93))
+* Tweak CI ([1c6b9e4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1c6b9e4bcb4e6d01f22b821727a735b58080e394))
+* tweaking CI ([f5b9168](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f5b91680e3d8c858452e392eebe1a877b913167f))
+
 ## [1.9.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.0.0-alpha3...butler-sheet-icons-v1.9.0) (2022-03-15)
 
 
