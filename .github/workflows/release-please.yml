@@ -10,7 +10,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
+      releases_created: ${{ steps.release.outputs.releases_created }}
       release_tag_name: ${{ steps.release.outputs.tag_name }}
       release_upload_url: ${{ steps.release.outputs.upload_url }}
     env:
@@ -25,7 +25,7 @@ jobs:
         id: release
         if: github.repository_owner == 'ptarmiganlabs'
         with:
-          command: manifest-pr
+          command: manifest
 
       # - uses: google-github-actions/release-please-action@v3
       #   id: release
@@ -40,9 +40,9 @@ jobs:
       #     draft: true
 
       - name: Show output from Release-Please
-        if: ${{ steps.release.outputs.release_created }}
+        if: ${{ steps.release.outputs.releases_created }}
         run: |
-          echo "release_created: ${{ steps.release.outputs.release_created }}"
+          echo "releases_created: ${{ steps.release.outputs.releases_created }}"
           echo "upload_url: ${{ steps.release.outputs.upload_url }}"
           echo "html_url: ${{ steps.release.outputs.html_url }}"
           echo "tag_name: ${{ steps.release.outputs.tag_name }}"
@@ -66,17 +66,17 @@ jobs:
       #     command: monitor    
 
       # - name: Install dependencies
-      #   if: ${{ steps.release.outputs.release_created }}
+      #   if: ${{ steps.release.outputs.releases_created }}
       #   run: |
       #     ls -la
       #     npm install
 
       # - name: Install tool for creating stand-alone executables
-      #   if: ${{ steps.release.outputs.release_created }}
+      #   if: ${{ steps.release.outputs.releases_created }}
       #   run: npm install -g pkg
 
       # - name: Package stand-alone binaries
-      #   if: ${{ steps.release.outputs.release_created }}
+      #   if: ${{ steps.release.outputs.releases_created }}
       #     # mkdir release/alpine
       #     # pkg --output release/alpine/${DIST_FILE_NAME} -t node16-alpine-x64 index.js
       #   run: |
@@ -90,7 +90,7 @@ jobs:
       #     pkg --config ./src/package.json --output release/win/${DIST_FILE_NAME}.exe -t node16-win-x64 src/butler-sheet-icons.js
 
       # - name: Debug
-      #   if: ${{ steps.release.outputs.release_created }}
+      #   if: ${{ steps.release.outputs.releases_created }}
       #   run: |
       #     ls -la
       #     ls -la release
@@ -99,14 +99,14 @@ jobs:
       #     ls -la release/win
 
       # - name: Upload macOS build artifacts
-      #   if: ${{ steps.release.outputs.release_created }}
+      #   if: ${{ steps.release.outputs.releases_created }}
       #   uses: actions/upload-artifact@v3
       #   with:
       #     name: binaries-macos
       #     path: release/macos/*
 
       # - name: Upload Windows build artifacts
-      #   if: ${{ steps.release.outputs.release_created }}
+      #   if: ${{ steps.release.outputs.releases_created }}
       #   uses: actions/upload-artifact@v3
       #   with:
       #     name: binaries-win
@@ -121,7 +121,7 @@ jobs:
   #     - macos
   #     - sp53
   #   # timeout-minutes: 15
-  #   if: ${{ needs.release-please.outputs.release_created }} 
+  #   if: ${{ needs.release-please.outputs.releases_created }} 
   #   env:
   #     DIST_FILE_NAME: butler-sheet-icons
   #   steps:
@@ -216,7 +216,7 @@ jobs:
   #     - windows
   #     - sp53
   #   # timeout-minutes: 15
-  #   if: ${{ needs.release-please.outputs.release_created }} 
+  #   if: ${{ needs.release-please.outputs.releases_created }} 
   #   env:
   #     DIST_FILE_NAME: butler-sheet-icons
   #   steps:
