@@ -79,9 +79,9 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
 
                 // Set new sheet thumbnail
                 if (options.prefix.length > 0) {
-                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/app-${appId}-sheet-${iSheetNum}.png`;
+                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}.png`;
                 } else {
-                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/app-${appId}-sheet-${iSheetNum}.png`;
+                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}.png`;
                 }
 
                 const res = await sheetObj.setProperties(sheetProperties);

@@ -1,10 +1,14 @@
 # Project specific ignores
 cert/
+src/puppeteer
 .vscode/launch.json
 src/img/**
 img/**
 .DS_Store
 src/bin/*
+release
+release-macos
+.DS_Store
 
 # Logs
 logs

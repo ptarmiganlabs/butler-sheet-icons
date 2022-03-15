@@ -4,6 +4,7 @@ const enigma = require('enigma.js');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const qrsInteract = require('qrs-interact');
+const path = require('path');
 
 const { setupEnigmaConnection } = require('./qseow-enigma.js');
 const { logger, setLoggingLevel } = require('../../globals.js');
@@ -83,13 +84,28 @@ const processQSEoWApp = async (appId, g, options) => {
 
         const createdFiles = [];
 
+        const isPkg = typeof process.pkg !== 'undefined';
+        logger.debug(`Running as standalone app: ${isPkg}`);
+
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             let iSheetNum = 1;
+
+            const chromiumExecutablePath = isPkg
+                ? puppeteer
+                      .executablePath()
+                      .replace(
+                          /^.*?\/node_modules\/puppeteer\/\.local-chromium/,
+                          path.join(path.dirname(process.execPath), 'chromium')
+                      )
+                : puppeteer.executablePath();
+            logger.debug(`Using Chromium browser at ${chromiumExecutablePath}`);
+
             const browser = await puppeteer.launch({
                 headless: options.headless === true || options.headless.toLowerCase() === 'true',
+                executablePath: chromiumExecutablePath,
                 ignoreHTTPSErrors: true,
                 acceptInsecureCerts: true,
                 args: [
