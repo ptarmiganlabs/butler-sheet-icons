@@ -1,5 +1,22 @@
 # Changelog
 
+### [1.9.9](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.8...butler-sheet-icons-v1.9.9) (2022-03-15)
+
+
+### Bug Fixes
+
+* Add macOS build to CI ([9c1e307](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9c1e3079fba7b8606fc5cd4f69c0528a46b69034))
+* Fix Snyk scanning ([129da2b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/129da2b7d93552c8737acfc820912f7908c72f06))
+* Snyk CI config ([cfceb5a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cfceb5a6ef1d98c6cad61a276bd5a9a1fedfdc94))
+* Snyk CI config ([f1ea388](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f1ea3883c968cb85340e00a6441abe0819e72994))
+* Snyk CI config ([1ec1c63](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1ec1c63a643a6add4cbd05f95313fa1391579b73))
+* Snyk config ([8564657](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/85646573566128a64fb8d2ec3539dc522748c65c))
+
+
+### Miscellaneous
+
+* **deps:** update dependency snyk to v1.872.0 ([a7fd375](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a7fd375f6f859bf32c85cd1ad453d9712f4e13dd))
+
 ### [1.9.8](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.7...butler-sheet-icons-v1.9.8) (2022-03-15)
 
 
