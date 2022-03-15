@@ -152,6 +152,7 @@ jobs:
           pwd
           ls -la
           cd src
+          nvm use --lts
           npm install
           cd ..
           cp -r ./src/node_modules/puppeteer/.local-chromium release-macos/chromium
