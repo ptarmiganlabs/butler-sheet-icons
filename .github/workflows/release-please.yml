@@ -109,14 +109,14 @@ jobs:
 
       - name: Upload macOS build artifacts
         if: ${{ steps.release.outputs.release_created }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: binaries-macos
           path: release/macos/*
 
       - name: Upload Windows build artifacts
         if: ${{ steps.release.outputs.release_created }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: binaries-win
           path: release/win/*
