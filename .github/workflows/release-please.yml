@@ -157,7 +157,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Download-Binaries
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: binaries-macos
           path: release-macos/
@@ -252,7 +252,7 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Download-Binaries
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: binaries-win
           path: release-win/
