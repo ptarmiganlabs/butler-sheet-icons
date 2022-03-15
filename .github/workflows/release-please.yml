@@ -63,6 +63,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
+          args: --file=src/package.json
           command: monitor    
 
       - name: Install dependencies
