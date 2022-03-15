@@ -5,14 +5,14 @@
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml/badge.svg" alt="Continuous Integration"></a>
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-macos.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-macos.yml/badge.svg?branch=main" alt="Continuous Integration"></a>
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-winsrv2016.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-winsrv2016.yml/badge.svg?branch=main" alt="Continuous Integration"></a>
-<a href="https://codeclimate.com/github/ptarmiganlabs/butler-sheet-icons/maintainability"><img src="https://api.codeclimate.com/v1/badges/a09f483b0a075dca1096/maintainability" /></a>
 </p>
 
-A cross platform, command line tool for creating sheet thumbnails based on the actual layout of sheets in Qlik Sense Enterprise on Windows applications.
+A cross platform, command line tool for creating sheet thumbnails based on the actual layout of sheets in Qlik Sense apps.  
+Works on both Qlik Sense Cloud apps and Qlik Sense Enterprise on Windows (QSEoW) apps.
 
-Butler Sheet Icons can create sheet thumbnail icons for a single app or many - just use the QMC to tag the apps that should be updated, then run Butler Sheet Icons.  
-All apps will get new sheet icons automatically!
-
+Butler Sheet Icons can create sheet thumbnail icons for a single app or many.  
+Just use the QMC (for QSEoW) to tag the apps that should be updated, or add the apps to a collection (Qlik Senes Cloud).  
+Then run Butler Sheet Icons and all apps will get new sheet icons automatically!
 
 Table of contents
 
@@ -38,11 +38,14 @@ Table of contents
 
 # 1. Summary
 
+The basics:
+
 - Qlik Sense applications contains zero or more *sheets*.
 - Each sheet contains various kind of charts, KPIs, texts or other visualisations.
-- A sheet icon/thumbnail image can be added to each sheet in a Sense app. This image makes it easier for users to find the sheet they are looking for.
+- A sheet icon/thumbnail image can be added to each sheet in a Sense app.  
+  This image provides visual guidance and makes it easier for users to find the sheet they are looking for.
 
-There are various aproaches when it comes to creating useful sheet icons:
+There are various approaches when it comes to creating useful sheet icons:
 
 1. Use random images you've found somewhere online.  
    Usually not recommended, at least not if you want a consistent, professional looking Sense application.
@@ -51,25 +54,24 @@ There are various aproaches when it comes to creating useful sheet icons:
 3. Use a professional icon/image library such as Font Awesome.  
    This gives you a nice, consistent look across all sheet icons. Converting the images to a suitable format and uploading them to Qlik Sense can be a challenge though, here tools such as [Butler Icon Upload](https://github.com/ptarmiganlabs/butler-icon-upload) can greatly simplify things.
 4. Create thumbnail images that are miniatures of the actual sheet layout.  
-   The idea here is to take screen shots of all app sheets and then use these screenshots as thumbnail images.
+   The idea here is to take screen shots of all app sheets and then use these screenshots as thumbnail images for each sheet.
 
 **The goal of the Butler Sheet Icons project is to automate option 4 above.**
 
 Specifically:
 
 - The tool is cross platform and runs on Windows, MacOS, Linux and as a Docker container.
-- A single command will create thumbnail images, upload them to a Qlik Sense content library and assign them as sheet icons to all sheets in the Sense app.
+- Stand-alone binaries for Windows, Linux and macOS are available for download.
+- Works on both Qlik Sense Cloud and Qlik Sense Enterprise on Windows (QSEoW). Qlik Sense Desktop not supported.
+- A single command will create thumbnail images, upload them to Qlik Sense and assign them as sheet icons to sheets in the Sense app(s).
 
-By using for example Powershell and [Qlik CLI Windows](https://github.com/ahaydon/Qlik-Cli-Windows) it's possible to automatically create sheet thumbnails for all sheets in all apps in a Qlik Sense Enterprise environment!
+By using for example Powershell (which runs on Windows, macOS and Linux these days!) and [qlik-cli](https://qlik.dev/libraries-and-tools/qlik-cli) (which is an official, supported tool from Qlik) it's possible to automatically create sheet thumbnails for ***all*** sheets in ***all*** apps in a Qlik Sense environment!
 
-Use cases for the Butler Sheet Icons tool include
+Use cases for Butler Sheet Iconsinclude
 
 - Manual, one-off updates of a Sense app's sheet icons
 - Bulk update of all sheet icons in many apps
-- Update sheet icons as part of a CI/CD process
-
-As of this writing Butler Sheet Icons supports Qlik Sense Enterprise on Windows.  
-Support for Qlik cloud may be added in the future.
+- Update sheet icons as part of a CI/CD pipeline
 
 ## 1.1. Sample screen shots
 

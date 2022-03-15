@@ -1,5 +1,6 @@
 # Project specific ignores
 cert/
+src/puppeteer
 .vscode/launch.json
 src/img/**
 img/**
