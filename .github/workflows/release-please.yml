@@ -154,7 +154,7 @@ jobs:
           cd src
           npm install
           cd ..
-          cp -r ./src/node_modules//puppeteer/.local-chromium release-macos/chromium
+          cp -r ./src/node_modules/puppeteer/.local-chromium release-macos/chromium
 
       # Needed for GitHub hosted runner
       # For self-hosted runner the cert must either be installed manually, or the code below run once and then disabled.
