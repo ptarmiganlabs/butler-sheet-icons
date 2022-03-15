@@ -54,7 +54,7 @@ jobs:
 
       - name: Checkout repository
         if: github.repository_owner == 'ptarmiganlabs'
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run Snyk to check for vulnerabilities
         if: github.repository_owner == 'ptarmiganlabs'
@@ -109,14 +109,14 @@ jobs:
 
       - name: Upload macOS build artifacts
         if: ${{ steps.release.outputs.release_created }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: binaries-macos
           path: release/macos/*
 
       - name: Upload Windows build artifacts
         if: ${{ steps.release.outputs.release_created }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: binaries-win
           path: release/win/*
@@ -154,10 +154,10 @@ jobs:
           echo ${{ needs.release-please.outputs.release_upload_url }} 
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Download-Binaries
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: binaries-macos
           path: release-macos/
@@ -249,10 +249,10 @@ jobs:
           echo ${{ needs.release-please.outputs.release_upload_url }} 
 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Download-Binaries
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: binaries-win
           path: release-win/
