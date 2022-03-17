@@ -1,5 +1,13 @@
 # Changelog
 
+### [1.9.11](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.11) (2022-03-17)
+
+
+### Bug Fixes
+
+* ci and win building ([c90ef80](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c90ef8053330b4a745a4aa4f27854f2f2ee772d5))
+* ci Snyk scanning ([b049a52](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b049a521c6ad90481a60c21afd00b6b0b55c1815))
+
 ### [1.9.10](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-15)
 
 
