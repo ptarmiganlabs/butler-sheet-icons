@@ -49,6 +49,6 @@
     "url": "https://github.com/ptarmiganlabs/butler-sheet-icons/issues"
   },
   "pkg": {
-    "scripts": "src/node_modules/enigma.js/**/*.js"
+    "scripts": "src/node_modules/enigma.js/**/*.json"
   }
 }

@@ -96,14 +96,19 @@ const processQSEoWApp = async (appId, g, options) => {
 
             let iSheetNum = 1;
 
-            const chromiumExecutablePath = isPkg
-                ? puppeteer
-                      .executablePath()
-                      .replace(
-                          /^.*?\/node_modules\/puppeteer\/\.local-chromium/,
-                          path.join(path.dirname(process.execPath), 'chromium')
+            // https://github.com/vercel/pkg/issues/204#issuecomment-536323464
+            const executablePath =
+                process.env.PUPPETEER_EXECUTABLE_PATH ||
+                (process.pkg
+                    ? path.join(
+                          path.dirname(process.execPath),
+                          'chromium',
+                          ...puppeteer.executablePath().split(path.sep).slice(6) // /snapshot/project/node_modules/puppeteer/.local-chromium
                       )
-                : puppeteer.executablePath();
+                    : puppeteer.executablePath());
+            logger.debug(`execPath: ${executablePath}`);
+
+            const chromiumExecutablePath = isPkg ? executablePath : puppeteer.executablePath();
             logger.debug(`Using Chromium browser at ${chromiumExecutablePath}`);
 
             const browser = await puppeteer.launch({

@@ -3,6 +3,7 @@
 const enigma = require('enigma.js');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
+const path = require('path');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
 const { logger, setLoggingLevel } = require('../../globals.js');
@@ -114,13 +115,33 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
         const createdFiles = [];
 
+        const isPkg = typeof process.pkg !== 'undefined';
+        logger.debug(`Running as standalone app: ${isPkg}`);
+
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             let iSheetNum = 1;
+
+            // https://github.com/vercel/pkg/issues/204#issuecomment-536323464
+            const executablePath =
+                process.env.PUPPETEER_EXECUTABLE_PATH ||
+                (process.pkg
+                    ? path.join(
+                          path.dirname(process.execPath),
+                          'chromium',
+                          ...puppeteer.executablePath().split(path.sep).slice(6) // /snapshot/project/node_modules/puppeteer/.local-chromium
+                      )
+                    : puppeteer.executablePath());
+            logger.debug(`execPath: ${executablePath}`);
+
+            const chromiumExecutablePath = isPkg ? executablePath : puppeteer.executablePath();
+            logger.debug(`Using Chromium browser at ${chromiumExecutablePath}`);
+
             const browser = await puppeteer.launch({
                 headless: options.headless === true || options.headless.toLowerCase() === 'true',
+                executablePath: chromiumExecutablePath,
                 ignoreHTTPSErrors: true,
                 acceptInsecureCerts: true,
                 args: [
@@ -137,7 +158,6 @@ const processCloudApp = async (appId, saasInstance, options) => {
                     '--enable-features=NetworkService',
                 ],
             });
-
             const page = await browser.newPage();
 
             // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.

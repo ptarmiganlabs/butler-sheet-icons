@@ -23,8 +23,8 @@ const readCert = (filename) => fs.readFileSync(filename);
 // eslint-disable-next-line no-unused-vars
 const setupEnigmaConnection = (appId, options, command) => {
     logger.debug(`Prepping for QSEoW Enigma connection for app ${appId}`);
-
     const qixSchema = require(`enigma.js/schemas/${options.schemaversion}`);
+    logger.debug(`Successfully required Enigma`);
 
     return {
         schema: qixSchema,
