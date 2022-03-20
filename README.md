@@ -14,6 +14,9 @@ Butler Sheet Icons can create sheet thumbnail icons for a single app or many.
 Just use the QMC (for QSEoW) to tag the apps that should be updated, or add the apps to a collection (Qlik Senes Cloud).  
 Then run Butler Sheet Icons and all apps will get new sheet icons automatically!
 
+Butler Sheet Icons is sponsored by [Ptarmigan Labs](https://info.ptarmiganlabs.com/g3c1f1).
+
+
 Table of contents
 
 - [1. Summary](#1-summary)
