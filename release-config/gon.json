@@ -1,5 +1,5 @@
 {
-  "source" : ["./release-macos/butler-sheet-icons", "./release-macos/chromium/*"],
+  "source" : ["./release-macos/butler-sheet-icons"],
   "bundle_id" : "com.ptarmiganlabs.butler-sheet-icons",
   "apple_id": {
     "password":  "@env:AC_PASSWORD"
