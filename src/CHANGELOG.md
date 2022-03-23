@@ -1,5 +1,13 @@
 # Changelog
 
+### [1.9.14](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.0...butler-sheet-icons-v1.9.14) (2022-03-23)
+
+
+### Bug Fixes
+
+* . ([54b0fb4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/54b0fb4fb6e146c6edd3213245e0d953a595db98))
+* . ([6ade98f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6ade98fb399b8c30999d2d23fe48ea4b2e1d6923))
+
 ## [1.9.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.12...butler-sheet-icons-v1.9.0) (2022-03-23)
 
 
