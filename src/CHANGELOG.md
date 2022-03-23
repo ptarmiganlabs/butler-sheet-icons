@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.9.15](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.14...butler-sheet-icons-v1.9.15) (2022-03-23)
+
+
+### Bug Fixes
+
+* Add tests back into CI ([4064255](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/40642556b8461373679f51c20bbd0b902274dd68))
+
 ### [1.9.14](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.0...butler-sheet-icons-v1.9.14) (2022-03-23)
 
 
