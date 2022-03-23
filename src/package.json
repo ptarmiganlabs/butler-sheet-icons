@@ -1,6 +1,6 @@
 {
   "name": "butler-sheet-icons",
-  "version": "1.9.11",
+  "version": "1.9.12",
   "description": "Creates thumbnail images based on sheets in Qlik Sense applications",
   "main": "butler-sheet-icons.js",
   "scripts": {
