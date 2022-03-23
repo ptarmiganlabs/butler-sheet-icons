@@ -23,6 +23,7 @@ const readCert = (filename) => fs.readFileSync(filename);
 // eslint-disable-next-line no-unused-vars
 const setupEnigmaConnection = (appId, options, command) => {
     logger.debug(`Prepping for QSEoW Enigma connection for app ${appId}`);
+    // try {
     const qixSchema = require(`enigma.js/schemas/${options.schemaversion}`);
     logger.debug(`Successfully required Enigma`);
 
@@ -45,6 +46,9 @@ const setupEnigmaConnection = (appId, options, command) => {
                 rejectUnauthorized: options.rejectUnauthorized === 'true',
             }),
     };
+    // } catch (err) {
+    //     logger.error(`ENIGMA: ${err}`);
+    // }
 };
 
 module.exports = {

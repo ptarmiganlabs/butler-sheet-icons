@@ -1,307 +1,941 @@
 # Changelog
 
-### [1.9.15](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.14...butler-sheet-icons-v1.9.15) (2022-03-23)
+### [1.12.2](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.12.1...butler-sheet-icons-v1.12.2) (2022-03-21)
 
 
 ### Bug Fixes
 
-* Add tests back into CI ([4064255](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/40642556b8461373679f51c20bbd0b902274dd68))
+* ci 2 ([8aa6348](https://github.com/ptarmiganlabs/bsi_lab/commit/8aa6348fb3c69448e5b2bdb61d2d76deaf2df509))
 
-### [1.9.14](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.0...butler-sheet-icons-v1.9.14) (2022-03-23)
+
+### Documentation
+
+* Backfill changelog ([7658ff7](https://github.com/ptarmiganlabs/bsi_lab/commit/7658ff7857f78cf764eda1c4dd7120841ae20bb4))
+
+### [1.12.1](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.12.0...butler-sheet-icons-v1.12.1) (2022-03-21)
 
 
 ### Bug Fixes
 
-* . ([54b0fb4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/54b0fb4fb6e146c6edd3213245e0d953a595db98))
-* . ([6ade98f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6ade98fb399b8c30999d2d23fe48ea4b2e1d6923))
+* ci 1 ([5cfc4d3](https://github.com/ptarmiganlabs/bsi_lab/commit/5cfc4d38c824a6a07e06fd9277405412a522c92f))
 
-## [1.9.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.12...butler-sheet-icons-v1.9.0) (2022-03-23)
+## [1.12.0](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.11.1...butler-sheet-icons-v1.12.0) (2022-03-21)
 
-
-### ⚠ BREAKING CHANGES
-
-* Store screenshots in app-specific folders, separate for QSEoW and QS Cloud
-* Sheet thumbnails for Qlik Sense Cloud apps
 
 ### Features
 
-* Add command for listing all available QS Cloud collections ([a173bf4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a173bf4cd7ded1d29bb47e96775e9659cac9e44e))
-* Add qscloud list-collections command ([b19d92b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b19d92b6c4d4f4f02d2775b69cf10d933bf84627))
-* Add Snyk test and  binaries building ([2c09927](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2c0992728731ff3018e8e91862c5f2fdd6f36aa6))
-* Build stand-alone binaries for Windows, Linux and macOS ([aa17a3c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/aa17a3c7d79d2c6b74f76c83063a8a238022d6f6)), closes [#148](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/148)
-* Control part of sheet used as thumbnail ([5da0929](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5da092973ef2a5d823b9cc9ce863eb6c3ea9d468)), closes [#6](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/6)
-* Make app selection additive across appid/tags and appid/collections ([223d80a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/223d80a22c9b4d3ea04a8e62ee1c35c7a5a3dbcd)), closes [#142](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/142)
-* Make cert validation optional ([ab3e331](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ab3e3315497b04c1103e28b170b3c90ee29d5ada))
-* Refine automated CI testing ([2259815](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/225981594cf8fa82bacabc741c64ad169269e72e)), closes [#7](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/7)
-* Sheet thumbnails for Qlik Sense Cloud apps ([59f0c5b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/59f0c5bd743b70347ad5a42b966665b1dad31074)), closes [#123](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/123)
-* Store screenshots in app-specific folders, separate for QSEoW and QS Cloud ([eeb7633](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/eeb763317f3bce5469ec06f96e7e519244565e86)), closes [#124](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/124)
-* Update multiple apps using Sense tags ([3e01242](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3e0124277ef81a22f8418331796964628633e1c9)), closes [#113](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/113)
+* Move changelog to repo root ([70b11b1](https://github.com/ptarmiganlabs/bsi_lab/commit/70b11b1ac9b9f79f22a10d1f0174d6a2d2ae185a))
 
 
 ### Bug Fixes
 
-* add comments ([de5b041](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/de5b04171c50fa83db940461700373acb0c80c8b))
-* Add macOS build to CI ([9c1e307](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9c1e3079fba7b8606fc5cd4f69c0528a46b69034))
-* Add more detail in QSEoW thumbnail images ([ffb5942](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ffb5942d6a35c1c7a2e0217616a1c37e6d1a5d91)), closes [#122](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/122)
-* Add README file ([d40d429](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d40d429fcca5a5784271e91df540836220331255))
-* Adopt QSEoW test cases to new command/sub-command structure ([1ef5829](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1ef5829108d352281dced987fbb3734172f55d53)), closes [#139](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/139)
-* app name in package.json ([ff35688](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ff356888ed513ff482dc41875bafffd0d2522de7))
-* ci and win building ([c90ef80](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c90ef8053330b4a745a4aa4f27854f2f2ee772d5))
-* ci debug ([150b0ff](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/150b0ffa7265d7a9a5f251d6d9e2dcf09defb8a8))
-* ci debug ([5e561c7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5e561c71013b547737df0af72b207bcc7f543ba9))
-* ci debug ([a4f081c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a4f081cecab6bcc71b456b3bcd5fd26bb9477cee))
-* ci debug ([699b490](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/699b4900870622c2ce3c0362793734c53df22c00))
-* ci debug ([0b8a58d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0b8a58d10f4826f7d4c1e06960b307a5c3d08785))
-* ci debug ([c14eb24](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c14eb2464be453634b953adb9077a00ce4c9dd99))
-* ci debug ([70b3742](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/70b3742a99297da632601a818a61b960b46b649e))
-* ci debug ([b5cb220](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b5cb220c8b05e7ef32135658c7d60e3e8209affa))
-* CI debug ([7794d4f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7794d4fff36bf8ac532e9611b82a014fc0eab049))
-* ci debug 3 ([39ade54](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/39ade54a6aa976581177a2620ec058814fdfa155))
-* ci debug 4 ([7fa175f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7fa175f56d66c8b78942b200cff96bff523e2439))
-* ci debug2 ([6357f44](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6357f446f6da49c24f61b4fd58da2dbf5c805d1a))
-* ci Snyk scanning ([b049a52](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b049a521c6ad90481a60c21afd00b6b0b55c1815))
-* **ci:** CI tests handle --includesheetpart flag ([55ba659](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/55ba659b987a4b0a08bfcec111ddb398b4ab7030)), closes [#107](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/107)
-* Correct thumbnails when using virtual proxies ([dadc6e7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/dadc6e792c35ad39aa0fe6e8a56b56542e1c79f2))
-* **deps:** update dependency commander to v9 ([8c67249](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8c67249b0c5d7cba0b0f1d21dc03b8e3345b2c51))
-* **deps:** update dependency puppeteer to v13 ([5e1b8c5](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5e1b8c51a2f361a588aacacb3b136948ee355d2d))
-* Disable tests ([56fdcf7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/56fdcf78fd074277740b116bfe57d04ae838c6c0))
-* Fix failing Docker builds ([#63](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/63)) ([44e8e99](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/44e8e99409a808b9d15d8aecb4979c899b8bd904))
-* Fix Snyk scanning ([129da2b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/129da2b7d93552c8737acfc820912f7908c72f06))
-* Handle bool or string for --headless option ([64aa66a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/64aa66a761c0e6525d349b11347c5ac5ba65a26f)), closes [#121](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/121)
-* improved info texts in app ([1934e0c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1934e0ccae7789539debe65eee044587150b7229))
-* macOS build ([cf05b33](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cf05b33299d4a77e03e742b27d0daf8ea87757e1))
-* Only upload images from the processed app to content library ([3e01242](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3e0124277ef81a22f8418331796964628633e1c9)), closes [#114](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/114)
-* Snyk ([26e5e78](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/26e5e780b6fa1f71d53cff95ca477107557f45b7))
-* Snyk ([f7f6d74](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f7f6d740f8126ab721d91c45539c32e976a6b0ad))
-* Snyk ([4f009f3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4f009f398ca1040451aa3ebe43c553a65be050b1))
-* Snyk ([cc077d9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cc077d942f1e2046bdce284c7ea9ae348b6f05dd))
-* Snyk ([3679ddb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3679ddb93b7e7e86331487c42f52573b625eadb0))
-* Snyk CI config ([cfceb5a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cfceb5a6ef1d98c6cad61a276bd5a9a1fedfdc94))
-* Snyk CI config ([f1ea388](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f1ea3883c968cb85340e00a6441abe0819e72994))
-* Snyk CI config ([1ec1c63](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1ec1c63a643a6add4cbd05f95313fa1391579b73))
-* Snyk config ([8564657](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/85646573566128a64fb8d2ec3539dc522748c65c))
-* src/package.json & src/package-lock.json to reduce vulnerabilities ([cb3c439](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cb3c4398c944947968d48030eea0cf5c192cc2fe))
-* src/package.json & src/package-lock.json to reduce vulnerabilities ([c48e629](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c48e629178f76470b33c830f1df9c89a87568641))
-* Twaeking Docker builds ([#63](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/63)) ([cc860c9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cc860c9ae20cef15f7251c98510f6d2797c181de))
-* Tweaking Docker builds ([18b43d0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/18b43d0b42c4220f521e7a1b7ae3fa2f5f863403))
-* Tweaking Docker builds ([#63](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/63)) ([577deca](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/577deca2deea1b9ea69c0e416cdd1c5803a0d929))
-* Update dependencies ([2174796](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/217479629841b3dbfa23ccc9d0449134c536342e))
-* Updated dependencies ([db95b23](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/db95b2326f7d2ffb54dd62bff5306edad4029da7))
+* changelog 1 ([0024868](https://github.com/ptarmiganlabs/bsi_lab/commit/00248683947a2a571248c041f4f259ffa72e0dbc))
+
+
+### [1.11.1](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.11.0...butler-sheet-icons-v1.11.1) (2022-03-21)
+
+
+### Bug Fixes
+
+* clean up ci script 1 ([cca0436](https://github.com/ptarmiganlabs/bsi_lab/commit/cca04367b1cdbcfb6536aa7f2e0b2774bff21108))
+
+## [1.11.0](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.10.1...butler-sheet-icons-v1.11.0) (2022-03-21)
+
+
+### Features
+
+* macOS compress 1 ([1a48025](https://github.com/ptarmiganlabs/bsi_lab/commit/1a4802572515c39c5520d4cb007f0a212c100118))
+
+
+### Bug Fixes
+
+* . ([5f836c8](https://github.com/ptarmiganlabs/bsi_lab/commit/5f836c83b0201bdbc0b1c14374cef8b587c8a891))
+* . ([9b8fe23](https://github.com/ptarmiganlabs/bsi_lab/commit/9b8fe23a4f85b272752a4117fbd2383a406ef493))
+* . ([bb92174](https://github.com/ptarmiganlabs/bsi_lab/commit/bb9217466ca2163e2588be10d720d4ff95c29c28))
+* . ([b878adf](https://github.com/ptarmiganlabs/bsi_lab/commit/b878adf4519bc6d31bbf927af0ce5df9c7de6273))
+* . ([75a478f](https://github.com/ptarmiganlabs/bsi_lab/commit/75a478fd2471e4b8f0392a7c03548b61639b12bd))
+* . ([0e17465](https://github.com/ptarmiganlabs/bsi_lab/commit/0e174653f11b910094a961a5eb0ed65fadee3cf7))
+* . ([1c10db1](https://github.com/ptarmiganlabs/bsi_lab/commit/1c10db18d679d51fba323fa71fb888a5b717d69b))
+* . ([42a3eab](https://github.com/ptarmiganlabs/bsi_lab/commit/42a3eabd36fe6398de90d295e2f081fd51b5554f))
+* . ([28e7c75](https://github.com/ptarmiganlabs/bsi_lab/commit/28e7c755ea5c4253caede1a79f40d0bb3d1f4d1d))
+* . ([b99ea93](https://github.com/ptarmiganlabs/bsi_lab/commit/b99ea93509c29d8ae8f2ea27af7d92db6d56278c))
+* . ([33314cf](https://github.com/ptarmiganlabs/bsi_lab/commit/33314cfe2e986800794efdb82d2167c030507b64))
+* . ([7335a8d](https://github.com/ptarmiganlabs/bsi_lab/commit/7335a8d62faa2535a0b0a05e70cc5f06f40f20fe))
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+* . ([7ea5ca9](https://github.com/ptarmiganlabs/bsi_lab/commit/7ea5ca9b86dd508cf06c0e5c8f8a2b4c10466bc0))
+* browser embed 1 ([868cd36](https://github.com/ptarmiganlabs/bsi_lab/commit/868cd36e1b588d32dab3882cd435f3024ffdf67d))
+* CI 1 ([28da205](https://github.com/ptarmiganlabs/bsi_lab/commit/28da205ab3552c4a6f38271dc150bbea3310592e))
+* cloud pkg ([d40a98b](https://github.com/ptarmiganlabs/bsi_lab/commit/d40a98b4c80b448c86543e075775f803ac84d50e))
+* embed browser 1 ([2bd0da7](https://github.com/ptarmiganlabs/bsi_lab/commit/2bd0da749004536b7bf640302f7e881ef796f7ab))
+* Linux build ([85b09e7](https://github.com/ptarmiganlabs/bsi_lab/commit/85b09e7adbddee91ef832fec32050626a8964b9a))
+* Linux build 2 ([c780231](https://github.com/ptarmiganlabs/bsi_lab/commit/c780231967efb66fcbac172a7a25d6c0565a65ef))
+* macos ([a6c1fdf](https://github.com/ptarmiganlabs/bsi_lab/commit/a6c1fdf1b8c6e09bf94b8915e37b8202ed8136d6))
+* macOS 1 ([709e25a](https://github.com/ptarmiganlabs/bsi_lab/commit/709e25af226eb6862f46d40a8a6967c57897b636))
+* macOS 2 ([301d40f](https://github.com/ptarmiganlabs/bsi_lab/commit/301d40fc16427d691c93d153921762bd19900ff8))
+* macOS 3 ([09145fa](https://github.com/ptarmiganlabs/bsi_lab/commit/09145fa8303dfa3a29ef8775e23e7b342ff43a93))
 
 
 ### Miscellaneous
 
-* add Snyk scanning ([a67be0a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a67be0aef146f833cc3982dade55c883808c2a1b))
-* add Snyk scanning ([d25f234](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d25f23420a83bbdff451ed2b9a4d9d2e12c739f6))
-* **deps:** pin dependencies ([687dd42](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/687dd42d0e4c32ba2111152ff5f669a7d82bf504))
-* **deps:** pin dependency jest to 27.0.6 ([2511675](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2511675db051b9eb1e53450fcf440b1824029379))
-* **deps:** pin dependency jest to 27.1.0 ([#10](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/10)) ([ecd61d5](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ecd61d5a6d8074926c25fe6e67663c853fb091d5))
-* **deps:** pin dependency jest to 27.1.1 ([64225ee](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/64225ee6741b72d45934e497edd2ab4c82f465d0))
-* **deps:** pin dependency jest to 27.2.0 ([9774c9c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9774c9ce59fdec4d97f7bc678cf14a81c5cbaab9))
-* **deps:** Update dependencies ([656f62e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/656f62eee3e09646c115eb01163ca0afb4be4854))
-* **deps:** Update dependencies ([277d3bc](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/277d3bc25f885038bc94b11ccee860ebb3ef65a8))
-* **deps:** update dependency jest to v27.2.1 ([0851ef0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0851ef0b6bdbd97ad22c13a8bf76727918931095))
-* **deps:** update dependency jest to v27.2.3 ([1ddedce](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1ddedcee0027068088f84745f704ae7a0be0f0fc))
-* **deps:** update dependency jest to v27.2.5 ([caacfd3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/caacfd324dcaac6ed6118546995601627b5ae2d3))
-* **deps:** update dependency jest to v27.3.1 ([c3ccbfe](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c3ccbfee9e108808886e497802309722bf4f1b2c))
-* **deps:** update dependency jest to v27.4.4 ([45e4936](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/45e49369607c410e33842511dc9b2c3f38efa4d7))
-* **deps:** update dependency jest to v27.4.7 ([30a6aac](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/30a6aacfe7c046e4248f1f443d6e7e875d3af40e))
-* **deps:** update dependency snyk to v1.720.0 ([5bb5d4b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5bb5d4bd6a0007271f7eab419b851d8346dd1bca))
-* **deps:** update dependency snyk to v1.722.0 ([c488b84](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c488b84f73c6ec9e521577f2c394de607089083a))
-* **deps:** update dependency snyk to v1.723.0 ([cadfd18](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cadfd18794c7eed1fa364b0820e48e7e3fb1adae))
-* **deps:** update dependency snyk to v1.725.0 ([6952419](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/69524195971262c9265c4daa943604a5b4c8af31))
-* **deps:** update dependency snyk to v1.726.0 ([a3f1142](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a3f1142f2fec89d933815316af117b0482bd8d75))
-* **deps:** update dependency snyk to v1.727.0 ([3a4b61b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3a4b61b711a2859a40ed79f8a8f8ce21cf2eedf2))
-* **deps:** update dependency snyk to v1.730.0 ([eb43937](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/eb439372aebce349d9cea0dc610e080e69607391))
-* **deps:** update dependency snyk to v1.731.0 ([e95c905](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e95c905090c4a3fd0f864c09272406f4c966365f))
-* **deps:** update dependency snyk to v1.733.0 ([7d9f644](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7d9f644c3cf8c29e8dbf71f5410b01052e43081a))
-* **deps:** update dependency snyk to v1.736.0 ([dc770c2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/dc770c2cf2c95c72c79c66690eaac75ab1df2eb7))
-* **deps:** update dependency snyk to v1.741.0 ([2c23796](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2c23796edfbba9a5a390d6c6ced7569145489b6f))
-* **deps:** update dependency snyk to v1.742.0 ([4bc3649](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4bc3649e4fc50b8a81e93ae5faeb5b51cc4e6932))
-* **deps:** update dependency snyk to v1.788.0 ([285815c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/285815c7e6643b2ca522c86f1e79b31e1b25d1be))
-* **deps:** update dependency snyk to v1.826.0 ([3fb8a40](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3fb8a40ffe43a0265c8cd9e8dc3e5ac550f8b83d))
-* **deps:** update dependency snyk to v1.840.0 ([75d51e0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/75d51e0b3488bd411880097b5c3729789e743a6d))
-* **deps:** update dependency snyk to v1.872.0 ([a7fd375](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a7fd375f6f859bf32c85cd1ad453d9712f4e13dd))
-* **deps:** update googlecloudplatform/release-please-action action to v2.32.0 ([2f36a5e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2f36a5e304fb963c79cf09aa133f71bb2184a89a))
-* **deps:** Updated dependencies ([90293fd](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/90293fd5118d25a8bd91d6acf80ecdd63d837411))
-* **deps:** Updated dependencies ([ee87838](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ee878386f6c29c4c62b7c453b72af001db990830))
-* **deps:** Updated dependencies ([452cb64](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/452cb643f47da8124f5fbad44378bf7f0017735b))
-* **main:** release 1.9.0 ([61ca993](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/61ca993a4f106b138c1cc9253658c864279f7a84))
-* **main:** release 1.9.0 ([c0b5855](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c0b585543ac79dd7352530bd37727ea5b5c0cf9c))
-* **main:** release 1.9.0 ([5ed3e1d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5ed3e1d4d2586cb7c6d6cc3440c6cfb9ecf2596e))
-* **main:** release butler-sheet-icons 1.2.0 ([e013279](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e0132797207eec93d6faae4075ec27dd001fe3df))
-* **main:** release butler-sheet-icons 1.2.1 ([450fb82](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/450fb826422d4d5fb3012b191b80c05d19822b81))
-* **main:** release butler-sheet-icons 1.3.0 ([6b8eb29](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6b8eb29361ebf73e50e8b0cb3955e61fbcd4b0d3))
-* **main:** release butler-sheet-icons 1.9.0 ([c05b81c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c05b81c09c59c2735abcdacafc81a30cde940242))
-* **main:** release butler-sheet-icons 1.9.0 ([3e0390e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3e0390e48723291a0bfe9b868200b70322f718c8))
-* **main:** release butler-sheet-icons 1.9.0 ([9148065](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9148065a0aa00c64940d4c809891e67ecbee760f))
-* **main:** release butler-sheet-icons 1.9.10 ([2e4ab74](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2e4ab74af9abd3f834e61e16ab0f5abfd9520575))
-* **main:** release butler-sheet-icons 1.9.10 ([14e5420](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/14e54200c96c8e215816f1f105f01f491963c70c))
-* **main:** release butler-sheet-icons 1.9.11 ([ab29cd6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ab29cd6e5b141735141a3a4504f1500f72c730d1))
-* **main:** release butler-sheet-icons 1.9.12 ([a0edc7e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a0edc7e9a099e7ea9936a2965bd26d2c53cb2e07))
-* **main:** release butler-sheet-icons 1.9.2 ([b728ea1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b728ea157af5298d8d7dc87b0c05c71a7d2030ba))
-* **main:** release butler-sheet-icons 1.9.3 ([af98d5d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/af98d5d873050adb37e26371a7d7dacaeae88375))
-* **main:** release butler-sheet-icons 1.9.4 ([#173](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/173)) ([0fab86a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0fab86ae840e665012765e738ba6d774a852fafe))
-* **main:** release butler-sheet-icons 1.9.6 ([0aa55a5](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0aa55a51bdf318c54cdea0ca116f69203f1aa9c1))
-* **main:** release butler-sheet-icons 1.9.7 ([fa5da7c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fa5da7c845b50f82559fb68a976782c0c7be3e82))
-* **main:** release butler-sheet-icons 1.9.8 ([1dc47de](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1dc47deff34cd63c6068372fd3964abd17e23db3))
-* **main:** release butler-sheet-icons 1.9.9 ([b17bc02](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b17bc02aeae2871b2fb44edb50517b4ba2d22ff2))
-* **main:** release butler-sheet-icons 2.0.0-alpha1 ([51be546](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/51be5466124c3d1dc619a74f06cf080cb5883dae))
-* **main:** release butler-sheet-icons 2.0.0-alpha3 ([5352123](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/53521230c0c9243dd4adfd4a783843f9e44bb6fb))
-* Move to 2.0 alpha release ([a4d0c6b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a4d0c6b8576261666e3be5760c63e49ba3746e93))
-* release 1.0.0 ([#2](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/2)) ([4d9299a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4d9299a24563fb514e9f08caddf863f8b6abff45))
-* release 1.0.1 ([#3](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/3)) ([1b26d76](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1b26d7656304a28ab4fc4967919a9c562a7425b9))
-* release 1.0.2 ([#4](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/4)) ([b737f99](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b737f993640ba106cfbf8ace84c8b150090ffb88))
-* release 1.0.3 ([#12](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/12)) ([11029d2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/11029d24afd0cf19cb48552a40d56cf668a24368))
-* release 1.0.4 ([4f5fce4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4f5fce487643d7089f36d90e1cdbcfeae6a9e9bf))
-* release main ([caf14e6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/caf14e610c92bc727e3fb04faa0fa3b67d0232d2))
-* release main ([d513926](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d5139261d79ef9a3406676a163ab7b43e3b99675))
-* release main ([cd8d1bf](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cd8d1bf9f2c614162328c1d57e4cd0a9c9c71e75))
-* release main ([df94cdf](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/df94cdfa8ef38d04e9758f42c8790d6e12319f5c))
-* release main ([d190f2b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d190f2b37b327a6551f58424f4e853fc98fb88e6))
-* release main ([80eb039](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/80eb03952fb5a7d047ab47fc5c0e6e71d282cc58))
-* release main ([80b64cd](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/80b64cd876f8973756d0f1f30d1e4014e50f1307))
-* release main ([f1a13f2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f1a13f222489548018b86c49b02582c97c8baa6c))
-* release main ([aad25dc](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/aad25dc2b82c9a929d044c3f0ad880f916a2214d))
-* release main ([6200233](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/62002332a4a12086cbebb8b489cb0f76034cdd9d))
-* release main ([67b5b1f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/67b5b1f474b48c302b4669d392ef26dbb8a7522a))
-* release main ([2c3580e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2c3580ef9736e462e065b8eae401784ddb86852e))
-* release main ([8426ca3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8426ca35d876d4f0a8b57c03794868269664134f))
-* release main ([eeca002](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/eeca002f1cd3e59f65cf29cdb33b0dd76b450050))
-* release main ([d404b8d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d404b8d09b8b78a1ca0e3630e0bcedb5db50c7bf))
-* release main ([5fd9fd3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5fd9fd3fb442842023f232b9fc7b3885b60a2bde))
-* release main ([#61](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/61)) ([a5cb515](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a5cb51533e7a7c211a750cdb21c45073a0c3b898))
-* release main ([#64](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/64)) ([9734406](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/97344065897efa1e30c09931dacf5208f516b4cd))
-* release main ([#65](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/65)) ([99b0fc2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/99b0fc223d5eec8f54529ed03a1ecdb6a87cdd80))
-* release main ([#66](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/66)) ([0b9b735](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0b9b73549bef0a235f4f062e9aaafe315263bd84))
-* release main ([#67](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/67)) ([bd20362](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bd2036223f108507bf36c3ccc4fa5bc1bbac3156))
-* release main ([#69](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/69)) ([2d60408](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2d6040854119b1e3923a69acfb07c45757afe7fe))
-* release main ([#73](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/73)) ([e44765c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e44765cfb73bff9b87de1fb825a9e46b534ce76e))
-* Tweak CI ([1c6b9e4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1c6b9e4bcb4e6d01f22b821727a735b58080e394))
-* tweaking CI ([f5b9168](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f5b91680e3d8c858452e392eebe1a877b913167f))
-* Update dependencies ([1ef8785](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1ef878592a333df1b4312db44872cef01e888e40))
-* Update dependencies ([13f0c67](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/13f0c679b9afb4ad48150f29bb0512a9b18e6dcb))
-* Update deps ([c7ea713](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c7ea71370f135c298e137160672e1b5140cf5aa5))
-* Update deps, fix spelling typo ([189302b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/189302bf09661ab7e92bf9339f1af8c2e26c901e))
-* Use latest & greatest foundation for created Docker images ([1655ba3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1655ba3d233ae9d8aeb41bfbc1915e7103bc52ca))
+* **main:** release butler-sheet-icons 1.10.0 ([1fc9a7f](https://github.com/ptarmiganlabs/bsi_lab/commit/1fc9a7f8461998a41fc1f38525123257bec08692))
+* **main:** release butler-sheet-icons 1.10.1 ([2f350df](https://github.com/ptarmiganlabs/bsi_lab/commit/2f350df78416ef2041d0e3cfc8b281bc3006e709))
+* **main:** release butler-sheet-icons 1.9.10 ([ca7f959](https://github.com/ptarmiganlabs/bsi_lab/commit/ca7f9591dcf8cf1ab56447747eee6c8f4e280ca5))
+* **main:** release butler-sheet-icons 1.9.10 ([b9a5fd3](https://github.com/ptarmiganlabs/bsi_lab/commit/b9a5fd3cbb68b3d4fde7539237df0a14dedeb179))
+* **main:** release butler-sheet-icons 1.9.10 ([6e788f4](https://github.com/ptarmiganlabs/bsi_lab/commit/6e788f40628ae8c60d3deb5dd1ecd96f529db909))
+* **main:** release butler-sheet-icons 1.9.10 ([dd78a08](https://github.com/ptarmiganlabs/bsi_lab/commit/dd78a08362dc2a59b2ce451f0c371aa85df5c6c3))
+* **main:** release butler-sheet-icons 1.9.10 ([59f1463](https://github.com/ptarmiganlabs/bsi_lab/commit/59f1463479f52bdca463b2a1e3acc0edd97c0a2c))
+* **main:** release butler-sheet-icons 1.9.10 ([5b2a650](https://github.com/ptarmiganlabs/bsi_lab/commit/5b2a6503490dc626c209ad5fd24c34980f4d4a09))
+* **main:** release butler-sheet-icons 1.9.10 ([56aedd5](https://github.com/ptarmiganlabs/bsi_lab/commit/56aedd504a288e5ba754cb25ea57224a5b1a7ab4))
+* **main:** release butler-sheet-icons 1.9.10 ([4759c5b](https://github.com/ptarmiganlabs/bsi_lab/commit/4759c5bc1630b35226884bbb91809ffec3842514))
+* **main:** release butler-sheet-icons 1.9.10 ([c985ca3](https://github.com/ptarmiganlabs/bsi_lab/commit/c985ca39325e01d704628eb59c2805e38e847cb6))
+* **main:** release butler-sheet-icons 1.9.10 ([e5e744c](https://github.com/ptarmiganlabs/bsi_lab/commit/e5e744c2eb5225da6af6d07603295ce6825f360d))
+* **main:** release butler-sheet-icons 1.9.10 ([76d67e4](https://github.com/ptarmiganlabs/bsi_lab/commit/76d67e44182fc3fea433c516bfc68a0bb0402b48))
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+* **main:** release butler-sheet-icons 1.9.10 ([207aa69](https://github.com/ptarmiganlabs/bsi_lab/commit/207aa698b9643d44d6c4b31d5bc8e50835984b75))
+* **main:** release butler-sheet-icons 1.9.11 ([86c449a](https://github.com/ptarmiganlabs/bsi_lab/commit/86c449a13b78596eabde0302eda04f83bcebc7b4))
+* **main:** release butler-sheet-icons 1.9.12 ([e68bc39](https://github.com/ptarmiganlabs/bsi_lab/commit/e68bc39f21bbd7876312611b449fedc29ceb6bf5))
+* **main:** release butler-sheet-icons 1.9.13 ([a7bb46a](https://github.com/ptarmiganlabs/bsi_lab/commit/a7bb46a6d59f9a822e96d345386dcc5bd4ae567e))
+* **main:** release butler-sheet-icons 1.9.14 ([9a0c23c](https://github.com/ptarmiganlabs/bsi_lab/commit/9a0c23cdb7ecfbe31939ed5787f0f5ba2c47f0f7))
+* **main:** release butler-sheet-icons 1.9.15 ([599fd30](https://github.com/ptarmiganlabs/bsi_lab/commit/599fd30a845e60792a955614d4c8a2da8d7e87e4))
+* **main:** release butler-sheet-icons 1.9.16 ([9a4ef2f](https://github.com/ptarmiganlabs/bsi_lab/commit/9a4ef2f1dc982b645e84949596d22217d3a172d4))
+* **main:** release butler-sheet-icons 1.9.17 ([e2c93c9](https://github.com/ptarmiganlabs/bsi_lab/commit/e2c93c90c9d575fa37309dd8491b07dde5d9fab5))
+* **main:** release butler-sheet-icons 1.9.18 ([a690fd1](https://github.com/ptarmiganlabs/bsi_lab/commit/a690fd117b0c3af035d8e93d373632f62604d832))
 
-
-### Documentation
-
-* . ([b8ee5bb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b8ee5bb1baf79eb86c8d9f2bc3c3781d8a701d14))
-* . ([56c5f55](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/56c5f55582336f8e4940ebf3d3686638a959744a))
-* . ([61b385c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/61b385c9df508582c7c0d22f2bc9b41fae352cdf))
-* . ([4b7616f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4b7616f03e2ca35830772ed6d1cb329182e7b1c1))
-* . ([78849b9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/78849b97f8e95cb4077525568da6368c40b590c9))
-* . ([2eb8251](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2eb8251207ff0acfc8914e584dcfcda4a8b0d81d))
-* . ([6cb7a8a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6cb7a8a4dc038be0408ca7233901544625e63836))
-* . ([63733eb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/63733eb3759c91805fe83fb97ade805e2b70d2de))
-* . ([60ba008](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/60ba00849a47b73864ff36b8275b25fd19b7cff8))
-* add basic jsdoc to functions in source code ([61b6bea](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/61b6beaa261c7bd4cd1d99d34a05d70c7fd0b144))
-* Docker build debugging ([925c2c6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/925c2c630cd5349170b05e86803de84a429d6095))
-* Dummy update ([c2d9383](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c2d93836a5ef68f858379f76ee7eba96db1c84f6))
-* release process wip ([87b90ad](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/87b90ad6b291b291fb323e02bfdcdc3a7daf5cb7))
-* release process wip ([a222293](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a22229325b321ee48042ce5eccb2bc86180f899e))
-* Towards 2.0 ([7462f3f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7462f3f40fa21d1813e50c46d0cecf7c86d38151))
-* Update docs for 1.3.0 ([2d98cde](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2d98cde81b9473de2efc7e60ef4425b41c83bafa))
-* Update src readme ([b058b5f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b058b5f78797e87f5b307531dde1554238a39051))
-* wip ([6a25789](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6a25789164bf57301e1aeca04002e0aa0bfb5d4e))
-
-### [1.9.12](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.11...butler-sheet-icons-v1.9.12) (2022-03-23)
-
-
-### Documentation
-
-* Towards 2.0 ([7462f3f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7462f3f40fa21d1813e50c46d0cecf7c86d38151))
-
-### [1.9.11](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.11) (2022-03-17)
+### [1.10.1](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.10.0...butler-sheet-icons-v1.10.1) (2022-03-21)
 
 
 ### Bug Fixes
 
-* ci and win building ([c90ef80](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c90ef8053330b4a745a4aa4f27854f2f2ee772d5))
-* ci Snyk scanning ([b049a52](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b049a521c6ad90481a60c21afd00b6b0b55c1815))
+* browser embed 1 ([868cd36](https://github.com/ptarmiganlabs/bsi_lab/commit/868cd36e1b588d32dab3882cd435f3024ffdf67d))
 
-### [1.9.10](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-15)
+## [1.10.0](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.18...butler-sheet-icons-v1.10.0) (2022-03-21)
 
-
-### ⚠ BREAKING CHANGES
-
-* Store screenshots in app-specific folders, separate for QSEoW and QS Cloud
-* Sheet thumbnails for Qlik Sense Cloud apps
 
 ### Features
 
-* Add command for listing all available QS Cloud collections ([a173bf4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a173bf4cd7ded1d29bb47e96775e9659cac9e44e))
-* Add qscloud list-collections command ([b19d92b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b19d92b6c4d4f4f02d2775b69cf10d933bf84627))
-* Add Snyk test and  binaries building ([2c09927](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2c0992728731ff3018e8e91862c5f2fdd6f36aa6))
-* Build stand-alone binaries for Windows, Linux and macOS ([aa17a3c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/aa17a3c7d79d2c6b74f76c83063a8a238022d6f6)), closes [#148](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/148)
-* Make app selection additive across appid/tags and appid/collections ([223d80a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/223d80a22c9b4d3ea04a8e62ee1c35c7a5a3dbcd)), closes [#142](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/142)
-* Sheet thumbnails for Qlik Sense Cloud apps ([59f0c5b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/59f0c5bd743b70347ad5a42b966665b1dad31074)), closes [#123](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/123)
-* Store screenshots in app-specific folders, separate for QSEoW and QS Cloud ([eeb7633](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/eeb763317f3bce5469ec06f96e7e519244565e86)), closes [#124](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/124)
+* macOS compress 1 ([1a48025](https://github.com/ptarmiganlabs/bsi_lab/commit/1a4802572515c39c5520d4cb007f0a212c100118))
+
+### [1.9.18](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.17...butler-sheet-icons-v1.9.18) (2022-03-21)
 
 
 ### Bug Fixes
 
-* Add macOS build to CI ([9c1e307](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9c1e3079fba7b8606fc5cd4f69c0528a46b69034))
-* Add more detail in QSEoW thumbnail images ([ffb5942](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ffb5942d6a35c1c7a2e0217616a1c37e6d1a5d91)), closes [#122](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/122)
-* Adopt QSEoW test cases to new command/sub-command structure ([1ef5829](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1ef5829108d352281dced987fbb3734172f55d53)), closes [#139](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/139)
-* ci debug ([150b0ff](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/150b0ffa7265d7a9a5f251d6d9e2dcf09defb8a8))
-* ci debug ([5e561c7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5e561c71013b547737df0af72b207bcc7f543ba9))
-* ci debug ([a4f081c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a4f081cecab6bcc71b456b3bcd5fd26bb9477cee))
-* ci debug ([699b490](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/699b4900870622c2ce3c0362793734c53df22c00))
-* ci debug ([0b8a58d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0b8a58d10f4826f7d4c1e06960b307a5c3d08785))
-* ci debug ([c14eb24](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c14eb2464be453634b953adb9077a00ce4c9dd99))
-* ci debug ([70b3742](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/70b3742a99297da632601a818a61b960b46b649e))
-* ci debug ([b5cb220](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b5cb220c8b05e7ef32135658c7d60e3e8209affa))
-* CI debug ([7794d4f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7794d4fff36bf8ac532e9611b82a014fc0eab049))
-* ci debug 3 ([39ade54](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/39ade54a6aa976581177a2620ec058814fdfa155))
-* ci debug 4 ([7fa175f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7fa175f56d66c8b78942b200cff96bff523e2439))
-* ci debug2 ([6357f44](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6357f446f6da49c24f61b4fd58da2dbf5c805d1a))
-* Disable tests ([56fdcf7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/56fdcf78fd074277740b116bfe57d04ae838c6c0))
-* Fix Snyk scanning ([129da2b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/129da2b7d93552c8737acfc820912f7908c72f06))
-* Handle bool or string for --headless option ([64aa66a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/64aa66a761c0e6525d349b11347c5ac5ba65a26f)), closes [#121](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/121)
-* macOS build ([cf05b33](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cf05b33299d4a77e03e742b27d0daf8ea87757e1))
-* Snyk ([26e5e78](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/26e5e780b6fa1f71d53cff95ca477107557f45b7))
-* Snyk ([f7f6d74](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f7f6d740f8126ab721d91c45539c32e976a6b0ad))
-* Snyk ([4f009f3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4f009f398ca1040451aa3ebe43c553a65be050b1))
-* Snyk ([cc077d9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cc077d942f1e2046bdce284c7ea9ae348b6f05dd))
-* Snyk ([3679ddb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3679ddb93b7e7e86331487c42f52573b625eadb0))
-* Snyk CI config ([cfceb5a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cfceb5a6ef1d98c6cad61a276bd5a9a1fedfdc94))
-* Snyk CI config ([f1ea388](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f1ea3883c968cb85340e00a6441abe0819e72994))
-* Snyk CI config ([1ec1c63](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1ec1c63a643a6add4cbd05f95313fa1391579b73))
-* Snyk config ([8564657](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/85646573566128a64fb8d2ec3539dc522748c65c))
+* macOS 3 ([09145fa](https://github.com/ptarmiganlabs/bsi_lab/commit/09145fa8303dfa3a29ef8775e23e7b342ff43a93))
+
+### [1.9.17](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.16...butler-sheet-icons-v1.9.17) (2022-03-21)
 
 
-### Documentation
+### Bug Fixes
 
-* Dummy update ([c2d9383](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c2d93836a5ef68f858379f76ee7eba96db1c84f6))
+* . ([5f836c8](https://github.com/ptarmiganlabs/bsi_lab/commit/5f836c83b0201bdbc0b1c14374cef8b587c8a891))
+* . ([9b8fe23](https://github.com/ptarmiganlabs/bsi_lab/commit/9b8fe23a4f85b272752a4117fbd2383a406ef493))
+* . ([bb92174](https://github.com/ptarmiganlabs/bsi_lab/commit/bb9217466ca2163e2588be10d720d4ff95c29c28))
+* . ([b878adf](https://github.com/ptarmiganlabs/bsi_lab/commit/b878adf4519bc6d31bbf927af0ce5df9c7de6273))
+* . ([75a478f](https://github.com/ptarmiganlabs/bsi_lab/commit/75a478fd2471e4b8f0392a7c03548b61639b12bd))
+* . ([0e17465](https://github.com/ptarmiganlabs/bsi_lab/commit/0e174653f11b910094a961a5eb0ed65fadee3cf7))
+* . ([1c10db1](https://github.com/ptarmiganlabs/bsi_lab/commit/1c10db18d679d51fba323fa71fb888a5b717d69b))
+* . ([42a3eab](https://github.com/ptarmiganlabs/bsi_lab/commit/42a3eabd36fe6398de90d295e2f081fd51b5554f))
+* . ([28e7c75](https://github.com/ptarmiganlabs/bsi_lab/commit/28e7c755ea5c4253caede1a79f40d0bb3d1f4d1d))
+* . ([b99ea93](https://github.com/ptarmiganlabs/bsi_lab/commit/b99ea93509c29d8ae8f2ea27af7d92db6d56278c))
+* . ([33314cf](https://github.com/ptarmiganlabs/bsi_lab/commit/33314cfe2e986800794efdb82d2167c030507b64))
+* . ([7335a8d](https://github.com/ptarmiganlabs/bsi_lab/commit/7335a8d62faa2535a0b0a05e70cc5f06f40f20fe))
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+* . ([7ea5ca9](https://github.com/ptarmiganlabs/bsi_lab/commit/7ea5ca9b86dd508cf06c0e5c8f8a2b4c10466bc0))
+* CI 1 ([28da205](https://github.com/ptarmiganlabs/bsi_lab/commit/28da205ab3552c4a6f38271dc150bbea3310592e))
+* cloud pkg ([d40a98b](https://github.com/ptarmiganlabs/bsi_lab/commit/d40a98b4c80b448c86543e075775f803ac84d50e))
+* Linux build ([85b09e7](https://github.com/ptarmiganlabs/bsi_lab/commit/85b09e7adbddee91ef832fec32050626a8964b9a))
+* Linux build 2 ([c780231](https://github.com/ptarmiganlabs/bsi_lab/commit/c780231967efb66fcbac172a7a25d6c0565a65ef))
+* macos ([a6c1fdf](https://github.com/ptarmiganlabs/bsi_lab/commit/a6c1fdf1b8c6e09bf94b8915e37b8202ed8136d6))
+* macOS 1 ([709e25a](https://github.com/ptarmiganlabs/bsi_lab/commit/709e25af226eb6862f46d40a8a6967c57897b636))
+* macOS 2 ([301d40f](https://github.com/ptarmiganlabs/bsi_lab/commit/301d40fc16427d691c93d153921762bd19900ff8))
 
 
 ### Miscellaneous
 
-* **deps:** update dependency snyk to v1.872.0 ([a7fd375](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a7fd375f6f859bf32c85cd1ad453d9712f4e13dd))
-* **main:** release 1.9.0 ([61ca993](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/61ca993a4f106b138c1cc9253658c864279f7a84))
-* **main:** release 1.9.0 ([c0b5855](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c0b585543ac79dd7352530bd37727ea5b5c0cf9c))
-* **main:** release 1.9.0 ([5ed3e1d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5ed3e1d4d2586cb7c6d6cc3440c6cfb9ecf2596e))
-* **main:** release butler-sheet-icons 1.9.0 ([c05b81c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c05b81c09c59c2735abcdacafc81a30cde940242))
-* **main:** release butler-sheet-icons 1.9.0 ([3e0390e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3e0390e48723291a0bfe9b868200b70322f718c8))
-* **main:** release butler-sheet-icons 1.9.0 ([9148065](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9148065a0aa00c64940d4c809891e67ecbee760f))
-* **main:** release butler-sheet-icons 1.9.10 ([14e5420](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/14e54200c96c8e215816f1f105f01f491963c70c))
-* **main:** release butler-sheet-icons 1.9.2 ([b728ea1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b728ea157af5298d8d7dc87b0c05c71a7d2030ba))
-* **main:** release butler-sheet-icons 1.9.3 ([af98d5d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/af98d5d873050adb37e26371a7d7dacaeae88375))
-* **main:** release butler-sheet-icons 1.9.4 ([#173](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/173)) ([0fab86a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0fab86ae840e665012765e738ba6d774a852fafe))
-* **main:** release butler-sheet-icons 1.9.6 ([0aa55a5](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0aa55a51bdf318c54cdea0ca116f69203f1aa9c1))
-* **main:** release butler-sheet-icons 1.9.7 ([fa5da7c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fa5da7c845b50f82559fb68a976782c0c7be3e82))
-* **main:** release butler-sheet-icons 1.9.8 ([1dc47de](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1dc47deff34cd63c6068372fd3964abd17e23db3))
-* **main:** release butler-sheet-icons 1.9.9 ([b17bc02](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b17bc02aeae2871b2fb44edb50517b4ba2d22ff2))
-* **main:** release butler-sheet-icons 2.0.0-alpha1 ([51be546](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/51be5466124c3d1dc619a74f06cf080cb5883dae))
-* **main:** release butler-sheet-icons 2.0.0-alpha3 ([5352123](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/53521230c0c9243dd4adfd4a783843f9e44bb6fb))
-* Move to 2.0 alpha release ([a4d0c6b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a4d0c6b8576261666e3be5760c63e49ba3746e93))
-* Tweak CI ([1c6b9e4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1c6b9e4bcb4e6d01f22b821727a735b58080e394))
-* tweaking CI ([f5b9168](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f5b91680e3d8c858452e392eebe1a877b913167f))
-* Update dependencies ([1ef8785](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1ef878592a333df1b4312db44872cef01e888e40))
-* Update deps ([c7ea713](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c7ea71370f135c298e137160672e1b5140cf5aa5))
+* **main:** release butler-sheet-icons 1.9.10 ([ca7f959](https://github.com/ptarmiganlabs/bsi_lab/commit/ca7f9591dcf8cf1ab56447747eee6c8f4e280ca5))
+* **main:** release butler-sheet-icons 1.9.10 ([b9a5fd3](https://github.com/ptarmiganlabs/bsi_lab/commit/b9a5fd3cbb68b3d4fde7539237df0a14dedeb179))
+* **main:** release butler-sheet-icons 1.9.10 ([6e788f4](https://github.com/ptarmiganlabs/bsi_lab/commit/6e788f40628ae8c60d3deb5dd1ecd96f529db909))
+* **main:** release butler-sheet-icons 1.9.10 ([dd78a08](https://github.com/ptarmiganlabs/bsi_lab/commit/dd78a08362dc2a59b2ce451f0c371aa85df5c6c3))
+* **main:** release butler-sheet-icons 1.9.10 ([59f1463](https://github.com/ptarmiganlabs/bsi_lab/commit/59f1463479f52bdca463b2a1e3acc0edd97c0a2c))
+* **main:** release butler-sheet-icons 1.9.10 ([5b2a650](https://github.com/ptarmiganlabs/bsi_lab/commit/5b2a6503490dc626c209ad5fd24c34980f4d4a09))
+* **main:** release butler-sheet-icons 1.9.10 ([56aedd5](https://github.com/ptarmiganlabs/bsi_lab/commit/56aedd504a288e5ba754cb25ea57224a5b1a7ab4))
+* **main:** release butler-sheet-icons 1.9.10 ([4759c5b](https://github.com/ptarmiganlabs/bsi_lab/commit/4759c5bc1630b35226884bbb91809ffec3842514))
+* **main:** release butler-sheet-icons 1.9.10 ([c985ca3](https://github.com/ptarmiganlabs/bsi_lab/commit/c985ca39325e01d704628eb59c2805e38e847cb6))
+* **main:** release butler-sheet-icons 1.9.10 ([e5e744c](https://github.com/ptarmiganlabs/bsi_lab/commit/e5e744c2eb5225da6af6d07603295ce6825f360d))
+* **main:** release butler-sheet-icons 1.9.10 ([76d67e4](https://github.com/ptarmiganlabs/bsi_lab/commit/76d67e44182fc3fea433c516bfc68a0bb0402b48))
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+* **main:** release butler-sheet-icons 1.9.10 ([207aa69](https://github.com/ptarmiganlabs/bsi_lab/commit/207aa698b9643d44d6c4b31d5bc8e50835984b75))
+* **main:** release butler-sheet-icons 1.9.11 ([86c449a](https://github.com/ptarmiganlabs/bsi_lab/commit/86c449a13b78596eabde0302eda04f83bcebc7b4))
+* **main:** release butler-sheet-icons 1.9.12 ([e68bc39](https://github.com/ptarmiganlabs/bsi_lab/commit/e68bc39f21bbd7876312611b449fedc29ceb6bf5))
+* **main:** release butler-sheet-icons 1.9.13 ([a7bb46a](https://github.com/ptarmiganlabs/bsi_lab/commit/a7bb46a6d59f9a822e96d345386dcc5bd4ae567e))
+* **main:** release butler-sheet-icons 1.9.14 ([9a0c23c](https://github.com/ptarmiganlabs/bsi_lab/commit/9a0c23cdb7ecfbe31939ed5787f0f5ba2c47f0f7))
+* **main:** release butler-sheet-icons 1.9.15 ([599fd30](https://github.com/ptarmiganlabs/bsi_lab/commit/599fd30a845e60792a955614d4c8a2da8d7e87e4))
+* **main:** release butler-sheet-icons 1.9.16 ([9a4ef2f](https://github.com/ptarmiganlabs/bsi_lab/commit/9a4ef2f1dc982b645e84949596d22217d3a172d4))
+
+### [1.9.16](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.15...butler-sheet-icons-v1.9.16) (2022-03-21)
+
+
+### Bug Fixes
+
+* . ([5f836c8](https://github.com/ptarmiganlabs/bsi_lab/commit/5f836c83b0201bdbc0b1c14374cef8b587c8a891))
+* . ([9b8fe23](https://github.com/ptarmiganlabs/bsi_lab/commit/9b8fe23a4f85b272752a4117fbd2383a406ef493))
+* . ([bb92174](https://github.com/ptarmiganlabs/bsi_lab/commit/bb9217466ca2163e2588be10d720d4ff95c29c28))
+* . ([b878adf](https://github.com/ptarmiganlabs/bsi_lab/commit/b878adf4519bc6d31bbf927af0ce5df9c7de6273))
+* . ([75a478f](https://github.com/ptarmiganlabs/bsi_lab/commit/75a478fd2471e4b8f0392a7c03548b61639b12bd))
+* . ([0e17465](https://github.com/ptarmiganlabs/bsi_lab/commit/0e174653f11b910094a961a5eb0ed65fadee3cf7))
+* . ([1c10db1](https://github.com/ptarmiganlabs/bsi_lab/commit/1c10db18d679d51fba323fa71fb888a5b717d69b))
+* . ([42a3eab](https://github.com/ptarmiganlabs/bsi_lab/commit/42a3eabd36fe6398de90d295e2f081fd51b5554f))
+* . ([28e7c75](https://github.com/ptarmiganlabs/bsi_lab/commit/28e7c755ea5c4253caede1a79f40d0bb3d1f4d1d))
+* . ([b99ea93](https://github.com/ptarmiganlabs/bsi_lab/commit/b99ea93509c29d8ae8f2ea27af7d92db6d56278c))
+* . ([33314cf](https://github.com/ptarmiganlabs/bsi_lab/commit/33314cfe2e986800794efdb82d2167c030507b64))
+* . ([7335a8d](https://github.com/ptarmiganlabs/bsi_lab/commit/7335a8d62faa2535a0b0a05e70cc5f06f40f20fe))
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+* . ([7ea5ca9](https://github.com/ptarmiganlabs/bsi_lab/commit/7ea5ca9b86dd508cf06c0e5c8f8a2b4c10466bc0))
+* CI 1 ([28da205](https://github.com/ptarmiganlabs/bsi_lab/commit/28da205ab3552c4a6f38271dc150bbea3310592e))
+* cloud pkg ([d40a98b](https://github.com/ptarmiganlabs/bsi_lab/commit/d40a98b4c80b448c86543e075775f803ac84d50e))
+* Linux build ([85b09e7](https://github.com/ptarmiganlabs/bsi_lab/commit/85b09e7adbddee91ef832fec32050626a8964b9a))
+* Linux build 2 ([c780231](https://github.com/ptarmiganlabs/bsi_lab/commit/c780231967efb66fcbac172a7a25d6c0565a65ef))
+* macos ([a6c1fdf](https://github.com/ptarmiganlabs/bsi_lab/commit/a6c1fdf1b8c6e09bf94b8915e37b8202ed8136d6))
+* macOS 1 ([709e25a](https://github.com/ptarmiganlabs/bsi_lab/commit/709e25af226eb6862f46d40a8a6967c57897b636))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([ca7f959](https://github.com/ptarmiganlabs/bsi_lab/commit/ca7f9591dcf8cf1ab56447747eee6c8f4e280ca5))
+* **main:** release butler-sheet-icons 1.9.10 ([b9a5fd3](https://github.com/ptarmiganlabs/bsi_lab/commit/b9a5fd3cbb68b3d4fde7539237df0a14dedeb179))
+* **main:** release butler-sheet-icons 1.9.10 ([6e788f4](https://github.com/ptarmiganlabs/bsi_lab/commit/6e788f40628ae8c60d3deb5dd1ecd96f529db909))
+* **main:** release butler-sheet-icons 1.9.10 ([dd78a08](https://github.com/ptarmiganlabs/bsi_lab/commit/dd78a08362dc2a59b2ce451f0c371aa85df5c6c3))
+* **main:** release butler-sheet-icons 1.9.10 ([59f1463](https://github.com/ptarmiganlabs/bsi_lab/commit/59f1463479f52bdca463b2a1e3acc0edd97c0a2c))
+* **main:** release butler-sheet-icons 1.9.10 ([5b2a650](https://github.com/ptarmiganlabs/bsi_lab/commit/5b2a6503490dc626c209ad5fd24c34980f4d4a09))
+* **main:** release butler-sheet-icons 1.9.10 ([56aedd5](https://github.com/ptarmiganlabs/bsi_lab/commit/56aedd504a288e5ba754cb25ea57224a5b1a7ab4))
+* **main:** release butler-sheet-icons 1.9.10 ([4759c5b](https://github.com/ptarmiganlabs/bsi_lab/commit/4759c5bc1630b35226884bbb91809ffec3842514))
+* **main:** release butler-sheet-icons 1.9.10 ([c985ca3](https://github.com/ptarmiganlabs/bsi_lab/commit/c985ca39325e01d704628eb59c2805e38e847cb6))
+* **main:** release butler-sheet-icons 1.9.10 ([e5e744c](https://github.com/ptarmiganlabs/bsi_lab/commit/e5e744c2eb5225da6af6d07603295ce6825f360d))
+* **main:** release butler-sheet-icons 1.9.10 ([76d67e4](https://github.com/ptarmiganlabs/bsi_lab/commit/76d67e44182fc3fea433c516bfc68a0bb0402b48))
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+* **main:** release butler-sheet-icons 1.9.10 ([207aa69](https://github.com/ptarmiganlabs/bsi_lab/commit/207aa698b9643d44d6c4b31d5bc8e50835984b75))
+* **main:** release butler-sheet-icons 1.9.11 ([86c449a](https://github.com/ptarmiganlabs/bsi_lab/commit/86c449a13b78596eabde0302eda04f83bcebc7b4))
+* **main:** release butler-sheet-icons 1.9.12 ([e68bc39](https://github.com/ptarmiganlabs/bsi_lab/commit/e68bc39f21bbd7876312611b449fedc29ceb6bf5))
+* **main:** release butler-sheet-icons 1.9.13 ([a7bb46a](https://github.com/ptarmiganlabs/bsi_lab/commit/a7bb46a6d59f9a822e96d345386dcc5bd4ae567e))
+* **main:** release butler-sheet-icons 1.9.14 ([9a0c23c](https://github.com/ptarmiganlabs/bsi_lab/commit/9a0c23cdb7ecfbe31939ed5787f0f5ba2c47f0f7))
+* **main:** release butler-sheet-icons 1.9.15 ([599fd30](https://github.com/ptarmiganlabs/bsi_lab/commit/599fd30a845e60792a955614d4c8a2da8d7e87e4))
+
+### [1.9.15](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.14...butler-sheet-icons-v1.9.15) (2022-03-20)
+
+
+### Bug Fixes
+
+* CI 1 ([28da205](https://github.com/ptarmiganlabs/bsi_lab/commit/28da205ab3552c4a6f38271dc150bbea3310592e))
+
+### [1.9.14](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.13...butler-sheet-icons-v1.9.14) (2022-03-20)
+
+
+### Bug Fixes
+
+* Linux build ([85b09e7](https://github.com/ptarmiganlabs/bsi_lab/commit/85b09e7adbddee91ef832fec32050626a8964b9a))
+* Linux build 2 ([c780231](https://github.com/ptarmiganlabs/bsi_lab/commit/c780231967efb66fcbac172a7a25d6c0565a65ef))
+
+### [1.9.13](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.12...butler-sheet-icons-v1.9.13) (2022-03-17)
+
+
+### Bug Fixes
+
+* macos ([a6c1fdf](https://github.com/ptarmiganlabs/bsi_lab/commit/a6c1fdf1b8c6e09bf94b8915e37b8202ed8136d6))
+
+### [1.9.12](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.11...butler-sheet-icons-v1.9.12) (2022-03-17)
+
+
+### Bug Fixes
+
+* cloud pkg ([d40a98b](https://github.com/ptarmiganlabs/bsi_lab/commit/d40a98b4c80b448c86543e075775f803ac84d50e))
+
+### [1.9.11](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.11) (2022-03-17)
+
+
+### Bug Fixes
+
+* . ([5f836c8](https://github.com/ptarmiganlabs/bsi_lab/commit/5f836c83b0201bdbc0b1c14374cef8b587c8a891))
+* . ([9b8fe23](https://github.com/ptarmiganlabs/bsi_lab/commit/9b8fe23a4f85b272752a4117fbd2383a406ef493))
+* . ([bb92174](https://github.com/ptarmiganlabs/bsi_lab/commit/bb9217466ca2163e2588be10d720d4ff95c29c28))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([ca7f959](https://github.com/ptarmiganlabs/bsi_lab/commit/ca7f9591dcf8cf1ab56447747eee6c8f4e280ca5))
+* **main:** release butler-sheet-icons 1.9.10 ([b9a5fd3](https://github.com/ptarmiganlabs/bsi_lab/commit/b9a5fd3cbb68b3d4fde7539237df0a14dedeb179))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-17)
+
+
+### Bug Fixes
+
+* . ([9b8fe23](https://github.com/ptarmiganlabs/bsi_lab/commit/9b8fe23a4f85b272752a4117fbd2383a406ef493))
+* . ([bb92174](https://github.com/ptarmiganlabs/bsi_lab/commit/bb9217466ca2163e2588be10d720d4ff95c29c28))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([b9a5fd3](https://github.com/ptarmiganlabs/bsi_lab/commit/b9a5fd3cbb68b3d4fde7539237df0a14dedeb179))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-17)
+
+
+### Bug Fixes
+
+* . ([bb92174](https://github.com/ptarmiganlabs/bsi_lab/commit/bb9217466ca2163e2588be10d720d4ff95c29c28))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-17)
+
+
+### Bug Fixes
+
+* . ([b878adf](https://github.com/ptarmiganlabs/bsi_lab/commit/b878adf4519bc6d31bbf927af0ce5df9c7de6273))
+* . ([75a478f](https://github.com/ptarmiganlabs/bsi_lab/commit/75a478fd2471e4b8f0392a7c03548b61639b12bd))
+* . ([0e17465](https://github.com/ptarmiganlabs/bsi_lab/commit/0e174653f11b910094a961a5eb0ed65fadee3cf7))
+* . ([1c10db1](https://github.com/ptarmiganlabs/bsi_lab/commit/1c10db18d679d51fba323fa71fb888a5b717d69b))
+* . ([42a3eab](https://github.com/ptarmiganlabs/bsi_lab/commit/42a3eabd36fe6398de90d295e2f081fd51b5554f))
+* . ([28e7c75](https://github.com/ptarmiganlabs/bsi_lab/commit/28e7c755ea5c4253caede1a79f40d0bb3d1f4d1d))
+* . ([b99ea93](https://github.com/ptarmiganlabs/bsi_lab/commit/b99ea93509c29d8ae8f2ea27af7d92db6d56278c))
+* . ([33314cf](https://github.com/ptarmiganlabs/bsi_lab/commit/33314cfe2e986800794efdb82d2167c030507b64))
+* . ([7335a8d](https://github.com/ptarmiganlabs/bsi_lab/commit/7335a8d62faa2535a0b0a05e70cc5f06f40f20fe))
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([dd78a08](https://github.com/ptarmiganlabs/bsi_lab/commit/dd78a08362dc2a59b2ce451f0c371aa85df5c6c3))
+* **main:** release butler-sheet-icons 1.9.10 ([59f1463](https://github.com/ptarmiganlabs/bsi_lab/commit/59f1463479f52bdca463b2a1e3acc0edd97c0a2c))
+* **main:** release butler-sheet-icons 1.9.10 ([5b2a650](https://github.com/ptarmiganlabs/bsi_lab/commit/5b2a6503490dc626c209ad5fd24c34980f4d4a09))
+* **main:** release butler-sheet-icons 1.9.10 ([56aedd5](https://github.com/ptarmiganlabs/bsi_lab/commit/56aedd504a288e5ba754cb25ea57224a5b1a7ab4))
+* **main:** release butler-sheet-icons 1.9.10 ([4759c5b](https://github.com/ptarmiganlabs/bsi_lab/commit/4759c5bc1630b35226884bbb91809ffec3842514))
+* **main:** release butler-sheet-icons 1.9.10 ([c985ca3](https://github.com/ptarmiganlabs/bsi_lab/commit/c985ca39325e01d704628eb59c2805e38e847cb6))
+* **main:** release butler-sheet-icons 1.9.10 ([e5e744c](https://github.com/ptarmiganlabs/bsi_lab/commit/e5e744c2eb5225da6af6d07603295ce6825f360d))
+* **main:** release butler-sheet-icons 1.9.10 ([76d67e4](https://github.com/ptarmiganlabs/bsi_lab/commit/76d67e44182fc3fea433c516bfc68a0bb0402b48))
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-17)
+
+
+### Bug Fixes
+
+* . ([75a478f](https://github.com/ptarmiganlabs/bsi_lab/commit/75a478fd2471e4b8f0392a7c03548b61639b12bd))
+* . ([0e17465](https://github.com/ptarmiganlabs/bsi_lab/commit/0e174653f11b910094a961a5eb0ed65fadee3cf7))
+* . ([1c10db1](https://github.com/ptarmiganlabs/bsi_lab/commit/1c10db18d679d51fba323fa71fb888a5b717d69b))
+* . ([42a3eab](https://github.com/ptarmiganlabs/bsi_lab/commit/42a3eabd36fe6398de90d295e2f081fd51b5554f))
+* . ([28e7c75](https://github.com/ptarmiganlabs/bsi_lab/commit/28e7c755ea5c4253caede1a79f40d0bb3d1f4d1d))
+* . ([b99ea93](https://github.com/ptarmiganlabs/bsi_lab/commit/b99ea93509c29d8ae8f2ea27af7d92db6d56278c))
+* . ([33314cf](https://github.com/ptarmiganlabs/bsi_lab/commit/33314cfe2e986800794efdb82d2167c030507b64))
+* . ([7335a8d](https://github.com/ptarmiganlabs/bsi_lab/commit/7335a8d62faa2535a0b0a05e70cc5f06f40f20fe))
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([59f1463](https://github.com/ptarmiganlabs/bsi_lab/commit/59f1463479f52bdca463b2a1e3acc0edd97c0a2c))
+* **main:** release butler-sheet-icons 1.9.10 ([5b2a650](https://github.com/ptarmiganlabs/bsi_lab/commit/5b2a6503490dc626c209ad5fd24c34980f4d4a09))
+* **main:** release butler-sheet-icons 1.9.10 ([56aedd5](https://github.com/ptarmiganlabs/bsi_lab/commit/56aedd504a288e5ba754cb25ea57224a5b1a7ab4))
+* **main:** release butler-sheet-icons 1.9.10 ([4759c5b](https://github.com/ptarmiganlabs/bsi_lab/commit/4759c5bc1630b35226884bbb91809ffec3842514))
+* **main:** release butler-sheet-icons 1.9.10 ([c985ca3](https://github.com/ptarmiganlabs/bsi_lab/commit/c985ca39325e01d704628eb59c2805e38e847cb6))
+* **main:** release butler-sheet-icons 1.9.10 ([e5e744c](https://github.com/ptarmiganlabs/bsi_lab/commit/e5e744c2eb5225da6af6d07603295ce6825f360d))
+* **main:** release butler-sheet-icons 1.9.10 ([76d67e4](https://github.com/ptarmiganlabs/bsi_lab/commit/76d67e44182fc3fea433c516bfc68a0bb0402b48))
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-17)
+
+
+### Bug Fixes
+
+* . ([0e17465](https://github.com/ptarmiganlabs/bsi_lab/commit/0e174653f11b910094a961a5eb0ed65fadee3cf7))
+* . ([1c10db1](https://github.com/ptarmiganlabs/bsi_lab/commit/1c10db18d679d51fba323fa71fb888a5b717d69b))
+* . ([42a3eab](https://github.com/ptarmiganlabs/bsi_lab/commit/42a3eabd36fe6398de90d295e2f081fd51b5554f))
+* . ([28e7c75](https://github.com/ptarmiganlabs/bsi_lab/commit/28e7c755ea5c4253caede1a79f40d0bb3d1f4d1d))
+* . ([b99ea93](https://github.com/ptarmiganlabs/bsi_lab/commit/b99ea93509c29d8ae8f2ea27af7d92db6d56278c))
+* . ([33314cf](https://github.com/ptarmiganlabs/bsi_lab/commit/33314cfe2e986800794efdb82d2167c030507b64))
+* . ([7335a8d](https://github.com/ptarmiganlabs/bsi_lab/commit/7335a8d62faa2535a0b0a05e70cc5f06f40f20fe))
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([5b2a650](https://github.com/ptarmiganlabs/bsi_lab/commit/5b2a6503490dc626c209ad5fd24c34980f4d4a09))
+* **main:** release butler-sheet-icons 1.9.10 ([56aedd5](https://github.com/ptarmiganlabs/bsi_lab/commit/56aedd504a288e5ba754cb25ea57224a5b1a7ab4))
+* **main:** release butler-sheet-icons 1.9.10 ([4759c5b](https://github.com/ptarmiganlabs/bsi_lab/commit/4759c5bc1630b35226884bbb91809ffec3842514))
+* **main:** release butler-sheet-icons 1.9.10 ([c985ca3](https://github.com/ptarmiganlabs/bsi_lab/commit/c985ca39325e01d704628eb59c2805e38e847cb6))
+* **main:** release butler-sheet-icons 1.9.10 ([e5e744c](https://github.com/ptarmiganlabs/bsi_lab/commit/e5e744c2eb5225da6af6d07603295ce6825f360d))
+* **main:** release butler-sheet-icons 1.9.10 ([76d67e4](https://github.com/ptarmiganlabs/bsi_lab/commit/76d67e44182fc3fea433c516bfc68a0bb0402b48))
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-17)
+
+
+### Bug Fixes
+
+* . ([1c10db1](https://github.com/ptarmiganlabs/bsi_lab/commit/1c10db18d679d51fba323fa71fb888a5b717d69b))
+* . ([42a3eab](https://github.com/ptarmiganlabs/bsi_lab/commit/42a3eabd36fe6398de90d295e2f081fd51b5554f))
+* . ([28e7c75](https://github.com/ptarmiganlabs/bsi_lab/commit/28e7c755ea5c4253caede1a79f40d0bb3d1f4d1d))
+* . ([b99ea93](https://github.com/ptarmiganlabs/bsi_lab/commit/b99ea93509c29d8ae8f2ea27af7d92db6d56278c))
+* . ([33314cf](https://github.com/ptarmiganlabs/bsi_lab/commit/33314cfe2e986800794efdb82d2167c030507b64))
+* . ([7335a8d](https://github.com/ptarmiganlabs/bsi_lab/commit/7335a8d62faa2535a0b0a05e70cc5f06f40f20fe))
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([56aedd5](https://github.com/ptarmiganlabs/bsi_lab/commit/56aedd504a288e5ba754cb25ea57224a5b1a7ab4))
+* **main:** release butler-sheet-icons 1.9.10 ([4759c5b](https://github.com/ptarmiganlabs/bsi_lab/commit/4759c5bc1630b35226884bbb91809ffec3842514))
+* **main:** release butler-sheet-icons 1.9.10 ([c985ca3](https://github.com/ptarmiganlabs/bsi_lab/commit/c985ca39325e01d704628eb59c2805e38e847cb6))
+* **main:** release butler-sheet-icons 1.9.10 ([e5e744c](https://github.com/ptarmiganlabs/bsi_lab/commit/e5e744c2eb5225da6af6d07603295ce6825f360d))
+* **main:** release butler-sheet-icons 1.9.10 ([76d67e4](https://github.com/ptarmiganlabs/bsi_lab/commit/76d67e44182fc3fea433c516bfc68a0bb0402b48))
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-17)
+
+
+### Bug Fixes
+
+* . ([42a3eab](https://github.com/ptarmiganlabs/bsi_lab/commit/42a3eabd36fe6398de90d295e2f081fd51b5554f))
+* . ([28e7c75](https://github.com/ptarmiganlabs/bsi_lab/commit/28e7c755ea5c4253caede1a79f40d0bb3d1f4d1d))
+* . ([b99ea93](https://github.com/ptarmiganlabs/bsi_lab/commit/b99ea93509c29d8ae8f2ea27af7d92db6d56278c))
+* . ([33314cf](https://github.com/ptarmiganlabs/bsi_lab/commit/33314cfe2e986800794efdb82d2167c030507b64))
+* . ([7335a8d](https://github.com/ptarmiganlabs/bsi_lab/commit/7335a8d62faa2535a0b0a05e70cc5f06f40f20fe))
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([4759c5b](https://github.com/ptarmiganlabs/bsi_lab/commit/4759c5bc1630b35226884bbb91809ffec3842514))
+* **main:** release butler-sheet-icons 1.9.10 ([c985ca3](https://github.com/ptarmiganlabs/bsi_lab/commit/c985ca39325e01d704628eb59c2805e38e847cb6))
+* **main:** release butler-sheet-icons 1.9.10 ([e5e744c](https://github.com/ptarmiganlabs/bsi_lab/commit/e5e744c2eb5225da6af6d07603295ce6825f360d))
+* **main:** release butler-sheet-icons 1.9.10 ([76d67e4](https://github.com/ptarmiganlabs/bsi_lab/commit/76d67e44182fc3fea433c516bfc68a0bb0402b48))
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([28e7c75](https://github.com/ptarmiganlabs/bsi_lab/commit/28e7c755ea5c4253caede1a79f40d0bb3d1f4d1d))
+* . ([b99ea93](https://github.com/ptarmiganlabs/bsi_lab/commit/b99ea93509c29d8ae8f2ea27af7d92db6d56278c))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([33314cf](https://github.com/ptarmiganlabs/bsi_lab/commit/33314cfe2e986800794efdb82d2167c030507b64))
+* . ([7335a8d](https://github.com/ptarmiganlabs/bsi_lab/commit/7335a8d62faa2535a0b0a05e70cc5f06f40f20fe))
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([e5e744c](https://github.com/ptarmiganlabs/bsi_lab/commit/e5e744c2eb5225da6af6d07603295ce6825f360d))
+* **main:** release butler-sheet-icons 1.9.10 ([76d67e4](https://github.com/ptarmiganlabs/bsi_lab/commit/76d67e44182fc3fea433c516bfc68a0bb0402b48))
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([7335a8d](https://github.com/ptarmiganlabs/bsi_lab/commit/7335a8d62faa2535a0b0a05e70cc5f06f40f20fe))
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([76d67e4](https://github.com/ptarmiganlabs/bsi_lab/commit/76d67e44182fc3fea433c516bfc68a0bb0402b48))
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([48b8263](https://github.com/ptarmiganlabs/bsi_lab/commit/48b826353f3c174c810017a7fcedf4041a524c11))
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([4088cec](https://github.com/ptarmiganlabs/bsi_lab/commit/4088cecef21bc9935558b027341f2ccea0b1f297))
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([6c74600](https://github.com/ptarmiganlabs/bsi_lab/commit/6c74600fcf8679b1b2cb63c14d5a507c5291a6fa))
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([d7fbada](https://github.com/ptarmiganlabs/bsi_lab/commit/d7fbada296916482a4a6f9e103d833fb7a61087a))
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([398431d](https://github.com/ptarmiganlabs/bsi_lab/commit/398431dabe40050267273241d79905cc5ed7a07a))
+* . ([ab65b9e](https://github.com/ptarmiganlabs/bsi_lab/commit/ab65b9ef8d32719e9676a86a50513953d3ddbd74))
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([d3aff11](https://github.com/ptarmiganlabs/bsi_lab/commit/d3aff1155b6aae0839f9e10b84b26914161f98de))
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([5f0dfa0](https://github.com/ptarmiganlabs/bsi_lab/commit/5f0dfa081626bfad445fc93ac65ac1362139a31d))
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([9b3a71c](https://github.com/ptarmiganlabs/bsi_lab/commit/9b3a71cc39ad858cbe4f4ea25176997f7418bd8b))
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([b56e358](https://github.com/ptarmiganlabs/bsi_lab/commit/b56e358d4df96c9aac5b7180438bffed001c802a))
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([aefb215](https://github.com/ptarmiganlabs/bsi_lab/commit/aefb215a050a8752d88c2a3ec81b4b6dfe5d1c41))
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([3b2c0d4](https://github.com/ptarmiganlabs/bsi_lab/commit/3b2c0d40a4dfe2ce5fe2ce7572060e54c06da8b7))
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([c2dfe9f](https://github.com/ptarmiganlabs/bsi_lab/commit/c2dfe9f8b52130021260b67667a5056d0ea9c79f))
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([1ad593c](https://github.com/ptarmiganlabs/bsi_lab/commit/1ad593c115f80b3876d64eef81e96bb36d84a563))
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([4e97de4](https://github.com/ptarmiganlabs/bsi_lab/commit/4e97de4b7d8e517e4cc7c68833b0135f65695137))
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([e7a8b04](https://github.com/ptarmiganlabs/bsi_lab/commit/e7a8b047083aa358a7f70d7a3fd16e00131f5140))
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([2587c9a](https://github.com/ptarmiganlabs/bsi_lab/commit/2587c9a5937c69c18a0250a1170221dff9b369b9))
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([ab0930a](https://github.com/ptarmiganlabs/bsi_lab/commit/ab0930af34edbfc55bede9ebee0ec533a4fa7966))
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([b58e276](https://github.com/ptarmiganlabs/bsi_lab/commit/b58e276a9cf36b7c90d56f2c80c806742d61d0cf))
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([7188c6c](https://github.com/ptarmiganlabs/bsi_lab/commit/7188c6c036b8e53f19a29afe51c82b5edfa6e65d))
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([2f7fee4](https://github.com/ptarmiganlabs/bsi_lab/commit/2f7fee4ccea8024eeba6f14df7dc1ad9ea5479ae))
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([ff13dc5](https://github.com/ptarmiganlabs/bsi_lab/commit/ff13dc52cb01acca3a2edcd257a3f0a452336d39))
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+
+### Miscellaneous
+
+* **main:** release butler-sheet-icons 1.9.10 ([7065a52](https://github.com/ptarmiganlabs/bsi_lab/commit/7065a5294daf3df840b98da54886dd80f7c18eff))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([ba66c8b](https://github.com/ptarmiganlabs/bsi_lab/commit/ba66c8b6174d2fc4b7bc211cd9a816cf9f881fd1))
+
+### [1.9.10](https://github.com/ptarmiganlabs/bsi_lab/compare/butler-sheet-icons-v1.9.10...butler-sheet-icons-v1.9.10) (2022-03-16)
+
+
+### Bug Fixes
+
+* . ([7ea5ca9](https://github.com/ptarmiganlabs/bsi_lab/commit/7ea5ca9b86dd508cf06c0e5c8f8a2b4c10466bc0))
 
 ### [1.9.10](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.0...butler-sheet-icons-v1.9.10) (2022-03-15)
 

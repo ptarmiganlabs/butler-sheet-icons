@@ -17,7 +17,7 @@ const program = new Command();
         .version(appVersion)
         .name('butler-sheet-icons')
         .description(
-            'This is a tool that creates thumbnail images based on the actual layout of sheets in Qlik Sense applications.\nQlik Cloud and Qlik Sense Enterprise on Windows are both supported.\nThe created thumbnails are saved to disk and uploaded to the Sense app as new sheet thumbnail images.'
+            'This is a tool that creates thumbnail images based on the actual layout of sheets in Qlik Sense applications.\nQlik Sense Cloud and Qlik Sense Enterprise on Windows are both supported.\nThe created thumbnails are saved to disk and uploaded to the Sense app as new sheet thumbnail images.'
         );
 
     const qseow = program.command('qseow');
@@ -67,11 +67,6 @@ const program = new Command();
             '--certkeyfile <file>',
             'Qlik Sense certificate key file (exported from QMC)',
             './cert/client_key.pem'
-        )
-        .requiredOption(
-            '--rootcertfile <file>',
-            'Qlik Sense root certificate file (exported from QMC)',
-            './cert/root.pem'
         )
         .requiredOption(
             '--rejectUnauthorized <true|false>',

@@ -11,7 +11,6 @@ const options = {
     schemaversion: process.env.BSI_SCHEMA_VERSION || '12.612.0',
     certfile: process.env.BSI_CERT_FILE || '../../cert/client.pem',
     certkeyfile: process.env.BSI_CERT_KEY_FILE || '../../cert/client_key.pem',
-    rootcertfile: process.env.BSI_ROOT_CERT_FILE || '../../cert/root.pem',
     prefix: process.env.BSI_PREFIX || '',
     secure: process.env.BSI_SECURE || 'true',
     hosttype: process.env.BSI_HOST_TYPE || 'qseow',
@@ -37,7 +36,7 @@ jest.setTimeout(defaultTestTimeout);
  * Should fail
  */
 options.contentlibrary = 'abc 12';
-test('create sheet thumbnails, non-existing content library (should fail)', async () => {
+test('qseow create sheet thumbnails, non-existing content library (should fail)', async () => {
     const data = await qseowCreateThumbnails(options);
     expect(data).toBe(false);
 });

@@ -11,7 +11,6 @@ const options = {
     schemaversion: process.env.BSI_SCHEMA_VERSION || '12.612.0',
     certfile: process.env.BSI_CERT_FILE || '../../cert/client.pem',
     certkeyfile: process.env.BSI_CERT_KEY_FILE || '../../cert/client_key.pem',
-    rootcertfile: process.env.BSI_ROOT_CERT_FILE || '../../cert/root.pem',
     prefix: process.env.BSI_PREFIX || '',
     secure: process.env.BSI_SECURE || 'true',
     hosttype: process.env.BSI_HOST_TYPE || 'qseow',
@@ -36,7 +35,7 @@ jest.setTimeout(defaultTestTimeout);
  * Create thumbnails with proper parameters
  * Should succeed
  */
-test('create sheet thumbnails, correct parameters (should succeed)', async () => {
+test('qseow create sheet thumbnails, correct parameters (should succeed)', async () => {
     const data = await qseowCreateThumbnails(options);
     expect(data).toBe(true);
 });

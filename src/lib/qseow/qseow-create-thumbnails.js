@@ -5,6 +5,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const qrsInteract = require('qrs-interact');
 const path = require('path');
+const { tmpdir } = require('os');
 
 const { setupEnigmaConnection } = require('./qseow-enigma.js');
 const { logger, setLoggingLevel } = require('../../globals.js');
@@ -20,6 +21,8 @@ const selectorLoginPageLoginButton = '#loginbtn';
 
 const xpathHubUserPageButton = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
 const xpathLogoutButton = '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
+
+const chromiumRevision = '961656';
 
 /**
  *
@@ -95,21 +98,31 @@ const processQSEoWApp = async (appId, g, options) => {
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             let iSheetNum = 1;
+            let revisionInfo = '';
 
-            // https://github.com/vercel/pkg/issues/204#issuecomment-536323464
+            if (isPkg) {
+                // Download browser
+                // https://github.com/vercel/pkg/issues/204#issuecomment-720996863
+                const tmpPath = tmpdir();
+                const chromePath = path.join(tmpPath, '.local-chromium');
+                logger.debug(`Temp path for downloading Chromium: ${chromePath}`);
+
+                const browserFetcher = puppeteer.createBrowserFetcher({
+                    path: chromePath,
+                });
+                logger.info(`Downloading Chromium browser revision ${chromiumRevision}...`);
+                revisionInfo = await browserFetcher.download(chromiumRevision);
+                logger.info(`Download done.`);
+            }
+
             const executablePath =
                 process.env.PUPPETEER_EXECUTABLE_PATH ||
-                (process.pkg
-                    ? path.join(
-                          path.dirname(process.execPath),
-                          'chromium',
-                          ...puppeteer.executablePath().split(path.sep).slice(6) // /snapshot/project/node_modules/puppeteer/.local-chromium
-                      )
-                    : puppeteer.executablePath());
+                (isPkg ? revisionInfo.executablePath : puppeteer.executablePath());
+
             logger.debug(`execPath: ${executablePath}`);
 
             const chromiumExecutablePath = isPkg ? executablePath : puppeteer.executablePath();
-            logger.debug(`Using Chromium browser at ${chromiumExecutablePath}`);
+            logger.verbose(`Using Chromium browser at ${chromiumExecutablePath}`);
 
             const browser = await puppeteer.launch({
                 headless: options.headless === true || options.headless.toLowerCase() === 'true',

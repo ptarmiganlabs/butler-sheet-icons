@@ -4,6 +4,7 @@ const enigma = require('enigma.js');
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
+const { tmpdir } = require('os');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
 const { logger, setLoggingLevel } = require('../../globals.js');
@@ -17,6 +18,8 @@ const selectorLoginPageUserPwd =
     '#lock-container > div > div > form > div > div > div:nth-child(3) > span > div > div > div > div > div > div > div > div > div > div.auth0-lock-input-block.auth0-lock-input-show-password > div > div.auth0-lock-input-wrap.auth0-lock-input-wrap-with-icon > input';
 const selectorLoginPageLoginButton =
     '#lock-container > div > div > form > div > div > div.login-form--actions > button';
+
+const chromiumRevision = '961656';
 
 /**
  *
@@ -123,21 +126,31 @@ const processCloudApp = async (appId, saasInstance, options) => {
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             let iSheetNum = 1;
+            let revisionInfo = '';
 
-            // https://github.com/vercel/pkg/issues/204#issuecomment-536323464
+            if (isPkg) {
+                // Download browser
+                // https://github.com/vercel/pkg/issues/204#issuecomment-720996863
+                const tmpPath = tmpdir();
+                const chromePath = path.join(tmpPath, '.local-chromium');
+                logger.debug(`Temp path for downloading Chromium: ${chromePath}`);
+
+                const browserFetcher = puppeteer.createBrowserFetcher({
+                    path: chromePath,
+                });
+                logger.info(`Downloading Chromium browser revision ${chromiumRevision}...`);
+                revisionInfo = await browserFetcher.download(chromiumRevision);
+                logger.info(`Download done.`);
+            }
+
             const executablePath =
                 process.env.PUPPETEER_EXECUTABLE_PATH ||
-                (process.pkg
-                    ? path.join(
-                          path.dirname(process.execPath),
-                          'chromium',
-                          ...puppeteer.executablePath().split(path.sep).slice(6) // /snapshot/project/node_modules/puppeteer/.local-chromium
-                      )
-                    : puppeteer.executablePath());
+                (isPkg ? revisionInfo.executablePath : puppeteer.executablePath());
+
             logger.debug(`execPath: ${executablePath}`);
 
             const chromiumExecutablePath = isPkg ? executablePath : puppeteer.executablePath();
-            logger.debug(`Using Chromium browser at ${chromiumExecutablePath}`);
+            logger.verbose(`Using Chromium browser at ${chromiumExecutablePath}`);
 
             const browser = await puppeteer.launch({
                 headless: options.headless === true || options.headless.toLowerCase() === 'true',
@@ -167,7 +180,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 deviceScaleFactor: 1,
             });
 
-            // Qlik cloud URL format:
+            // Qlik Sense cloud URL format:
             // https://<tenant FQDN>/sense/app/<app ID>>
 
             const appUrl = `https://${options.tenanturl}/sense/app/${appId}`;
