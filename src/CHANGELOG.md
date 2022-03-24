@@ -1,6 +1,17 @@
 # Changelog
 
 
+## [2.0.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.10.0...butler-sheet-icons-v2.0.0) (2022-03-24)
+
+
+### ⚠ BREAKING CHANGES
+
+* QS Cloud support and standalone binaries
+
+### Features
+
+* QS Cloud support and standalone binaries ([69538fa](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/69538fa59df9e4a38823bc77755ce8a0f25d9705))
+
 ## [1.3.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.2.1...butler-sheet-icons-v1.3.0) (2022-01-30)
 
 
