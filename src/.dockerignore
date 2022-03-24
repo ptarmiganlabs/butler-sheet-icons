@@ -11,6 +11,7 @@
 .dockerignore
 .gitignore
 .prettierignore
+.prettierrc.yaml
 .prettierrc
 .snyk
 
