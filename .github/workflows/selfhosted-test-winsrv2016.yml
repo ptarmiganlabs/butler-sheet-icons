@@ -15,8 +15,6 @@ jobs:
     strategy:
       matrix:
         node:
-          - 14
-          - 16
           - lts/*
         architecture:
           - x64
