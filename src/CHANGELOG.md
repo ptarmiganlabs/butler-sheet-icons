@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.16...butler-sheet-icons-v1.10.0) (2022-03-24)
+
+
+### Features
+
+* Bring Docker builds back into CI ([c104df4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c104df49fb4c6f96be36d9b4830d3cfde863332e))
+
 ### [1.9.16](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.9.15...butler-sheet-icons-v1.9.16) (2022-03-23)
 
 
