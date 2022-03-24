@@ -37,7 +37,7 @@ butler-sheet-icons.exe qscloud create-sheet-thumbnails
 
 Butler Sheet Icons is an open source project sponsored by Ptarmigan Labs.
 
-For support and services relating to the Butler family of tools, or Qlik Sense projects in general, please contact info -at- ptarmiganlanbs -dot- com.
+For support and services relating to the Butler family of tools or Qlik Sense projects in general, please contact info -at- ptarmiganlanbs -dot- com.
 
 Or [sign up to the newsletter](https://info.ptarmiganlabs.com/g3c1f1) to get the latest Qlik Sense superpower updates in your inbox!
 
@@ -93,7 +93,7 @@ Table of contents
 
 # Demo
 
-Here a Qlik Sense Cloud is updated by running Butler Sheet Icons on a macOS laptop:
+Here a Qlik Sense Cloud app is updated by running Butler Sheet Icons on a macOS laptop:
 
 ![Running Butler Sheet Icons on macOS](./docs/img/qscloud-create-thumbnails-macos-bash-animated-1.gif "Running Butler Sheet Icons on macOS")
 
