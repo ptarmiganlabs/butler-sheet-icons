@@ -4,6 +4,7 @@ const { logger, appVersion } = require('./globals');
 const { qseowCreateThumbnails } = require('./lib/qseow/qseow-create-thumbnails');
 const { qscloudCreateThumbnails } = require('./lib/cloud/cloud-create-thumbnails');
 const { qscloudListCollections } = require('./lib/cloud/cloud-collections');
+const { qscloudRemoveSheetIcons } = require('./lib/cloud/cloud-remove-sheet-icons');
 
 const program = new Command();
 
@@ -96,7 +97,6 @@ const program = new Command();
             'user ID for user to connect with when logging into web UI'
         )
         .requiredOption('--logonpwd <password>', 'password for user to connect with')
-        .requiredOption('--hosttype <type>', 'type of Qlik Sense server (qseow)', 'qseow')
         .requiredOption(
             '--headless <true|false>',
             'headless (=not visible) browser (true, false)',
@@ -140,6 +140,65 @@ const program = new Command();
             'Use sheet titles to control which sheets that will be excluded from sheet icon update.'
         );
 
+    // ---------
+    qseow
+        .command('remove-sheet-icons')
+        .description('Remove all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) app.')
+        .action(async (options, command) => {
+            try {
+                const res = await qseowRemoveSheetIcons(options, command);
+                logger.debug(`Call to qseowRemoveSheetIcons succeeded: ${res}`);
+            } catch (err) {
+                logger.error(`MAIN qseow: ${err}`);
+            }
+        })
+        .requiredOption(
+            '--loglevel <level>',
+            'log level (error, warning, info, verbose, debug, silly)',
+            'info'
+        )
+        .requiredOption('--host <host>', 'Qlik Sense server IP/FQDN')
+        .requiredOption('--engineport <port>', 'Qlik Sense server engine port', '4747')
+        .requiredOption(
+            '--qrsport <port>',
+            'Qlik Sense server repository service (QRS) port',
+            '4242'
+        )
+        .requiredOption('--schemaversion <string>', 'Qlik Sense engine schema version', '12.612.0')
+        .requiredOption(
+            '--appid <id>',
+            'Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified',
+            ''
+        )
+        .requiredOption(
+            '--certfile <file>',
+            'Qlik Sense certificate file (exported from QMC)',
+            './cert/client.pem'
+        )
+        .requiredOption(
+            '--certkeyfile <file>',
+            'Qlik Sense certificate key file (exported from QMC)',
+            './cert/client_key.pem'
+        )
+        .requiredOption(
+            '--secure <true|false>',
+            'connection to Qlik Sense engine is via https',
+            true
+        )
+        .requiredOption(
+            '--apiuserdir <directory>',
+            'user directory for user to connect with when using Sense APIs'
+        )
+        .requiredOption(
+            '--apiuserid <userid>',
+            'user ID for user to connect with when using Sense APIs'
+        )
+        .option(
+            '--qliksensetag <value>',
+            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. If this parameter is specified the --appid parameter will be ignored',
+            ''
+        );
+
     // ------------------
     // cloud commands
     function makeCloudCommand() {
@@ -170,10 +229,6 @@ const program = new Command();
                 '12.612.0'
             )
             .requiredOption('--tenanturl <url>', 'URL to Qlik Sense cloud tenant')
-            .option(
-                '--appid <id>',
-                'Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified'
-            )
             .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
             .requiredOption(
                 '--logonuserid <userid>',
@@ -199,6 +254,10 @@ const program = new Command();
                 '--includesheetpart <value>',
                 'which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen',
                 '1'
+            )
+            .option(
+                '--appid <id>',
+                'Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified'
             )
             .option(
                 '--collectionid <id>',
@@ -238,6 +297,40 @@ const program = new Command();
                 new Option('--outputformat <table|json>', 'Output format')
                     .choices(['table', 'json'])
                     .default('table')
+            );
+
+        // ---------
+        cloud
+            .command('remove-sheet-icons')
+            .description('Remove all sheet icons from a Qlik Sense Cloud app.')
+            .action(async (options, command) => {
+                try {
+                    const res = await qscloudRemoveSheetIcons(options, command);
+                    logger.debug(`Call to qscloudRemoveSheetIcons succeeded: ${res}`);
+                } catch (err) {
+                    logger.error(`MAIN cloud: ${err}`);
+                }
+            })
+            .requiredOption(
+                '--loglevel <level>',
+                'log level (error, warning, info, verbose, debug, silly)',
+                'info'
+            )
+            .requiredOption(
+                '--schemaversion <string>',
+                'Qlik Sense engine schema version',
+                '12.612.0'
+            )
+            .requiredOption('--tenanturl <url>', 'URL to Qlik Sense cloud tenant')
+            .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
+            .option(
+                '--appid <id>',
+                'Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified'
+            )
+            .option(
+                '--collectionid <id>',
+                'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated',
+                ''
             );
 
         return cloud;
