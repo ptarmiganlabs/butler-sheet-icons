@@ -64,6 +64,7 @@ Table of contents
   - [Concepts shared between QS Cloud and client-managed QS](#concepts-shared-between-qs-cloud-and-client-managed-qs)
     - [Logging](#logging)
     - [Which part of each sheet to use as thumbnail](#which-part-of-each-sheet-to-use-as-thumbnail)
+    - [Excluding sheets](#excluding-sheets)
     - [Screen shots taken by Butler Sheet Icons](#screen-shots-taken-by-butler-sheet-icons)
     - [Headless browser](#headless-browser)
   - [Concepts specific to QS Cloud](#concepts-specific-to-qs-cloud)
@@ -155,6 +156,10 @@ The idea is simply to more or less mimic the steps a human would take to create 
     - By app ID (both QS Cloud and QSEoW).
     - By tag (QSEoW). All apps having the specified tag will be updated.
     - By collection (QS Cloud). All apps part of the specified collection will be updated.
+- It's possible to specify that some sheets should *not* get new sheet icons. Exclude sheets can be specified using
+  - Sheet position in the app. For example sheet 3, 7 and 8.
+  - Sheet title. For example sheet "Intro" and "Definitions"
+  - All sheets tagged with a specific tag. Only available on client-managed Qlik Sense Enterprise.
 
 ## Sample screen shots
 
@@ -311,6 +316,33 @@ Looking at a sheet in client-managed QS we have:
 
 `--includesheetpart` is an optional parameter with a default value of 1.
 
+### Excluding sheets
+
+The `--exclude-sheet-number` and `--exclude-sheet-title` options are available for both QS Cloud apps and client-managed QS apps.  
+The `--exclude-sheet-tag` option is only available for client-managed QS, as there is no way to tag individual sheets in QS Cloud.
+
+Both `--exclude-sheet-number` and `--exclude-sheet-title` options take one or more:
+
+```bash
+--exclude-sheet-number 3 7
+
+--exclude-sheet-title "Intro" "Definitions" "Help"
+```
+
+There can be various reasons why you want to exclude sheets from getting new icons.  
+One scanario could be that some sheets have special roles in apps, for example providing help/support info, giving an overview over the entire app.  
+Another scenario is that a company have standardised on a fixed format first sheet in each app, and want that sheet's icon to be the same everywhere.
+
+On client-managed Qlik Sense Enterprise there is an additional option too: `--exclude-sheet-tag`.
+
+Follow these steps to use that option:
+
+1. Create a tag in the QMC. For example `❌excludeSheetThumbnailUpdate`.
+2. In the QMC's App Objects section you can tag the sheets that should not get new sheet icons, using that new tag.
+3. When starting Butler Sheet Icons you should pass in the option `--exclude-sheet-tag "❌excludeSheetThumbnailUpdate"`.
+
+Tagged sheets will be excluded from getting new sheet icons.
+
 ### Screen shots taken by Butler Sheet Icons
 
 Image files are created (=screen shots are taken)
@@ -428,32 +460,35 @@ Create thumbnail images based on the layout of each sheet in Qlik Sense Enterpri
 Multiple apps can be updated with a single command, using a Qlik Sense tag to identify  which apps will be updated.
 
 Options:
-  --loglevel <level>                 log level (error, warning, info, verbose, debug, silly) (default: "info")
-  --host <host>                      Qlik Sense server IP/FQDN
-  --engineport <port>                Qlik Sense server engine port (default: "4747")
-  --qrsport <port>                   Qlik Sense server repository service (QRS) port (default: "4242")
-  --port <port>                      Qlik Sense http/https port. 443 is default for https, 80 for http
-  --schemaversion <string>           Qlik Sense engine schema version (default: "12.612.0")
-  --appid <id>                       Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified (default: "")
-  --certfile <file>                  Qlik Sense certificate file (exported from QMC) (default: "./cert/client.pem")
-  --certkeyfile <file>               Qlik Sense certificate key file (exported from QMC) (default: "./cert/client_key.pem")
-  --rejectUnauthorized <true|false>  Ignore warnings when Sense certificate does not match the --host paramater (default: false)
-  --prefix <prefix>                  Qlik Sense virtual proxy prefix (default: "")
-  --secure <true|false>              connection to Qlik Sense engine is via https (default: true)
-  --apiuserdir <directory>           user directory for user to connect with when using Sense APIs
-  --apiuserid <userid>               user ID for user to connect with when using Sense APIs
-  --logonuserdir <directory>         user directory for user to connect with when logging into web UI
-  --logonuserid <userid>             user ID for user to connect with when logging into web UI
-  --logonpwd <password>              password for user to connect with
-  --hosttype <type>                  type of Qlik Sense server (qseow) (default: "qseow")
-  --headless <true|false>            headless (=not visible) browser (true, false) (default: true)
-  --pagewait <seconds>               number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
-  --imagedir <directory>             directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
-  --contentlibrary <library-name>    Qlik Sense content library to which thumbnails will be uploaded (default: "Butler sheet thumbnails")
-  --includesheetpart <value>         which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar (default: "1")
-  --qliksensetag <value>             Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. If this parameter is specified the --appid parameter will be ignored
-                                     (default: "")
-  -h, --help                         display help for command
+  --loglevel <level>                  log level (error, warning, info, verbose, debug, silly) (default: "info")
+  --host <host>                       Qlik Sense server IP/FQDN
+  --engineport <port>                 Qlik Sense server engine port (default: "4747")
+  --qrsport <port>                    Qlik Sense server repository service (QRS) port (default: "4242")
+  --port <port>                       Qlik Sense http/https port. 443 is default for https, 80 for http
+  --schemaversion <string>            Qlik Sense engine schema version (default: "12.612.0")
+  --appid <id>                        Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified (default: "")
+  --certfile <file>                   Qlik Sense certificate file (exported from QMC) (default: "./cert/client.pem")
+  --certkeyfile <file>                Qlik Sense certificate key file (exported from QMC) (default: "./cert/client_key.pem")
+  --rejectUnauthorized <true|false>   Ignore warnings when Sense certificate does not match the --host paramater (default: false)
+  --prefix <prefix>                   Qlik Sense virtual proxy prefix (default: "")
+  --secure <true|false>               connection to Qlik Sense engine is via https (default: true)
+  --apiuserdir <directory>            user directory for user to connect with when using Sense APIs
+  --apiuserid <userid>                user ID for user to connect with when using Sense APIs
+  --logonuserdir <directory>          user directory for user to connect with when logging into web UI
+  --logonuserid <userid>              user ID for user to connect with when logging into web UI
+  --logonpwd <password>               password for user to connect with
+  --hosttype <type>                   type of Qlik Sense server (qseow) (default: "qseow")
+  --headless <true|false>             headless (=not visible) browser (true, false) (default: true)
+  --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
+  --imagedir <directory>              directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
+  --contentlibrary <library-name>     Qlik Sense content library to which thumbnails will be uploaded (default: "Butler sheet thumbnails")
+  --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar (default: "1")
+  --qliksensetag <value>              Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. If this parameter is specified the --appid parameter will be ignored
+                                      (default: "")
+  --exclude-sheet-tag <value>         Sheets with this tag set will be excluded from sheet icon update.
+  --exclude-sheet-number <number...>  Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.
+  --exclude-sheet-title <title...>    Use sheet titles to control which sheets that will be excluded from sheet icon update.
+  -h, --help                          display help for command
 PS C:\tools\butler-sheet-icons-win>
 ```
 
@@ -474,19 +509,21 @@ Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud ap
 Multiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.
 
 Options:
-  --loglevel <level>          log level (error, warning, info, verbose, debug, silly) (default: "info")
-  --schemaversion <string>    Qlik Sense engine schema version (default: "12.612.0")
-  --tenanturl <url>           URL to Qlik Sense cloud tenant
-  --appid <id>                Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified
-  --apikey <key>              API key used to access the Sense APIs
-  --logonuserid <userid>      user ID for user to connect with when logging into web UI
-  --logonpwd <password>       password for user to connect with
-  --headless <true|false>     headless (=not visible) browser (true, false) (default: true)
-  --pagewait <seconds>        number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
-  --imagedir <directory>      directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
-  --includesheetpart <value>  which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen (default: "1")
-  --collectionid <id>         Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated (default: "")
-  -h, --help                  display help for command
+  --loglevel <level>                  log level (error, warning, info, verbose, debug, silly) (default: "info")
+  --schemaversion <string>            Qlik Sense engine schema version (default: "12.612.0")
+  --tenanturl <url>                   URL to Qlik Sense cloud tenant
+  --appid <id>                        Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified
+  --apikey <key>                      API key used to access the Sense APIs
+  --logonuserid <userid>              user ID for user to connect with when logging into web UI
+  --logonpwd <password>               password for user to connect with
+  --headless <true|false>             headless (=not visible) browser (true, false) (default: true)
+  --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
+  --imagedir <directory>              directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
+  --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen (default: "1")
+  --collectionid <id>                 Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated (default: "")
+  --exclude-sheet-number <number...>  Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.
+  --exclude-sheet-title <title...>    Use sheet titles to control which sheets that will be excluded from sheet icon update.
+  -h, --help                          display help for command
 PS C:\tools\butler-sheet-icons-win>
 ```
 

@@ -41,6 +41,21 @@ const processQSEoWApp = async (appId, g, options) => {
     }
 
     try {
+        // Get metadata about the app
+        const qseowConfigQrs = setupQseowQrsConnection(options);
+
+        // eslint-disable-next-line new-cap
+        const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
+        logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
+
+        logger.debug(
+            `GETtagExcludeSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
+        );
+        let tagExcludeSheetAppMetadata = await qrsInteractInstance.Get(
+            `app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
+        );
+        tagExcludeSheetAppMetadata = tagExcludeSheetAppMetadata.body;
+
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
         const imgDir = options.imagedir;
@@ -225,47 +240,105 @@ const processQSEoWApp = async (appId, g, options) => {
 
             // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                logger.info(
-                    `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
-                );
-                // Build URL to current sheet
-                const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
-                logger.debug(`Sheet URL: ${sheetUrl}`);
+                // Should this sheet be processed, or is it on exclude list?
+                // Options are
+                // --exclude-sheet-tag <value>
+                // --exclude-sheet-number <number...>
+                // --exclude-sheet-title <title...>
 
-                // Open sheet in browser, then take screen shot
-                await Promise.all([
-                    page.goto(sheetUrl),
-                    page.waitForNavigation({ waitUntil: 'networkidle2' }),
-                ]);
+                let excludeSheet;
 
-                await page.waitForTimeout(options.pagewait * 1000);
-                const fileName = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}.png`;
-                const fileNameShort = `thumbnail-${appId}-${iSheetNum}.png`;
-
-                let selector = '';
-                if (options.includesheetpart === '1') {
-                    // 1: Only chart part of sheet (no sheet title, selections or app info)
-                    selector = '#grid-wrap';
-                } else if (options.includesheetpart === '2') {
-                    // 2: Include sheet title  (no selections or app info)
-                    selector = '#qv-stage-container > div > div.qv-panel-content.flex-row';
-                } else if (options.includesheetpart === '3') {
-                    // 3: Include sheet title and selection bar (no app info)
-                    selector = '#qv-stage-container > div';
-                } else if (options.includesheetpart === '4') {
-                    // 4: Take screen shot of entire sheet, including sheet title, top menu and status bars.
-                    // or: await page.screenshot({ path: fileName });
-                    selector = '#qv-page-container';
+                // Is this sheet on the exclude list via tags?
+                if (options.excludeSheetTag && excludeSheet === undefined) {
+                    // eslint-disable-next-line no-loop-func
+                    excludeSheet = tagExcludeSheetAppMetadata.find((element) => {
+                        try {
+                            if (element.engineObjectId === sheet.qInfo.qId) {
+                                return true;
+                            }
+                            return false;
+                        } catch {
+                            return false;
+                        }
+                    });
                 }
 
-                // Ensure that the element we're interested in is loaded
-                await page.waitForSelector(selector);
-                const sheetMainPart = await page.$(selector);
-                await sheetMainPart.screenshot({
-                    path: fileName,
-                });
-                createdFiles.push(fileNameShort);
+                // Is this sheet on the exclude list via sheet number?
+                if (options.excludeSheetNumber && excludeSheet === undefined) {
+                    // eslint-disable-next-line no-loop-func
+                    excludeSheet = options.excludeSheetNumber.find((element) => {
+                        try {
+                            if (parseInt(element, 10) === iSheetNum) {
+                                return true;
+                            }
+                            return false;
+                        } catch {
+                            return false;
+                        }
+                    });
+                }
 
+                // Is this sheet on the exclude list via sheet title?
+                if (options.excludeSheetTitle && excludeSheet === undefined) {
+                    // eslint-disable-next-line no-loop-func
+                    excludeSheet = options.excludeSheetTitle.find((element) => {
+                        try {
+                            if (element === sheet.qMeta.title) {
+                                return true;
+                            }
+                            return false;
+                        } catch {
+                            return false;
+                        }
+                    });
+                }
+
+                if (excludeSheet !== undefined) {
+                    logger.info(
+                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                    );
+                } else {
+                    logger.info(
+                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                    );
+                    // Build URL to current sheet
+                    const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
+                    logger.debug(`Sheet URL: ${sheetUrl}`);
+
+                    // Open sheet in browser, then take screen shot
+                    await Promise.all([
+                        page.goto(sheetUrl),
+                        page.waitForNavigation({ waitUntil: 'networkidle2' }),
+                    ]);
+
+                    await page.waitForTimeout(options.pagewait * 1000);
+                    const fileName = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}.png`;
+                    const fileNameShort = `thumbnail-${appId}-${iSheetNum}.png`;
+
+                    let selector = '';
+                    if (options.includesheetpart === '1') {
+                        // 1: Only chart part of sheet (no sheet title, selections or app info)
+                        selector = '#grid-wrap';
+                    } else if (options.includesheetpart === '2') {
+                        // 2: Include sheet title  (no selections or app info)
+                        selector = '#qv-stage-container > div > div.qv-panel-content.flex-row';
+                    } else if (options.includesheetpart === '3') {
+                        // 3: Include sheet title and selection bar (no app info)
+                        selector = '#qv-stage-container > div';
+                    } else if (options.includesheetpart === '4') {
+                        // 4: Take screen shot of entire sheet, including sheet title, top menu and status bars.
+                        // or: await page.screenshot({ path: fileName });
+                        selector = '#qv-page-container';
+                    }
+
+                    // Ensure that the element we're interested in is loaded
+                    await page.waitForSelector(selector);
+                    const sheetMainPart = await page.$(selector);
+                    await sheetMainPart.screenshot({
+                        path: fileName,
+                    });
+                    createdFiles.push({ sheetPos: iSheetNum, fileNameShort });
+                }
                 iSheetNum += 1;
             }
 

@@ -126,6 +126,18 @@ const program = new Command();
             '--qliksensetag <value>',
             'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. If this parameter is specified the --appid parameter will be ignored',
             ''
+        )
+        .option(
+            '--exclude-sheet-tag <value>',
+            'Sheets with this tag set will be excluded from sheet icon update.'
+        )
+        .option(
+            '--exclude-sheet-number <number...>',
+            'Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.'
+        )
+        .option(
+            '--exclude-sheet-title <title...>',
+            'Use sheet titles to control which sheets that will be excluded from sheet icon update.'
         );
 
     // ------------------
@@ -192,6 +204,14 @@ const program = new Command();
                 '--collectionid <id>',
                 'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated',
                 ''
+            )
+            .option(
+                '--exclude-sheet-number <number...>',
+                'Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.'
+            )
+            .option(
+                '--exclude-sheet-title <title...>',
+                'Use sheet titles to control which sheets that will be excluded from sheet icon update.'
             );
 
         // ---------

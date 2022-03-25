@@ -18,7 +18,7 @@ const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
         setLoggingLevel(options.loglevel);
 
         logger.debug(`Files up to upload to Qlik Sense content library ${options.contentlibrary}`);
-        filesToUpload.forEach((file) => logger.debug(file));
+        filesToUpload.forEach((file) => logger.debug(JSON.stringify(file)));
 
         const qseowConfigQrs = setupQseowQrsConnection(options);
         // eslint-disable-next-line new-cap
@@ -33,15 +33,15 @@ const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
         logger.info(`Uploading images in folder: ${iconFolderAbsolute}`);
         logger.info(`Uploading images to Qlik Sense content library: ${contentlibrary}`);
 
-        logger.debug(`Files to be uploaded to Qlik Sense Cloud`);
-        filesToUpload.forEach((file) => logger.debug(file));
+        logger.debug(`Files to be uploaded to QSEoW`);
+        filesToUpload.forEach((file) => logger.debug(JSON.stringify(file)));
 
         // eslint-disable-next-line no-restricted-syntax
         for (const file of filesToUpload) {
-            logger.debug(`File to upload: ${file}`);
+            logger.verbose(`Uploading file: ${JSON.stringify(file)}`);
 
             // Get complete path for file
-            const fileFullPath = path.join(iconFolderAbsolute, file);
+            const fileFullPath = path.join(iconFolderAbsolute, file.fileNameShort);
             logger.debug(`fileFullPath: ${fileFullPath}`);
 
             const fileStat = fs.statSync(fileFullPath);
@@ -49,14 +49,12 @@ const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
 
             if (
                 fileStat.isFile() &&
-                file.substring(0, 10) === 'thumbnail-' &&
-                path.extname(file) === '.png'
+                file.fileNameShort.substring(0, 10) === 'thumbnail-' &&
+                path.extname(file.fileNameShort) === '.png'
             ) {
-                logger.verbose(`Uploading file: ${file}`);
-
                 const apiUrl = `/contentlibrary/${encodeURIComponent(
                     contentlibrary
-                )}/uploadfile?externalpath=${file}&overwrite=true`;
+                )}/uploadfile?externalpath=${file.fileNameShort}&overwrite=true`;
 
                 logger.debug(`Thumbnail imague upload URL: ${apiUrl}`);
 
@@ -66,7 +64,7 @@ const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
                     // eslint-disable-next-line no-await-in-loop
                     const result = await qrsInteractInstance.Post(apiUrl, fileData, 'image/png');
                     logger.debug(`QSEoW image upload result=${JSON.stringify(result)}`);
-                    logger.verbose(`QSEoW image upload done: ${file}`);
+                    logger.verbose(`QSEoW image upload done: ${JSON.stringify(file)}`);
                 } catch (err) {
                     logger.error(`UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
                 }

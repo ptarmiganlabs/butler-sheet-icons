@@ -12,7 +12,7 @@ const { logger } = require('../../globals');
  */
 const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
     try {
-        logger.info(`Starting update of sheet icons for app ${appId}`);
+        logger.verbose(`Starting update of sheet icons for app ${appId}`);
 
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
@@ -33,7 +33,7 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
         );
 
         const app = await global.openDoc(appId, '', '', '', false);
-        logger.info(`Opened app ${appId}`);
+        logger.verbose(`Opened app ${appId}`);
 
         // Get list of app sheets
         const appSheetsCall = {
@@ -55,9 +55,7 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
 
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // dimObj.qAppObjectList.qItems[] now contains array of app sheets.
-            logger.info(
-                `UPDATE: Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`
-            );
+            logger.info(`Number of sheets: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             // Sort sheets
             sheetListObj.qAppObjectList.qItems.sort((sheet1, sheet2) => {
@@ -69,24 +67,29 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
             let iSheetNum = 1;
             // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                logger.info(
-                    `Updating thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                );
-
-                // Get properties of current sheet
-                const sheetObj = await app.getObject(sheet.qInfo.qId);
-                const sheetProperties = await sheetObj.getProperties();
-
-                // Set new sheet thumbnail
-                if (options.prefix.length > 0) {
-                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}.png`;
+                // Is this sheet among those that should be updated?
+                // eslint-disable-next-line no-loop-func
+                if (createdFiles.find((element) => element.sheetPos === iSheetNum) === undefined) {
+                    // This sheet should not be updated
+                    logger.info(
+                        `Skipping update of sheet sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}`
+                    );
                 } else {
-                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}.png`;
-                }
+                    logger.info(
+                        `Updating thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                    );
 
-                const res = await sheetObj.setProperties(sheetProperties);
-                logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
-                await app.doSave();
+                    // Get properties of current sheet
+                    const sheetObj = await app.getObject(sheet.qInfo.qId);
+                    const sheetProperties = await sheetObj.getProperties();
+
+                    // Set new sheet thumbnail
+                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}.png`;
+
+                    const res = await sheetObj.setProperties(sheetProperties);
+                    logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
+                    await app.doSave();
+                }
 
                 iSheetNum += 1;
             }

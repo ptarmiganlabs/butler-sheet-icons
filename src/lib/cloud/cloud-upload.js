@@ -33,14 +33,14 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
         );
 
         logger.debug(`Files to be uploaded to Qlik Sense Cloud`);
-        filesToUpload.forEach((file) => logger.debug(file));
+        filesToUpload.forEach((file) => logger.debug(JSON.stringify(file)));
 
         // eslint-disable-next-line no-restricted-syntax
         for (const file of filesToUpload) {
-            logger.verbose(`Uploading file: ${file}`);
+            logger.verbose(`Uploading file: ${JSON.stringify(file)}`);
 
             // Get complete path for file
-            const fileFullPath = path.join(iconFolderAbsolute, file);
+            const fileFullPath = path.join(iconFolderAbsolute, file.fileNameShort);
             logger.debug(`fileFullPath: ${fileFullPath}`);
 
             const fileStat = fs.statSync(fileFullPath);
@@ -48,12 +48,10 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
 
             if (
                 fileStat.isFile() &&
-                file.substring(0, 10) === 'thumbnail-' &&
-                path.extname(file) === '.png'
+                file.fileNameShort.substring(0, 10) === 'thumbnail-' &&
+                path.extname(file.fileNameShort) === '.png'
             ) {
-                logger.verbose(`Uploading file: ${file}`);
-
-                const apiUrl = `apps/${appId}/media/files/thumbnails/${file}`;
+                const apiUrl = `apps/${appId}/media/files/thumbnails/${file.fileNameShort}`;
                 logger.debug(`Thumbnail imague upload URL: ${apiUrl}`);
 
                 try {
@@ -65,9 +63,8 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
                         contentType: 'application/octet-stream',
                     });
 
-                    // const result = await qrsInteractInstance.Post(apiUrl, fileData, 'image/png');
                     logger.debug(`QS Cloud image upload result=${JSON.stringify(result)}`);
-                    logger.verbose(`QS Cloud image upload done: ${file}`);
+                    logger.verbose(`QS Cloud image upload done: ${JSON.stringify(file)}`);
                 } catch (err) {
                     logger.error(`CLOUD UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
                 }
