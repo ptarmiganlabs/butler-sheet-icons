@@ -55,11 +55,7 @@ const program = new Command();
             'Qlik Sense http/https port. 443 is default for https, 80 for http'
         )
         .requiredOption('--schemaversion <string>', 'Qlik Sense engine schema version', '12.612.0')
-        .requiredOption(
-            '--appid <id>',
-            'Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified',
-            ''
-        )
+        .requiredOption('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.', '')
         .requiredOption(
             '--certfile <file>',
             'Qlik Sense certificate file (exported from QMC)',
@@ -125,7 +121,7 @@ const program = new Command();
         )
         .option(
             '--qliksensetag <value>',
-            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. If this parameter is specified the --appid parameter will be ignored',
+            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
             ''
         )
         .option(
@@ -170,11 +166,7 @@ const program = new Command();
             'Qlik Sense http/https port. 443 is default for https, 80 for http'
         )
         .requiredOption('--schemaversion <string>', 'Qlik Sense engine schema version', '12.612.0')
-        .requiredOption(
-            '--appid <id>',
-            'Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified',
-            ''
-        )
+        .requiredOption('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.', '')
         .requiredOption(
             '--certfile <file>',
             'Qlik Sense certificate file (exported from QMC)',
@@ -206,7 +198,7 @@ const program = new Command();
         )
         .option(
             '--qliksensetag <value>',
-            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. If this parameter is specified the --appid parameter will be ignored',
+            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
             ''
         );
 
@@ -266,10 +258,7 @@ const program = new Command();
                 'which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen',
                 '1'
             )
-            .option(
-                '--appid <id>',
-                'Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified'
-            )
+            .option('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.')
             .option(
                 '--collectionid <id>',
                 'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated',
@@ -334,10 +323,7 @@ const program = new Command();
             )
             .requiredOption('--tenanturl <url>', 'URL to Qlik Sense cloud tenant')
             .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
-            .option(
-                '--appid <id>',
-                'Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified'
-            )
+            .option('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.')
             .option(
                 '--collectionid <id>',
                 'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated',
