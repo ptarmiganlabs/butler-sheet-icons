@@ -13,7 +13,6 @@ const options = {
     certkeyfile: process.env.BSI_CERT_KEY_FILE || '../../cert/client_key.pem',
     prefix: process.env.BSI_PREFIX || '',
     secure: process.env.BSI_SECURE || 'true',
-    hosttype: process.env.BSI_HOST_TYPE || 'qseow',
     headless: process.env.BSI_HEADLESS || 'true',
     pagewait: process.env.BSI_PAGE_WAIT || '3',
     imagedir: process.env.BSI_IAMGE_DIR || 'img',
