@@ -49,7 +49,7 @@ const processQSEoWApp = async (appId, g, options) => {
         logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
 
         logger.debug(
-            `GETtagExcludeSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
+            `GET tagExcludeSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
         );
         let tagExcludeSheetAppMetadata = await qrsInteractInstance.Get(
             `app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
@@ -59,8 +59,8 @@ const processQSEoWApp = async (appId, g, options) => {
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
         const imgDir = options.imagedir;
-
         const session = await enigma.create(configEnigma);
+
         if (options.loglevel === 'silly') {
             // eslint-disable-next-line no-console
             session.on('traffic:sent', (data) => console.log('sent:', data));

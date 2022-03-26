@@ -101,7 +101,7 @@ const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
                 `Closed session after updating sheet thumbnail images in QSEoW app ${appId} on host ${options.host}`
             );
         } else {
-            logger.error(`Error closing session for QSEoW app ${appId} on host ${options.host}`);
+            logger.error(`Error closing session for QS Cloud app ${appId}`);
         }
     } catch (err) {
         logger.error(`UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);

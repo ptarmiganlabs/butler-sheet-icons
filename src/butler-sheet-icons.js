@@ -2,6 +2,7 @@ const { Command, Option } = require('commander');
 const { logger, appVersion } = require('./globals');
 
 const { qseowCreateThumbnails } = require('./lib/qseow/qseow-create-thumbnails');
+const { qseowRemoveSheetIcons } = require('./lib/qseow/qseow-remove-sheet-icons');
 const { qscloudCreateThumbnails } = require('./lib/cloud/cloud-create-thumbnails');
 const { qscloudListCollections } = require('./lib/cloud/cloud-collections');
 const { qscloudRemoveSheetIcons } = require('./lib/cloud/cloud-remove-sheet-icons');
@@ -164,6 +165,10 @@ const program = new Command();
             'Qlik Sense server repository service (QRS) port',
             '4242'
         )
+        .option(
+            '--port <port>',
+            'Qlik Sense http/https port. 443 is default for https, 80 for http'
+        )
         .requiredOption('--schemaversion <string>', 'Qlik Sense engine schema version', '12.612.0')
         .requiredOption(
             '--appid <id>',
@@ -180,6 +185,12 @@ const program = new Command();
             'Qlik Sense certificate key file (exported from QMC)',
             './cert/client_key.pem'
         )
+        .requiredOption(
+            '--rejectUnauthorized <true|false>',
+            'Ignore warnings when Sense certificate does not match the --host paramater',
+            false
+        )
+        .requiredOption('--prefix <prefix>', 'Qlik Sense virtual proxy prefix', '')
         .requiredOption(
             '--secure <true|false>',
             'connection to Qlik Sense engine is via https',
