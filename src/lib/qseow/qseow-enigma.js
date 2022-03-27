@@ -33,7 +33,7 @@ const setupEnigmaConnection = (appId, options, command) => {
             host: options.host,
             port: options.engineport,
             prefix: options.prefix,
-            secure: options.secure === 'true',
+            secure: options.secure === 'true' || options.secure === true,
             appId,
         }),
         createSocket: (url) =>
@@ -43,7 +43,7 @@ const setupEnigmaConnection = (appId, options, command) => {
                 headers: {
                     'X-Qlik-User': `UserDirectory=${options.apiuserdir};UserId=${options.apiuserid}`,
                 },
-                rejectUnauthorized: options.rejectUnauthorized === 'true',
+                rejectUnauthorized: options.rejectUnauthorized === 'true' || options.rejectUnauthorized === true,
             }),
     };
     // } catch (err) {

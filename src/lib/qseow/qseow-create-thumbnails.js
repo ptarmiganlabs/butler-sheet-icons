@@ -171,7 +171,7 @@ const processQSEoWApp = async (appId, g, options) => {
             let appUrl = '';
             let hubUrl = '';
 
-            if (options.secure === 'true') {
+            if (options.secure === 'true' || options.secure === true) {
                 appUrl = 'https://';
             } else {
                 appUrl = 'http://';
