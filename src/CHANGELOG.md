@@ -1,6 +1,30 @@
 # Changelog
 
 
+## [2.1.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.0.0...butler-sheet-icons-v2.1.0) (2022-03-27)
+
+
+### Features
+
+* Add command to remove all sheet icons from app(s). ([891b93e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/891b93e8377ff0f07b3a2cba5d43d51ba52000f0))
+* Optionally exclude sheets from getting new icons ([007ffe0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/007ffe0dfcbc888c4e70b37c1cf6704df96b0184))
+
+
+### Bug Fixes
+
+* Better handling of boolean command options. ([afb7f36](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/afb7f3617c888e2a02ebac9ae9fa52928a059e45))
+* Remove unused --hosttype option ([2563fb2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2563fb2b8aefcfe2f0fa75348bf2e6197b5fa209))
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies ([8d7f3fd](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8d7f3fda30250ee18d3e65318cd3801cbb7c3b95))
+
+
+### Documentation
+
+* Improve --help texts ([160bf56](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/160bf5688d45173cbb06296dc16d748a6e0f1d91))
+
 ## [2.0.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v1.10.0...butler-sheet-icons-v2.0.0) (2022-03-24)
 
 
