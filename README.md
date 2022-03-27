@@ -48,7 +48,7 @@ Table of contents
 - [Demo](#demo)
 - [Introduction](#introduction)
   - [The basics](#the-basics)
-  - [How does Butler Sheet Icons work](#how-does-butler-sheet-icons-work)
+  - [How does Butler Sheet Icons work?](#how-does-butler-sheet-icons-work)
   - [Sample screen shots](#sample-screen-shots)
 - [Install](#install)
   - [Most common scenario: Stand-alone tool](#most-common-scenario-stand-alone-tool)
@@ -74,13 +74,15 @@ Table of contents
 - [Commands](#commands)
   - [qseow](#qseow)
     - [create-sheet-thumbnails](#create-sheet-thumbnails)
+    - [remove-sheet-icons](#remove-sheet-icons)
   - [qscloud](#qscloud)
     - [create-sheet-thumbnails](#create-sheet-thumbnails-1)
     - [list-collections](#list-collections)
+    - [remove-sheet-icons](#remove-sheet-icons-1)
 - [Hands-on examples](#hands-on-examples)
   - [QS Cloud, update a single app + apps in collection](#qs-cloud-update-a-single-app--apps-in-collection)
   - [QS Cloud, list all available collections](#qs-cloud-list-all-available-collections)
-  - [Client-managed/QSEoW, update a single app + apps with a certain tag](#client-managedqseow-update-a-single-app--apps-with-a-certain-tag)
+  - [Client-managed/QSEoW, update a single app + apps with a certain tag, exclude some sheets](#client-managedqseow-update-a-single-app--apps-with-a-certain-tag-exclude-some-sheets)
   - [QS Cloud, Docker container, show help text](#qs-cloud-docker-container-show-help-text)
   - [QS Cloud, Docker container, update a single app + apps in collection](#qs-cloud-docker-container-update-a-single-app--apps-in-collection)
 - [Testing](#testing)
@@ -135,7 +137,7 @@ Use cases for Butler Sheet Icons include
 - Bulk update of all sheet icons in many apps
 - Update sheet icons automatically as part of a CI/CD pipeline
 
-## How does Butler Sheet Icons work
+## How does Butler Sheet Icons work?
 
 The idea is simply to more or less mimic the steps a human would take to create sheet thumbnails, with some steps replaced with calls to the Sense APIs.
 
@@ -318,8 +320,8 @@ Looking at a sheet in client-managed QS we have:
 
 ### Excluding sheets
 
-The `--exclude-sheet-number` and `--exclude-sheet-title` options are available for both QS Cloud apps and client-managed QS apps.  
-The `--exclude-sheet-tag` option is only available for client-managed QS, as there is no way to tag individual sheets in QS Cloud.
+- The `--exclude-sheet-number` and `--exclude-sheet-title` options are available for both QS Cloud apps and client-managed QS apps.  
+- The `--exclude-sheet-tag` option is only available for client-managed QS, as there is no way to tag individual sheets in QS Cloud.
 
 Both `--exclude-sheet-number` and `--exclude-sheet-title` options take one or more:
 
@@ -429,18 +431,27 @@ This works for both top level commands and sub-commands.
 
 On Windows this would be `butler-sheet-icons.exe --help`.
 
+```powershell
+PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe --help
+Usage: butler-sheet-icons [options] [command]
+
+This is a tool that creates thumbnail images based on the actual layout of sheets in Qlik Sense applications.
+Qlik Sense Cloud and Qlik Sense Enterprise on Windows are both supported.
+The created thumbnails are saved to disk and uploaded to the Sense app as new sheet thumbnail images.
+
+Options:
+  -V, --version   output the version number
+  -h, --help      display help for command
+
+Commands:
+  qseow
+  qscloud
+  help [command]  display help for command
+
+PS C:\tools\butler-sheet-icons-win> 
+```
+
 ## qseow
-
-| Sub-command | Description |
-|---|---|
-| create-sheet-thumbnails | Create sheet thumbnails for one or more apps. |
-
-### create-sheet-thumbnails
-
-The command assumes there is standard form based authentication page (username + password) available on the specified virtual proxy (which is specified using the `--prefix` option).
-
-A complete session using this command is described [here](./docs/qseow-demo_1.md).
-
 
 ```powershell
 PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qseow --help
@@ -452,7 +463,19 @@ Options:
 Commands:
   create-sheet-thumbnails [options]  Create thumbnail images based on the layout of each sheet in Qlik Sense Enterprise on Windows (QSEoW) applications.
                                      Multiple apps can be updated with a single command, using a Qlik Sense tag to identify  which apps will be updated.
+  remove-sheet-icons [options]       Remove all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) app.
   help [command]                     display help for command
+
+PS C:\tools\butler-sheet-icons-win> 
+```
+
+### create-sheet-thumbnails
+
+The command assumes there is standard form based authentication page (username + password) available on the specified virtual proxy (which is specified using the `--prefix` option).
+
+A complete session using this command is described [here](./docs/qseow-demo_1.md).
+
+```powershell
 PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qseow create-sheet-thumbnails --help
 Usage: butler-sheet-icons qseow create-sheet-thumbnails [options]
 
@@ -466,7 +489,7 @@ Options:
   --qrsport <port>                    Qlik Sense server repository service (QRS) port (default: "4242")
   --port <port>                       Qlik Sense http/https port. 443 is default for https, 80 for http
   --schemaversion <string>            Qlik Sense engine schema version (default: "12.612.0")
-  --appid <id>                        Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified (default: "")
+  --appid <id>                        Qlik Sense app whose sheet icons should be modified. (default: "")
   --certfile <file>                   Qlik Sense certificate file (exported from QMC) (default: "./cert/client.pem")
   --certkeyfile <file>                Qlik Sense certificate key file (exported from QMC) (default: "./cert/client_key.pem")
   --rejectUnauthorized <true|false>   Ignore warnings when Sense certificate does not match the --host paramater (default: false)
@@ -477,13 +500,12 @@ Options:
   --logonuserdir <directory>          user directory for user to connect with when logging into web UI
   --logonuserid <userid>              user ID for user to connect with when logging into web UI
   --logonpwd <password>               password for user to connect with
-  --hosttype <type>                   type of Qlik Sense server (qseow) (default: "qseow")
   --headless <true|false>             headless (=not visible) browser (true, false) (default: true)
   --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
   --imagedir <directory>              directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
   --contentlibrary <library-name>     Qlik Sense content library to which thumbnails will be uploaded (default: "Butler sheet thumbnails")
   --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar (default: "1")
-  --qliksensetag <value>              Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. If this parameter is specified the --appid parameter will be ignored
+  --qliksensetag <value>              Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.
                                       (default: "")
   --exclude-sheet-tag <value>         Sheets with this tag set will be excluded from sheet icon update.
   --exclude-sheet-number <number...>  Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.
@@ -492,12 +514,54 @@ Options:
 PS C:\tools\butler-sheet-icons-win>
 ```
 
+### remove-sheet-icons
+
+This command uses the Qlik Sense APIs to remove all sheet icons from one or more apps.
+
+The options to this command are a subset of the options for the `qseow create-sheet-thumbnails` command:
+
+```powershell
+PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qseow remove-sheet-icons --help
+Usage: butler-sheet-icons qseow remove-sheet-icons [options]
+
+Remove all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) app.
+
+Options:
+  --loglevel <level>                 log level (error, warning, info, verbose, debug, silly) (default: "info")
+  --host <host>                      Qlik Sense server IP/FQDN
+  --engineport <port>                Qlik Sense server engine port (default: "4747")
+  --qrsport <port>                   Qlik Sense server repository service (QRS) port (default: "4242")
+  --port <port>                      Qlik Sense http/https port. 443 is default for https, 80 for http
+  --schemaversion <string>           Qlik Sense engine schema version (default: "12.612.0")
+  --appid <id>                       Qlik Sense app whose sheet icons should be modified. (default: "")
+  --certfile <file>                  Qlik Sense certificate file (exported from QMC) (default: "./cert/client.pem")
+  --certkeyfile <file>               Qlik Sense certificate key file (exported from QMC) (default: "./cert/client_key.pem")
+  --rejectUnauthorized <true|false>  Ignore warnings when Sense certificate does not match the --host paramater (default: false)
+  --prefix <prefix>                  Qlik Sense virtual proxy prefix (default: "")
+  --secure <true|false>              connection to Qlik Sense engine is via https (default: true)
+  --apiuserdir <directory>           user directory for user to connect with when using Sense APIs
+  --apiuserid <userid>               user ID for user to connect with when using Sense APIs
+  --qliksensetag <value>             Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.
+                                     (default: "")
+  -h, --help                         display help for command
+```
+
 ## qscloud
 
-| Sub-command | Description |
-|---|---|
-| create-sheet-thumbnails | Create sheet thumbnails for one or more apps. |
-| list-collections | List available collections. |
+```powershell
+PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qscloud --help
+Usage: butler-sheet-icons qscloud [options] [command]
+
+Options:
+  -h, --help                         display help for command
+
+Commands:
+  create-sheet-thumbnails [options]  Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.
+                                     Multiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.
+  list-collections [options]         List available collections.
+  remove-sheet-icons [options]       Remove all sheet icons from a Qlik Sense Cloud app.
+  help [command]                     display help for command
+```
 
 ### create-sheet-thumbnails
 
@@ -512,7 +576,7 @@ Options:
   --loglevel <level>                  log level (error, warning, info, verbose, debug, silly) (default: "info")
   --schemaversion <string>            Qlik Sense engine schema version (default: "12.612.0")
   --tenanturl <url>                   URL to Qlik Sense cloud tenant
-  --appid <id>                        Qlik Sense app whose sheet icons should be modified. Ignored if --qliksensetag is specified
+  --appid <id>                        Qlik Sense app whose sheet icons should be modified.
   --apikey <key>                      API key used to access the Sense APIs
   --logonuserid <userid>              user ID for user to connect with when logging into web UI
   --logonpwd <password>               password for user to connect with
@@ -542,6 +606,28 @@ Options:
   --outputformat <table|json>  Output format (choices: "table", "json", default: "table")
   -h, --help                   display help for command
 PS C:\tools\butler-sheet-icons-win>
+```
+
+### remove-sheet-icons
+
+This command uses the Qlik Sense APIs to remove all sheet icons from one or more apps.
+
+The options to this command are a subset of the options for the `qseow create-sheet-thumbnails` command:
+
+```powershell
+PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qscloud remove-sheet-icons --help
+Usage: butler-sheet-icons qscloud remove-sheet-icons [options]
+
+Remove all sheet icons from a Qlik Sense Cloud app.
+
+Options:
+  --loglevel <level>        log level (error, warning, info, verbose, debug, silly) (default: "info")
+  --schemaversion <string>  Qlik Sense engine schema version (default: "12.612.0")
+  --tenanturl <url>         URL to Qlik Sense cloud tenant
+  --apikey <key>            API key used to access the Sense APIs
+  --appid <id>              Qlik Sense app whose sheet icons should be modified.
+  --collectionid <id>       Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated (default: "")
+  -h, --help                display help for command
 ```
 
 # Hands-on examples
@@ -576,21 +662,25 @@ Using bash on macOS:
 
 ![List available collections in QS Cloud](./docs/img/qscloud-list-collection-macos-bash-1.png "List available collections in QS Cloud")
 
-## Client-managed/QSEoW, update a single app + apps with a certain tag
+## Client-managed/QSEoW, update a single app + apps with a certain tag, exclude some sheets
 
 Running the command will
 
-1. Create new sheet icons for all sheets in 
+1. Create new sheet icons for all sheets in
    1. the app with app ID `a3e0f5d2-000a-464f-998d-33d333b175d7`.
-   2. all apps with the tag "`👍😎 updateSheetThumbnail`" set.
-2. Create thumbnail images in the `./img` directory (specificed by the `--imagedir` option). 
-3. Each screen shot will include the main sheet area and the title row above it (`--includesheetpart 2`).
-4. Upload the sheet thumbnails to the content library specified in the `--contentlibrary` option. The login page and app overview screen shots are not uploaded.
-5. Each sheet's icon is updated with the corresponding image in the content library.
+   2. all apps with the tag `👍😎 updateSheetThumbnail` set.
+2. Exclude some sheets (i.e. don't create thumbnails for them)
+   1. all sheets named `Intro`, `Definitions` or `Help`.
+   2. sheets with position `1` or `10`.
+   3. all sheets tagged with the tag `❌excludeSheetThumbnailUpdate` set.
+3. Create thumbnail images in the `./img` directory (specificed by the `--imagedir` option). 
+4. Each screen shot will include the main sheet area and the title row above it (`--includesheetpart 2`).
+5. Upload the sheet thumbnails to the content library specified in the `--contentlibrary` option. The login page and app overview screen shots are not uploaded.
+6. Each sheet's icon is updated with the corresponding image in the content library.
 
 Running in bash on macOS with most parameters are set in environment variables:
 
-`./butler-sheet-icons qseow create-sheet-thumbnails --host $BSI_HOST --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --logonuserdir $BSI_LOGON_USER_DIR --logonuserid $BSI_LOGON_USER_ID --logonpwd $BSI_LOGON_PWD --contentlibrary 'abc 123' --pagewait 5 --secure true --headless true --imagedir './img' --certfile $BSI_CERT_FILE --certkeyfile $BSI_CERT_KEY_FILE --includesheetpart 4 --qliksensetag "👍😎 updateSheetThumbnail"`
+`./butler-sheet-icons qseow create-sheet-thumbnails --host $BSI_HOST --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --logonuserdir $BSI_LOGON_USER_DIR --logonuserid $BSI_LOGON_USER_ID --logonpwd $BSI_LOGON_PWD --contentlibrary 'abc 123' --pagewait 5 --secure true --headless true --imagedir './img' --certfile $BSI_CERT_FILE --certkeyfile $BSI_CERT_KEY_FILE --includesheetpart 4 --qliksensetag "👍😎 updateSheetThumbnail" --exclude-sheet-tag "❌excludeSheetThumbnailUpdate" --exclude-sheet-title "Sheet 5" --exclude-sheet-number 1 10`
 
 ![Create QSEoW thumbnails on macOS](./docs/img/create-qseow-macos-bash-1.png "Create QSEoW thumbnails on macOS")
 
