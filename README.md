@@ -323,7 +323,7 @@ Looking at a sheet in client-managed QS we have:
 - The `--exclude-sheet-number` and `--exclude-sheet-title` options are available for both QS Cloud apps and client-managed QS apps.  
 - The `--exclude-sheet-tag` option is only available for client-managed QS, as there is no way to tag individual sheets in QS Cloud.
 
-Both `--exclude-sheet-number` and `--exclude-sheet-title` options take one or more:
+Both `--exclude-sheet-number` and `--exclude-sheet-title` options take one or more parameters:
 
 ```bash
 --exclude-sheet-number 3 7
@@ -331,16 +331,17 @@ Both `--exclude-sheet-number` and `--exclude-sheet-title` options take one or mo
 --exclude-sheet-title "Intro" "Definitions" "Help"
 ```
 
-There can be various reasons why you want to exclude sheets from getting new icons.  
-One scanario could be that some sheets have special roles in apps, for example providing help/support info, giving an overview over the entire app.  
-Another scenario is that a company have standardised on a fixed format first sheet in each app, and want that sheet's icon to be the same everywhere.
+There can be various reasons why you want to exclude sheets from getting new icons.
+
+One scenario could be that some sheets have special roles in apps, for example providing help/support info or giving an overview over the entire app.  
+Another scenario is that a company have standardised on a fixed format first sheet in each app and want that sheet's icon to be the same everywhere (i.e. not be a miniature of what's actually shown on that sheet).
 
 On client-managed Qlik Sense Enterprise there is an additional option too: `--exclude-sheet-tag`.
 
 Follow these steps to use that option:
 
-1. Create a tag in the QMC. For example `❌excludeSheetThumbnailUpdate`.
-2. In the QMC's App Objects section you can tag the sheets that should not get new sheet icons, using that new tag.
+1. Create a tag in the QMC. For example `❌excludeSheetThumbnailUpdate`. Emojis can be used in Qlik Sense tags - quite useful!
+2. Use the QMC's App Objects section to tag the sheets that should *not* get new sheet icons, using that new tag.
 3. When starting Butler Sheet Icons you should pass in the option `--exclude-sheet-tag "❌excludeSheetThumbnailUpdate"`.
 
 Tagged sheets will be excluded from getting new sheet icons.
