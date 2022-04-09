@@ -1,6 +1,15 @@
 # Changelog
 
 
+### [2.1.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.1.0...butler-sheet-icons-v2.1.1) (2022-04-09)
+
+
+### Miscellaneous
+
+* **deps:** bump moment from 2.29.1 to 2.29.2 in /src ([6285ac3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6285ac32f867a44837c2f9adb96b6b26f67945ab))
+* **deps:** update dependency prettier to v2.6.2 ([7931a39](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7931a3934ef252a9c297e2a8cab5bc33eedaea97))
+* **deps:** update dependency snyk to v1.900.0 ([7bd52d8](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7bd52d8a50056f33a2d894742a1e69c5e63c71ab))
+
 ## [2.1.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.0.0...butler-sheet-icons-v2.1.0) (2022-03-27)
 
 
