@@ -1,6 +1,20 @@
 # Changelog
 
 
+### [2.1.2](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.1.1...butler-sheet-icons-v2.1.2) (2022-04-28)
+
+
+### Bug Fixes
+
+* **deps:** update dependency axios to ^0.27.0 ([a43733f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a43733f1973112d701695e5d0687d4665784bb37))
+
+
+### Miscellaneous
+
+* **deps:** update dependency jest to v28 ([195fcb6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/195fcb6c04605f016d0a4effdbc56fd9098807d2))
+* **deps:** update dependency snyk to v1.914.0 ([5a7d2e3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5a7d2e3b7da93cfa449307a66812275e7475f48d))
+* **deps:** update node.js to v18 ([fc96c38](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fc96c384dbf378297585d865b4549edd9d239f9b))
+
 ### [2.1.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.1.0...butler-sheet-icons-v2.1.1) (2022-04-09)
 
 
