@@ -100,7 +100,7 @@ jobs:
         if: |
           github.event_name != 'pull_request' &&
           github.repository_owner == 'ptarmiganlabs'
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
           images: ${{ github.repository }}
           tags: |
