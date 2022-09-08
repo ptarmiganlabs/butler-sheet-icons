@@ -38,10 +38,10 @@ const program = new Command();
                 logger.error(`MAIN qseow: ${err}`);
             }
         })
-        .requiredOption(
-            '--loglevel <level>',
-            'log level (error, warning, info, verbose, debug, silly)',
-            'info'
+        .addOption(
+            new Option('--loglevel <level>', 'log level')
+                .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
+                .default('info')
         )
         .requiredOption('--host <host>', 'Qlik Sense server IP/FQDN')
         .requiredOption('--engineport <port>', 'Qlik Sense server engine port', '4747')
@@ -149,10 +149,10 @@ const program = new Command();
                 logger.error(`MAIN qseow: ${err}`);
             }
         })
-        .requiredOption(
-            '--loglevel <level>',
-            'log level (error, warning, info, verbose, debug, silly)',
-            'info'
+        .addOption(
+            new Option('--loglevel <level>', 'log level')
+                .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
+                .default('info')
         )
         .requiredOption('--host <host>', 'Qlik Sense server IP/FQDN')
         .requiredOption('--engineport <port>', 'Qlik Sense server engine port', '4747')
@@ -221,10 +221,10 @@ const program = new Command();
                     logger.error(`MAIN cloud: ${err}`);
                 }
             })
-            .requiredOption(
-                '--loglevel <level>',
-                'log level (error, warning, info, verbose, debug, silly)',
-                'info'
+            .addOption(
+                new Option('--loglevel <level>', 'log level')
+                    .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
+                    .default('info')
             )
             .requiredOption(
                 '--schemaversion <string>',
@@ -286,10 +286,10 @@ const program = new Command();
                     logger.error(`MAIN cloud: ${err}`);
                 }
             })
-            .requiredOption(
-                '--loglevel <level>',
-                'log level (error, warning, info, verbose, debug, silly)',
-                'info'
+            .addOption(
+                new Option('--loglevel <level>', 'log level')
+                    .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
+                    .default('info')
             )
             .requiredOption('--tenanturl <url>', 'URL to Qlik Sense cloud tenant')
             .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
@@ -311,10 +311,10 @@ const program = new Command();
                     logger.error(`MAIN cloud: ${err}`);
                 }
             })
-            .requiredOption(
-                '--loglevel <level>',
-                'log level (error, warning, info, verbose, debug, silly)',
-                'info'
+            .addOption(
+                new Option('--loglevel <level>', 'log level')
+                    .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
+                    .default('info')
             )
             .requiredOption(
                 '--schemaversion <string>',
