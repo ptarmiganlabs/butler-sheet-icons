@@ -341,7 +341,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        logger.error(`CLOUD APP: ${err}`);
+        logger.error(`CLOUD APP: ${err.stack}`);
     }
 };
 

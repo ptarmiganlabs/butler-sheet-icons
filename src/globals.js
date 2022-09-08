@@ -12,6 +12,7 @@ logTransports.push(
         name: 'console',
         level: 'info',
         format: winston.format.combine(
+            winston.format.errors({ stack: true }),
             winston.format.timestamp(),
             winston.format.colorize(),
             winston.format.simple(),
@@ -23,6 +24,7 @@ logTransports.push(
 const logger = winston.createLogger({
     transports: logTransports,
     format: winston.format.combine(
+        winston.format.errors({ stack: true }),
         winston.format.timestamp(),
         winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
     ),
