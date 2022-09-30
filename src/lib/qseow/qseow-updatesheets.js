@@ -104,6 +104,10 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
         }
     } catch (err) {
         logger.error(`UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
+        if (err.stack) {
+            logger.error(`UPDATE SHEETS: ${err.stack}`);
+        }
+        process.exit(1);
     }
 };
 
