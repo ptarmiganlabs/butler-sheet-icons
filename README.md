@@ -85,6 +85,9 @@ Table of contents
   - [Client-managed/QSEoW, update a single app + apps with a certain tag, exclude some sheets](#client-managedqseow-update-a-single-app--apps-with-a-certain-tag-exclude-some-sheets)
   - [QS Cloud, Docker container, show help text](#qs-cloud-docker-container-show-help-text)
   - [QS Cloud, Docker container, update a single app + apps in collection](#qs-cloud-docker-container-update-a-single-app--apps-in-collection)
+- [Supported Qlik Sense versions](#supported-qlik-sense-versions)
+  - [Client-managed Qlik Sense (=Qlik Sense Enterprise on Windows)](#client-managed-qlik-sense-qlik-sense-enterprise-on-windows)
+  - [Qlik Sense cloud](#qlik-sense-cloud)
 - [Testing](#testing)
 - [When things don't quite work](#when-things-dont-quite-work)
 - [Security and disclosure](#security-and-disclosure)
@@ -723,6 +726,20 @@ Note: The command above assumes the certificates exported from QSEoW are availab
 `docker run -it --rm ptarmiganlabs/butler-sheet-icons:latest qscloud create-sheet-thumbnails --tenanturl $BSI_CLOUD_TENANTURL --apikey $BSI_CLOUD_APIKEY --logonuserid $BSI_CLOUD_LOGONUSERID --logonpwd $BSI_CLOUD_LOGONPWD --collectionid $BSI_CLOUD_COLLECTIONID --headless true --includesheetpart 2 --appid $BSI_CLOUD_APPID --pagewait 10`
 
 ![Run Butler Sheet Icons in Docker, updating Qlik Sense Cloud apps](./docs/img/qscloud-create-thumbnails-docker-1.png "Run Butler Sheet Icons in Docker, updating Qlik Sense Cloud apps")
+
+# Supported Qlik Sense versions
+
+## Client-managed Qlik Sense (=Qlik Sense Enterprise on Windows)
+
+| Version | Tested date | Comment |
+|---------|-------------|---------|
+| 2022-May IR | 2022-Sep-30 | Works without issues |
+
+## Qlik Sense cloud
+
+| Tested date | Comment |
+|-------------|---------|
+| 2022-Sep-30 | Works without issues |
 
 # Testing
 
