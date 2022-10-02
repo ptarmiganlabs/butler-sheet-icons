@@ -1,6 +1,28 @@
 # Changelog
 
 
+## [2.1.4](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.1.4...butler-sheet-icons-v2.1.4) (2022-10-02)
+
+
+### Bug Fixes
+
+* Automated tests for Qlik Cloud work again ([7d655e8](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7d655e89611b54c2f39709089f95612dc63b686d))
+* Better error logging for when creating thumbnail icons for QS cloud apps ([88df935](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/88df935eae77653a366905b0b2a88d2639080719)), closes [#220](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/220)
+* **deps:** Update http library to latest version ([2c42561](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2c4256163a3eecb3a403613d6167daacbee9fe84))
+* **deps:** Upgrade internal web browser to latest version ([2cfb924](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2cfb92479a337d785f89ab15b9dd9d459b696b65))
+* **deps:** Upgrade test framework to latest version ([4679219](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/46792198b4f4122da873e8c8bae89b63b9fbc3fd))
+* Make error messages more relevant and easier to understand ([a41b885](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a41b8856f487cdb5683f05dc280b12dedc5f6882)), closes [#238](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/238)
+* Use "warn" instead of "warning" as possible log level ([069b971](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/069b971b165a5d02ddefda8e8122685f6bf2f5e5)), closes [#204](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/204)
+
+
+### Miscellaneous
+
+* **deps:** pin dependencies ([bfcbd41](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bfcbd41e651da839dc0d341f5754d37416507149))
+* **deps:** pin dependencies ([119c516](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/119c516226c9a3fa89a9f77facd5819e0b114471))
+* **deps:** update dependency snyk to v1.1019.0 ([f6583a0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f6583a0f39b16bf538b45ec11fa7c9f87a75c116))
+* **deps:** Updated dependencies ([47ca3c4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/47ca3c4e22bd617374154e15d24bda788f645822))
+* **main:** release butler-sheet-icons 2.1.4 ([5b5153b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5b5153b87fa1e6fd3301d3cbeba884f018e1e110))
+
 ## [2.1.4](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.1.3...butler-sheet-icons-v2.1.4) (2022-10-02)
 
 
