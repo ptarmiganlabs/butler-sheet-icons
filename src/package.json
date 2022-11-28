@@ -27,7 +27,7 @@
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-prettier": "^4.2.1",
     "form-data": "^4.0.0",
-    "fs-extra": "^10.1.0",
+    "fs-extra": "^11.0.0",
     "os": "^0.1.2",
     "puppeteer": "^18.0.5",
     "qrs-interact": "^6.3.1",
