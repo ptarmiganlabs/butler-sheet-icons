@@ -8,7 +8,7 @@ const path = require('path');
 const { tmpdir } = require('os');
 
 const { setupEnigmaConnection } = require('./qseow-enigma.js');
-const { logger, setLoggingLevel } = require('../../globals.js');
+const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
 const { qseowUploadToContentLibrary } = require('./qseow-upload.js');
 const { qseowVerifyContentLibraryExists } = require('./qseow-contentlibrary.js');
 const { qseowUpdateSheetThumbnails } = require('./qseow-updatesheets.js');
@@ -22,7 +22,7 @@ const selectorLoginPageLoginButton = '#loginbtn';
 const xpathHubUserPageButton = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
 const xpathLogoutButton = '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
 
-const chromiumRevision = '961656';
+const chromiumRevision = '1056772';
 
 /**
  *
@@ -105,9 +105,6 @@ const processQSEoWApp = async (appId, g, options) => {
 
         const createdFiles = [];
 
-        const isPkg = typeof process.pkg !== 'undefined';
-        logger.debug(`Running as standalone app: ${isPkg}`);
-
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
@@ -130,13 +127,9 @@ const processQSEoWApp = async (appId, g, options) => {
                 logger.info(`Download done.`);
             }
 
-            const executablePath =
+            const chromiumExecutablePath =
                 process.env.PUPPETEER_EXECUTABLE_PATH ||
                 (isPkg ? revisionInfo.executablePath : puppeteer.executablePath());
-
-            logger.debug(`execPath: ${executablePath}`);
-
-            const chromiumExecutablePath = isPkg ? executablePath : puppeteer.executablePath();
             logger.verbose(`Using Chromium browser at ${chromiumExecutablePath}`);
 
             const browser = await puppeteer.launch({
@@ -403,6 +396,8 @@ const qseowCreateThumbnails = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');
+        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
         const appIdsToProcess = [];

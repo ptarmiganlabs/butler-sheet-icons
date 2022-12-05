@@ -4,7 +4,7 @@ const enigma = require('enigma.js');
 const qrsInteract = require('qrs-interact');
 
 const { setupEnigmaConnection } = require('./qseow-enigma.js');
-const { logger, setLoggingLevel } = require('../../globals.js');
+const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
 const { qseowVerifyCertificatesExist } = require('./qseow-certificates.js');
 const { setupQseowQrsConnection } = require('./qseow-qrs.js');
 
@@ -123,6 +123,8 @@ const qseowRemoveSheetIcons = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');
+        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
         const appIdsToProcess = [];

@@ -1,4 +1,6 @@
 const winston = require('winston');
+const upath = require('upath');
+
 require('winston-daily-rotate-file');
 
 // Get app version from package.json file
@@ -44,9 +46,14 @@ const setLoggingLevel = (newLevel) => {
     logTransports.find((transport) => transport.name === 'console').level = newLevel;
 };
 
+const isPkg = typeof process.pkg !== 'undefined';
+const bsiExecutablePath = isPkg ? upath.dirname(process.execPath) : __dirname;
+
 module.exports = {
     logger,
     appVersion,
     getLoggingLevel,
     setLoggingLevel,
+    isPkg,
+    bsiExecutablePath,
 };

@@ -2,7 +2,7 @@
 /* eslint-disable no-await-in-loop */
 
 const { table } = require('table');
-const { logger, setLoggingLevel } = require('../../globals.js');
+const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
 const QlikSaas = require('./cloud-repo');
 
 /**
@@ -16,6 +16,8 @@ const qscloudListCollections = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting listing of available collections');
+        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
         const cloudConfig = {

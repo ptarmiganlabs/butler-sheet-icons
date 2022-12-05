@@ -1,5 +1,5 @@
-const path = require('path');
-const { logger } = require('../../globals');
+const upath = require('upath');
+const { logger, bsiExecutablePath } = require('../../globals');
 
 /**
  *
@@ -9,6 +9,13 @@ const { logger } = require('../../globals');
 const setupQseowQrsConnection = (options) => {
     logger.debug('Setting up connection to QSEoW QRS...');
 
+    const certFile = upath.isAbsolute(options.certfile)
+        ? options.certfile
+        : upath.join(bsiExecutablePath, options.certfile);
+    const keyFile = upath.isAbsolute(options.certkeyfile)
+        ? options.certkeyfile
+        : upath.join(bsiExecutablePath, options.certkeyfile);
+
     // Set up QSEoW repository service configuration
     // Always connect directly to QRS, i.e. with virtual proxy ''
     return {
@@ -16,8 +23,8 @@ const setupQseowQrsConnection = (options) => {
         portnumber: options.qrsport,
         virtualProxyPrefix: '',
         certificates: {
-            certFile: path.resolve(__dirname, options.certfile),
-            keyFile: path.resolve(__dirname, options.certkeyfile),
+            certFile,
+            keyFile,
         },
         headers: {
             'Content-Type': 'png',

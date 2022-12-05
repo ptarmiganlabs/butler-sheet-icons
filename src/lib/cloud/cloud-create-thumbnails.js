@@ -8,7 +8,7 @@ const path = require('path');
 const { tmpdir } = require('os');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
-const { logger, setLoggingLevel } = require('../../globals.js');
+const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
 const { qscloudUploadToApp } = require('./cloud-upload.js');
 const { qscloudUpdateSheetThumbnails } = require('./cloud-updatesheets.js');
 const QlikSaas = require('./cloud-repo');
@@ -119,9 +119,6 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
         const createdFiles = [];
 
-        const isPkg = typeof process.pkg !== 'undefined';
-        logger.debug(`Running as standalone app: ${isPkg}`);
-
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
@@ -143,13 +140,9 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 logger.info(`Download of Chromium done.`);
             }
 
-            const executablePath =
+            const chromiumExecutablePath =
                 process.env.PUPPETEER_EXECUTABLE_PATH ||
                 (isPkg ? revisionInfo.executablePath : puppeteer.executablePath());
-
-            logger.debug(`execPath: ${executablePath}`);
-
-            const chromiumExecutablePath = isPkg ? executablePath : puppeteer.executablePath();
             logger.verbose(`Using Chromium browser at ${chromiumExecutablePath}`);
 
             const browser = await puppeteer.launch({
@@ -357,6 +350,8 @@ const qscloudCreateThumbnails = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Cloud');
+        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
         const appIdsToProcess = [];

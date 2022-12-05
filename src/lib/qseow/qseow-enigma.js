@@ -3,8 +3,8 @@
 const SenseUtilities = require('enigma.js/sense-utilities');
 const WebSocket = require('ws');
 const fs = require('fs-extra');
-const path = require('path');
-const { logger } = require('../../globals');
+const upath = require('upath');
+const { logger, bsiExecutablePath } = require('../../globals');
 
 /**
  * Helper function to read the contents of the certificate files:
@@ -23,6 +23,14 @@ const readCert = (filename) => fs.readFileSync(filename);
 // eslint-disable-next-line no-unused-vars
 const setupEnigmaConnection = (appId, options, command) => {
     logger.debug(`Prepping for QSEoW Enigma connection for app ${appId}`);
+
+    const certFile = upath.isAbsolute(options.certfile)
+        ? options.certfile
+        : upath.join(bsiExecutablePath, options.certfile);
+    const keyFile = upath.isAbsolute(options.certkeyfile)
+        ? options.certkeyfile
+        : upath.join(bsiExecutablePath, options.certkeyfile);
+
     // try {
     const qixSchema = require(`enigma.js/schemas/${options.schemaversion}`);
     logger.debug(`Successfully required Enigma`);
@@ -38,12 +46,13 @@ const setupEnigmaConnection = (appId, options, command) => {
         }),
         createSocket: (url) =>
             new WebSocket(url, {
-                key: readCert(path.resolve(__dirname, options.certkeyfile)),
-                cert: readCert(path.resolve(__dirname, options.certfile)),
+                key: readCert(keyFile),
+                cert: readCert(certFile),
                 headers: {
                     'X-Qlik-User': `UserDirectory=${options.apiuserdir};UserId=${options.apiuserid}`,
                 },
-                rejectUnauthorized: options.rejectUnauthorized === 'true' || options.rejectUnauthorized === true,
+                rejectUnauthorized:
+                    options.rejectUnauthorized === 'true' || options.rejectUnauthorized === true,
             }),
     };
     // } catch (err) {
