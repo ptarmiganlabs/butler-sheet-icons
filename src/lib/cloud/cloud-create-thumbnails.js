@@ -2,12 +2,19 @@
 /* eslint-disable import/extensions */
 const enigma = require('enigma.js');
 const puppeteer = require('puppeteer');
+const { BrowserFetcher } = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const { tmpdir } = require('os');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
-const { logger, setLoggingLevel } = require('../../globals.js');
+const {
+    logger,
+    setLoggingLevel,
+    bsiExecutablePath,
+    isPkg,
+    chromiumRevision,
+} = require('../../globals.js');
 const { qscloudUploadToApp } = require('./cloud-upload.js');
 const { qscloudUpdateSheetThumbnails } = require('./cloud-updatesheets.js');
 const QlikSaas = require('./cloud-repo');
@@ -18,8 +25,6 @@ const selectorLoginPageUserPwd =
     '#lock-container > div > div > form > div > div > div:nth-child(3) > span > div > div > div > div > div > div > div > div > div > div.auth0-lock-input-block.auth0-lock-input-show-password > div > div.auth0-lock-input-wrap.auth0-lock-input-wrap-with-icon > input';
 const selectorLoginPageLoginButton =
     '#lock-container > div > div > form > div > div > div.login-form--actions > button';
-
-const chromiumRevision = '961656';
 
 /**
  *
@@ -118,9 +123,6 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
         const createdFiles = [];
 
-        const isPkg = typeof process.pkg !== 'undefined';
-        logger.debug(`Running as standalone app: ${isPkg}`);
-
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
@@ -135,21 +137,16 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 const chromePath = path.join(tmpPath, '.local-chromium');
                 logger.debug(`Temp path for downloading Chromium: ${chromePath}`);
 
-                const browserFetcher = puppeteer.createBrowserFetcher({
-                    path: chromePath,
-                });
+                const browserFetcher = new BrowserFetcher({ path: chromePath });
+
                 logger.info(`Downloading Chromium browser revision ${chromiumRevision}...`);
                 revisionInfo = await browserFetcher.download(chromiumRevision);
-                logger.info(`Download done.`);
+                logger.info(`Download of Chromium done.`);
             }
 
-            const executablePath =
+            const chromiumExecutablePath =
                 process.env.PUPPETEER_EXECUTABLE_PATH ||
                 (isPkg ? revisionInfo.executablePath : puppeteer.executablePath());
-
-            logger.debug(`execPath: ${executablePath}`);
-
-            const chromiumExecutablePath = isPkg ? executablePath : puppeteer.executablePath();
             logger.verbose(`Using Chromium browser at ${chromiumExecutablePath}`);
 
             const browser = await puppeteer.launch({
@@ -171,6 +168,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                     '--enable-features=NetworkService',
                 ],
             });
+
             const page = await browser.newPage();
 
             // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
@@ -356,6 +354,8 @@ const qscloudCreateThumbnails = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Cloud');
+        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
         const appIdsToProcess = [];

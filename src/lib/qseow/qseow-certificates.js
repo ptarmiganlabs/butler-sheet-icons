@@ -1,7 +1,7 @@
-const path = require('path');
+const upath = require('upath');
 const { promises: Fs } = require('fs');
 
-const { logger } = require('../../globals');
+const { logger, bsiExecutablePath } = require('../../globals');
 
 /**
  *
@@ -28,8 +28,15 @@ const qseowVerifyCertificatesExist = (options) =>
         try {
             logger.debug('Checking if QSEoW certificates exists');
 
-            const certFile = path.resolve(__dirname, options.certfile);
-            const certKeyFile = path.resolve(__dirname, options.certkeyfile);
+            const certFile = upath.isAbsolute(options.certfile)
+                ? options.certfile
+                : upath.join(bsiExecutablePath, options.certfile);
+            const certKeyFile = upath.isAbsolute(options.certkeyfile)
+                ? options.certkeyfile
+                : upath.join(bsiExecutablePath, options.certkeyfile);
+
+            logger.debug(`Path to Qlik Sense certificate file: ${certFile}`);
+            logger.debug(`Path to Qlik Sense certificate key file: ${certKeyFile}`);
 
             const certExists = await exists(certFile);
             const certKeyExists = await exists(certKeyFile);
