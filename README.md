@@ -656,6 +656,12 @@ Credentials and IDs removed intentionally, replace with ones relevant for your Q
 
 ![Create thumbnails in QS Cloud](./docs/img/qscloud-create-thumbnails-winssrv2016-ps-1.png "Create thumbnails in QS Cloud")
 
+PowerShell is quite flexible when it comes to environment variables, using the $Env scope all parameters could be stored in environment variables:
+
+`.\butler-sheet-icons.exe qscloud create-sheet-thumbnails --tenanturl $env:BSI_CLOUD_TENANT_URL --apikey $env:BSI_CLOUD_API_KEY --logonuserid $env:BSI_CLOUD_LOGON_USERID --logonpwd $env:BSI_CLOUD_LOGON_PWD --collectionid $env:BSI_CLOUD_COLLECTION_ID --headless true --includesheetpart 2 --appid "$env:BSI_CLOUD_APP_ID" --pagewait 10`
+
+The result would be the same as in the first example.
+
 ## QS Cloud, list all available collections
 
 Here we're showing the collections in a table, but it's also possible to get them as JSON.
