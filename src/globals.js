@@ -49,6 +49,8 @@ const setLoggingLevel = (newLevel) => {
 const isPkg = typeof process.pkg !== 'undefined';
 const bsiExecutablePath = isPkg ? upath.dirname(process.execPath) : __dirname;
 
+const chromiumRevision = '1056772';
+
 module.exports = {
     logger,
     appVersion,
@@ -56,4 +58,5 @@ module.exports = {
     setLoggingLevel,
     isPkg,
     bsiExecutablePath,
+    chromiumRevision,
 };

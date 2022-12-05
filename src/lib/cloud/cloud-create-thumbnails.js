@@ -8,7 +8,13 @@ const path = require('path');
 const { tmpdir } = require('os');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
+const {
+    logger,
+    setLoggingLevel,
+    bsiExecutablePath,
+    isPkg,
+    chromiumRevision,
+} = require('../../globals.js');
 const { qscloudUploadToApp } = require('./cloud-upload.js');
 const { qscloudUpdateSheetThumbnails } = require('./cloud-updatesheets.js');
 const QlikSaas = require('./cloud-repo');
@@ -19,8 +25,6 @@ const selectorLoginPageUserPwd =
     '#lock-container > div > div > form > div > div > div:nth-child(3) > span > div > div > div > div > div > div > div > div > div > div.auth0-lock-input-block.auth0-lock-input-show-password > div > div.auth0-lock-input-wrap.auth0-lock-input-wrap-with-icon > input';
 const selectorLoginPageLoginButton =
     '#lock-container > div > div > form > div > div > div.login-form--actions > button';
-
-const chromiumRevision = '1056772';
 
 /**
  *

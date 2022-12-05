@@ -8,7 +8,13 @@ const path = require('path');
 const { tmpdir } = require('os');
 
 const { setupEnigmaConnection } = require('./qseow-enigma.js');
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
+const {
+    logger,
+    setLoggingLevel,
+    bsiExecutablePath,
+    isPkg,
+    chromiumRevision,
+} = require('../../globals.js');
 const { qseowUploadToContentLibrary } = require('./qseow-upload.js');
 const { qseowVerifyContentLibraryExists } = require('./qseow-contentlibrary.js');
 const { qseowUpdateSheetThumbnails } = require('./qseow-updatesheets.js');
@@ -21,8 +27,6 @@ const selectorLoginPageLoginButton = '#loginbtn';
 
 const xpathHubUserPageButton = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
 const xpathLogoutButton = '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
-
-const chromiumRevision = '1056772';
 
 /**
  *
