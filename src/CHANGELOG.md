@@ -1,6 +1,22 @@
 # Changelog
 
 
+## [2.1.5](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.1.4...butler-sheet-icons-v2.1.5) (2022-12-05)
+
+
+### Bug Fixes
+
+* Correct handling of QSEoW certificates (relative and absolute paths) ([da21e26](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/da21e26c52bad79b5337bf786415ee5574515863)), closes [#231](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/231)
+* Use same Chromium version for QS Cloud and QSEoW access ([ed44f4c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ed44f4c1e9b82de97fa5eb0032c835a4e097d06a)), closes [#256](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/256)
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies to latest versions ([f0bd55a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f0bd55af49955451e110883697b8af9b6551a11b))
+* **deps:** update node.js to v19 ([8cadf27](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8cadf2785ddb07cdef8895cdce40a263021c0cd0))
+* **deps:** Upgrade embedded Chromium browser to latest version (major upgrade) ([5b6b4f6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5b6b4f6896f93ea3beffe84d9ed7c4a33ed69c63))
+* **main:** release butler-sheet-icons 2.1.4 ([f8b6451](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f8b6451ee560e7716069242d8c3a8fdbcf503ee0))
+
 ## [2.1.4](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.1.4...butler-sheet-icons-v2.1.4) (2022-10-02)
 
 
