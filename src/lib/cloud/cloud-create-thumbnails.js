@@ -2,6 +2,7 @@
 /* eslint-disable import/extensions */
 const enigma = require('enigma.js');
 const puppeteer = require('puppeteer');
+const { BrowserFetcher } = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const { tmpdir } = require('os');
@@ -19,7 +20,7 @@ const selectorLoginPageUserPwd =
 const selectorLoginPageLoginButton =
     '#lock-container > div > div > form > div > div > div.login-form--actions > button';
 
-const chromiumRevision = '961656';
+const chromiumRevision = '1056772';
 
 /**
  *
@@ -135,12 +136,11 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 const chromePath = path.join(tmpPath, '.local-chromium');
                 logger.debug(`Temp path for downloading Chromium: ${chromePath}`);
 
-                const browserFetcher = puppeteer.createBrowserFetcher({
-                    path: chromePath,
-                });
+                const browserFetcher = new BrowserFetcher({ path: chromePath });
+
                 logger.info(`Downloading Chromium browser revision ${chromiumRevision}...`);
                 revisionInfo = await browserFetcher.download(chromiumRevision);
-                logger.info(`Download done.`);
+                logger.info(`Download of Chromium done.`);
             }
 
             const executablePath =
@@ -171,6 +171,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                     '--enable-features=NetworkService',
                 ],
             });
+
             const page = await browser.newPage();
 
             // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
