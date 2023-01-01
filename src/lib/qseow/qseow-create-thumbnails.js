@@ -27,6 +27,8 @@ const selectorLoginPageLoginButton = '#loginbtn';
 
 const xpathHubUserPageButton = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
 const xpathLogoutButton = '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
+// const xpathHubUserPageButton = '//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button';
+// const xpathLogoutButton = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
 /**
  *
@@ -339,34 +341,59 @@ const processQSEoWApp = async (appId, g, options) => {
                 iSheetNum += 1;
             }
 
-            // Log out
-            await Promise.all([
-                page.goto(hubUrl),
-                page.waitForNavigation({ waitUntil: ['networkidle2'] }),
-            ]);
+            logger.verbose(`QSEoW APP: Done creating thumbnails. Opening hub at ${hubUrl}`);
 
-            // wait for element defined by XPath appear in page
-            await page.waitForXPath(xpathHubUserPageButton);
+            try {
+                // Log out
+                await Promise.all([
+                    page.goto(hubUrl),
+                    page.waitForNavigation({ waitUntil: ['networkidle2'] }),
+                ]);
+            } catch (err) {
+                logger.error(
+                    `QSEoW APP: Could not open hub after generating thumbnail images: ${err}`
+                );
+            }
 
-            // evaluate XPath expression of the target selector (it returns array of ElementHandle)
-            let elementHandle = await page.$x(xpathHubUserPageButton);
+            let elementHandle;
+            try {
+                // wait for user button to become visible, then click it to open the user menu
+                await page.waitForXPath(xpathHubUserPageButton);
+                // evaluate XPath expression of the target selector (it returns array of ElementHandle)
+                elementHandle = await page.$x(xpathHubUserPageButton);
 
-            await page.waitForTimeout(options.pagewait * 1000);
+                await page.waitForTimeout(options.pagewait * 1000);
 
-            // Click user button and wait for page to load
-            await Promise.all([elementHandle[0].click()]);
+                // Click user button and wait for page to load
+                await Promise.all([elementHandle[0].click()]);
+            } catch (err) {
+                logger.error(
+                    `QSEoW APP: Error waiting for, or clicking, user button in hub default view: ${err}`
+                );
+            }
 
-            await page.waitForXPath(xpathLogoutButton);
-            elementHandle = await page.$x(xpathLogoutButton);
+            try {
+                // Wait for logout button to become visible, then click it
+                await page.waitForXPath(xpathLogoutButton);
+                elementHandle = await page.$x(xpathLogoutButton);
 
-            await page.waitForTimeout(options.pagewait * 1000);
+                await page.waitForTimeout(options.pagewait * 1000);
 
-            // Click logout button and wait for page to load
-            await Promise.all([elementHandle[0].click()]);
-            await page.waitForTimeout(options.pagewait * 1000);
+                // Click logout button and wait for page to load
+                await Promise.all([elementHandle[0].click()]);
+                await page.waitForTimeout(options.pagewait * 1000);
+            } catch (err) {
+                logger.error(
+                    `QSEoW APP: Error while waiting for, or clicking, logout button in hub's user menu: ${err}`
+                );
+            }
 
-            await browser.close();
-            logger.verbose('Closed virtual browser');
+            try {
+                await browser.close();
+                logger.verbose('Closed virtual browser');
+            } catch (err) {
+                logger.error(`QSEoW APP: Could not close virtual browser: ${err}`);
+            }
         }
 
         if ((await session.close()) === true) {

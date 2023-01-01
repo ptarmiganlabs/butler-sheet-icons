@@ -317,8 +317,12 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 iSheetNum += 1;
             }
 
-            await browser.close();
-            logger.verbose('Closed virtual browser');
+            try {
+                await browser.close();
+                logger.verbose('Closed virtual browser');
+            } catch (err) {
+                logger.error(`CLOUD APP: Could not close virtual browser: ${err}`);
+            }
         }
 
         if ((await session.close()) === true) {
