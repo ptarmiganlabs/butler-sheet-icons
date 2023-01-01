@@ -25,10 +25,10 @@ const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
 const selectorLoginPageLoginButton = '#loginbtn';
 
-const xpathHubUserPageButton = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
-const xpathLogoutButton = '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
-// const xpathHubUserPageButton = '//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button';
-// const xpathLogoutButton = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
+// const xpathHubUserPageButton = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
+// const xpathLogoutButton = '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
+const xpathHubUserPageButton = '//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button';
+const xpathLogoutButton = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
 /**
  *
@@ -79,7 +79,7 @@ const processQSEoWApp = async (appId, g, options) => {
         const global = await session.open();
 
         const engineVersion = await global.engineVersion();
-        logger.verbose(
+        logger.info(
             `Created session to server ${options.host}, engine version is ${engineVersion.qComponentVersion}`
         );
 

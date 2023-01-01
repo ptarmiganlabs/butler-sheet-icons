@@ -91,7 +91,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
         const global = await session.open();
 
         const engineVersion = await global.engineVersion();
-        logger.verbose(
+        logger.info(
             `Created session to Qlik Sense Cloud tenant ${options.tenanturl}, engine version is ${engineVersion.qComponentVersion}`
         );
 
