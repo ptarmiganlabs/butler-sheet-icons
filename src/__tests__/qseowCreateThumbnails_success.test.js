@@ -26,6 +26,7 @@ const options = {
     logonpwd: process.env.BSI_LOGON_PWD,
     includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || 1,
     qliksensetag: process.env.BSI_QLIK_SENSE_TAG || '',
+    senseVersion: process.env.BSI_SENSE_VERSION,
 };
 
 jest.setTimeout(defaultTestTimeout);

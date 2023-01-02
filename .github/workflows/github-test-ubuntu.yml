@@ -1,25 +1,16 @@
-name: test-windows
+name: test-macos
 on:
   workflow_dispatch:
   push:
     branches:
       - main
-
 jobs:
-  test-winsrv:
-    runs-on:
-      - self-hosted
-      - ${{ matrix.os }}
-      - ${{ matrix.architecture }}
-      - sp53
+  test-macos:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         node:
           - lts/*
-        architecture:
-          - x64
-        os:
-          - winsrv-2016
 
     steps:
       # - name: Send job status to MQTT (starting job)
@@ -30,14 +21,14 @@ jobs:
       #     NODE_VERSION: ${{ matrix.node }}
       #   with:
       #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
-      #     topic: control/sp53/pro2-win2/action-runner
+      #     topic: control/sp53/mac-build1/action-runner
       #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
       #     connectTimeout: 30000
 
       - uses: actions/checkout@v3
 
       - name: Debugging 1
-        run: dir
+        run: pwd && ls -la
         working-directory: src
 
       - name: Setup node
@@ -53,7 +44,7 @@ jobs:
         run: npm install jest
 
       - name: Debugging 2
-        run: dir
+        run: pwd && ls -la
         working-directory: src
 
       - name: Run tests
@@ -68,8 +59,8 @@ jobs:
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
+          BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
+          BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
           BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
           BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
@@ -79,14 +70,14 @@ jobs:
           BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
           BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
-      # - name: Send job status to MQTT when done
+      # - name: Send job status to MQTT (starting job)
       #   uses: potaesm/github-actions-mqtt-request@1.0.0
       #   if: always()
       #   env:
       #     JOB_CONCLUSION: ${{ job.status }}
-      #     NODE_VERSION: 16
+      #     NODE_VERSION: ${{ matrix.node }}
       #   with:
       #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
-      #     topic: control/sp53/pro2-win2/action-runner
+      #     topic: control/sp53/mac-build1/action-runner
       #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
       #     connectTimeout: 30000
