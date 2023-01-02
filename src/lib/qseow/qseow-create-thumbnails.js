@@ -25,8 +25,13 @@ const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
 const selectorLoginPageLoginButton = '#loginbtn';
 
-const xpathHubUserPageButton = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
-const xpathLogoutButton = '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
+const xpathHubUserPageButtonPre2022Nov = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
+const xpathLogoutButtonPre2022Nov =
+    '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
+
+const xpathHubUserPageButton2022Nov =
+    '//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button';
+const xpathLogoutButton2022Nov = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
 /**
  *
@@ -35,6 +40,24 @@ const xpathLogoutButton = '//*[@id="q-hub-user-popover-override"]/ng-transclude/
  * @param {*} options
  */
 const processQSEoWApp = async (appId, g, options) => {
+    // Get correct XPaths to UI elements (user menu, logout button etc) in the Sense web UI
+    // As Qlik update their Sense web client these xpaths may/will change.
+    let xpathHubUserPageButton = null;
+    let xpathLogoutButton = null;
+
+    if (options.senseVersion === 'pre-2022-Nov') {
+        xpathHubUserPageButton = xpathHubUserPageButtonPre2022Nov;
+        xpathLogoutButton = xpathLogoutButtonPre2022Nov;
+    } else if (options.senseVersion === '2022-Nov') {
+        xpathHubUserPageButton = xpathHubUserPageButton2022Nov;
+        xpathLogoutButton = xpathLogoutButton2022Nov;
+    } else {
+        logger.error(
+            `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
+        );
+        process.exit(1);
+    }
+
     // Create image directory for this app
     try {
         fs.mkdirSync(`${options.imagedir}/qseow/${appId}`, { recursive: true });
@@ -52,6 +75,12 @@ const processQSEoWApp = async (appId, g, options) => {
         const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
         logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
 
+        // Get app top level metadata
+        logger.debug(`GET app top level metadata: app?filter=id eq ${appId}`);
+        let appMetadata = await qrsInteractInstance.Get(`app?filter=id eq ${appId}`);
+        appMetadata = appMetadata.body;
+
+        // Get app objet metadata
         logger.debug(
             `GET tagExcludeSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
         );
@@ -77,12 +106,14 @@ const processQSEoWApp = async (appId, g, options) => {
         const global = await session.open();
 
         const engineVersion = await global.engineVersion();
-        logger.verbose(
+        logger.info(
             `Created session to server ${options.host}, engine version is ${engineVersion.qComponentVersion}`
         );
 
         const app = await global.openDoc(appId, '', '', '', false);
         logger.info(`Opened app ${appId}`);
+        logger.info(`App name: "${appMetadata[0].name}"`);
+        logger.info(`App is published: ${appMetadata[0].published}`);
 
         // Get list of app sheets
         const appSheetsCall = {
@@ -339,34 +370,59 @@ const processQSEoWApp = async (appId, g, options) => {
                 iSheetNum += 1;
             }
 
-            // Log out
-            await Promise.all([
-                page.goto(hubUrl),
-                page.waitForNavigation({ waitUntil: ['networkidle2'] }),
-            ]);
+            logger.verbose(`QSEoW APP: Done creating thumbnails. Opening hub at ${hubUrl}`);
 
-            // wait for element defined by XPath appear in page
-            await page.waitForXPath(xpathHubUserPageButton);
+            try {
+                // Log out
+                await Promise.all([
+                    page.goto(hubUrl),
+                    page.waitForNavigation({ waitUntil: ['networkidle2'] }),
+                ]);
+            } catch (err) {
+                logger.error(
+                    `QSEoW APP: Could not open hub after generating thumbnail images: ${err}`
+                );
+            }
 
-            // evaluate XPath expression of the target selector (it returns array of ElementHandle)
-            let elementHandle = await page.$x(xpathHubUserPageButton);
+            let elementHandle;
+            try {
+                // wait for user button to become visible, then click it to open the user menu
+                await page.waitForXPath(xpathHubUserPageButton);
+                // evaluate XPath expression of the target selector (it returns array of ElementHandle)
+                elementHandle = await page.$x(xpathHubUserPageButton);
 
-            await page.waitForTimeout(options.pagewait * 1000);
+                await page.waitForTimeout(options.pagewait * 1000);
 
-            // Click user button and wait for page to load
-            await Promise.all([elementHandle[0].click()]);
+                // Click user button and wait for page to load
+                await Promise.all([elementHandle[0].click()]);
+            } catch (err) {
+                logger.error(
+                    `QSEoW APP: Error waiting for, or clicking, user button in hub default view: ${err}`
+                );
+            }
 
-            await page.waitForXPath(xpathLogoutButton);
-            elementHandle = await page.$x(xpathLogoutButton);
+            try {
+                // Wait for logout button to become visible, then click it
+                await page.waitForXPath(xpathLogoutButton);
+                elementHandle = await page.$x(xpathLogoutButton);
 
-            await page.waitForTimeout(options.pagewait * 1000);
+                await page.waitForTimeout(options.pagewait * 1000);
 
-            // Click logout button and wait for page to load
-            await Promise.all([elementHandle[0].click()]);
-            await page.waitForTimeout(options.pagewait * 1000);
+                // Click logout button and wait for page to load
+                await Promise.all([elementHandle[0].click()]);
+                await page.waitForTimeout(options.pagewait * 1000);
+            } catch (err) {
+                logger.error(
+                    `QSEoW APP: Error while waiting for, or clicking, logout button in hub's user menu: ${err}`
+                );
+            }
 
-            await browser.close();
-            logger.verbose('Closed virtual browser');
+            try {
+                await browser.close();
+                logger.verbose('Closed virtual browser');
+            } catch (err) {
+                logger.error(`QSEoW APP: Could not close virtual browser: ${err}`);
+            }
         }
 
         if ((await session.close()) === true) {
