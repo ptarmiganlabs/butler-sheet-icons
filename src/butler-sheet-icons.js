@@ -135,6 +135,11 @@ const program = new Command();
         .option(
             '--exclude-sheet-title <title...>',
             'Use sheet titles to control which sheets that will be excluded from sheet icon update.'
+        )
+        .addOption(
+            new Option('--sense-version <version>', 'Version of the QSEoW server to connect to')
+                .choices(['pre-2022-Nov', '2022-Nov'])
+                .default('2022-Nov')
         );
 
     // ---------

@@ -25,10 +25,13 @@ const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
 const selectorLoginPageLoginButton = '#loginbtn';
 
-// const xpathHubUserPageButton = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
-// const xpathLogoutButton = '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
-const xpathHubUserPageButton = '//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button';
-const xpathLogoutButton = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
+const xpathHubUserPageButtonPre2022Nov = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
+const xpathLogoutButtonPre2022Nov =
+    '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
+
+const xpathHubUserPageButton2022Nov =
+    '//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button';
+const xpathLogoutButton2022Nov = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
 /**
  *
@@ -37,6 +40,24 @@ const xpathLogoutButton = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]
  * @param {*} options
  */
 const processQSEoWApp = async (appId, g, options) => {
+    // Get correct XPaths to UI elements (user menu, logout button etc) in the Sense web UI
+    // As Qlik update their Sense web client these xpaths may/will change.
+    let xpathHubUserPageButton = null;
+    let xpathLogoutButton = null;
+
+    if (options.senseVersion === 'pre-2022-Nov') {
+        xpathHubUserPageButton = xpathHubUserPageButtonPre2022Nov;
+        xpathLogoutButton = xpathLogoutButtonPre2022Nov;
+    } else if (options.senseVersion === '2022-Nov') {
+        xpathHubUserPageButton = xpathHubUserPageButton2022Nov;
+        xpathLogoutButton = xpathLogoutButton2022Nov;
+    } else {
+        logger.error(
+            `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
+        );
+        process.exit(1);
+    }
+
     // Create image directory for this app
     try {
         fs.mkdirSync(`${options.imagedir}/qseow/${appId}`, { recursive: true });
@@ -54,6 +75,7 @@ const processQSEoWApp = async (appId, g, options) => {
         const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
         logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
 
+        // Get app objet metadata
         logger.debug(
             `GET tagExcludeSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
         );
