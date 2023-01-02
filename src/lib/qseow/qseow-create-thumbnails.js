@@ -75,6 +75,11 @@ const processQSEoWApp = async (appId, g, options) => {
         const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
         logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
 
+        // Get app top level metadata
+        logger.debug(`GET app top level metadata: app?filter=id eq ${appId}`);
+        let appMetadata = await qrsInteractInstance.Get(`app?filter=id eq ${appId}`);
+        appMetadata = appMetadata.body;
+
         // Get app objet metadata
         logger.debug(
             `GET tagExcludeSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
@@ -107,6 +112,8 @@ const processQSEoWApp = async (appId, g, options) => {
 
         const app = await global.openDoc(appId, '', '', '', false);
         logger.info(`Opened app ${appId}`);
+        logger.info(`App name: "${appMetadata[0].name}"`);
+        logger.info(`App is published: ${appMetadata[0].published}`);
 
         // Get list of app sheets
         const appSheetsCall = {
