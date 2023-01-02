@@ -71,6 +71,7 @@ jobs:
           BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
           BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
           BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
           BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
           BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
