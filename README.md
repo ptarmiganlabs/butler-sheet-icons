@@ -69,6 +69,7 @@ Table of contents
     - [Headless browser](#headless-browser)
   - [Concepts specific to QS Cloud](#concepts-specific-to-qs-cloud)
   - [Concepts specific to client-managed QS (QSEoW)](#concepts-specific-to-client-managed-qs-qseow)
+    - [Which Sense version is server using](#which-sense-version-is-server-using)
     - [Login method](#login-method)
     - [Using QSEoW's built-in Node.js](#using-qseows-built-in-nodejs)
 - [Commands](#commands)
@@ -145,6 +146,9 @@ Use cases for Butler Sheet Icons include
 The idea is simply to more or less mimic the steps a human would take to create sheet thumbnails, with some steps replaced with calls to the Sense APIs.
 
 - Butler Sheet Icons uses its own, embedded web browser to log into Qlik Sense.
+- Qlik keeps developing and refining the Sense web front-end. This means that different Sense versions may work slightly differently behind what may seem like identical web user interfaces. Butler Sheet Icons however needs to adapt to this.
+  - The solution is to specify which Sense version you will connect to. This is done using the `--sense-version` command line parameter. 
+  - The above is only applicable to client-managed Qlik Sense, a.k.a. Qlike Sense Enterprise on Windows, QSEoW.
 - For the first app that should get new sheet thumbnails...
   - Use Sense APIs to determine which sheets exist in the app.
   - Move to the app's first sheet using the browser.
@@ -400,6 +404,16 @@ Running "headless" means the browser is not visible on screen. It's running in t
 
 ## Concepts specific to client-managed QS (QSEoW)
 
+### Which Sense version is server using
+
+Different QSEoW versions may (will!) have differnen HTML code in the Hub's and apps' user interface.  
+As BSI pretends to be user accessing Sense, BSI needs to adapt to each Sense version.
+
+The solution is to use the `--sense-version` command line parameter to specify which version your Sense server is running.  
+The list of allowed values is available in the BSI help that's shown by running `.\butler-sheet-icons.exe qseow create-sheet-thumbnails --help` (on Windows/PowerShell in this case).
+
+NOTE: The `--sense-version` parameter was added in BSI 3.0 and is a mandatory parameter!
+
 ### Login method
 
 QSEoW offers two different built-in ways to log in using username/pwd.  
@@ -487,7 +501,7 @@ Create thumbnail images based on the layout of each sheet in Qlik Sense Enterpri
 Multiple apps can be updated with a single command, using a Qlik Sense tag to identify  which apps will be updated.
 
 Options:
-  --loglevel <level>                  log level (error, warning, info, verbose, debug, silly) (default: "info")
+  --loglevel <level>                  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
   --host <host>                       Qlik Sense server IP/FQDN
   --engineport <port>                 Qlik Sense server engine port (default: "4747")
   --qrsport <port>                    Qlik Sense server repository service (QRS) port (default: "4242")
@@ -508,12 +522,13 @@ Options:
   --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
   --imagedir <directory>              directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
   --contentlibrary <library-name>     Qlik Sense content library to which thumbnails will be uploaded (default: "Butler sheet thumbnails")
-  --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar (default: "1")
-  --qliksensetag <value>              Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.
-                                      (default: "")
+  --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar
+                                      (default: "1")
+  --qliksensetag <value>              Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. (default: "")
   --exclude-sheet-tag <value>         Sheets with this tag set will be excluded from sheet icon update.
   --exclude-sheet-number <number...>  Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.
   --exclude-sheet-title <title...>    Use sheet titles to control which sheets that will be excluded from sheet icon update.
+  --sense-version <version>           Version of the QSEoW server to connect to (choices: "pre-2022-Nov", "2022-Nov", default: "2022-Nov")
   -h, --help                          display help for command
 PS C:\tools\butler-sheet-icons-win>
 ```
@@ -739,12 +754,15 @@ Note: The command above assumes the certificates exported from QSEoW are availab
 
 | Version | Tested date | Comment |
 |---------|-------------|---------|
-| 2022-May IR | 2022-Sep-30 | Works without issues |
+| 2022-May IR | 2022-Sep-30 | Use `--sense-version pre-2022-Nov` |
+| 2022-Aug patch 5 | 2023-Jan-2 | Use `--sense-version pre-2022-Nov` |
+| 2022-Nov patch 2 | 2023-Jan-3 | Use `--sense-version 2022-Nov` |
 
 ## Qlik Sense cloud
 
 | Tested date | Comment |
 |-------------|---------|
+| 2023-Jan-3  | Works without issues |
 | 2022-Sep-30 | Works without issues |
 
 # Testing
