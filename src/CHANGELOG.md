@@ -1,6 +1,25 @@
 # Changelog
 
 
+## [3.0.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.1.5...butler-sheet-icons-v3.0.0) (2023-01-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add support for different Sense versions via command line parameter
+
+### Features
+
+* Add support for different Sense versions via command line parameter ([eb9b6f0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/eb9b6f0c09642115b75642ca4a994b66097f3c7f)), closes [#264](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/264)
+* Always show engine version when connecting to Qlik Sense ([ab9f1ed](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ab9f1ed0b7d3c86817bd549a6db496118f1a31d1)), closes [#267](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/267)
+* Better error logging when thumbnail creation fails ([290dfe0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/290dfe0905468aceaebd1ca2ac2b5ae9b2f0829d)), closes [#266](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/266)
+* Show app name and publish status as apps are processed ([31d6bdb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/31d6bdb15a0a0850008b7bcf530bbc474bb0784a)), closes [#263](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/263)
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies ([f402f5e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f402f5edcce79f7f8298c430de95c772a4dc179a))
+
 ## [2.1.5](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.1.4...butler-sheet-icons-v2.1.5) (2022-12-05)
 
 
