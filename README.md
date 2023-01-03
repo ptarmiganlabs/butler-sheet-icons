@@ -439,6 +439,13 @@ Thus, if you use BSI on Windows you should make sure to specify a virtual proxy 
 
 If the `--prefix` option is not specified when starting BSI, the default '/' virtual proxy will be used.
 
+If you need to set up a new virtual proxy the following configuration may be useful - it is what each version of BSI is tested against:
+
+![Virtual proxy usuing Forms based authentitication, part 1](./docs/img/qseow-virtualproxy_1.png "Virtual proxy usuing Forms based authentitication, part 1")
+
+![Virtual proxy usuing Forms based authentitication, part 2](./docs/img/qseow-virtualproxy_2.png "Virtual proxy usuing Forms based authentitication, part 2")
+
+Finally, don't forget to use the `--prefix form` parameter when starting BSI. That option simply tells BSI to use a virtual proxy called "form" when connecting to the Sense server.
 ### Using QSEoW's built-in Node.js
 
 It is possible, but in most cases not recommended to run Butler Sheet Icons as a Node.js app instead of using the stand-alone, pre-built Butler Sheet Icon binaries.
