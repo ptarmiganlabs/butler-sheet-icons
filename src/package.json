@@ -29,7 +29,7 @@
     "form-data": "^4.0.0",
     "fs-extra": "^11.1.0",
     "os": "^0.1.2",
-    "puppeteer": "^19.4.1",
+    "puppeteer": "^19.8.3",
     "qrs-interact": "^6.3.1",
     "table": "^6.8.1",
     "upath": "^2.0.1",
