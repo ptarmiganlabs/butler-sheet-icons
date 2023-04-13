@@ -1,6 +1,14 @@
 # Changelog
 
 
+## [3.0.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.0.0...butler-sheet-icons-v3.0.1) (2023-04-13)
+
+
+### Miscellaneous
+
+* **deps:** Update axios to v1+ ([4183548](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4183548a5ba8f0aad4816d86d50e304263d6bc8c))
+* **deps:** Update dependencies to stay safe and secure ([08b3927](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/08b39274034fd972bd5d3b65c7e0b696e64d7e30))
+
 ## [3.0.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v2.1.5...butler-sheet-icons-v3.0.0) (2023-01-03)
 
 
