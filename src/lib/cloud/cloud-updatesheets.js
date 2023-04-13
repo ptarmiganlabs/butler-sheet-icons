@@ -89,6 +89,7 @@ const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
                     sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/api/v1/apps/${appId}/media/files/thumbnails/thumbnail-${iSheetNum}.png`;
 
                     const res = await sheetObj.setProperties(sheetProperties);
+                    // const res = await sheetObj.setProperties({ qProp: sheetProperties });
                     logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
                     await app.doSave();
                 }
