@@ -32,6 +32,36 @@ const logger = winston.createLogger({
     ),
 });
 
+// Suppported Chromium version: https://pptr.dev/chromium-support
+// Correlate with Correlate with https://chromium.woolyss.com to get revision number to get revision number
+// const chromiumRevision = '1056772';
+// const chromiumRevisionLinux = '1056772';
+const chromiumRevisionLinux = '1109227';
+const chromiumRevisionWin = '1097664';
+const chromiumRevisionMac = '1097624';
+// const chromiumRevisionMac = '1056772';
+
+// const cdnUrl = 'https://storage.googleapis.com/chromium-browser-snapshots';
+// const cdnUrl = 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/';
+
+// Inspiration: https://github.com/dtolstyi/node-chromium/blob/master/utils.js
+const getChromiumRevision = () => {
+    const { platform } = process;
+    let revision = '';
+
+    if (platform === 'linux') {
+        revision = chromiumRevisionLinux;
+    } else if (platform === 'win32') {
+        revision = chromiumRevisionWin;
+    } else if (platform === 'darwin') {
+        revision = chromiumRevisionMac;
+    } else {
+        throw new Error('Unsupported platform');
+    }
+
+    return revision;
+};
+
 /**
  * Functions to get/set current console logging level
  * @returns
@@ -49,7 +79,10 @@ const setLoggingLevel = (newLevel) => {
 const isPkg = typeof process.pkg !== 'undefined';
 const bsiExecutablePath = isPkg ? upath.dirname(process.execPath) : __dirname;
 
-const chromiumRevision = '1056772';
+function sleep(ms) {
+    // eslint-disable-next-line no-promise-executor-return
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 module.exports = {
     logger,
@@ -58,5 +91,6 @@ module.exports = {
     setLoggingLevel,
     isPkg,
     bsiExecutablePath,
-    chromiumRevision,
+    getChromiumRevision,
+    sleep,
 };

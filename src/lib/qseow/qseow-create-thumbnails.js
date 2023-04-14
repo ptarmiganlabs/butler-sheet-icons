@@ -5,7 +5,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const qrsInteract = require('qrs-interact');
 const path = require('path');
-const { tmpdir } = require('os');
+const { homedir } = require('os');
 
 const { setupEnigmaConnection } = require('./qseow-enigma.js');
 const {
@@ -13,7 +13,8 @@ const {
     setLoggingLevel,
     bsiExecutablePath,
     isPkg,
-    chromiumRevision,
+    getChromiumRevision,
+    sleep,
 } = require('../../globals.js');
 const { qseowUploadToContentLibrary } = require('./qseow-upload.js');
 const { qseowVerifyContentLibraryExists } = require('./qseow-contentlibrary.js');
@@ -147,24 +148,22 @@ const processQSEoWApp = async (appId, g, options) => {
             let iSheetNum = 1;
             let revisionInfo = '';
 
-            if (isPkg) {
-                // Download browser
-                // https://github.com/vercel/pkg/issues/204#issuecomment-720996863
-                const tmpPath = tmpdir();
-                const chromePath = path.join(tmpPath, '.local-chromium');
-                logger.debug(`Temp path for downloading Chromium: ${chromePath}`);
+            // Download browser
+            // https://github.com/vercel/pkg/issues/204#issuecomment-720996863
+            const chromePath = path.join(homedir(), '.cache/puppeteer');
+            logger.debug(`Path for Chromium: ${chromePath}`);
 
-                const browserFetcher = puppeteer.createBrowserFetcher({
-                    path: chromePath,
-                });
-                logger.info(`Downloading Chromium browser revision ${chromiumRevision}...`);
-                revisionInfo = await browserFetcher.download(chromiumRevision);
-                logger.info(`Download done.`);
-            }
+            const browserFetcher = puppeteer.createBrowserFetcher({
+                path: chromePath,
+            });
 
-            const chromiumExecutablePath =
-                process.env.PUPPETEER_EXECUTABLE_PATH ||
-                (isPkg ? revisionInfo.executablePath : puppeteer.executablePath());
+            const chromiumRevision = getChromiumRevision();
+
+            logger.info(`Downloading Chromium browser revision ${chromiumRevision}...`);
+            revisionInfo = await browserFetcher.download(chromiumRevision);
+            logger.info(`Download done.`);
+
+            const chromiumExecutablePath = revisionInfo.executablePath;
             logger.verbose(`Using Chromium browser at ${chromiumExecutablePath}`);
 
             const browser = await puppeteer.launch({
@@ -222,7 +221,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 page.waitForNavigation({ waitUntil: ['networkidle2'] }),
             ]);
 
-            await page.waitForTimeout(options.pagewait * 1000);
+            await sleep(options.pagewait * 1000);
             await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-1.png` });
 
             // Enter credentials
@@ -232,6 +231,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 clickCount: 1,
                 delay: 10,
             });
+
             const user = `${options.logonuserdir}\\${options.logonuserid}`;
             await page.keyboard.type(user);
 
@@ -254,7 +254,8 @@ const processQSEoWApp = async (appId, g, options) => {
                 }),
                 page.waitForNavigation({ waitUntil: 'networkidle2' }),
             ]);
-            await page.waitForTimeout(options.pagewait * 1000);
+
+            await sleep(options.pagewait * 1000);
 
             // Take screenshot of app overview page
             await page.screenshot({ path: `${imgDir}/qseow/${appId}/overview-1.png` });
