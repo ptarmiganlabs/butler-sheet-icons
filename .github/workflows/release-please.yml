@@ -83,7 +83,7 @@ jobs:
           mkdir build/linux
           mkdir build/macos
           mkdir build/win
-          ncc build -o build/lib -e enigma.js ./index.js
+          ncc build -o build/lib -e enigma.js ./src/butler-sheet-icons.js
           pkg --config ./src/package.json --output build/linux/${DIST_FILE_NAME} -t node16-linux-x64 ./build/lib/index.js --compress GZip
           pkg --config ./src/package.json --output build/macos/${DIST_FILE_NAME} -t node16-macos-x64 ./build/lib/index.js --compress GZip
           pkg --config ./src/package.json --output build/win/${DIST_FILE_NAME}.exe -t node16-win-x64 ./build/lib/index.js --compress GZip
