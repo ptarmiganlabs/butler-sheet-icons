@@ -99,6 +99,7 @@ jobs:
         if: ${{ steps.release.outputs.releases_created }}
         run: |
           pwd
+          cd src
           ls -la
           ls -la build
           ls -la build/macos
@@ -112,30 +113,35 @@ jobs:
           vt_api_key: ${{ secrets.VIRUSTOTAL_API_KEY }}
           request_rate: 4
           files: |
-            ./build/linux/*
-            ./build/macos/*
-            ./build/win/*
+            ./src/build/linux/*
+            ./src/build/macos/*
+            ./src/build/win/*
 
-      - name: Upload macOS build artifacts
-        if: ${{ steps.release.outputs.releases_created }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: binaries-macos
-          path: build/macos/*
-
-      - name: Upload Windows build artifacts
-        if: ${{ steps.release.outputs.releases_created }}
-        uses: actions/upload-artifact@v3
-        with:
-          name: binaries-win
-          path: build/win/*
+      - name: Debug
+        if: ${{ steps.release.outputs.src--release_created }}
+        run: |
+          ls -la ghaction-virustotal
 
       - name: Upload Linux build artifacts
         if: ${{ steps.release.outputs.releases_created }}
         uses: actions/upload-artifact@v3
         with:
           name: binaries-linux
-          path: build/linux/*
+          path: src/build/linux/*
+
+      - name: Upload macOS build artifacts
+        if: ${{ steps.release.outputs.releases_created }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries-macos
+          path: src/build/macos/*
+
+      - name: Upload Windows build artifacts
+        if: ${{ steps.release.outputs.releases_created }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries-win
+          path: src/build/win/*
 
   release-macos:
     needs: release-please
