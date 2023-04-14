@@ -8,6 +8,20 @@
 
 * **deps:** Update axios to v1+ ([4183548](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4183548a5ba8f0aad4816d86d50e304263d6bc8c))
 * **deps:** Update dependencies to stay safe and secure ([08b3927](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/08b39274034fd972bd5d3b65c7e0b696e64d7e30))
+* **main:** release butler-sheet-icons 3.0.1 ([5f911a7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5f911a7d99925ab1cc1d6c315beeabf614e07a11))
+* **main:** release butler-sheet-icons 3.0.1 ([150816d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/150816d6f60b6d33dc9d0a536cb7cd1a0f9912e6))
+* **main:** release butler-sheet-icons 3.0.1 ([0bb61ac](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0bb61acdd7e748e8c8169588abcea9ed299acf6c))
+* **main:** release butler-sheet-icons 3.0.1 ([f4cd291](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f4cd291d569e5d9862df65d52a512530d5f64156))
+* **main:** release butler-sheet-icons 3.0.1 ([b5ddf27](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b5ddf2708f489409d34d208c1fcf393b6262b8f6))
+* **main:** release butler-sheet-icons 3.0.1 ([e9a90e1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e9a90e1f92384d07b2f166fc35ba5fe2e2a4307d))
+
+## [3.0.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.0.1...butler-sheet-icons-v3.0.1) (2023-04-14)
+
+
+### Miscellaneous
+
+* **deps:** Update axios to v1+ ([4183548](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4183548a5ba8f0aad4816d86d50e304263d6bc8c))
+* **deps:** Update dependencies to stay safe and secure ([08b3927](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/08b39274034fd972bd5d3b65c7e0b696e64d7e30))
 * **main:** release butler-sheet-icons 3.0.1 ([150816d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/150816d6f60b6d33dc9d0a536cb7cd1a0f9912e6))
 * **main:** release butler-sheet-icons 3.0.1 ([0bb61ac](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0bb61acdd7e748e8c8169588abcea9ed299acf6c))
 * **main:** release butler-sheet-icons 3.0.1 ([f4cd291](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f4cd291d569e5d9862df65d52a512530d5f64156))
