@@ -99,12 +99,11 @@ jobs:
         if: ${{ steps.release.outputs.releases_created }}
         run: |
           pwd
-          cd src
           ls -la
-          ls -la build
-          ls -la build/macos
-          ls -la build/win
-          ls -la build/linux
+          ls -la src/build
+          ls -la src/build/macos
+          ls -la src/build/win
+          ls -la src/build/linux
           mkdir ghaction-virustotal
 
       - name: VirusTotal Scan
