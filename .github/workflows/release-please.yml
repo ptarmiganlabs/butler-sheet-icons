@@ -27,32 +27,11 @@ jobs:
         with:
           command: manifest
 
-      # - uses: google-github-actions/release-please-action@v3
-      #   id: release
-      #   if: github.repository_owner == 'ptarmiganlabs'
-      #   with:
-      # #    token: ${{ secrets.PAT }}
-      #     release-type: node
-      #     package-name: butler-sheet-icons
-      #     path: src
-      #     default-branch: main
-      #     changelog-types: '[{"type":"feat","section":"Features","hidden":false},{"type":"fix","section":"Bug Fixes","hidden":false},{"type":"chore","section":"Miscellaneous","hidden":true}, {"type":"refactor","section":"Refactoring","hidden":true}, {"type":"docs","section":"Documentation","hidden":false}]'
-      #     draft: true
-
-      # - name: Show output from Release-Please 1
-      #   continue-on-error: true
-      #   run: |
-      #     echo "${{ toJSON(steps.release.outputs) }}"
-
-      # - name: Show output from Release-Please 2
-      #   continue-on-error: true
-      #   run: |
-      #     jq . "${{ toJSON(steps.release.outputs) }}"
-
-      - name: Show output from Release-Please 3
+      - name: Show output from Release-Please
         if: ${{ steps.release.outputs.releases_created }}
         run: |
           echo "releases_created: ${{ steps.release.outputs.releases_created }}"
+          echo "release_created : ${{ steps.release.outputs.release_created }}"
           echo "draft           : ${{ steps.release.outputs['src--draft'] }}"
           echo "path            : ${{ steps.release.outputs['src--path'] }}"
           echo "upload_url      : ${{ steps.release.outputs['src--upload_url'] }}"
@@ -70,6 +49,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          pwd 
           cd src
           npm install
 
@@ -90,52 +70,65 @@ jobs:
 
       - name: Install tool for creating stand-alone executables
         if: ${{ steps.release.outputs.releases_created }}
-        run: npm install -g pkg
+        run: |
+          npm install -g pkg
+          npm i -g @vercel/ncc
 
       - name: Package stand-alone binaries
         if: ${{ steps.release.outputs.releases_created }}
-          # mkdir release/alpine
-          # mkdir release/linux
-          # pkg --config ./src/package.json --output release/linux/${DIST_FILE_NAME} -t node16-linux-x64 src/butler-sheet-icons.js
         run: |
+          pwd
           ls -la
-          mkdir release
-          mkdir release/macos
-          mkdir release/win
-          mkdir release/linux
-          pkg --config ./src/package.json --output release/macos/${DIST_FILE_NAME} -t node16-macos-x64 src/butler-sheet-icons.js --compress GZip
-          pkg --config ./src/package.json --output release/win/${DIST_FILE_NAME}.exe -t node16-win-x64 src/butler-sheet-icons.js --compress GZip
-          pkg --config ./src/package.json --output release/linux/${DIST_FILE_NAME} -t node16-linux-x64 src/butler-sheet-icons.js --compress GZip
+          mkdir build
+          mkdir build/linux
+          mkdir build/macos
+          mkdir build/win
+          ncc build -o build/lib -e enigma.js ./index.js
+          pkg --config ./src/package.json --output build/linux/${DIST_FILE_NAME} -t node16-linux-x64 ./build/lib/index.js --compress GZip
+          pkg --config ./src/package.json --output build/macos/${DIST_FILE_NAME} -t node16-macos-x64 ./build/lib/index.js --compress GZip
+          pkg --config ./src/package.json --output build/win/${DIST_FILE_NAME}.exe -t node16-win-x64 ./build/lib/index.js --compress GZip
 
       - name: Debug
         if: ${{ steps.release.outputs.releases_created }}
         run: |
+          pwd
           ls -la
-          ls -la release
-          ls -la release/macos
-          ls -la release/win
-          ls -la release/linux
+          ls -la build
+          ls -la build/macos
+          ls -la build/win
+          ls -la build/linux
+
+      - name: VirusTotal Scan
+        if: ${{ steps.release.outputs.release_created }}
+        uses: crazy-max/ghaction-virustotal@v3
+        with:
+          vt_api_key: ${{ secrets.VIRUSTOTAL_API_KEY }}
+          request_rate: 4
+          files: |
+            ./build/linux/*
+            ./build/macos/*
+            ./build/win/*
 
       - name: Upload macOS build artifacts
         if: ${{ steps.release.outputs.releases_created }}
         uses: actions/upload-artifact@v3
         with:
           name: binaries-macos
-          path: release/macos/*
+          path: build/macos/*
 
       - name: Upload Windows build artifacts
         if: ${{ steps.release.outputs.releases_created }}
         uses: actions/upload-artifact@v3
         with:
           name: binaries-win
-          path: release/win/*
+          path: build/win/*
 
       - name: Upload Linux build artifacts
         if: ${{ steps.release.outputs.releases_created }}
         uses: actions/upload-artifact@v3
         with:
           name: binaries-linux
-          path: release/linux/*
+          path: build/linux/*
 
   release-macos:
     needs: release-please
