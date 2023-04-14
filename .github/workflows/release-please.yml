@@ -28,7 +28,13 @@ jobs:
           command: manifest
 
       - name: Show output from Release-Please
-        if: ${{ steps.release.outputs.releases_created }}
+        if: always()
+        env:
+          RELEASE_PLEASE_OUTPUT: ${{ toJSON(steps.release.outputs) }}
+        run: echo "$RELEASE_PLEASE_OUTPUT"
+
+      - name: Show output from Release-Please
+        # if: ${{ steps.release.outputs.releases_created }}
         run: |
           echo "releases_created: ${{ steps.release.outputs.releases_created }}"
           echo "release_created : ${{ steps.release.outputs.release_created }}"
@@ -78,15 +84,16 @@ jobs:
         if: ${{ steps.release.outputs.releases_created }}
         run: |
           pwd
+          cd src
           ls -la
           mkdir build
           mkdir build/linux
           mkdir build/macos
           mkdir build/win
-          ncc build -o build/lib -e enigma.js ./src/butler-sheet-icons.js
-          pkg --config ./src/package.json --output build/linux/${DIST_FILE_NAME} -t node16-linux-x64 ./build/lib/index.js --compress GZip
-          pkg --config ./src/package.json --output build/macos/${DIST_FILE_NAME} -t node16-macos-x64 ./build/lib/index.js --compress GZip
-          pkg --config ./src/package.json --output build/win/${DIST_FILE_NAME}.exe -t node16-win-x64 ./build/lib/index.js --compress GZip
+          ncc build -o build/lib -e enigma.js ./butler-sheet-icons.js
+          pkg --output build/linux/${DIST_FILE_NAME} -t node16-linux-x64 ./build/lib/index.js --compress GZip
+          pkg --output build/macos/${DIST_FILE_NAME} -t node16-macos-x64 ./build/lib/index.js --compress GZip
+          pkg --output build/win/${DIST_FILE_NAME}.exe -t node16-win-x64 ./build/lib/index.js --compress GZip
 
       - name: Debug
         if: ${{ steps.release.outputs.releases_created }}
