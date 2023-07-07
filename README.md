@@ -70,6 +70,7 @@ Table of contents
     - [Excluding sheets](#excluding-sheets)
     - [Screen shots taken by Butler Sheet Icons](#screen-shots-taken-by-butler-sheet-icons)
     - [Headless browser](#headless-browser)
+    - [Downloading browser](#downloading-browser)
   - [Concepts specific to QS Cloud](#concepts-specific-to-qs-cloud)
   - [Concepts specific to client-managed QS (QSEoW)](#concepts-specific-to-client-managed-qs-qseow)
     - [Which Sense version is server using](#which-sense-version-is-server-using)
@@ -409,6 +410,30 @@ img
 The `--headless` takes either `true` or `false` as a value (`true` is default).
 
 Running "headless" means the browser is not visible on screen. It's running in the background, but isn't visible. Running headless is the normal way to use Butler Sheet Icons, but showing the embedded browser (i.e. using `--headless false`) can be useful to debug issues. Being able to see what happens on-screen when BSI is trying to create screen shots can be absolutely necessary to understand what's going on.
+
+### Downloading browser
+
+When running Butler Sheet Icons for the first time, a web browser needs to be downloaded.  
+This is done automatically by Butler Sheet Icons.
+
+The browser is then used by Butler Sheet Icons to access the Qlik Sense application and to take screen shots of the sheets.
+
+If you are behind a proxy server and cannot access the Internet directly, you need to specify the proxy server to use.
+This can be done using environment variables `http_proxy`and `https_proxy`.
+
+Example (on Windows/PowerShell):
+
+```powershell
+$env:http_proxy='http://username:password@proxy.example.com:port'
+$env:https_proxy='http://username:password@proxy.example.com:port'
+```
+
+Example (on Linux/macOS):
+
+```bash
+export http_proxy='http://username:password@proxy.example.com:port'
+export https_proxy='http://username:password@proxy.example.com:port'
+```
 
 ## Concepts specific to QS Cloud
 
