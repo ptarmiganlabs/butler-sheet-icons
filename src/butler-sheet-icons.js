@@ -138,8 +138,8 @@ const program = new Command();
         )
         .addOption(
             new Option('--sense-version <version>', 'Version of the QSEoW server to connect to')
-                .choices(['pre-2022-Nov', '2022-Nov'])
-                .default('2022-Nov')
+                .choices(['pre-2022-Nov', '2022-Nov', '2023-May'])
+                .default('2023-May')
         );
 
     // ---------
