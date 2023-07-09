@@ -796,15 +796,16 @@ Note: The command above assumes the certificates exported from QSEoW are availab
 
 | Version | Tested date | Comment |
 |---------|-------------|---------|
-| 2022-May IR | 2022-Sep-30 | Use `--sense-version pre-2022-Nov` |
-| 2022-Aug patch 5 | 2023-Jan-2 | Use `--sense-version pre-2022-Nov` |
-| 2022-Nov patch 2 | 2023-Jan-3 | Use `--sense-version 2022-Nov` |
 | 2023-May IR | 2023-July-7 | Use `--sense-version 2023-May` |
+| 2022-Nov patch 2 | 2023-Jan-3 | Use `--sense-version 2022-Nov` |
+| 2022-Aug patch 5 | 2023-Jan-2 | Use `--sense-version pre-2022-Nov` |
+| 2022-May IR | 2022-Sep-30 | Use `--sense-version pre-2022-Nov` |
 
 ## Qlik Sense cloud
 
 | Tested date | Comment |
 |-------------|---------|
+| 2023-July-9  | Works without issues |
 | 2023-Jan-3  | Works without issues |
 | 2022-Sep-30 | Works without issues |
 
