@@ -44,6 +44,9 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
     try {
         // Does the app have a thumbnail folder in its media library?
+        logger.verbose(
+            `Getting media list for app ${appId}, media path is "apps/${appId}/media/list"`
+        );
         const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
 
         if (
@@ -54,22 +57,41 @@ const processCloudApp = async (appId, saasInstance, options) => {
             })
         ) {
             // "thumbnails" folder exists in app's media library
+            logger.debug(`App ${appId} has a "thumbnails" folder in its media library`);
+
             // Remove all existing thumbnail images from this app
-            const existingThumbnails = await saasInstance.Get(
-                `apps/${appId}/media/list/thumbnails`
-            );
+            let existingThumbnails;
+            try {
+                logger.verbose(
+                    `Getting existing thumbnails for app ${appId}, media path is "apps/${appId}/media/list/thumbnails"`
+                );
+                existingThumbnails = await saasInstance.Get(`apps/${appId}/media/list/thumbnails`);
+            } catch (err) {
+                logger.error(`CREATE THUMBNAILS 2: Error getting existing thumbnails: ${err}`);
+                throw Error('Error getting existing thumbnails');
+            }
 
             // eslint-disable-next-line no-restricted-syntax
             for (const thumbnailImg of existingThumbnails) {
                 if (thumbnailImg.type === 'image') {
-                    const result = await saasInstance.Delete(
-                        `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
-                    );
-                    logger.debug(
-                        `Deleted existing file ${JSON.stringify(
-                            thumbnailImg.name
-                        )}, result=${JSON.stringify(result)}`
-                    );
+                    try {
+                        logger.verbose(
+                            `Deleting existing thumbnail "${thumbnailImg.name}" for app ${appId}, media path is "apps/${appId}/media/files/thumbnails/${thumbnailImg.name}"`
+                        );
+                        const result = await saasInstance.Delete(
+                            `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
+                        );
+                        logger.debug(
+                            `Deleted existing file ${thumbnailImg.name}, result=${JSON.stringify(
+                                result
+                            )}`
+                        );
+                    } catch (err) {
+                        logger.error(
+                            `CREATE THUMBNAILS 3: Error deleting existing thumbnail: ${err}`
+                        );
+                        throw Error('Error deleting existing thumbnail');
+                    }
                 }
             }
         }
