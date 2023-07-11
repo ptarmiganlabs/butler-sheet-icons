@@ -12,7 +12,7 @@ jobs:
           - os: macos
             build: |
               npx caxa --input "src" --output "butler-sheet-icons.app" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/butler-sheet-icons.js"
-              tar -czf "butler-sheet-icons--macos--${{ github.sha }}.app.tgz" "butler-sheet-icons.app"
+              tar -czf "butler-sheet-icons--macos--${{ github.sha }}.app.tgz" "butler-sheet-icons"
             artifact: butler-sheet-icons--macos--${{ github.sha }}.app.tgz
           - os: ubuntu
             build: |
