@@ -18,6 +18,7 @@
     "screenshot"
   ],
   "dependencies": {
+    "@puppeteer/browsers": "^1.4.3",
     "axios": "^0.27.2",
     "commander": "^11.0.0",
     "enigma.js": "^2.11.0",
@@ -29,7 +30,7 @@
     "form-data": "^4.0.0",
     "fs-extra": "^11.1.1",
     "os": "^0.1.2",
-    "puppeteer": "^19.8.0",
+    "puppeteer-core": "^20.8.1",
     "qrs-interact": "^6.3.1",
     "table": "^6.8.1",
     "upath": "^2.0.1",
@@ -51,8 +52,12 @@
     "url": "https://github.com/ptarmiganlabs/butler-sheet-icons/issues"
   },
   "pkg": {
+    "assets": [
+      "node_modules/vm2/lib/bridge.js"
+    ],
     "scripts": [
-      "node_modules/enigma.js/**/*.json"
+      "node_modules/enigma.js/**/*.json",
+      "node_modules/vm2/lib/bridge.js"
     ]
   }
 }

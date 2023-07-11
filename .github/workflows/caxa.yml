@@ -26,6 +26,7 @@ jobs:
         with:
           node-version: 19
       - run: |
+          cd src
           npm ci
           ${{ matrix.build }}
       - uses: actions/upload-artifact@v2
