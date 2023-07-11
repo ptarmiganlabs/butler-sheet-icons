@@ -11,20 +11,25 @@ jobs:
             artifact: butler-sheet-icons--windows--${{ github.sha }}.exe
           - os: mac-build1
             build: |
-              npx caxa --input "src" --output "butler-sheet-icons.app" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/butler-sheet-icons.js"
+              npx caxa --input "src" --output "butler-sheet-icons" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/butler-sheet-icons.js"
+              chmod +x "butler-sheet-icons"
               tar -czf "butler-sheet-icons--macos--${{ github.sha }}.app.tgz" "butler-sheet-icons"
             artifact: butler-sheet-icons--macos--${{ github.sha }}.app.tgz
           - os: ubuntu-latest
             build: |
               npx caxa --input "src" --output "butler-sheet-icons" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/butler-sheet-icons.js"
+              chmod +x "butler-sheet-icons"
               tar -czf "butler-sheet-icons--linux--${{ github.sha }}.tgz" "butler-sheet-icons"
             artifact: butler-sheet-icons--linux--${{ github.sha }}.tgz
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v1
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          node-version: 19
+          # node-version: 19
+          node-version: lts/*
       - run: |
           cd src
           npm ci
