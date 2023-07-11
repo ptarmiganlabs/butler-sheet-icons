@@ -2,10 +2,9 @@
 /* eslint-disable import/extensions */
 const enigma = require('enigma.js');
 const puppeteer = require('puppeteer');
-const { BrowserFetcher } = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
-const { tmpdir } = require('os');
+const { homedir } = require('os');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
 const {
@@ -13,7 +12,8 @@ const {
     setLoggingLevel,
     bsiExecutablePath,
     isPkg,
-    chromiumRevision,
+    getChromiumRevision,
+    sleep,
 } = require('../../globals.js');
 const { qscloudUploadToApp } = require('./cloud-upload.js');
 const { qscloudUpdateSheetThumbnails } = require('./cloud-updatesheets.js');
@@ -44,6 +44,9 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
     try {
         // Does the app have a thumbnail folder in its media library?
+        logger.verbose(
+            `Getting media list for app ${appId}, media path is "apps/${appId}/media/list"`
+        );
         const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
 
         if (
@@ -54,22 +57,41 @@ const processCloudApp = async (appId, saasInstance, options) => {
             })
         ) {
             // "thumbnails" folder exists in app's media library
+            logger.debug(`App ${appId} has a "thumbnails" folder in its media library`);
+
             // Remove all existing thumbnail images from this app
-            const existingThumbnails = await saasInstance.Get(
-                `apps/${appId}/media/list/thumbnails`
-            );
+            let existingThumbnails;
+            try {
+                logger.verbose(
+                    `Getting existing thumbnails for app ${appId}, media path is "apps/${appId}/media/list/thumbnails"`
+                );
+                existingThumbnails = await saasInstance.Get(`apps/${appId}/media/list/thumbnails`);
+            } catch (err) {
+                logger.error(`CREATE THUMBNAILS 2: Error getting existing thumbnails: ${err}`);
+                throw Error('Error getting existing thumbnails');
+            }
 
             // eslint-disable-next-line no-restricted-syntax
             for (const thumbnailImg of existingThumbnails) {
                 if (thumbnailImg.type === 'image') {
-                    const result = await saasInstance.Delete(
-                        `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
-                    );
-                    logger.debug(
-                        `Deleted existing file ${JSON.stringify(
-                            thumbnailImg.name
-                        )}, result=${JSON.stringify(result)}`
-                    );
+                    try {
+                        logger.verbose(
+                            `Deleting existing thumbnail "${thumbnailImg.name}" for app ${appId}, media path is "apps/${appId}/media/files/thumbnails/${thumbnailImg.name}"`
+                        );
+                        const result = await saasInstance.Delete(
+                            `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
+                        );
+                        logger.debug(
+                            `Deleted existing file ${thumbnailImg.name}, result=${JSON.stringify(
+                                result
+                            )}`
+                        );
+                    } catch (err) {
+                        logger.error(
+                            `CREATE THUMBNAILS 3: Error deleting existing thumbnail: ${err}`
+                        );
+                        throw Error('Error deleting existing thumbnail');
+                    }
                 }
             }
         }
@@ -135,23 +157,22 @@ const processCloudApp = async (appId, saasInstance, options) => {
             let iSheetNum = 1;
             let revisionInfo = '';
 
-            if (isPkg) {
-                // Download browser
-                // https://github.com/vercel/pkg/issues/204#issuecomment-720996863
-                const tmpPath = tmpdir();
-                const chromePath = path.join(tmpPath, '.local-chromium');
-                logger.debug(`Temp path for downloading Chromium: ${chromePath}`);
+            // Download browser
+            // https://github.com/vercel/pkg/issues/204#issuecomment-720996863
+            const chromePath = path.join(homedir(), '.cache/puppeteer');
+            logger.debug(`Path for Chromium: ${chromePath}`);
 
-                const browserFetcher = new BrowserFetcher({ path: chromePath });
+            const browserFetcher = puppeteer.createBrowserFetcher({
+                path: chromePath,
+            });
 
-                logger.info(`Downloading Chromium browser revision ${chromiumRevision}...`);
-                revisionInfo = await browserFetcher.download(chromiumRevision);
-                logger.info(`Download of Chromium done.`);
-            }
+            const chromiumRevision = getChromiumRevision();
 
-            const chromiumExecutablePath =
-                process.env.PUPPETEER_EXECUTABLE_PATH ||
-                (isPkg ? revisionInfo.executablePath : puppeteer.executablePath());
+            logger.info(`Downloading Chromium browser revision ${chromiumRevision}...`);
+            revisionInfo = await browserFetcher.download(chromiumRevision);
+            logger.info(`Download of Chromium done.`);
+
+            const chromiumExecutablePath = revisionInfo.executablePath;
             logger.verbose(`Using Chromium browser at ${chromiumExecutablePath}`);
 
             const browser = await puppeteer.launch({
@@ -194,7 +215,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 page.waitForNavigation({ waitUntil: ['networkidle2'] }),
             ]);
 
-            await page.waitForTimeout(options.pagewait * 1000);
+            await sleep(options.pagewait * 1000);
             await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-1.png` });
 
             // Enter credentials
@@ -226,7 +247,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 }),
                 page.waitForNavigation({ waitUntil: 'networkidle2' }),
             ]);
-            await page.waitForTimeout(options.pagewait * 1000);
+            await sleep(options.pagewait * 1000);
 
             // Take screenshot of app overview page
             await page.screenshot({ path: `${imgDir}/cloud/${appId}/overview-1.png` });

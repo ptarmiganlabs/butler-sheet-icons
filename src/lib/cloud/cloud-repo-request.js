@@ -41,15 +41,33 @@ function bufferToStream(buffer) {
 async function makeRequest(config, data = []) {
     let returnData = [...data];
 
-    await axios(config).then(async (d) => {
-        if (d.data.data) returnData = [...returnData, ...d.data.data];
-        if (!d.data.data) returnData = { data: d.data, status: d.status };
+    try {
+        const response = await axios(config);
+        if (response.data.data) returnData = [...returnData, ...response.data.data];
+        if (!response.data.data) returnData = { data: response.data, status: response.status };
 
-        if (d.data.links && (d.data.links.next || d.data.links.Next)) {
-            config.url = d.data.links.next.href ? d.data.links.next.href : d.data.links.Next.Href;
+        if (response.data.links && (response.data.links.next || response.data.links.Next)) {
+            config.url = response.data.links.next.href
+                ? response.data.links.next.href
+                : response.data.links.Next.Href;
             return makeRequest(config, returnData);
         }
-    });
+    } catch (e) {
+        throw Error({
+            message: 'Error in request to Qlik Cloud',
+        });
+    }
+
+    // Original code:
+    // await axios(config).then(async (d) => {
+    //     if (d.data.data) returnData = [...returnData, ...d.data.data];
+    //     if (!d.data.data) returnData = { data: d.data, status: d.status };
+
+    //     if (d.data.links && (d.data.links.next || d.data.links.Next)) {
+    //         config.url = d.data.links.next.href ? d.data.links.next.href : d.data.links.Next.Href;
+    //         return makeRequest(config, returnData);
+    //     }
+    // });
 
     return returnData;
 }

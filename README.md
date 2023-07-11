@@ -40,7 +40,7 @@ Butler Sheet Icons is an open source project sponsored by Ptarmigan Labs.
 
 For support and services relating to the Butler family of tools or Qlik Sense projects in general, please contact info -at- ptarmiganlanbs -dot- com.
 
-Or [sign up to the newsletter](https://info.ptarmiganlabs.com/g3c1f1) to get the latest Qlik Sense superpower updates in your inbox!
+Or [sign up to the newsletter](https://ptarmiganlabs.com/#/portal/signup) to get the latest Qlik Sense superpower updates straight to your inbox!
 
 ---
 
@@ -70,6 +70,7 @@ Table of contents
     - [Excluding sheets](#excluding-sheets)
     - [Screen shots taken by Butler Sheet Icons](#screen-shots-taken-by-butler-sheet-icons)
     - [Headless browser](#headless-browser)
+    - [Downloading browser](#downloading-browser)
   - [Concepts specific to QS Cloud](#concepts-specific-to-qs-cloud)
   - [Concepts specific to client-managed QS (QSEoW)](#concepts-specific-to-client-managed-qs-qseow)
     - [Which Sense version is server using](#which-sense-version-is-server-using)
@@ -409,6 +410,30 @@ img
 The `--headless` takes either `true` or `false` as a value (`true` is default).
 
 Running "headless" means the browser is not visible on screen. It's running in the background, but isn't visible. Running headless is the normal way to use Butler Sheet Icons, but showing the embedded browser (i.e. using `--headless false`) can be useful to debug issues. Being able to see what happens on-screen when BSI is trying to create screen shots can be absolutely necessary to understand what's going on.
+
+### Downloading browser
+
+When running Butler Sheet Icons for the first time, a web browser needs to be downloaded.  
+This is done automatically by Butler Sheet Icons.
+
+The browser is then used by Butler Sheet Icons to access the Qlik Sense application and to take screen shots of the sheets.
+
+If you are behind a proxy server and cannot access the Internet directly, you need to specify the proxy server to use.
+This can be done using environment variables `http_proxy`and `https_proxy`.
+
+Example (on Windows/PowerShell):
+
+```powershell
+$env:http_proxy='http://username:password@proxy.example.com:port'
+$env:https_proxy='http://username:password@proxy.example.com:port'
+```
+
+Example (on Linux/macOS):
+
+```bash
+export http_proxy='http://username:password@proxy.example.com:port'
+export https_proxy='http://username:password@proxy.example.com:port'
+```
 
 ## Concepts specific to QS Cloud
 
@@ -771,14 +796,16 @@ Note: The command above assumes the certificates exported from QSEoW are availab
 
 | Version | Tested date | Comment |
 |---------|-------------|---------|
-| 2022-May IR | 2022-Sep-30 | Use `--sense-version pre-2022-Nov` |
-| 2022-Aug patch 5 | 2023-Jan-2 | Use `--sense-version pre-2022-Nov` |
+| 2023-May IR | 2023-July-7 | Use `--sense-version 2023-May` |
 | 2022-Nov patch 2 | 2023-Jan-3 | Use `--sense-version 2022-Nov` |
+| 2022-Aug patch 5 | 2023-Jan-2 | Use `--sense-version pre-2022-Nov` |
+| 2022-May IR | 2022-Sep-30 | Use `--sense-version pre-2022-Nov` |
 
 ## Qlik Sense cloud
 
 | Tested date | Comment |
 |-------------|---------|
+| 2023-July-9  | Works without issues |
 | 2023-Jan-3  | Works without issues |
 | 2022-Sep-30 | Works without issues |
 
