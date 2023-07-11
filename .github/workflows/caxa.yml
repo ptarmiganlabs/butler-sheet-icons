@@ -1,3 +1,5 @@
+name: Build binaries
+
 on: push
 jobs:
   insiders-build:
@@ -13,8 +15,51 @@ jobs:
             build: |
               npx caxa --input "src" --output "butler-sheet-icons" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/butler-sheet-icons.js"
               chmod +x "butler-sheet-icons"
-              tar -czf "butler-sheet-icons--macos--${{ github.sha }}.app.tgz" "butler-sheet-icons"
-            artifact: butler-sheet-icons--macos--${{ github.sha }}.app.tgz
+              security delete-keychain build.keychain || true
+
+              pwd
+              ls -la
+
+              # Turn our base64-encoded certificate back to a regular .p12 file
+              
+              echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+
+              # We need to create a new keychain, otherwise using the certificate will prompt
+              # with a UI dialog asking for the certificate password, which we can't
+              # use in a headless CI environment
+              
+              security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+              security list-keychains -d user -s build.keychain
+              security default-keychain -d user -s build.keychain
+              security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+              security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+              security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          
+              codesign --force -s "$MACOS_CERTIFICATE_NAME" -v ./${{ env.DIST_FILE_NAME }} --deep --strict --options=runtime --timestamp --entitlements ./release-config/butler-sheet-icons.entitlements
+
+              # Notarize
+              # Store the notarization credentials so that we can prevent a UI password dialog from blocking the CI
+
+              echo "Create keychain profile"
+              xcrun notarytool store-credentials "notarytool-profile" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" --password "$PROD_MACOS_NOTARIZATION_PWD"
+
+              # We can't notarize an app bundle directly, but we need to compress it as an archive.
+              # Therefore, we create a zip file containing our app bundle, so that we can send it to the
+              # notarization service
+
+              echo "Creating temp notarization archive"
+              ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos--${{ github.sha }}.zip"
+
+              # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
+              # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
+              # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
+              # you're curious
+
+              echo "Notarize app"
+              xcrun notarytool submit "./${DIST_FILE_NAME}--macos--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
+
+              # tar -czf "butler-sheet-icons--macos--${{ github.sha }}.tgz" "butler-sheet-icons"
+            artifact: ./${DIST_FILE_NAME}--macos--${{ github.sha }}.zip
           - os: ubuntu-latest
             build: |
               npx caxa --input "src" --output "butler-sheet-icons" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/butler-sheet-icons.js"
@@ -22,6 +67,17 @@ jobs:
               tar -czf "butler-sheet-icons--linux--${{ github.sha }}.tgz" "butler-sheet-icons"
             artifact: butler-sheet-icons--linux--${{ github.sha }}.tgz
     runs-on: ${{ matrix.os }}
+    env:
+      DIST_FILE_NAME: butler-sheet-icons     
+      GITHUB_TOKEN: ${{ secrets.PAT }}
+      MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
+      MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
+      MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
+      MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+      PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
+      PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
+      PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -30,12 +86,14 @@ jobs:
         with:
           # node-version: 19
           node-version: lts/*
-      - run: |
+      - name: Create binaries
+        run: |
           cd src
           npm ci
           cd ..
           ${{ matrix.build }}
-      - uses: actions/upload-artifact@v2
+      - name: Upload artifacts to GitHub
+        uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
