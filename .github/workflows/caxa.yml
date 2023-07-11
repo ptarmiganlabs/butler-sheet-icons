@@ -21,7 +21,7 @@ jobs:
             artifact: butler-sheet-icons--linux--${{ github.sha }}.tgz
     runs-on: ${{ matrix.os }}-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - uses: actions/setup-node@v1
         with:
           node-version: 19
