@@ -35,7 +35,7 @@ jobs:
               security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
               security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
           
-              codesign --force -s "$MACOS_CERTIFICATE_NAME" -v ./${{ env.DIST_FILE_NAME }} --deep --strict --options=runtime --timestamp --entitlements ./release-config/butler-sheet-icons.entitlements
+              codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/butler-sheet-icons.entitlements
 
               # Notarize
               # Store the notarization credentials so that we can prevent a UI password dialog from blocking the CI
