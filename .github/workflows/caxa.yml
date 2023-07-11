@@ -5,16 +5,16 @@ jobs:
       matrix:
         os: [winsrv-2016, mac-build1, ubuntu-latest]
         include:
-          - os: windows
+          - os: winsrv-2016
             build: |
               npx caxa --input "src" --output "butler-sheet-icons--windows--${{ github.sha }}.exe" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/butler-sheet-icons.js"
             artifact: butler-sheet-icons--windows--${{ github.sha }}.exe
-          - os: macos
+          - os: mac-build1
             build: |
               npx caxa --input "src" --output "butler-sheet-icons.app" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/butler-sheet-icons.js"
               tar -czf "butler-sheet-icons--macos--${{ github.sha }}.app.tgz" "butler-sheet-icons"
             artifact: butler-sheet-icons--macos--${{ github.sha }}.app.tgz
-          - os: ubuntu
+          - os: ubuntu-latest
             build: |
               npx caxa --input "src" --output "butler-sheet-icons" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/butler-sheet-icons.js"
               tar -czf "butler-sheet-icons--linux--${{ github.sha }}.tgz" "butler-sheet-icons"
