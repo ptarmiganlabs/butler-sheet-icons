@@ -3,7 +3,7 @@ jobs:
   insiders-build:
     strategy:
       matrix:
-        os: [windows, macos, ubuntu]
+        os: [winsrv-2016, mac-build1, ubuntu-latest]
         include:
           - os: windows
             build: |
@@ -19,7 +19,7 @@ jobs:
               npx caxa --input "src" --output "butler-sheet-icons" -- "{{caxa}}/node_modules/.bin/node" "{{caxa}}/butler-sheet-icons.js"
               tar -czf "butler-sheet-icons--linux--${{ github.sha }}.tgz" "butler-sheet-icons"
             artifact: butler-sheet-icons--linux--${{ github.sha }}.tgz
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-node@v1
