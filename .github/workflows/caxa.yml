@@ -28,6 +28,7 @@ jobs:
       - run: |
           cd src
           npm ci
+          cd ..
           ${{ matrix.build }}
       - uses: actions/upload-artifact@v2
         with:
