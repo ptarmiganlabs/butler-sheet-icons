@@ -206,7 +206,6 @@ const processQSEoWApp = async (appId, g, options) => {
                     '--enable-features=NetworkService',
                 ],
             });
-            console.log('A6');
 
             const page = await browser.newPage();
 
@@ -219,7 +218,6 @@ const processQSEoWApp = async (appId, g, options) => {
 
             let appUrl = '';
             let hubUrl = '';
-            console.log('A7');
 
             if (options.secure === 'true' || options.secure === true) {
                 appUrl = 'https://';
@@ -238,17 +236,14 @@ const processQSEoWApp = async (appId, g, options) => {
 
             logger.debug(`App URL: ${appUrl}`);
             logger.debug(`Hub URL: ${hubUrl}`);
-            console.log('A8');
 
             await Promise.all([
                 page.goto(appUrl),
                 page.waitForNavigation({ waitUntil: ['networkidle2'] }),
             ]);
-            console.log('A9');
 
             await sleep(options.pagewait * 1000);
             await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-1.png` });
-            console.log('A10');
 
             // Enter credentials
             // User
@@ -257,12 +252,10 @@ const processQSEoWApp = async (appId, g, options) => {
                 clickCount: 1,
                 delay: 10,
             });
-            console.log('A11');
 
             const user = `${options.logonuserdir}\\${options.logonuserid}`;
             await page.keyboard.type(user);
 
-            console.log('A12');
             // Pwd
             await page.click(selectorLoginPageUserPwd, {
                 button: 'left',
@@ -270,7 +263,6 @@ const processQSEoWApp = async (appId, g, options) => {
                 delay: 10,
             });
             await page.keyboard.type(options.logonpwd);
-            console.log('A13');
 
             await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-2.png` });
 
@@ -283,7 +275,6 @@ const processQSEoWApp = async (appId, g, options) => {
                 }),
                 page.waitForNavigation({ waitUntil: 'networkidle2' }),
             ]);
-            console.log('A14');
 
             await sleep(options.pagewait * 1000);
 
@@ -296,7 +287,6 @@ const processQSEoWApp = async (appId, g, options) => {
                 if (sheet1.qData.rank > sheet2.qData.rank) return 1;
                 return 0;
             });
-            console.log('A15');
 
             // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
