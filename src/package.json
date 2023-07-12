@@ -19,7 +19,7 @@
   ],
   "dependencies": {
     "@puppeteer/browsers": "^1.4.3",
-    "axios": "^0.27.2",
+    "axios": "^1.4.0",
     "commander": "^11.0.0",
     "enigma.js": "^2.11.0",
     "esbuild": "0.18.11",
@@ -54,7 +54,8 @@
   },
   "pkg": {
     "assets": [
-      "node_modules/vm2/**/*"
+      "node_modules/vm2/**/*",
+      "node_modules/axios/**/*"
     ],
     "scripts": [
       "node_modules/enigma.js/**/*.json"

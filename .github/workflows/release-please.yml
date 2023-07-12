@@ -15,14 +15,14 @@ jobs:
           - os: winsrv-2016
             build: |
               cd src
-              ./node_modules/.bin/esbuild $env:DIST_FILE_NAME.js --bundle --external:vm2 --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
+              ./node_modules/.bin/esbuild $env:DIST_FILE_NAME.js --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
               pkg --output "../$env:DIST_FILE_NAME--windows--${{ github.sha }}.exe" -t node18-win-x64 ./build.cjs --config package.json --compress GZip
               dir
             artifact: butler-sheet-icons--windows--${{ github.sha }}.exe
           - os: mac-build1
             build: |
               cd src
-              ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
+              ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
               pkg --output "../${DIST_FILE_NAME}" -t node18-macos-x64 ./build.cjs --config package.json --compress GZip
 
               cd ..
@@ -77,7 +77,7 @@ jobs:
           - os: ubuntu-latest
             build: |
               cd src
-              ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
+              ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
               pkg --output "../${DIST_FILE_NAME}" -t node18-linux-x64 ./build.cjs --config package.json --compress GZip
 
               cd ..
