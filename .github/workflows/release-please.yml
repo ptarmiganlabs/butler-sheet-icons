@@ -89,6 +89,11 @@ jobs:
         with:
           # node-version: 19
           node-version: lts/*
+
+      - name: Install tool for creating stand-alone executables
+        run: |
+          npm install -g pkg
+
       - name: Create binaries
         env:
           DIST_FILE_NAME: butler-sheet-icons     
