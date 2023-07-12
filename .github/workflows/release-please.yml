@@ -28,7 +28,7 @@ jobs:
               }
               Compress-Archive @compress
               dir
-            artifact: butler-sheet-icons.exe
+            artifact: butler-sheet-icons--win-x64--${{ github.sha }}.zip
           - os: mac-build1
             build: |
               cd src
