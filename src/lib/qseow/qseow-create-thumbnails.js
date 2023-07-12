@@ -162,40 +162,29 @@ const processQSEoWApp = async (appId, g, options) => {
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             let iSheetNum = 1;
-            let revisionInfo = '';
 
             // Download browser
             // https://github.com/vercel/pkg/issues/204#issuecomment-720996863
-            const chromePath = path.join(homedir(), '.cache/puppeteer');
-            logger.debug(`Path for Chromium: ${chromePath}`);
+            const browserPath = path.join(homedir(), '.cache/puppeteer');
+            logger.debug(`Browser path: ${browserPath}`);
 
-            // const browserFetcher = puppeteer.createBrowserFetcher({
-            //     path: chromePath,
-            // });
-
-            // const chromiumRevision = getChromiumRevision();
-
-            logger.info(`Downloading and installing Chrome...`);
-            // revisionInfo = await browserFetcher.download(chromiumRevision);
+            logger.info(`Downloading and installing browser...`);
 
             const browserInstall = await install({
                 browser: 'chrome',
                 buildId: '116.0.5840.0',
-                cacheDir: chromePath,
+                cacheDir: browserPath,
             });
 
-            logger.info(`Download done.`);
-
-            const chromiumExecutablePath = revisionInfo.executablePath;
+            logger.info(`Browser download done.`);
 
             const executablePath = computeExecutablePath({
                 browser: browserInstall.browser,
                 buildId: browserInstall.buildId,
-                cacheDir: chromePath,
+                cacheDir: browserPath,
             });
 
-            logger.verbose(`Using Chrome browser at ${executablePath}`);
-            console.log('A5');
+            logger.verbose(`Using browser at ${executablePath}`);
 
             const browser = await puppeteer.launch({
                 executablePath,

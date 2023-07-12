@@ -6,6 +6,7 @@ const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 const { homedir } = require('os');
+const { install, computeExecutablePath } = require('@puppeteer/browsers');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
 const {
@@ -156,29 +157,34 @@ const processCloudApp = async (appId, saasInstance, options) => {
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             let iSheetNum = 1;
-            let revisionInfo = '';
 
             // Download browser
             // https://github.com/vercel/pkg/issues/204#issuecomment-720996863
-            const chromePath = path.join(homedir(), '.cache/puppeteer');
-            logger.debug(`Path for Chromium: ${chromePath}`);
+            const browserPath = path.join(homedir(), '.cache/puppeteer');
+            logger.debug(`Browser path: ${browserPath}`);
 
-            const browserFetcher = puppeteer.createBrowserFetcher({
-                path: chromePath,
+            logger.info(`Downloading and installing browser...`);
+
+            const browserInstall = await install({
+                browser: 'chrome',
+                buildId: '116.0.5840.0',
+                cacheDir: browserPath,
             });
 
-            const chromiumRevision = getChromiumRevision();
+            logger.info(`Browser download done.`);
 
-            logger.info(`Downloading Chromium browser revision ${chromiumRevision}...`);
-            revisionInfo = await browserFetcher.download(chromiumRevision);
-            logger.info(`Download of Chromium done.`);
+            const executablePath = computeExecutablePath({
+                browser: browserInstall.browser,
+                buildId: browserInstall.buildId,
+                cacheDir: browserPath,
+            });
 
-            const chromiumExecutablePath = revisionInfo.executablePath;
-            logger.verbose(`Using Chromium browser at ${chromiumExecutablePath}`);
+            logger.verbose(`Using browser at ${executablePath}`);
 
             const browser = await puppeteer.launch({
-                headless: options.headless === true || options.headless.toLowerCase() === 'true',
-                executablePath: chromiumExecutablePath,
+                executablePath,
+                // headless: options.headless === true || options.headless.toLowerCase() === 'true',
+                headless: 'new',
                 ignoreHTTPSErrors: true,
                 acceptInsecureCerts: true,
                 args: [
