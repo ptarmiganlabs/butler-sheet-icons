@@ -140,18 +140,6 @@ jobs:
           - macos
 
     steps:
-      # - name: Send job status to MQTT (starting job)
-      #   uses: potaesm/github-actions-mqtt-request@1.0.0
-      #   if: always()
-      #   env:
-      #     JOB_CONCLUSION: ${{ job.status }}
-      #     NODE_VERSION: ${{ matrix.node }}
-      #   with:
-      #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
-      #     topic: control/sp53/mac-build1/action-runner
-      #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
-      #     connectTimeout: 30000
-
       - uses: actions/checkout@v3
 
       - name: Debugging 1
@@ -178,6 +166,7 @@ jobs:
         run: npm run test
         working-directory: src
         env:
+          BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
@@ -211,7 +200,7 @@ jobs:
 
   test-winsrv:
     needs: 
-      - insiders-build
+      - test-macos
     runs-on:
       - self-hosted
       - ${{ matrix.os }}
@@ -265,6 +254,7 @@ jobs:
         run: npm run test
         working-directory: src
         env:
+          BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
