@@ -108,7 +108,7 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        logger.error(`QSEoW APP: ${err}`);
+        logger.error(`QSEoW APP removeSheetIconsQSEoWApp: ${err}`);
     }
 };
 
