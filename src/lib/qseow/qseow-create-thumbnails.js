@@ -1,11 +1,13 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable import/extensions */
 const enigma = require('enigma.js');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
+// const puppeteer = require('puppeteer');
 const fs = require('fs');
 const qrsInteract = require('qrs-interact');
 const path = require('path');
 const { homedir } = require('os');
+const { install, computeExecutablePath } = require('@puppeteer/browsers');
 
 const { setupEnigmaConnection } = require('./qseow-enigma.js');
 const {
@@ -34,6 +36,10 @@ const xpathHubUserPageButton2022Nov =
     '//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button';
 const xpathLogoutButton2022Nov = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
+const xpathHubUserPageButton2023Feb =
+    '//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button/span/span';
+const xpathLogoutButton2023Feb = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[5]/span[2]';
+
 const xpathHubUserPageButton2023May =
     '//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
 const xpathLogoutButton2023May = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
@@ -56,6 +62,9 @@ const processQSEoWApp = async (appId, g, options) => {
     } else if (options.senseVersion === '2022-Nov') {
         xpathHubUserPageButton = xpathHubUserPageButton2022Nov;
         xpathLogoutButton = xpathLogoutButton2022Nov;
+    } else if (options.senseVersion === '2023-Feb') {
+        xpathHubUserPageButton = xpathHubUserPageButton2023Feb;
+        xpathLogoutButton = xpathLogoutButton2023Feb;
     } else if (options.senseVersion === '2023-May') {
         xpathHubUserPageButton = xpathHubUserPageButton2023May;
         xpathLogoutButton = xpathLogoutButton2023May;
@@ -160,22 +169,38 @@ const processQSEoWApp = async (appId, g, options) => {
             const chromePath = path.join(homedir(), '.cache/puppeteer');
             logger.debug(`Path for Chromium: ${chromePath}`);
 
-            const browserFetcher = puppeteer.createBrowserFetcher({
-                path: chromePath,
+            // const browserFetcher = puppeteer.createBrowserFetcher({
+            //     path: chromePath,
+            // });
+
+            // const chromiumRevision = getChromiumRevision();
+
+            logger.info(`Downloading and installing Chrome...`);
+            // revisionInfo = await browserFetcher.download(chromiumRevision);
+
+            const browserInstall = await install({
+                browser: 'chrome',
+                buildId: '116.0.5840.0',
+                cacheDir: chromePath,
             });
 
-            const chromiumRevision = getChromiumRevision();
-
-            logger.info(`Downloading Chromium browser revision ${chromiumRevision}...`);
-            revisionInfo = await browserFetcher.download(chromiumRevision);
             logger.info(`Download done.`);
 
             const chromiumExecutablePath = revisionInfo.executablePath;
-            logger.verbose(`Using Chromium browser at ${chromiumExecutablePath}`);
+
+            const executablePath = computeExecutablePath({
+                browser: browserInstall.browser,
+                buildId: browserInstall.buildId,
+                cacheDir: chromePath,
+            });
+
+            logger.verbose(`Using Chrome browser at ${executablePath}`);
+            console.log('A5');
 
             const browser = await puppeteer.launch({
-                headless: options.headless === true || options.headless.toLowerCase() === 'true',
-                executablePath: chromiumExecutablePath,
+                executablePath,
+                // headless: options.headless === true || options.headless.toLowerCase() === 'true',
+                headless: 'new',
                 ignoreHTTPSErrors: true,
                 acceptInsecureCerts: true,
                 args: [
@@ -192,6 +217,7 @@ const processQSEoWApp = async (appId, g, options) => {
                     '--enable-features=NetworkService',
                 ],
             });
+            console.log('A6');
 
             const page = await browser.newPage();
 
@@ -204,6 +230,7 @@ const processQSEoWApp = async (appId, g, options) => {
 
             let appUrl = '';
             let hubUrl = '';
+            console.log('A7');
 
             if (options.secure === 'true' || options.secure === true) {
                 appUrl = 'https://';
@@ -222,14 +249,17 @@ const processQSEoWApp = async (appId, g, options) => {
 
             logger.debug(`App URL: ${appUrl}`);
             logger.debug(`Hub URL: ${hubUrl}`);
+            console.log('A8');
 
             await Promise.all([
                 page.goto(appUrl),
                 page.waitForNavigation({ waitUntil: ['networkidle2'] }),
             ]);
+            console.log('A9');
 
             await sleep(options.pagewait * 1000);
             await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-1.png` });
+            console.log('A10');
 
             // Enter credentials
             // User
@@ -238,10 +268,12 @@ const processQSEoWApp = async (appId, g, options) => {
                 clickCount: 1,
                 delay: 10,
             });
+            console.log('A11');
 
             const user = `${options.logonuserdir}\\${options.logonuserid}`;
             await page.keyboard.type(user);
 
+            console.log('A12');
             // Pwd
             await page.click(selectorLoginPageUserPwd, {
                 button: 'left',
@@ -249,6 +281,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 delay: 10,
             });
             await page.keyboard.type(options.logonpwd);
+            console.log('A13');
 
             await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-2.png` });
 
@@ -261,6 +294,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 }),
                 page.waitForNavigation({ waitUntil: 'networkidle2' }),
             ]);
+            console.log('A14');
 
             await sleep(options.pagewait * 1000);
 
@@ -273,6 +307,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 if (sheet1.qData.rank > sheet2.qData.rank) return 1;
                 return 0;
             });
+            console.log('A15');
 
             // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
@@ -449,7 +484,7 @@ const processQSEoWApp = async (appId, g, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        logger.error(`QSEoW APP: ${err}`);
+        logger.error(`QSEoW APP processQSEoWApp: ${err}`);
     }
 };
 
