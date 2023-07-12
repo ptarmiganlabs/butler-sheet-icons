@@ -92,7 +92,7 @@ jobs:
           cd ..
           ${{ matrix.build }}
       - name: Upload artifacts to GitHub
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.artifact }}
