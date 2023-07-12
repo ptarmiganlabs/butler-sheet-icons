@@ -41,7 +41,7 @@
   "devDependencies": {
     "esbuild": "0.18.11",
     "jest": "^29.6.1",
-    "prettier": "^2.8.7",
+    "prettier": "^3.0.0",
     "snyk": "^1.1187.0"
   },
   "repository": {
