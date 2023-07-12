@@ -117,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          path: src/${{ matrix.artifact }}
 
   test-macos:
     needs: 
