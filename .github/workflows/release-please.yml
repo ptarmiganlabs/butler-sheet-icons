@@ -17,7 +17,7 @@ jobs:
               cd src
               ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js --bundle --external:vm2 --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
               pkg --output "${DIST_FILE_NAME}--windows--${{ github.sha }}.exe" -t node18-win-x64 ./build.cjs --config package.json --compress GZip
-            artifact: ${DIST_FILE_NAME}--windows--${{ github.sha }}.exe
+            artifact: ${{ env.DIST_FILE_NAME }}--windows--${{ github.sha }}.exe
           - os: mac-build1
             build: |
               cd src
@@ -69,7 +69,7 @@ jobs:
               xcrun notarytool submit "./${DIST_FILE_NAME}--macos--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
 
               # tar -czf "butler-sheet-icons--macos--${{ github.sha }}.tgz" "butler-sheet-icons"
-            artifact: ./${DIST_FILE_NAME}--macos--${{ github.sha }}.zip
+            artifact: ./${{ env.DIST_FILE_NAME }}--macos--${{ github.sha }}.zip
           - os: ubuntu-latest
             build: |
               cd src
@@ -79,7 +79,7 @@ jobs:
               chmod +x "${DIST_FILE_NAME}"
 
               tar -czf "${DIST_FILE_NAME}--linux--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
-            artifact: ${DIST_FILE_NAME}--linux--${{ github.sha }}.tgz
+            artifact: ./${{ env.DIST_FILE_NAME }}--linux--${{ github.sha }}.tgz
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
