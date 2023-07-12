@@ -124,7 +124,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
         const app = await global.openDoc(appId, '', '', '', false);
         logger.info(`Opened app ${appId}`);
-        logger.info(`App name: "${appMetadata.attributes.name}`);
+        logger.info(`App name: "${appMetadata.attributes.name}"`);
         logger.info(`App is published: ${appMetadata.attributes.published}`);
 
         // Get list of app sheets
