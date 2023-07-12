@@ -1,7 +1,8 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable import/extensions */
 const enigma = require('enigma.js');
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-core');
+// const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const { homedir } = require('os');
