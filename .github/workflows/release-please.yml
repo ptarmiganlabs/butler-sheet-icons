@@ -101,7 +101,8 @@ jobs:
               # xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
 
               ls -la
-            artifact_release: butler-sheet-icons--macos
+            artifact_release_name: release-binaries-macos
+            artifact_release_path: release-binaries-macos/*
             artifact_insider: butler-sheet-icons--macos-x64--${{ github.sha }}.zip
           - os: ubuntu-latest
             build: |
@@ -187,14 +188,12 @@ jobs:
         with:
           name: ${{ matrix.artifact_release_name }}
           path: ${{ matrix.artifact_release_path }}
-          retention-days: 7
 
       - name: Upload insider build artifacts to GitHub
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.artifact_insider }}
           path: ${{ matrix.artifact_insider }}
-          retention-days: 7
 
   test-macos:
     needs: 
