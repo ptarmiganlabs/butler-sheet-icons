@@ -1,6 +1,6 @@
 {
   "last-release-sha": "cbe2bc5269e92d18a6a17608b7c50da7f408ecc0",
-  "release-as": "3.0.1",
+  "release-as": "3.1.0",
   "release-type": "node",
   "draft": true,
   "changelog-sections": [

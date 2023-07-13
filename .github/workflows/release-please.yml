@@ -19,6 +19,17 @@ jobs:
               pkg --output "../${env:DIST_FILE_NAME}.exe" -t node18-win-x64 ./build.cjs --config package.json --compress GZip
               dir
 
+              # Sign the executable
+              New-Item -ItemType directory -Path certificate
+              Set-Content -Path certificate\certificate.txt -Value $env:CODESIGN_BASE64
+              certutil -decode certificate\certificate.txt certificate\certificate.pfx
+              Set-Content -Path certificate\intermediate.txt -Value $env:CODESIGN_INTERMEDIATE_BASE64
+              certutil -decode certificate\intermediate.txt certificate\intermediate.crt
+
+              & 'C:\Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe' sign /fd SHA256 /p $env:CODESIGN_PWD /ac certificate\intermediate.crt /f certificate\certificate.pfx /tr "http://timestamp.sectigo.com/rfc3161" /td sha256 ${env:DIST_FILE_NAME}.exe
+              
+              Remove-Item -Recurse -Force certificate
+
               cd ..
               dir
               $compress = @{
@@ -28,7 +39,8 @@ jobs:
               }
               Compress-Archive @compress
               dir
-            artifact: butler-sheet-icons--win-x64--${{ github.sha }}.zip
+            artifact_release: butler-sheet-icons.exe
+            artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
           - os: mac-build1
             build: |
               cd src
@@ -69,21 +81,28 @@ jobs:
               # Therefore, we create a zip file containing our app bundle, so that we can send it to the
               # notarization service
 
-              echo "Creating temp notarization archive"
-              ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos--${{ github.sha }}.zip"
+              # -- Notarize release binary
+              echo "Creating temp notarization archive for release build"
+              ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}.zip"
 
               # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
               # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
               # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
               # you're curious
-
               echo "Notarize app"
-              xcrun notarytool submit "./${DIST_FILE_NAME}--macos--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
+              xcrun notarytool submit "./${DIST_FILE_NAME}.zip" --keychain-profile "notarytool-profile" --wait
+
+
+              # -- Notarize insider binary
+              # echo "Creating temp notarization archive for insider build"
+              # ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip"
+
+              # echo "Notarize app"
+              # xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
 
               ls -la
-
-              # tar -czf "butler-sheet-icons--macos--${{ github.sha }}.tgz" "butler-sheet-icons"
-            artifact: butler-sheet-icons--macos--${{ github.sha }}.zip
+            artifact_release: butler-sheet-icons--macos
+            artifact_insider: butler-sheet-icons--macos-x64--${{ github.sha }}.zip
           - os: ubuntu-latest
             build: |
               cd src
@@ -93,22 +112,52 @@ jobs:
               cd ..
               chmod +x ${DIST_FILE_NAME}
 
-              tar -czf "${DIST_FILE_NAME}--linux--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
+              # Copy binary to release catalog              
+              mkdir release-binaries-linux
+              cp ${DIST_FILE_NAME} release-binaries-linux
+              ls -la release-binaries-linux
+
+              # Compress insider's build
+              tar -czf "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
               ls -la
-            artifact: butler-sheet-icons--linux--${{ github.sha }}.tgz
+
+            artifact_release_name: release-binaries-linux
+            artifact_release_path: release-binaries-linux/*
+            artifact_insider: butler-sheet-icons--linux-x64--${{ github.sha }}.tgz
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          # node-version: 19
           node-version: lts/*
 
       - name: Install tool for creating stand-alone executables
         run: |
           npm install pkg --location=global
+
+      - name: Install dependencies
+        run: |
+          pwd 
+          cd src
+          npm ci
+
+      - name: Run Snyk to check for vulnerabilities
+        if: github.repository_owner == 'ptarmiganlabs'
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=./src/package.json --sarif-file-output=snyk.sarif
+          # command: test
+          
+      - name: Upload Snyk result to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: snyk.sarif
 
       - name: Create binaries
         env:
@@ -121,16 +170,25 @@ jobs:
           PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
           PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
           PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
+          CODESIGN_PWD: ${{ secrets.WIN_CODESIGN_PWD}}
+          CODESIGN_INTERMEDIATE_BASE64: ${{ secrets.WIN_CODESIGN_INTERMEDIATE_BASE64 }}
+          CODESIGN_BASE64: ${{ secrets.WIN_CODESIGN_BASE64}}
         run: |
-          cd src
-          npm ci
-          cd ..
+          pwd
           ${{ matrix.build }}
-      - name: Upload artifacts to GitHub
+
+      - name: Upload release artifacts to GitHub
         uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          name: ${{ matrix.artifact_release_name }}
+          path: ${{ matrix.artifact_release_path }}
+          retention-days: 7
+
+      - name: Upload insider build artifacts to GitHub
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.artifact_insider }}
+          path: ${{ matrix.artifact_insider }}
           retention-days: 7
 
   test-macos:
@@ -298,368 +356,212 @@ jobs:
       #     connectTimeout: 30000
 
 
-  # release-please:
-  #   needs: 
-  #     - insiders-build
-  #     - test-winsrv
-  #     - test-macos
-  #     - test-linux
-  #   runs-on: ubuntu-latest
-  #   outputs:
-  #     releases_created: ${{ steps.release.outputs.releases_created }}
-  #     release_tag_name: ${{ steps.release.outputs['src--tag_name'] }}
-  #     release_upload_url: ${{ steps.release.outputs['src--upload_url'] }}
-  #   env:
-  #     GITHUB_REF: ${{ github.ref }}
-  #     GITHUB_TOKEN: ${{ secrets.PAT }}
-  #     DIST_FILE_NAME: butler-sheet-icons
-  #   steps:
-  #     - name: Show github.ref
-  #       run: echo "$GITHUB_REF"
+  release-please:
+    needs: 
+      - test-winsrv
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      release_tag_name: ${{ steps.release.outputs['src--tag_name'] }}
+      release_upload_url: ${{ steps.release.outputs['src--upload_url'] }}
+    env:
+      GITHUB_REF: ${{ github.ref }}
+      GITHUB_TOKEN: ${{ secrets.PAT }}
+      DIST_FILE_NAME: butler-sheet-icons
+    steps:
+      - name: Show github.ref
+        run: echo "$GITHUB_REF"
 
-  #     - uses: google-github-actions/release-please-action@v3
-  #       id: release
-  #       if: github.repository_owner == 'ptarmiganlabs'
-  #       with:
-  #         command: manifest
+      - uses: google-github-actions/release-please-action@v3
+        id: release
+        if: github.repository_owner == 'ptarmiganlabs'
+        with:
+          command: manifest
 
-  #     - name: Show output from Release-Please
-  #       if: always()
-  #       env:
-  #         RELEASE_PLEASE_OUTPUT: ${{ toJSON(steps.release.outputs) }}
-  #       run: echo "$RELEASE_PLEASE_OUTPUT"
+      - name: Show output from Release-Please
+        if: always()
+        env:
+          RELEASE_PLEASE_OUTPUT: ${{ toJSON(steps.release.outputs) }}
+        run: echo "$RELEASE_PLEASE_OUTPUT"
 
-  #     - name: Show output from Release-Please
-  #       # if: ${{ steps.release.outputs.releases_created }}
-  #       run: |
-  #         echo "releases_created: ${{ steps.release.outputs.releases_created }}"
-  #         echo "release_created : ${{ steps.release.outputs.release_created }}"
-  #         echo "draft           : ${{ steps.release.outputs['src--draft'] }}"
-  #         echo "path            : ${{ steps.release.outputs['src--path'] }}"
-  #         echo "upload_url      : ${{ steps.release.outputs['src--upload_url'] }}"
-  #         echo "html_url        : ${{ steps.release.outputs['src--html_url'] }}"
-  #         echo "tag_name        : ${{ steps.release.outputs['src--tag_name'] }}"
-  #         echo "version         : ${{ steps.release.outputs['src--version'] }}"
-  #         echo "major           : ${{ steps.release.outputs['src--major'] }}"
-  #         echo "minor           : ${{ steps.release.outputs['src--minor'] }}"
-  #         echo "patch           : ${{ steps.release.outputs['src--patch'] }}"
-  #         echo "sha             : ${{ steps.release.outputs['src--sha'] }}"
+      - name: Show output from Release-Please
+        # if: ${{ steps.release.outputs.releases_created }}
+        run: |
+          echo "releases_created: ${{ steps.release.outputs.releases_created }}"
+          echo "release_created : ${{ steps.release.outputs.release_created }}"
+          echo "draft           : ${{ steps.release.outputs['src--draft'] }}"
+          echo "path            : ${{ steps.release.outputs['src--path'] }}"
+          echo "upload_url      : ${{ steps.release.outputs['src--upload_url'] }}"
+          echo "html_url        : ${{ steps.release.outputs['src--html_url'] }}"
+          echo "tag_name        : ${{ steps.release.outputs['src--tag_name'] }}"
+          echo "version         : ${{ steps.release.outputs['src--version'] }}"
+          echo "major           : ${{ steps.release.outputs['src--major'] }}"
+          echo "minor           : ${{ steps.release.outputs['src--minor'] }}"
+          echo "patch           : ${{ steps.release.outputs['src--patch'] }}"
+          echo "sha             : ${{ steps.release.outputs['src--sha'] }}"
 
-  #     - name: Checkout repository
-  #       if: github.repository_owner == 'ptarmiganlabs'
-  #       uses: actions/checkout@v3
+  release-macos:
+    needs: release-please
+    runs-on:
+      - self-hosted
+      - x64
+      - macos
+      - sp53
+    # timeout-minutes: 15
 
-  #     - name: Install dependencies
-  #       run: |
-  #         pwd 
-  #         cd src
-  #         npm install
+    if: ${{ needs.release-please.outputs.releases_created }} 
+    env:
+      DIST_FILE_NAME: butler-sheet-icons
+    steps:
+      - name: Release tag and upload url from previous job
+        run: |
+          echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
+          echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
-  #     - name: Run Snyk to check for vulnerabilities
-  #       if: github.repository_owner == 'ptarmiganlabs'
-  #       uses: snyk/actions/node@master
-  #       continue-on-error: true
-  #       env:
-  #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-  #       with:
-  #         args: --file=./src/package.json --sarif-file-output=snyk.sarif
-  #         # command: test
-          
-  #     - name: Upload Snyk result to GitHub Code Scanning
-  #       uses: github/codeql-action/upload-sarif@v2
-  #       with:
-  #         sarif_file: snyk.sarif
+      - name: Download-Binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: release-binaries-macos
+          path: release-macos/
 
-  #     # - name: Install tool for creating stand-alone executables
-  #     #   if: ${{ steps.release.outputs.releases_created }}
-  #     #   run: |
-  #     #     npm install -g pkg
-  #     #     npm i -g @vercel/ncc
+      - name: Make binary executable
+        run: |
+          chmod +x release-macos/${DIST_FILE_NAME}
 
-  #     # - name: Package stand-alone binaries
-  #     #   if: ${{ steps.release.outputs.releases_created }}
-  #     #   run: |
-  #     #     pwd
-  #     #     cd src
-  #     #     ls -la
-  #     #     mkdir build
-  #     #     mkdir build/linux
-  #     #     mkdir build/macos
-  #     #     mkdir build/win
-  #     #     ncc build -o build/lib -e enigma.js ./butler-sheet-icons.js
-  #     #     pkg --output build/linux/${DIST_FILE_NAME} -t node16-linux-x64 ./build/lib/index.js --compress GZip
-  #     #     pkg --output build/macos/${DIST_FILE_NAME} -t node16-macos-x64 ./build/lib/index.js --compress GZip
-  #     #     pkg --output build/win/${DIST_FILE_NAME}.exe -t node16-win-x64 ./build/lib/index.js --compress GZip
+      - name: Debug
+        run: |
+          ls -la
+          ls -la ./release-macos
 
-  #     # - name: Debug
-  #     #   if: ${{ steps.release.outputs.releases_created }}
-  #     #   run: |
-  #     #     pwd
-  #     #     ls -la
-  #     #     ls -la src/build
-  #     #     ls -la src/build/macos
-  #     #     ls -la src/build/win
-  #     #     ls -la src/build/linux
-  #     #     mkdir ghaction-virustotal
+      - name: Change name of zip file
+        run: |
+          pwd
+          ls -la
+          ls -la ./release-macos
+          mv ./${{ env.DIST_FILE_NAME }}-macos.zip ./${{ needs.release-please.outputs.release_tag_name }}-macos.zip
 
-  #     - name: VirusTotal Scan
-  #       if: ${{ steps.release.outputs.src--release_created }}
-  #       uses: crazy-max/ghaction-virustotal@v3
-  #       with:
-  #         vt_api_key: ${{ secrets.VIRUSTOTAL_API_KEY }}
-  #         request_rate: 4
-  #         files: |
-  #           ./src/build/linux/*
-  #           ./src/build/macos/*
-  #           ./src/build/win/*
+      - name: Upload to existing release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          artifactContentType: raw
+          # artifactContentType: application/zip
+          draft: true
+          tag: ${{ needs.release-please.outputs.release_tag_name }}
+          artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-macos.zip
+          token: ${{ github.token }}
 
-  #     - name: Debug
-  #       if: ${{ steps.release.outputs.src--release_created }}
-  #       run: |
-  #         ls -la ghaction-virustotal
+      - name: Tidy up before existing
+        run: |
+          rm -r release-macos
 
-  #     - name: Upload Linux build artifacts
-  #       if: ${{ steps.release.outputs.src--release_created }}
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: binaries-linux
-  #         path: src/build/linux/*
+  release-win64:
+    needs: release-please
+    runs-on:
+      - self-hosted
+      - x64
+      - windows
+      - sp53
+    # timeout-minutes: 15
+    if: ${{ needs.release-please.outputs.releases_created }} 
+    env:
+      DIST_FILE_NAME: butler-sheet-icons
+    steps:
+      - name: Release tag and upload url from previous job
+        run: |
+          Write-Output 'tag_name        : ${{ needs.release-please.outputs.release_tag_name }}'
+          Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
 
-  #     - name: Upload macOS build artifacts
-  #       if: ${{ steps.release.outputs.src--release_created }}
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: binaries-macos
-  #         path: src/build/macos/*
+      - name: Download-Binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: release-binaries-win
+          path: release-win/
 
-  #     - name: Upload Windows build artifacts
-  #       if: ${{ steps.release.outputs.src--release_created }}
-  #       uses: actions/upload-artifact@v3
-  #       with:
-  #         name: binaries-win
-  #         path: src/build/win/*
+      - name: Zip into release asset
+        run: |
+          cd release-win
+          dir
+          $compress = @{
+            Path = "."
+            CompressionLevel = "Fastest"
+            DestinationPath = "${{ needs.release-please.outputs.release_tag_name }}-win.zip"
+          }
+          Compress-Archive @compress
 
-  # release-macos:
-  #   needs: release-please
-  #   runs-on:
-  #     - self-hosted
-  #     - x64
-  #     - macos
-  #     - sp53
-  #   # timeout-minutes: 15
+      - name: Debug
+        run: |
+          dir
+          dir ./release-win
 
-  #   if: ${{ needs.release-please.outputs.releases_created }} 
-  #   env:
-  #     DIST_FILE_NAME: butler-sheet-icons
-  #   steps:
-  #     - name: Release tag and upload url from previous job
-  #       run: |
-  #         echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
-  #         echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
+      - name: Upload to existing release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          artifactContentType: raw
+          # artifactContentType: application/zip
+          draft: true
+          tag: ${{ needs.release-please.outputs.release_tag_name }}
+          artifacts: release-win/${{ needs.release-please.outputs.release_tag_name }}-win.zip
+          token: ${{ github.token }}
 
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
+      - name: Tidy up before existing
+        run: |
+          dir
+          Remove-Item -path ./release-win -recurse 
 
-  #     - name: Setup node
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: lts/*
+  release-linux:
+    needs: release-please
+    runs-on: ubuntu-latest
+    # timeout-minutes: 15
 
-  #     - name: Download-Binaries
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: binaries-macos
-  #         path: release-macos/
+    if: ${{ needs.release-please.outputs.releases_created }} 
+    env:
+      DIST_FILE_NAME: butler-sheet-icons
+    steps:
+      - name: Release tag and upload url from previous job
+        run: |
+          echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
+          echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
-  #     - name: Make binary executable
-  #       run: |
-  #         chmod +x release-macos/${DIST_FILE_NAME}
+      - name: Download-Binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: release-binaries-linux
+          path: release-linux/
 
-  #     # Needed for GitHub hosted runner
-  #     # For self-hosted runner the cert must either be installed manually, or the code below run once and then disabled.
-  #     # - name: Import Code-Signing Certificates
-  #     #   uses: Apple-Actions/import-codesign-certs@v1
-  #     #   with:
-  #     #     # The certificates in a PKCS12 file encoded as a base64 string
-  #     #     p12-file-base64: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_P12_BASE64 }}
-  #     #     # The password used to import the PKCS12 file.
-  #     #     p12-password: ${{ secrets.APPLE_DEVELOPER_CERTIFICATE_PASSWORD }}
+      - name: Make binary executable
+        run: |
+          chmod +x release-linux/${DIST_FILE_NAME}
 
-  #     # - name: Install gon via HomeBrew for code signing and app notarization
-  #     #   run: |
-  #     #     brew tap mitchellh/gon
-  #     #     brew install mitchellh/gon/gon
+      - name: Compress into zip
+        run: |
+          ls -la
+          ls -la ./release-linux
+          zip -9 -r ./${{ needs.release-please.outputs.release_tag_name }}-linux.zip release-linux/
 
-  #     - name: Debug
-  #       run: |
-  #         ls -la
-  #         ls -la ./release-macos
+      - name: Debug
+        run: |
+          dir
+          dir ./release-linux
 
-  #     - name: Sign the mac binaries with Gon
-  #       env:
-  #         AC_USERNAME: ${{ secrets.AC_USERNAME }}
-  #         AC_PASSWORD: ${{ secrets.AC_PASSWORD }}
-  #       run: |
-  #         pwd
-  #         ls -la
-  #         gon ./release-config/gon.json
+      - name: Upload to existing release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          artifactContentType: raw
+          # artifactContentType: application/zip
+          draft: true
+          tag: ${{ needs.release-please.outputs.release_tag_name }}
+          artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-linux.zip
+          token: ${{ github.token }}
 
-  #     - name: Change name of zip file
-  #       run: |
-  #         pwd
-  #         ls -la
-  #         ls -la ./release-macos
-  #         mv ./${{ env.DIST_FILE_NAME }}-macos.zip ./${{ needs.release-please.outputs.release_tag_name }}-macos.zip
-
-  #     - name: Upload to existing release
-  #       uses: ncipollo/release-action@v1
-  #       with:
-  #         allowUpdates: true
-  #         omitBodyDuringUpdate: true
-  #         omitNameDuringUpdate: true
-  #         artifactContentType: raw
-  #         # artifactContentType: application/zip
-  #         draft: true
-  #         tag: ${{ needs.release-please.outputs.release_tag_name }}
-  #         artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-macos.zip
-  #         token: ${{ github.token }}
-
-  #     - name: Tidy up before existing
-  #       run: |
-  #         rm -r release-macos
-
-  # release-win64:
-  #   needs: release-please
-  #   runs-on:
-  #     - self-hosted
-  #     - x64
-  #     - windows
-  #     - sp53
-  #   # timeout-minutes: 15
-  #   if: ${{ needs.release-please.outputs.releases_created }} 
-  #   env:
-  #     DIST_FILE_NAME: butler-sheet-icons
-  #   steps:
-  #     - name: Release tag and upload url from previous job
-  #       run: |
-  #         Write-Output 'tag_name        : ${{ needs.release-please.outputs.release_tag_name }}'
-  #         Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
-
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-
-  #     - name: Setup node
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: lts/*
-
-  #     - name: Download-Binaries
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: binaries-win
-  #         path: release-win/
-
-  #     - name: Sign the executable
-  #       env:
-  #         CODESIGN_PWD: ${{ secrets.WIN_CODESIGN_PWD}}
-  #         CODESIGN_INTERMEDIATE_BASE64: ${{ secrets.WIN_CODESIGN_INTERMEDIATE_BASE64 }}
-  #         CODESIGN_BASE64: ${{ secrets.WIN_CODESIGN_BASE64}}
-  #       run: |
-  #         New-Item -ItemType directory -Path certificate
-  #         Set-Content -Path certificate\certificate.txt -Value $env:CODESIGN_BASE64
-  #         certutil -decode certificate\certificate.txt certificate\certificate.pfx
-  #         Set-Content -Path certificate\intermediate.txt -Value $env:CODESIGN_INTERMEDIATE_BASE64
-  #         certutil -decode certificate\intermediate.txt certificate\intermediate.crt
-
-  #         & 'C:\Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe' sign /fd SHA256 /p $env:CODESIGN_PWD /ac certificate\intermediate.crt /f certificate\certificate.pfx /tr "http://timestamp.sectigo.com/rfc3161" /td sha256 release-win/butler-sheet-icons.exe
-          
-  #         Remove-Item -Recurse -Force certificate
-
-  #     - name: Install dependencies, copy Chromium to release folder and zip into release asset
-  #       run: |
-  #         cd release-win
-  #         dir
-  #         $compress = @{
-  #           Path = "."
-  #           CompressionLevel = "Fastest"
-  #           DestinationPath = "${{ needs.release-please.outputs.release_tag_name }}-win.zip"
-  #         }
-  #         Compress-Archive @compress
-
-  #     - name: Debug
-  #       run: |
-  #         dir
-  #         dir ./release-win
-
-  #     - name: Upload to existing release
-  #       uses: ncipollo/release-action@v1
-  #       with:
-  #         allowUpdates: true
-  #         omitBodyDuringUpdate: true
-  #         omitNameDuringUpdate: true
-  #         artifactContentType: raw
-  #         # artifactContentType: application/zip
-  #         draft: true
-  #         tag: ${{ needs.release-please.outputs.release_tag_name }}
-  #         artifacts: release-win/${{ needs.release-please.outputs.release_tag_name }}-win.zip
-  #         token: ${{ github.token }}
-
-  #     - name: Tidy up before existing
-  #       run: |
-  #         dir
-  #         Remove-Item -path ./release-win -recurse 
-
-  # release-linux:
-  #   needs: release-please
-  #   runs-on: ubuntu-latest
-  #   # timeout-minutes: 15
-
-  #   if: ${{ needs.release-please.outputs.releases_created }} 
-  #   env:
-  #     DIST_FILE_NAME: butler-sheet-icons
-  #   steps:
-  #     - name: Release tag and upload url from previous job
-  #       run: |
-  #         echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
-  #         echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
-
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-
-  #     - name: Setup node
-  #       uses: actions/setup-node@v3
-  #       with:
-  #         node-version: lts/*
-
-  #     - name: Download-Binaries
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: binaries-linux
-  #         path: release-linux/
-
-  #     - name: Make binary executable
-  #       run: |
-  #         chmod +x release-linux/${DIST_FILE_NAME}
-
-  #     - name: Compress into zip
-  #       run: |
-  #         ls -la
-  #         ls -la ./release-linux
-  #         zip -9 -r ./${{ needs.release-please.outputs.release_tag_name }}-linux.zip release-linux/
-
-  #     - name: Upload to existing release
-  #       uses: ncipollo/release-action@v1
-  #       with:
-  #         allowUpdates: true
-  #         omitBodyDuringUpdate: true
-  #         omitNameDuringUpdate: true
-  #         artifactContentType: raw
-  #         # artifactContentType: application/zip
-  #         draft: true
-  #         tag: ${{ needs.release-please.outputs.release_tag_name }}
-  #         artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-linux.zip
-  #         token: ${{ github.token }}
-
-  #     - name: Tidy up before existing
-  #       run: |
-  #         rm -r release-linux
+      - name: Tidy up before existing
+        run: |
+          rm -r release-linux
