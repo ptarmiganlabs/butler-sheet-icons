@@ -95,18 +95,18 @@ jobs:
               # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
               # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
               # you're curious
-              echo "Notarize app"
+              echo "Notarize release app"
               xcrun notarytool submit "./${DIST_FILE_NAME}.zip" --keychain-profile "notarytool-profile" --wait
               mkdir release-binaries-macos
               mv "./${DIST_FILE_NAME}.zip" release-binaries-macos
 
 
               # -- Notarize insider binary
-              # echo "Creating temp notarization archive for insider build"
-              # ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip"
+              echo "Creating temp notarization archive for insider build"
+              ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip"
 
-              # echo "Notarize app"
-              # xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
+              echo "Notarize insuder app"
+              xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
 
               ls -la
             artifact_release_name: release-binaries-macos
