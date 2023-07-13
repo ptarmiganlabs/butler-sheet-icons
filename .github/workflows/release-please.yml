@@ -30,6 +30,11 @@ jobs:
               
               Remove-Item -Recurse -Force certificate
 
+              # Create release binary
+              mkdir release-binaries-win
+              cp ${env:DIST_FILE_NAME}.exe release-binaries-win
+
+              # Create insider's build zip
               cd ..
               dir
               $compress = @{
@@ -39,7 +44,8 @@ jobs:
               }
               Compress-Archive @compress
               dir
-            artifact_release: butler-sheet-icons.exe
+            artifact_release_name: release-binaries-win
+            artifact_release_path: release-binaries-win/*
             artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
           - os: mac-build1
             build: |
@@ -91,6 +97,8 @@ jobs:
               # you're curious
               echo "Notarize app"
               xcrun notarytool submit "./${DIST_FILE_NAME}.zip" --keychain-profile "notarytool-profile" --wait
+              mkdir release-binaries-macos
+              mv "./${DIST_FILE_NAME}.zip" release-binaries-macos
 
 
               # -- Notarize insider binary
