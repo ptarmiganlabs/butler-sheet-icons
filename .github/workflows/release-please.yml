@@ -32,7 +32,7 @@ jobs:
 
               # Create release binary
               mkdir release-binaries-win
-              cp ${env:DIST_FILE_NAME}.exe release-binaries-win
+              Copy-Item -Path "${env:DIST_FILE_NAME}.exe" -Destination "release-binaries-win\"
 
               # Create insider's build zip
               cd ..
