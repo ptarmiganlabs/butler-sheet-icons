@@ -40,12 +40,12 @@ jobs:
 
               Remove-Item -Recurse -Force certificate
 
-              # Create release binary
-              mkdir release-binaries-win
-              Copy-Item -Path ".\${env:DIST_FILE_NAME}.exe" -Destination "release-binaries-win\"
+              # # Create release binary
+              # mkdir release-binaries-win
+              # Copy-Item -Path ".\${env:DIST_FILE_NAME}.exe" -Destination "release-binaries-win\"
 
-              dir
-              dir release-binaries-win
+              # dir
+              # dir release-binaries-win
 
               # Create insider's build zip
               $compress = @{
@@ -54,9 +54,9 @@ jobs:
                 DestinationPath = "${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip"
               }
               Compress-Archive @compress
-              dir
-            artifact_release_name: release-binaries-win
-            artifact_release_path: release-binaries-win/*
+              # dir
+            # artifact_release_name: release-binaries-win
+            # artifact_release_path: release-binaries-win/*
             artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
           - os: mac-build1
             build: |
@@ -99,30 +99,19 @@ jobs:
               # Therefore, we create a zip file containing our app bundle, so that we can send it to the
               # notarization service
 
-              # -- Notarize release binary
-              echo "Creating temp notarization archive for release build"
-              ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}.zip"
+
+              # Notarize insider binary
+              echo "Creating temp notarization archive for insider build"
+              ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip"
 
               # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
               # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
               # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
               # you're curious
-              echo "Notarize release app"
-              xcrun notarytool submit "./${DIST_FILE_NAME}.zip" --keychain-profile "notarytool-profile" --wait
-              mkdir release-binaries-macos
-              mv "./${DIST_FILE_NAME}.zip" release-binaries-macos
-
-
-              # -- Notarize insider binary
-              echo "Creating temp notarization archive for insider build"
-              ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip"
-
               echo "Notarize insider app"
               xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
-
-              ls -la
-            artifact_release_name: release-binaries-macos
-            artifact_release_path: release-binaries-macos/*
+            # artifact_release_name: release-binaries-macos
+            # artifact_release_path: release-binaries-macos/*
             artifact_insider: butler-sheet-icons--macos-x64--${{ github.sha }}.zip
           - os: ubuntu-latest
             build: |
@@ -133,17 +122,17 @@ jobs:
               cd ..
               chmod +x ${DIST_FILE_NAME}
 
-              # Copy binary to release catalog              
-              mkdir release-binaries-linux
-              cp ${DIST_FILE_NAME} release-binaries-linux
-              ls -la release-binaries-linux
+              # # Copy binary to release catalog              
+              # mkdir release-binaries-linux
+              # cp ${DIST_FILE_NAME} release-binaries-linux
+              # ls -la release-binaries-linux
 
               # Compress insider's build
               tar -czf "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
               ls -la
 
-            artifact_release_name: release-binaries-linux
-            artifact_release_path: release-binaries-linux/*
+            # artifact_release_name: release-binaries-linux
+            # artifact_release_path: release-binaries-linux/*
             artifact_insider: butler-sheet-icons--linux-x64--${{ github.sha }}.tgz
     runs-on: ${{ matrix.os }}
     steps:
@@ -203,11 +192,11 @@ jobs:
           pwd
           ${{ matrix.build }}
 
-      - name: Upload release artifacts to GitHub
-        uses: actions/upload-artifact@v3
-        with:
-          name: ${{ matrix.artifact_release_name }}
-          path: ${{ matrix.artifact_release_path }}
+      # - name: Upload release artifacts to GitHub
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: ${{ matrix.artifact_release_name }}
+      #     path: ${{ matrix.artifact_release_path }}
 
       - name: Upload insider build artifacts to GitHub
         uses: actions/upload-artifact@v3
@@ -436,33 +425,88 @@ jobs:
     if: ${{ needs.release-please.outputs.releases_created }} 
     env:
       DIST_FILE_NAME: butler-sheet-icons
+      GITHUB_TOKEN: ${{ secrets.PAT }}
+      MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
+      MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
+      MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
+      MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+      PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
+      PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
+      PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}    
     steps:
       - name: Release tag and upload url from previous job
         run: |
           echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
-      - name: Download-Binaries
-        uses: actions/download-artifact@v3
-        with:
-          name: release-binaries-macos
-          path: release-macos/
-
-      - name: Make binary executable
-        run: |
-          chmod +x release-macos/${DIST_FILE_NAME}
-
-      - name: Debug
-        run: |
-          ls -la
-          ls -la ./release-macos
-
-      - name: Change name of zip file
+      - name: Build binaries
         run: |
           pwd
-          ls -la
-          ls -la ./release-macos
-          mv ./${{ env.DIST_FILE_NAME }}-macos.zip ./${{ needs.release-please.outputs.release_tag_name }}-macos.zip
+          cd src
+          ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
+          pkg --output "../${DIST_FILE_NAME}" -t node18-macos-x64 ./build.cjs --config package.json --compress GZip
+
+          cd ..
+          chmod +x "${DIST_FILE_NAME}"
+          security delete-keychain build.keychain || true
+
+          # Turn our base64-encoded certificate back to a regular .p12 file
+          
+          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+
+          # We need to create a new keychain, otherwise using the certificate will prompt
+          # with a UI dialog asking for the certificate password, which we can't
+          # use in a headless CI environment
+          
+          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security list-keychains -d user -s build.keychain
+          security default-keychain -d user -s build.keychain
+          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+      
+          codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
+
+
+          # We can't notarize an app bundle directly, but we need to compress it as an archive.
+          # Therefore, we create a zip file containing our app bundle, so that we can send it to the
+          # notarization service
+
+          # Notarize release binary
+          echo "Creating temp notarization archive for release binary"
+          # ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}.zip"
+          ditto -c -k --keepParent "./${DIST_FILE_NAME}" " ./${{ needs.release-please.outputs.release_tag_name }}-macos.zip"
+
+          # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
+          # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
+          # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
+          # you're curious
+          echo "Notarize release app"
+          xcrun notarytool submit "./${DIST_FILE_NAME}.zip" --keychain-profile "notarytool-profile" --wait
+          mkdir release-binaries-macos
+          mv "./${DIST_FILE_NAME}.zip" release-binaries-macos
+
+      # - name: Download-Binaries
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: release-binaries-macos
+      #     path: release-macos/
+
+      # - name: Make binary executable
+      #   run: |
+      #     chmod +x release-macos/${DIST_FILE_NAME}
+
+      # - name: Debug
+      #   run: |
+      #     ls -la
+      #     ls -la ./release-macos
+
+      # - name: Change name of zip file
+      #   run: |
+      #     pwd
+      #     ls -la
+      #     ls -la ./release-macos
+      #     mv ./${{ env.DIST_FILE_NAME }}-macos.zip ./${{ needs.release-please.outputs.release_tag_name }}-macos.zip
 
       - name: Upload to existing release
         uses: ncipollo/release-action@v1
@@ -492,33 +536,71 @@ jobs:
     if: ${{ needs.release-please.outputs.releases_created }} 
     env:
       DIST_FILE_NAME: butler-sheet-icons
+      GITHUB_TOKEN: ${{ secrets.PAT }}
+      CODESIGN_PWD: ${{ secrets.WIN_CODESIGN_PWD}}
+      CODESIGN_INTERMEDIATE_BASE64: ${{ secrets.WIN_CODESIGN_INTERMEDIATE_BASE64 }}
+      CODESIGN_BASE64: ${{ secrets.WIN_CODESIGN_BASE64}}
     steps:
       - name: Release tag and upload url from previous job
         run: |
           Write-Output 'tag_name        : ${{ needs.release-please.outputs.release_tag_name }}'
           Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
 
-      - name: Download-Binaries
-        uses: actions/download-artifact@v3
-        with:
-          name: release-binaries-win
-          path: release-win/
-
-      - name: Zip into release asset
+      - name: Build binaries
         run: |
-          cd release-win
-          dir
+          cd src
+          ./node_modules/.bin/esbuild "${env:DIST_FILE_NAME}.js" --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
+          pkg --output "../${env:DIST_FILE_NAME}.exe" -t node18-win-x64 ./build.cjs --config package.json --compress GZip
+
+          cd ..
+
+          # Sign the executable
+          New-Item -ItemType directory -Path certificate
+          Set-Content -Path certificate\certificate.txt -Value $env:CODESIGN_BASE64
+          certutil -decode certificate\certificate.txt certificate\certificate.pfx
+          Set-Content -Path certificate\intermediate.txt -Value $env:CODESIGN_INTERMEDIATE_BASE64
+          certutil -decode certificate\intermediate.txt certificate\intermediate.crt
+
+          $processOptions = @{
+            FilePath = "C:\Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe"
+            Wait = $true
+            ArgumentList = "sign", "/fd", "SHA256", "/p", "$env:CODESIGN_PWD", "/ac", "certificate\intermediate.crt", "/f", "certificate\certificate.pfx", "/tr", "http://timestamp.sectigo.com/rfc3161", "/td", "sha256", "./${env:DIST_FILE_NAME}.exe"
+            WorkingDirectory = "."
+            NoNewWindow = $true
+          }
+          Start-Process @processOptions
+
+          Remove-Item -Recurse -Force certificate
+
+          # Create release binary zip
           $compress = @{
-            Path = "."
+            Path = "./${env:DIST_FILE_NAME}.exe"
             CompressionLevel = "Fastest"
             DestinationPath = "${{ needs.release-please.outputs.release_tag_name }}-win.zip"
           }
           Compress-Archive @compress
 
-      - name: Debug
-        run: |
-          dir
-          dir ./release-win
+      # - name: Download-Binaries
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: release-binaries-win
+      #     path: release-win/
+
+      # - name: Zip into release asset
+      #   run: |
+      #     cd release-win
+      #     dir
+      #     $compress = @{
+      #       Path = "."
+      #       CompressionLevel = "Fastest"
+      #       DestinationPath = "${{ needs.release-please.outputs.release_tag_name }}-win.zip"
+      #     }
+      #     Compress-Archive @compress
+
+      # - name: Debug
+      #   run: |
+      #     dir
+      #     dir ./release-win
 
       - name: Upload to existing release
         uses: ncipollo/release-action@v1
@@ -530,7 +612,7 @@ jobs:
           # artifactContentType: application/zip
           draft: true
           tag: ${{ needs.release-please.outputs.release_tag_name }}
-          artifacts: release-win/${{ needs.release-please.outputs.release_tag_name }}-win.zip
+          artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-win.zip
           token: ${{ github.token }}
 
       - name: Tidy up before existing
@@ -546,27 +628,40 @@ jobs:
     if: ${{ needs.release-please.outputs.releases_created }} 
     env:
       DIST_FILE_NAME: butler-sheet-icons
+      GITHUB_TOKEN: ${{ secrets.PAT }}
     steps:
       - name: Release tag and upload url from previous job
         run: |
           echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
-      - name: Download-Binaries
-        uses: actions/download-artifact@v3
-        with:
-          name: release-binaries-linux
-          path: release-linux/
+      - name: Build binaries
+        run: |
+          cd src
+          ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
+          pkg --output "../${DIST_FILE_NAME}" -t node18-linux-x64 ./build.cjs --config package.json --compress GZip
+
+          cd ..
+          chmod +x ${DIST_FILE_NAME}
+
+          # Compresse release binary
+          # tar -czf "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
+          # ls -la
+
+      # - name: Download-Binaries
+      #   uses: actions/download-artifact@v3
+      #   with:
+      #     name: release-binaries-linux
+      #     path: release-linux/
 
       - name: Make binary executable
         run: |
-          chmod +x release-linux/${DIST_FILE_NAME}
+          chmod +x ./${DIST_FILE_NAME}
 
-      - name: Compress into zip
+      - name: Compress release binary
         run: |
           ls -la
-          ls -la ./release-linux
-          zip -9 -r ./${{ needs.release-please.outputs.release_tag_name }}-linux.zip release-linux/
+          zip -9 -r ./${{ needs.release-please.outputs.release_tag_name }}-linux.zip ${DIST_FILE_NAME}
 
       - name: Debug
         run: |
