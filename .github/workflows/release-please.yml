@@ -88,6 +88,7 @@ jobs:
           
               codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
 
+
               # Notarize
               # Store the notarization credentials so that we can prevent a UI password dialog from blocking the CI
 
