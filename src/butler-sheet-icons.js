@@ -6,6 +6,7 @@ const { qseowRemoveSheetIcons } = require('./lib/qseow/qseow-remove-sheet-icons'
 const { qscloudCreateThumbnails } = require('./lib/cloud/cloud-create-thumbnails');
 const { qscloudListCollections } = require('./lib/cloud/cloud-collections');
 const { qscloudRemoveSheetIcons } = require('./lib/cloud/cloud-remove-sheet-icons');
+const { browserInstalled } = require('./lib/browser/browser-installed');
 
 const program = new Command();
 
@@ -337,7 +338,37 @@ const program = new Command();
 
         return cloud;
     }
+
+    // ------------------
+    // browser commands
+    function makeBrowserCommand() {
+        const browser = new Command('browser');
+
+        browser
+            .command('installed')
+            .description(
+                'Show which browsers are currently installed and available for use by Butler Sheet Icons.'
+            )
+            .action(async (options, command) => {
+                logger.verbose(`appid=${options.appid}`);
+                try {
+                    const res = await browserInstalled(options, command);
+                    logger.debug(`Call to browserInstalled succeeded: ${res}`);
+                } catch (err) {
+                    logger.error(`MAIN browser: ${err}`);
+                }
+            })
+            .addOption(
+                new Option('--loglevel <level>', 'log level')
+                    .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
+                    .default('info')
+            );
+
+        return browser;
+    }
+
     program.addCommand(makeCloudCommand());
+    program.addCommand(makeBrowserCommand());
 
     // Parse command line params
     await program.parseAsync(process.argv);
