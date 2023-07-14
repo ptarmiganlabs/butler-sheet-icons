@@ -22,7 +22,7 @@
     "axios": "^1.4.0",
     "commander": "^11.0.0",
     "enigma.js": "^2.11.0",
-    "esbuild": "0.18.11",
+    "esbuild": "^0.18.12",
     "eslint": "^8.45.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^8.8.0",
@@ -42,7 +42,7 @@
   "devDependencies": {
     "jest": "^29.6.1",
     "prettier": "^3.0.0",
-    "snyk": "^1.1187.0"
+    "snyk": "^1.1190.0"
   },
   "repository": {
     "type": "git",
