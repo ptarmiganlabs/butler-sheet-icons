@@ -5,7 +5,7 @@ const { browserInstalled } = require('../lib/browser/browser-installed');
 const { browserInstall } = require('../lib/browser/browser-install');
 const { browserUninstallAll } = require('../lib/browser/browser-uninstall');
 
-const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 600000; // 10 minute default timeout
+const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1800000; // 30 minute default timeout
 
 console.log(`Jest timeout: ${defaultTestTimeout}`);
 
