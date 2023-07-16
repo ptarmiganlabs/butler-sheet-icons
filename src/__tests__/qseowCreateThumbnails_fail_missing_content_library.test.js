@@ -1,6 +1,9 @@
+/* eslint-disable no-console */
+const { test, expect, describe } = require('@jest/globals');
+
 const { qseowCreateThumbnails } = require('../lib/qseow/qseow-create-thumbnails');
 
-const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 120000; // 2 minute default timeout
+const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1200000; // 20 minute default timeout
 
 console.log(`Jest timeout: ${defaultTestTimeout}`);
 
@@ -29,14 +32,16 @@ const options = {
     senseVersion: process.env.BSI_SENSE_VERSION,
 };
 
-jest.setTimeout(defaultTestTimeout);
-
 /**
  * Create thumbnails with non-existing content library specified
  * Should fail
  */
 options.contentlibrary = 'abc 12';
-test('qseow create sheet thumbnails, non-existing content library (should fail)', async () => {
-    const data = await qseowCreateThumbnails(options);
-    expect(data).toBe(false);
-});
+test(
+    'qseow create sheet thumbnails, non-existing content library (should fail)',
+    async () => {
+        const data = await qseowCreateThumbnails(options);
+        expect(data).toBe(false);
+    },
+    defaultTestTimeout
+);

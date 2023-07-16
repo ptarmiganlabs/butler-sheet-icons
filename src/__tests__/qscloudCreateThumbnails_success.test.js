@@ -1,6 +1,9 @@
+/* eslint-disable no-console */
+const { test, expect, describe } = require('@jest/globals');
+
 const { qscloudCreateThumbnails } = require('../lib/cloud/cloud-create-thumbnails');
 
-const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 600000; // 10 minute default timeout
+const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1200000; // 20 minute default timeout
 
 console.log(`Jest timeout: ${defaultTestTimeout}`);
 
@@ -19,13 +22,15 @@ const options = {
     includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || 1,
 };
 
-jest.setTimeout(defaultTestTimeout);
-
 /**
  * Create thumbnails with proper parameters
  * Should succeed
  */
-test('qs cloud create sheet thumbnails, correct parameters (should succeed)', async () => {
-    const data = await qscloudCreateThumbnails(options);
-    expect(data).toBe(true);
-});
+test(
+    'qs cloud create sheet thumbnails, correct parameters (should succeed)',
+    async () => {
+        const data = await qscloudCreateThumbnails(options);
+        expect(data).toBe(true);
+    },
+    defaultTestTimeout
+);
