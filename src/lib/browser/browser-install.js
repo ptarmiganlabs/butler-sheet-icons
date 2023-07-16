@@ -6,7 +6,7 @@ const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../glo
 
 /**
  * Install browser
- * Returns true if browser installed successfully
+ * Returns object with browser info if browser installed successfully
  * @param {object} options
  * @param {string} options.browser - Browser to install
  * @param {string} options.browserVersion - Browser version to install
@@ -52,7 +52,7 @@ const browserInstall = async (options, _command) => {
 
         logger.info(`Browser "${browser.browser}" version "${browser.buildId}" installed`);
 
-        return true;
+        return browser;
     } catch (err) {
         // Check if error is due to browser version missing
         if (err.message.includes('Download failed: server returned code 404.')) {
