@@ -7,6 +7,9 @@ const { qscloudCreateThumbnails } = require('./lib/cloud/cloud-create-thumbnails
 const { qscloudListCollections } = require('./lib/cloud/cloud-collections');
 const { qscloudRemoveSheetIcons } = require('./lib/cloud/cloud-remove-sheet-icons');
 const { browserInstalled } = require('./lib/browser/browser-installed');
+const { browserInstall } = require('./lib/browser/browser-install');
+const { browserUninstall, browserUninstallAll } = require('./lib/browser/browser-uninstall');
+const { browserListAvailable } = require('./lib/browser/browser-list-available');
 
 const program = new Command();
 
@@ -344,8 +347,9 @@ const program = new Command();
     function makeBrowserCommand() {
         const browser = new Command('browser');
 
+        // "installed" sub-command
         browser
-            .command('installed')
+            .command('list-installed')
             .description(
                 'Show which browsers are currently installed and available for use by Butler Sheet Icons.'
             )
@@ -355,7 +359,7 @@ const program = new Command();
                     const res = await browserInstalled(options, command);
                     logger.debug(`Call to browserInstalled succeeded: ${res}`);
                 } catch (err) {
-                    logger.error(`MAIN browser: ${err}`);
+                    logger.error(`MAIN browser installed: ${err}`);
                 }
             })
             .addOption(
@@ -364,6 +368,133 @@ const program = new Command();
                     .default('info')
             );
 
+        // uninstall sub-command
+        browser
+            .command('uninstall')
+            .description(
+                'Uninstall a browser from the Butler Sheet Icons cache.\nThis will remove the browser from the cache, but will not affect other browsers on this computer.\nUse the "butler-sheet-icons browser installed" command to see which browsers are currently installed.'
+            )
+            .action(async (options, command) => {
+                try {
+                    const res = await browserUninstall(options, command);
+                    logger.debug(`Call to browserUninstall succeeded: ${res}`);
+                } catch (err) {
+                    logger.error(`MAIN browser uninstall: ${err}`);
+                }
+            })
+            .addOption(
+                new Option('--loglevel <level>', 'log level')
+                    .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
+                    .default('info')
+            )
+            .requiredOption(
+                '--browser <browser>',
+                'Browser to uninstall (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser installed" to see which browsers are currently installed.',
+                'chrome'
+            )
+            .requiredOption(
+                '--browser-version <version>',
+                'Version (=build id) of the browser to uninstall. Use "butler-sheet-icons browser installed" to see which browsers are currently installed.'
+            );
+
+        // uninstall-all sub-command
+        browser
+            .command('uninstall-all')
+            .description(
+                'Uninstall all browsers from the Butler Sheet Icons cache.\nThis will remove all browsers from the cache, but will not affect other browsers on this computer.\nUse the "butler-sheet-icons browser installed" command to see which browsers are currently installed.'
+            )
+            .action(async (options, command) => {
+                try {
+                    const res = await browserUninstallAll(options, command);
+                    logger.debug(`Call to browserUninstallAll succeeded: ${res}`);
+                } catch (err) {
+                    logger.error(`MAIN browser uninstall-all: ${err}`);
+                }
+            })
+            .addOption(
+                new Option('--loglevel <level>', 'log level')
+                    .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
+                    .default('info')
+            );
+
+        // install sub-command
+        browser
+            .command('install')
+            .description(
+                'Install a browser into the Butler Sheet Icons cache.\nThis will download the browser and install it into the cache, where it can be used by Butler Sheet Icons.\nUse the "butler-sheet-icons browser installed" command to see which browsers are currently installed.'
+            )
+            .action(async (options, command) => {
+                try {
+                    // Set browser version per browser
+                    if (!options.browserVersion || options.browserVersion === '') {
+                        if (options.browser === 'chrome') {
+                            // eslint-disable-next-line no-param-reassign
+                            options.browserVersion = 'stable';
+                        } else if (options.browser === 'firefox') {
+                            // eslint-disable-next-line no-param-reassign
+                            options.browserVersion = 'latest';
+                        }
+                    }
+                    const res = await browserInstall(options, command);
+                    logger.debug(`Call to browserInstall succeeded: ${res}`);
+                } catch (err) {
+                    logger.error(`MAIN browser install: ${err}`);
+                }
+            })
+            .addOption(
+                new Option('--loglevel <level>', 'log level')
+                    .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
+                    .default('info')
+            )
+            .addOption(
+                new Option(
+                    '--browser <browser>',
+                    'Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser installed" to see which browsers are currently installed.'
+                )
+                    .choices(['chrome', 'firefox'])
+                    .default('chrome')
+            )
+            .option(
+                '--browser-version <version>',
+                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser installed" to see which browsers are currently installed.'
+            );
+
+        // available sub-command
+        browser
+            .command('list-available')
+            .description(
+                'Show which browsers are available for download and installation by Butler Sheet Icons.'
+            )
+            .action(async (options, command) => {
+                try {
+                    const res = await browserListAvailable(options, command);
+                    logger.debug(`Call to browserAvailable succeeded: ${res}`);
+                } catch (err) {
+                    logger.error(`MAIN browser available: ${err}`);
+                }
+            })
+
+            .addOption(
+                new Option('--loglevel <level>', 'log level')
+                    .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
+                    .default('info')
+            )
+            .addOption(
+                new Option(
+                    '--browser <browser>',
+                    'Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser installed" to see which browsers are currently installed.'
+                )
+                    .choices(['chrome', 'firefox'])
+                    .default('chrome')
+            )
+            .addOption(
+                new Option(
+                    '--channel <browser>',
+                    "Which of the browser's release channel versions should be listed?\n This option is only used for Chrome."
+                )
+                    .choices(['stable', 'beta', 'dev', 'canary'])
+                    .default('stable')
+            );
         return browser;
     }
 

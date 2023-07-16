@@ -4,7 +4,9 @@ const { homedir } = require('os');
 
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
 
-const browserInstalled = async (options) => {
+// Function to list all installed browsers
+// Returns an array of installed browsers
+async function browserInstalled(options) {
     try {
         // Set log level
         setLoggingLevel(options.loglevel);
@@ -33,11 +35,11 @@ const browserInstalled = async (options) => {
             logger.info('No browsers installed');
         }
 
-        return true;
+        return browsersInstalled;
     } catch (err) {
         logger.error(`Error checking for installed browsers: ${err}`);
         throw err;
     }
-};
+}
 
 module.exports = { browserInstalled };
