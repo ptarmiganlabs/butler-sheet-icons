@@ -13,6 +13,7 @@ const { logger, setLoggingLevel, bsiExecutablePath, isPkg, sleep } = require('..
 const { qscloudUploadToApp } = require('./cloud-upload.js');
 const { qscloudUpdateSheetThumbnails } = require('./cloud-updatesheets.js');
 const QlikSaas = require('./cloud-repo');
+const { browserInstall } = require('../browser/browser-install.js');
 
 const selectorLoginPageUserName =
     '#lock-container > div > div > form > div > div > div:nth-child(3) > span > div > div > div > div > div > div > div > div > div > div.auth0-lock-input-block.auth0-lock-input-email > div.auth0-lock-input-wrap.auth0-lock-input-wrap-with-icon > input';
@@ -151,60 +152,64 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
             let iSheetNum = 1;
 
-            // Download browser
-            // https://github.com/vercel/pkg/issues/204#issuecomment-720996863
+            // Get browser cache path
             const browserPath = path.join(homedir(), '.cache/puppeteer');
-            logger.debug(`Browser path: ${browserPath}`);
+            logger.debug(`Browser cache path: ${browserPath}`);
 
             logger.info(`Downloading and installing browser...`);
 
-            const platform = await detectBrowserPlatform();
-
-            // Determine which browser version to install
-            const buildId = await resolveBuildId(options.browser, platform, options.browserVersion);
-            logger.verbose(
-                `Resolved browser build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}"`
-            );
-
             // Install browser
-            const browserInstall = await install({
-                browser: options.browser,
-                buildId,
-                cacheDir: browserPath,
-            });
+            // Returns true if browser installed successfully
+            const browserInstallResult = await browserInstall(options);
+            if (browserInstallResult === false) {
+                logger.error(`QSEoW APP: Error installing browser. Exiting.`);
+                process.exit(1);
+            }
 
-            logger.info(
-                `Browser "${browserInstall.browser}" version "${browserInstall.buildId}" installed`
-            );
+            logger.info(`Browser setup complete. Launching browser...`);
 
             const executablePath = computeExecutablePath({
-                browser: browserInstall.browser,
-                buildId: browserInstall.buildId,
+                browser: browserInstallResult.browser,
+                buildId: browserInstallResult.buildId,
                 cacheDir: browserPath,
             });
 
             logger.verbose(`Using browser at ${executablePath}`);
 
-            const browser = await puppeteer.launch({
-                executablePath,
-                // headless: options.headless === true || options.headless.toLowerCase() === 'true',
-                headless: 'new',
-                ignoreHTTPSErrors: true,
-                acceptInsecureCerts: true,
-                args: [
-                    '--proxy-bypass-list=*',
-                    '--disable-gpu',
-                    '--disable-dev-shm-usage',
-                    '--disable-setuid-sandbox',
-                    '--no-first-run',
-                    '--no-sandbox',
-                    '--no-zygote',
-                    '--single-process',
-                    '--ignore-certificate-errors',
-                    '--ignore-certificate-errors-spki-list',
-                    '--enable-features=NetworkService',
-                ],
-            });
+            // Parse --headless option
+            let headless = true;
+            if (options.headless === 'true' || options.headless === true) {
+                headless = 'new';
+            } else if (options.headless === 'false' || options.headless === false) {
+                headless = false;
+            }
+
+            // Make sure browser is launched ok
+            let browser;
+            try {
+                browser = await puppeteer.launch({
+                    executablePath,
+                    headless,
+                    ignoreHTTPSErrors: true,
+                    acceptInsecureCerts: true,
+                    args: [
+                        '--proxy-bypass-list=*',
+                        '--disable-gpu',
+                        '--disable-dev-shm-usage',
+                        '--disable-setuid-sandbox',
+                        '--no-first-run',
+                        '--no-sandbox',
+                        '--no-zygote',
+                        '--single-process',
+                        '--ignore-certificate-errors',
+                        '--ignore-certificate-errors-spki-list',
+                        '--enable-features=NetworkService',
+                    ],
+                });
+            } catch (err) {
+                logger.error(`CLOUD APP: Could not launch virtual browser: ${err}. Exiting.`);
+                process.exit(1);
+            }
 
             const page = await browser.newPage();
 
