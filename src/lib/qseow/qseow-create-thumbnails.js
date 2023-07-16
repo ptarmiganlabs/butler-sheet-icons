@@ -7,22 +7,16 @@ const fs = require('fs');
 const qrsInteract = require('qrs-interact');
 const path = require('path');
 const { homedir } = require('os');
-const { install, computeExecutablePath } = require('@puppeteer/browsers');
+const { computeExecutablePath } = require('@puppeteer/browsers');
 
 const { setupEnigmaConnection } = require('./qseow-enigma.js');
-const {
-    logger,
-    setLoggingLevel,
-    bsiExecutablePath,
-    isPkg,
-    getChromiumRevision,
-    sleep,
-} = require('../../globals.js');
+const { logger, setLoggingLevel, bsiExecutablePath, isPkg, sleep } = require('../../globals.js');
 const { qseowUploadToContentLibrary } = require('./qseow-upload.js');
 const { qseowVerifyContentLibraryExists } = require('./qseow-contentlibrary.js');
 const { qseowUpdateSheetThumbnails } = require('./qseow-updatesheets.js');
 const { qseowVerifyCertificatesExist } = require('./qseow-certificates.js');
 const { setupQseowQrsConnection } = require('./qseow-qrs.js');
+const { browserInstall } = require('../browser/browser-install.js');
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -163,49 +157,64 @@ const processQSEoWApp = async (appId, g, options) => {
 
             let iSheetNum = 1;
 
-            // Download browser
-            // https://github.com/vercel/pkg/issues/204#issuecomment-720996863
+            // Get browser cache path
             const browserPath = path.join(homedir(), '.cache/puppeteer');
-            logger.debug(`Browser path: ${browserPath}`);
+            logger.debug(`Browser cache path: ${browserPath}`);
 
             logger.info(`Downloading and installing browser...`);
 
-            const browserInstall = await install({
-                browser: 'chrome',
-                buildId: '116.0.5840.0',
-                cacheDir: browserPath,
-            });
+            // Install browser
+            // Returns true if browser installed successfully
+            const browserInstallResult = await browserInstall(options);
+            if (browserInstallResult === false) {
+                logger.error(`QSEoW APP: Error installing browser. Exiting.`);
+                process.exit(1);
+            }
 
-            logger.info(`Browser download done.`);
+            logger.info(`Browser setup complete. Launching browser...`);
 
             const executablePath = computeExecutablePath({
-                browser: browserInstall.browser,
-                buildId: browserInstall.buildId,
+                browser: browserInstallResult.browser,
+                buildId: browserInstallResult.buildId,
                 cacheDir: browserPath,
             });
 
             logger.verbose(`Using browser at ${executablePath}`);
 
-            const browser = await puppeteer.launch({
-                executablePath,
-                // headless: options.headless === true || options.headless.toLowerCase() === 'true',
-                headless: 'new',
-                ignoreHTTPSErrors: true,
-                acceptInsecureCerts: true,
-                args: [
-                    '--proxy-bypass-list=*',
-                    '--disable-gpu',
-                    '--disable-dev-shm-usage',
-                    '--disable-setuid-sandbox',
-                    '--no-first-run',
-                    '--no-sandbox',
-                    '--no-zygote',
-                    '--single-process',
-                    '--ignore-certificate-errors',
-                    '--ignore-certificate-errors-spki-list',
-                    '--enable-features=NetworkService',
-                ],
-            });
+            // Parse --headless option
+            let headless = true;
+            if (options.headless === 'true' || options.headless === true) {
+                headless = 'new';
+            } else if (options.headless === 'false' || options.headless === false) {
+                headless = false;
+            }
+
+            // Make sure browser is launched ok
+            let browser;
+            try {
+                browser = await puppeteer.launch({
+                    executablePath,
+                    headless,
+                    ignoreHTTPSErrors: true,
+                    acceptInsecureCerts: true,
+                    args: [
+                        '--proxy-bypass-list=*',
+                        '--disable-gpu',
+                        '--disable-dev-shm-usage',
+                        '--disable-setuid-sandbox',
+                        '--no-first-run',
+                        '--no-sandbox',
+                        '--no-zygote',
+                        '--single-process',
+                        '--ignore-certificate-errors',
+                        '--ignore-certificate-errors-spki-list',
+                        '--enable-features=NetworkService',
+                    ],
+                });
+            } catch (err) {
+                logger.error(`QSEoW APP: Could not launch virtual browser: ${err}. Exiting.`);
+                process.exit(1);
+            }
 
             const page = await browser.newPage();
 

@@ -30,6 +30,8 @@ const options = {
     includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || 1,
     qliksensetag: process.env.BSI_QLIK_SENSE_TAG || '',
     senseVersion: process.env.BSI_SENSE_VERSION,
+    browser: process.env.BSI_BROWSER || 'chrome',
+    browserVersion: process.env.BSI_BROWSER_VERSION || 'stable',
 };
 
 /**
