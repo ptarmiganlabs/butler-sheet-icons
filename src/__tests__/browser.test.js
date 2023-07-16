@@ -53,16 +53,28 @@ describe('complex scenarios', () => {
             expect(installedBrowsers1.length).toEqual(0);
 
             // Install four different browsers
-            const browserInstallRes1 = await browserInstall({ browser: 'chrome', browserVersion: 'stable' }); // Same as previous, should not install another browser
+            const browserInstallRes1 = await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'stable',
+            }); // Same as previous, should not install another browser
             expect(browserInstallRes1).toBeTruthy();
 
-            const browserInstallRes2 = await browserInstall({ browser: 'chrome', browserVersion: 'dev' });
+            const browserInstallRes2 = await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'dev',
+            });
             expect(browserInstallRes2).toBeTruthy();
 
-            const browserInstallRes3 = await browserInstall({ browser: 'chrome', browserVersion: 'canary' });
+            const browserInstallRes3 = await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'canary',
+            });
             expect(browserInstallRes3).toBeTruthy();
 
-            const browserInstallRes4 = await browserInstall({ browser: 'firefox', browserVersion: 'latest' }); // Same as previous, should not install another browser
+            const browserInstallRes4 = await browserInstall({
+                browser: 'firefox',
+                browserVersion: 'latest',
+            }); // Same as previous, should not install another browser
             expect(browserInstallRes4).toBeTruthy();
 
             // There should now be four installed browsers
@@ -176,7 +188,10 @@ describe('install/uninstall browser scenarios', () => {
             expect(installedBrowsers2.length).toEqual(1);
 
             // Uninstall the browser
-            const uninstallRes2 = await browserUninstallAll({ browser: 'chrome', browserVersion: '114.0.5735.133' });
+            const uninstallRes2 = await browserUninstallAll({
+                browser: 'chrome',
+                browserVersion: '114.0.5735.133',
+            });
             expect(uninstallRes2).toEqual(true);
 
             // There should now be zero installed browsers
