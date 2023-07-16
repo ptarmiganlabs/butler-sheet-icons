@@ -53,10 +53,17 @@ describe('complex scenarios', () => {
             expect(installedBrowsers1.length).toEqual(0);
 
             // Install four different browsers
-            await browserInstall({ browser: 'chrome', browserVersion: 'stable' }); // Same as previous, should not install another browser
-            await browserInstall({ browser: 'chrome', browserVersion: 'dev' });
-            await browserInstall({ browser: 'chrome', browserVersion: 'canary' });
-            await browserInstall({ browser: 'firefox', browserVersion: 'latest' }); // Same as previous, should not install another browser
+            const browserInstallRes1 = await browserInstall({ browser: 'chrome', browserVersion: 'stable' }); // Same as previous, should not install another browser
+            expect(browserInstallRes1).toBeTruthy();
+
+            const browserInstallRes2 = await browserInstall({ browser: 'chrome', browserVersion: 'dev' });
+            expect(browserInstallRes2).toBeTruthy();
+
+            const browserInstallRes3 = await browserInstall({ browser: 'chrome', browserVersion: 'canary' });
+            expect(browserInstallRes3).toBeTruthy();
+
+            const browserInstallRes4 = await browserInstall({ browser: 'firefox', browserVersion: 'latest' }); // Same as previous, should not install another browser
+            expect(browserInstallRes4).toBeTruthy();
 
             // There should now be four installed browsers
             const installedBrowsers2 = await browserInstalled(options);
@@ -92,7 +99,12 @@ describe('install/uninstall browser scenarios', () => {
             expect(installedBrowsers1.length).toEqual(0);
 
             // Install a browser
-            await browserInstall({ browser: 'chrome', browserVersion: 'stable' });
+            // Returns a browser object
+            const browserInstallRes1 = await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'stable',
+            });
+            expect(browserInstallRes1).toBeTruthy();
 
             // There should now be one installed browser
             const installedBrowsers2 = await browserInstalled(options);
@@ -133,6 +145,43 @@ describe('install/uninstall browser scenarios', () => {
             // There should now be zero installed browsers
             const installedBrowsers2 = await browserInstalled(options);
             expect(installedBrowsers2.length).toEqual(0);
+        },
+        defaultTestTimeout
+    );
+
+    /**
+     * Install a browser that exists, then uninstall it
+     */
+    test(
+        'install a browser that exists, then uninstall it',
+        async () => {
+            // Remove all installed browsers
+            const uninstallRes1 = await browserUninstallAll(options);
+            expect(uninstallRes1).toEqual(true);
+
+            // There should now be zero installed browsers
+            const installedBrowsers1 = await browserInstalled(options);
+            expect(installedBrowsers1.length).toEqual(0);
+
+            // Install a browser
+            // Returns a browser object
+            const browserInstallRes1 = await browserInstall({
+                browser: 'chrome',
+                browserVersion: '114.0.5735.133',
+            });
+            expect(browserInstallRes1).toBeTruthy();
+
+            // There should now be one installed browser
+            const installedBrowsers2 = await browserInstalled(options);
+            expect(installedBrowsers2.length).toEqual(1);
+
+            // Uninstall the browser
+            const uninstallRes2 = await browserUninstallAll({ browser: 'chrome', browserVersion: '114.0.5735.133' });
+            expect(uninstallRes2).toEqual(true);
+
+            // There should now be zero installed browsers
+            const installedBrowsers3 = await browserInstalled(options);
+            expect(installedBrowsers3.length).toEqual(0);
         },
         defaultTestTimeout
     );
