@@ -9,14 +9,7 @@ const { homedir } = require('os');
 const { install, computeExecutablePath } = require('@puppeteer/browsers');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
-const {
-    logger,
-    setLoggingLevel,
-    bsiExecutablePath,
-    isPkg,
-    getChromiumRevision,
-    sleep,
-} = require('../../globals.js');
+const { logger, setLoggingLevel, bsiExecutablePath, isPkg, sleep } = require('../../globals.js');
 const { qscloudUploadToApp } = require('./cloud-upload.js');
 const { qscloudUpdateSheetThumbnails } = require('./cloud-updatesheets.js');
 const QlikSaas = require('./cloud-repo');
@@ -165,13 +158,24 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
             logger.info(`Downloading and installing browser...`);
 
+            const platform = await detectBrowserPlatform();
+
+            // Determine which browser version to install
+            const buildId = await resolveBuildId(options.browser, platform, options.browserVersion);
+            logger.verbose(
+                `Resolved browser build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}"`
+            );
+
+            // Install browser
             const browserInstall = await install({
-                browser: 'chrome',
-                buildId: '116.0.5840.0',
+                browser: options.browser,
+                buildId,
                 cacheDir: browserPath,
             });
 
-            logger.info(`Browser download done.`);
+            logger.info(
+                `Browser "${browserInstall.browser}" version "${browserInstall.buildId}" installed`
+            );
 
             const executablePath = computeExecutablePath({
                 browser: browserInstall.browser,
