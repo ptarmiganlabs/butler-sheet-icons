@@ -28,22 +28,22 @@ describe('test browser list_installed command', () => {
     );
 });
 
-describe(
-    'complex scenarios',
-    () => {
-        /**
-         * Remove all installed browsers
-         * Should return true.
-         *
-         * Install four differenct browsers (3 chrome versions, 1 firefox).
-         * There should now be four installed browsers
-         *
-         * Remove all installed browsers.
-         * Should return true.
-         *
-         * There should then be zero installed browsers.
-         */
-        test('install and uninstall several browsers', async () => {
+describe('complex scenarios', () => {
+    /**
+     * Remove all installed browsers
+     * Should return true.
+     *
+     * Install four differenct browsers (3 chrome versions, 1 firefox).
+     * There should now be four installed browsers
+     *
+     * Remove all installed browsers.
+     * Should return true.
+     *
+     * There should then be zero installed browsers.
+     */
+    test(
+        'install and uninstall several browsers',
+        async () => {
             // Remove all installed browsers
             const uninstallRes1 = await browserUninstallAll(options);
             expect(uninstallRes1).toEqual(true);
@@ -69,10 +69,10 @@ describe(
             // There should now be zero installed browsers
             const installedBrowsers3 = await browserInstalled(options);
             expect(installedBrowsers3.length).toEqual(0);
-        });
-    },
-    defaultTestTimeout
-);
+        },
+        defaultTestTimeout
+    );
+});
 
 describe('install/uninstall browser scenarios', () => {
     /**
