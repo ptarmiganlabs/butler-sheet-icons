@@ -439,6 +439,24 @@ jobs:
           echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: lts/*
+
+      - name: Install tool for creating stand-alone executables
+        run: |
+          npm install pkg --location=global
+
+      - name: Install dependencies
+        run: |
+          pwd 
+          cd src
+          npm ci
+
       - name: Build binaries
         run: |
           pwd
@@ -546,6 +564,24 @@ jobs:
           Write-Output 'tag_name        : ${{ needs.release-please.outputs.release_tag_name }}'
           Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
 
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: lts/*
+
+      - name: Install tool for creating stand-alone executables
+        run: |
+          npm install pkg --location=global
+
+      - name: Install dependencies
+        run: |
+          pwd 
+          cd src
+          npm ci
+
       - name: Build binaries
         run: |
           cd src
@@ -634,6 +670,24 @@ jobs:
         run: |
           echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: lts/*
+
+      - name: Install tool for creating stand-alone executables
+        run: |
+          npm install pkg --location=global
+
+      - name: Install dependencies
+        run: |
+          pwd 
+          cd src
+          npm ci
 
       - name: Build binaries
         run: |
