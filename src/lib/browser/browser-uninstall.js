@@ -1,7 +1,7 @@
 const { getInstalledBrowsers, uninstall } = require('@puppeteer/browsers');
 const path = require('path');
 const { homedir } = require('os');
-const fs = require('fs');
+const fs = require('fs-extra');
 
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
 
@@ -101,19 +101,7 @@ const browserUninstallAll = async (options) => {
                 'Removing any remaining files and directories in the browser cache directory'
             );
 
-            const files = fs.readdirSync(browserPath);
-            files.forEach(async (file) => {
-                const filePath = path.join(browserPath, file);
-                logger.debug(`Removing file or directory: ${filePath}`);
-
-                if (fs.lstatSync(filePath).isDirectory()) {
-                    logger.verbose(`Removing directory: ${filePath}`);
-                    await fs.promises.rm(filePath, { recursive: true });
-                } else {
-                    logger.verbose(`Removing file: ${filePath}`);
-                    await fs.promises.unlink(filePath);
-                }
-            });
+            await fs.emptyDir(browserPath);
         } else {
             logger.info('No browsers installed');
         }
