@@ -245,7 +245,7 @@ jobs:
         working-directory: src
 
       - name: Run tests
-        run: npm run test
+        run: npm run test -- -i
         working-directory: src
         env:
           BSI_LOG_LEVEL: "info"
@@ -333,7 +333,7 @@ jobs:
         working-directory: src
 
       - name: Run tests
-        run: npm run test
+        run: npm run test -- -i
         working-directory: src
         env:
           BSI_LOG_LEVEL: "info"
