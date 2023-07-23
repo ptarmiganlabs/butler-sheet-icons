@@ -72,7 +72,7 @@ const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
                 if (createdFiles.find((element) => element.sheetPos === iSheetNum) === undefined) {
                     // This sheet should not be updated
                     logger.info(
-                        `Skipping update of sheet sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}`
+                        `Skipping update of sheet sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
                     );
                 } else {
                     logger.info(

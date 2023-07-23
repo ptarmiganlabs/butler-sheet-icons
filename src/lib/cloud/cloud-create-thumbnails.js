@@ -137,6 +137,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                     rank: '/rank',
                     columns: '/columns',
                     rows: '/rows',
+                    showCondition: '/showCondition',
                 },
             },
         };
@@ -275,6 +276,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 return 0;
             });
 
+            // Loop over all sheets in app
             // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
                 // Should this sheet be processed, or is it on exclude list?
@@ -284,12 +286,36 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
                 let excludeSheet;
 
+                // Is this sheet hidden?
+                // Evaluate showCondition
+                const showConditionCall = {
+                    qExpression: sheet?.qData?.showCondition,
+                };
+
+                const showConditionEval = await app.evaluateEx(showConditionCall);
+
+                if (
+                    sheet.qData.showCondition &&
+                    (sheet.qData.showCondition.toLowerCase() === 'false' ||
+                        (showConditionEval?.qIsNumeric === true &&
+                            showConditionEval?.qNumber === 0)) &&
+                    excludeSheet === undefined
+                ) {
+                    excludeSheet = true;
+                    logger.verbose(
+                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                    );
+                }
+
                 // Is this sheet on the exclude list via sheet number?
                 if (options.excludeSheetNumber && excludeSheet === undefined) {
                     // eslint-disable-next-line no-loop-func
                     excludeSheet = options.excludeSheetNumber.find((element) => {
                         try {
                             if (parseInt(element, 10) === iSheetNum) {
+                                logger.verbose(
+                                    `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                                );
                                 return true;
                             }
                             return false;
@@ -305,6 +331,9 @@ const processCloudApp = async (appId, saasInstance, options) => {
                     excludeSheet = options.excludeSheetTitle.find((element) => {
                         try {
                             if (element === sheet.qMeta.title) {
+                                logger.verbose(
+                                    `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                                );
                                 return true;
                             }
                             return false;
