@@ -142,6 +142,7 @@ const processQSEoWApp = async (appId, g, options) => {
                     rank: '/rank',
                     columns: '/columns',
                     rows: '/rows',
+                    showCondition: '/showCondition',
                 },
             },
         };
@@ -297,6 +298,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 return 0;
             });
 
+            // Loop over all sheets in app
             // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
                 // Should this sheet be processed, or is it on exclude list?
@@ -307,12 +309,36 @@ const processQSEoWApp = async (appId, g, options) => {
 
                 let excludeSheet;
 
+                // Is this sheet hidden?
+                // Evaluate showCondition
+                const showConditionCall = {
+                    qExpression: sheet?.qData?.showCondition,
+                };
+
+                const showConditionEval = await app.evaluateEx(showConditionCall);
+
+                if (
+                    sheet.qData.showCondition &&
+                    (sheet.qData.showCondition.toLowerCase() === 'false' ||
+                        (showConditionEval?.qIsNumeric === true &&
+                            showConditionEval?.qNumber === 0)) &&
+                    excludeSheet === undefined
+                ) {
+                    excludeSheet = true;
+                    logger.verbose(
+                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                    );
+                }
+
                 // Is this sheet on the exclude list via tags?
                 if (options.excludeSheetTag && excludeSheet === undefined) {
                     // eslint-disable-next-line no-loop-func
                     excludeSheet = tagExcludeSheetAppMetadata.find((element) => {
                         try {
                             if (element.engineObjectId === sheet.qInfo.qId) {
+                                logger.verbose(
+                                    `Excluded sheet (via tag): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                                );
                                 return true;
                             }
                             return false;
@@ -328,6 +354,9 @@ const processQSEoWApp = async (appId, g, options) => {
                     excludeSheet = options.excludeSheetNumber.find((element) => {
                         try {
                             if (parseInt(element, 10) === iSheetNum) {
+                                logger.verbose(
+                                    `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                                );
                                 return true;
                             }
                             return false;
@@ -343,6 +372,9 @@ const processQSEoWApp = async (appId, g, options) => {
                     excludeSheet = options.excludeSheetTitle.find((element) => {
                         try {
                             if (element === sheet.qMeta.title) {
+                                logger.verbose(
+                                    `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                                );
                                 return true;
                             }
                             return false;
