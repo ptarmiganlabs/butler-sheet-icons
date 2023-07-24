@@ -501,8 +501,8 @@ jobs:
           # you're curious
           echo "Notarize release app"
           xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos.zip" --keychain-profile "notarytool-profile" --wait
-          mkdir release-binaries-macos
-          mv "./${DIST_FILE_NAME}.zip" release-binaries-macos
+          # mkdir release-binaries-macos
+          # mv "./${{ needs.release-please.outputs.release_tag_name }}-macos.zip" release-binaries-macos
 
       # - name: Download-Binaries
       #   uses: actions/download-artifact@v3
@@ -541,7 +541,7 @@ jobs:
 
       - name: Tidy up before existing
         run: |
-          rm -r release-macos
+          pwd
 
   release-win64:
     needs: release-please
@@ -654,7 +654,6 @@ jobs:
       - name: Tidy up before existing
         run: |
           dir
-          Remove-Item -path ./release-win -recurse 
 
   release-linux:
     needs: release-please
@@ -719,8 +718,7 @@ jobs:
 
       - name: Debug
         run: |
-          dir
-          dir ./release-linux
+          ls -la
 
       - name: Upload to existing release
         uses: ncipollo/release-action@v1
@@ -737,4 +735,4 @@ jobs:
 
       - name: Tidy up before existing
         run: |
-          rm -r release-linux
+          pwd
