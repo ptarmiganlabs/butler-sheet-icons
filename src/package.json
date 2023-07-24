@@ -43,7 +43,7 @@
     "@jest/globals": "^29.6.1",
     "jest": "^29.6.1",
     "prettier": "^3.0.0",
-    "snyk": "^1.1193.0"
+    "snyk": "^1.1194.0"
   },
   "repository": {
     "type": "git",
