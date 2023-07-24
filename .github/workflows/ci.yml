@@ -234,7 +234,7 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - name: Install modules
-        run: npm install
+        run: npm ci
         working-directory: src
 
       - name: Make sure Jest is installed
@@ -322,7 +322,7 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - name: Install modules
-        run: npm install
+        run: npm ci
         working-directory: src
 
       - name: Make sure Jest is installed
