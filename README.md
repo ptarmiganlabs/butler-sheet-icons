@@ -40,7 +40,7 @@ butler-sheet-icons.exe qscloud create-sheet-thumbnails
 ---
 
 Butler Sheet Icons is an open source project sponsored by Ptarmigan Labs.  
-At [www.ptarmiganlabs.com](https://www.ptarmiganlabs.com) you will find articles about how the Butler tools can help you get the most out of Qlik Sense.
+At [www.ptarmiganlabs.com](https://www.ptarmiganlabs.com) you will find articles about how the various open source Butler tools can help you get the most out of Qlik Sense.
 
 For support and services relating to the Butler family of tools or Qlik Sense projects in general, please contact info -at- ptarmiganlanbs -dot- com.
 
