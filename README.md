@@ -1,17 +1,14 @@
-<h1 align="center">Butler Sheet Icons</h1>
+<p align="center"><img src="docs/butler sheet icons_small.png"><p>
 <h3 align="center">Automatically create Qlik Sense sheet thumbnail images</h3>
-<p align="center">
-<a href="https://github.com/ptarmiganlabs/butler-sheet-icons"><img src="https://img.shields.io/badge/Source---" alt="Source"></a>
-<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml/badge.svg" alt="Continuous Integration"></a>
-<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-macos.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-macos.yml/badge.svg?branch=main" alt="Continuous Integration"></a>
-<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-winsrv2016.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/selfhosted-test-winsrv2016.yml/badge.svg?branch=main" alt="Continuous Integration"></a>
-<a href="https://www.repostatus.org/#active"><img src="https://www.repostatus.org/badges/latest/active.svg" alt="Project Status: Active – The project has reached a stable, usable state and is being actively developed." /></a>
 </p>
 
-A cross platform, command line tool (plus Docker!) for creating sheet thumbnails based on the actual layout of sheets in Qlik Sense apps.  
+A cross platform, command line tool (plus Docker!) for creating sheet thumbnails based on the actual layout of sheets in Qlik Sense apps.
+
 Works on both Qlik Sense Cloud apps and Qlik Sense Enterprise on Windows (QSEoW) apps.
 
-Butler Sheet Icons can create sheet thumbnail icons for a single app or many.
+---
+
+Butler Sheet Icons ("BSI") can create sheet thumbnail icons for a single app or many.
 
 Multi-app support is easy: Use the QMC (for QSEoW) to tag the apps that should be updated, or add the apps to a collection (Qlik Sense Cloud).  
 Then run Butler Sheet Icons and all apps will get new sheet icons automatically!
@@ -20,7 +17,7 @@ Are you the impatient kind and just want to try it out?
 No worries, here's what you need for Qlik Sense Cloud:
 
 1. [Download](https://github.com/ptarmiganlabs/butler-sheet-icons/releases/latest) the binary you need (Windows, macOS, Docker).
-2. [Create an API key](https://qlik.dev/tutorials/generate-your-first-api-key) for Qlik Sense Cloud.
+2. [Create an API key](https://qlik.dev/authenticate/api-key/generate-your-first-api-key) for Qlik Sense Cloud.
 3. Make sure you know your Qlik Sense Cloud tenant URL, user ID, password and ID of the app to update.
 4. Run Butler Sheet Icons with the options below (adapt as needed).
 5. 🎉😎 Sit back and enjoy not having to manually screen shot and process those 10 sheets each in 50 different apps... 
@@ -34,9 +31,16 @@ butler-sheet-icons.exe qscloud create-sheet-thumbnails
 --appid <app id>
 ```
 
+<p align="center">
+<a href="https://github.com/ptarmiganlabs/butler-sheet-icons"><img src="https://img.shields.io/badge/Source---" alt="Source"></a>
+<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/ci.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/ci.yml/badge.svg?branch=main" alt="Build status"></a>
+<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml/badge.svg" alt="Docker image build"></a>
+<a href="https://www.repostatus.org/#active"><img src="https://www.repostatus.org/badges/latest/active.svg" alt="Project Status: Active – The project has reached a stable, usable state and is being actively developed." /></a>
+
 ---
 
-Butler Sheet Icons is an open source project sponsored by Ptarmigan Labs.
+Butler Sheet Icons is an open source project sponsored by Ptarmigan Labs.  
+At [www.ptarmiganlabs.com](https://www.ptarmiganlabs.com) you will find articles about how the various open source Butler tools can help you get the most out of Qlik Sense.
 
 For support and services relating to the Butler family of tools or Qlik Sense projects in general, please contact info -at- ptarmiganlanbs -dot- com.
 
@@ -70,7 +74,8 @@ Table of contents
     - [Excluding sheets](#excluding-sheets)
     - [Screen shots taken by Butler Sheet Icons](#screen-shots-taken-by-butler-sheet-icons)
     - [Headless browser](#headless-browser)
-    - [Downloading browser](#downloading-browser)
+    - [Downloading a browser](#downloading-a-browser)
+    - [Using BSI with a proxy server](#using-bsi-with-a-proxy-server)
   - [Concepts specific to QS Cloud](#concepts-specific-to-qs-cloud)
   - [Concepts specific to client-managed QS (QSEoW)](#concepts-specific-to-client-managed-qs-qseow)
     - [Which Sense version is server using](#which-sense-version-is-server-using)
@@ -84,12 +89,23 @@ Table of contents
     - [create-sheet-thumbnails](#create-sheet-thumbnails-1)
     - [list-collections](#list-collections)
     - [remove-sheet-icons](#remove-sheet-icons-1)
+  - [browser](#browser)
+    - [list-installed](#list-installed)
+    - [uninstall](#uninstall)
+    - [uninstall-all](#uninstall-all)
+    - [install](#install-1)
+    - [list-available](#list-available)
 - [Hands-on examples](#hands-on-examples)
   - [QS Cloud, update a single app + apps in collection](#qs-cloud-update-a-single-app--apps-in-collection)
   - [QS Cloud, list all available collections](#qs-cloud-list-all-available-collections)
   - [Client-managed/QSEoW, update a single app + apps with a certain tag, exclude some sheets](#client-managedqseow-update-a-single-app--apps-with-a-certain-tag-exclude-some-sheets)
   - [QS Cloud, Docker container, show help text](#qs-cloud-docker-container-show-help-text)
   - [QS Cloud, Docker container, update a single app + apps in collection](#qs-cloud-docker-container-update-a-single-app--apps-in-collection)
+  - [List installed browsers](#list-installed-browsers)
+  - [Install a browser into the BSI cache](#install-a-browser-into-the-bsi-cache)
+  - [Show what browsers are available for download and use with BSI](#show-what-browsers-are-available-for-download-and-use-with-bsi)
+  - [Uninstall a browser from the BSI cache](#uninstall-a-browser-from-the-bsi-cache)
+  - [Uninstall all browsers from the BSI cache](#uninstall-all-browsers-from-the-bsi-cache)
 - [Supported Qlik Sense versions](#supported-qlik-sense-versions)
   - [Client-managed Qlik Sense (=Qlik Sense Enterprise on Windows)](#client-managed-qlik-sense-qlik-sense-enterprise-on-windows)
   - [Qlik Sense cloud](#qlik-sense-cloud)
@@ -107,7 +123,6 @@ Table of contents
 Here a Qlik Sense Cloud app is updated by running Butler Sheet Icons on a macOS laptop:
 
 ![Running Butler Sheet Icons on macOS](./docs/img/qscloud-create-thumbnails-macos-bash-animated-1.gif "Running Butler Sheet Icons on macOS")
-
 
 # Introduction
 
@@ -134,7 +149,9 @@ There are various approaches when it comes to creating useful sheet icons:
 Specifically:
 
 - The tool is cross platform and runs on Windows, MacOS, Linux and as a Docker container.
-- Stand-alone, download-and-use binaries for Windows and macOSare available.
+- Stand-alone, download-and-use binaries for Windows and macOS are available.
+  - The macOS binary is notarized by Apple.
+  - The Windows binary is signed by Ptarmigan Labs using a commercial signing certificate.
 - Works on both Qlik Sense Cloud and client-managed Qlik Sense Enterprise on Windows. Qlik Sense Desktop not supported.
 - A single command will create thumbnail images, upload them to Qlik Sense and assign them as sheet icons to sheets in the Sense app(s).
 
@@ -173,7 +190,7 @@ The idea is simply to more or less mimic the steps a human would take to create 
 - It's possible to specify that some sheets should *not* get new sheet icons. Exclude sheets can be specified using
   - Sheet position in the app. For example sheet 3, 7 and 8.
   - Sheet title. For example sheet "Intro" and "Definitions"
-  - All sheets tagged with a specific tag. Only available on client-managed Qlik Sense Enterprise.
+  - All sheets tagged with a specific tag. Only available on client-managed Qlik Sense Enterprise as tags are not available in Qlik Cloud.
 
 ## Sample screen shots
 
@@ -183,7 +200,7 @@ Using Butler Sheet Icons on MacOS:
 
 Using Butler Sheet Icons, running in PowerShell on Windows Server 2016:
 
-![Run Butler Sheet Icons](./docs/img/create-qseow-win_2.png "Run Butler Sheet Icons on Windows 10")
+![Run Butler Sheet Icons](./docs/img/create-qseow-win_2.png "Run Butler Sheet Icons on Windows Server 2016")
 
 App overview before running Butler Sheet Icons:
 ![Qlik Sense app overview](./docs/img/create-qseow-appoverview_1.png   "No sheet icons")
@@ -196,7 +213,8 @@ App overview showing the sheet thumbnails generated by Butler Sheet Icons:
 
 ## From 2.x to 3.0
 
-- The `--sense-version` parameter is a new mandatory parameter. Available options are "pre-2022-Nov" and "2022-Nov" at the time of BSI 3.0 release.
+- The `--sense-version` parameter is a new mandatory parameter. Available options are "pre-2022-Nov", "2022-Nov", "2023-Feb", "2023-May" etc.  
+  The list of allowed values is available in the BSI help that's shown by running `.\butler-sheet-icons.exe qseow create-sheet-thumbnails --help` (on Windows/PowerShell in this case).
 
 # Install
 
@@ -409,14 +427,20 @@ img
 
 The `--headless` takes either `true` or `false` as a value (`true` is default).
 
-Running "headless" means the browser is not visible on screen. It's running in the background, but isn't visible. Running headless is the normal way to use Butler Sheet Icons, but showing the embedded browser (i.e. using `--headless false`) can be useful to debug issues. Being able to see what happens on-screen when BSI is trying to create screen shots can be absolutely necessary to understand what's going on.
+Running "headless" means the browser is not visible on screen. It's running in the background, but isn't visible. Running headless is the normal way to use Butler Sheet Icons, but showing the embedded browser (i.e. using `--headless false`) can be useful to debug issues. Being able to see what happens on-screen when BSI is logging into Qlik Sense or trying to create screen shots can be ***very*** useful when trying to understand what's going on.
 
-### Downloading browser
+### Downloading a browser
 
 When running Butler Sheet Icons for the first time, a web browser needs to be downloaded.  
-This is done automatically by Butler Sheet Icons.
+If not instructed otherwise, Butler Sheet Icons will download and install the latest version of the Chrome browser.
 
-The browser is then used by Butler Sheet Icons to access the Qlik Sense application and to take screen shots of the sheets.
+The `--browser` option can be used to specify which browser to use. Valid values are `chrome` and `firefox`.  
+If you want to use a specific version of Chrome or Firefox, you can specify that using the `--browser-version` option.  
+Both `--browser` and `--browser-version` are optional parameters available when creating sheet icons for both QS Cloud and client-managed QSEoW.
+
+More info is available in the [browser section](#the-browser-command).
+
+### Using BSI with a proxy server
 
 If you are behind a proxy server and cannot access the Internet directly, you need to specify the proxy server to use.
 This can be done using environment variables `http_proxy`and `https_proxy`.
@@ -492,7 +516,10 @@ This works for both top level commands and sub-commands.
 On Windows this would be `butler-sheet-icons.exe --help`.
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe --help
+.\butler-sheet-icons.exe --help
+```
+
+```powershell
 Usage: butler-sheet-icons [options] [command]
 
 This is a tool that creates thumbnail images based on the actual layout of sheets in Qlik Sense applications.
@@ -506,15 +533,17 @@ Options:
 Commands:
   qseow
   qscloud
+  browser
   help [command]  display help for command
-
-PS C:\tools\butler-sheet-icons-win> 
 ```
 
 ## qseow
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qseow --help
+.\butler-sheet-icons.exe qseow --help
+```
+
+```powershell
 Usage: butler-sheet-icons qseow [options] [command]
 
 Options:
@@ -525,8 +554,6 @@ Commands:
                                      Multiple apps can be updated with a single command, using a Qlik Sense tag to identify  which apps will be updated.
   remove-sheet-icons [options]       Remove all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) app.
   help [command]                     display help for command
-
-PS C:\tools\butler-sheet-icons-win> 
 ```
 
 ### create-sheet-thumbnails
@@ -536,7 +563,10 @@ The command assumes there is standard form based authentication page (username +
 A complete session using this command is described [here](./docs/qseow-demo_1.md).
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qseow create-sheet-thumbnails --help
+.\butler-sheet-icons.exe qseow create-sheet-thumbnails --help
+```
+
+```powershell
 Usage: butler-sheet-icons qseow create-sheet-thumbnails [options]
 
 Create thumbnail images based on the layout of each sheet in Qlik Sense Enterprise on Windows (QSEoW) applications.
@@ -564,15 +594,16 @@ Options:
   --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
   --imagedir <directory>              directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
   --contentlibrary <library-name>     Qlik Sense content library to which thumbnails will be uploaded (default: "Butler sheet thumbnails")
-  --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar
-                                      (default: "1")
+  --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar (default: "1")
   --qliksensetag <value>              Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. (default: "")
   --exclude-sheet-tag <value>         Sheets with this tag set will be excluded from sheet icon update.
   --exclude-sheet-number <number...>  Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.
   --exclude-sheet-title <title...>    Use sheet titles to control which sheets that will be excluded from sheet icon update.
-  --sense-version <version>           Version of the QSEoW server to connect to (choices: "pre-2022-Nov", "2022-Nov", default: "2022-Nov")
+  --sense-version <version>           Version of the QSEoW server to connect to (choices: "pre-2022-Nov", "2022-Nov", "2023-Feb", "2023-May", default: "2023-May")
+  --browser <browser>                 Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.
+                                      (choices: "chrome", "firefox", default: "chrome")
+  --browser-version <version>         Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.
   -h, --help                          display help for command
-PS C:\tools\butler-sheet-icons-win>
 ```
 
 ### remove-sheet-icons
@@ -582,13 +613,16 @@ This command uses the Qlik Sense APIs to remove all sheet icons from one or more
 The options to this command are a subset of the options for the `qseow create-sheet-thumbnails` command:
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qseow remove-sheet-icons --help
+.\butler-sheet-icons.exe qseow remove-sheet-icons --help
+```
+
+```powershell
 Usage: butler-sheet-icons qseow remove-sheet-icons [options]
 
 Remove all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) app.
 
 Options:
-  --loglevel <level>                 log level (error, warning, info, verbose, debug, silly) (default: "info")
+  --loglevel <level>                 log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
   --host <host>                      Qlik Sense server IP/FQDN
   --engineport <port>                Qlik Sense server engine port (default: "4747")
   --qrsport <port>                   Qlik Sense server repository service (QRS) port (default: "4242")
@@ -602,15 +636,17 @@ Options:
   --secure <true|false>              connection to Qlik Sense engine is via https (default: true)
   --apiuserdir <directory>           user directory for user to connect with when using Sense APIs
   --apiuserid <userid>               user ID for user to connect with when using Sense APIs
-  --qliksensetag <value>             Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.
-                                     (default: "")
+  --qliksensetag <value>             Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. (default: "")
   -h, --help                         display help for command
 ```
 
 ## qscloud
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qscloud --help
+.\butler-sheet-icons.exe qscloud --help
+```
+
+```powershell
 Usage: butler-sheet-icons qscloud [options] [command]
 
 Options:
@@ -627,17 +663,19 @@ Commands:
 ### create-sheet-thumbnails
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qscloud create-sheet-thumbnails --help
+.\butler-sheet-icons.exe qscloud create-sheet-thumbnails --help
+```
+
+```powershell
 Usage: butler-sheet-icons qscloud create-sheet-thumbnails [options]
 
 Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.
 Multiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.
 
 Options:
-  --loglevel <level>                  log level (error, warning, info, verbose, debug, silly) (default: "info")
+  --loglevel <level>                  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
   --schemaversion <string>            Qlik Sense engine schema version (default: "12.612.0")
   --tenanturl <url>                   URL to Qlik Sense cloud tenant
-  --appid <id>                        Qlik Sense app whose sheet icons should be modified.
   --apikey <key>                      API key used to access the Sense APIs
   --logonuserid <userid>              user ID for user to connect with when logging into web UI
   --logonpwd <password>               password for user to connect with
@@ -645,28 +683,33 @@ Options:
   --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
   --imagedir <directory>              directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
   --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen (default: "1")
+  --appid <id>                        Qlik Sense app whose sheet icons should be modified.
   --collectionid <id>                 Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated (default: "")
   --exclude-sheet-number <number...>  Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.
   --exclude-sheet-title <title...>    Use sheet titles to control which sheets that will be excluded from sheet icon update.
+  --browser <browser>                 Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.
+                                      (choices: "chrome", "firefox", default: "chrome")
+  --browser-version <version>         Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.
   -h, --help                          display help for command
-PS C:\tools\butler-sheet-icons-win>
 ```
 
 ### list-collections
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qscloud list-collections --help
+.\butler-sheet-icons.exe qscloud list-collections --help
+```
+
+```powershell
 Usage: butler-sheet-icons qscloud list-collections [options]
 
 List available collections.
 
 Options:
-  --loglevel <level>           log level (error, warning, info, verbose, debug, silly) (default: "info")
+  --loglevel <level>           log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
   --tenanturl <url>            URL to Qlik Sense cloud tenant
   --apikey <key>               API key used to access the Sense APIs
   --outputformat <table|json>  Output format (choices: "table", "json", default: "table")
   -h, --help                   display help for command
-PS C:\tools\butler-sheet-icons-win>
 ```
 
 ### remove-sheet-icons
@@ -676,13 +719,16 @@ This command uses the Qlik Sense APIs to remove all sheet icons from one or more
 The options to this command are a subset of the options for the `qseow create-sheet-thumbnails` command:
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe qscloud remove-sheet-icons --help
+.\butler-sheet-icons.exe qscloud remove-sheet-icons --help
+```
+
+```powershell
 Usage: butler-sheet-icons qscloud remove-sheet-icons [options]
 
 Remove all sheet icons from a Qlik Sense Cloud app.
 
 Options:
-  --loglevel <level>        log level (error, warning, info, verbose, debug, silly) (default: "info")
+  --loglevel <level>        log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
   --schemaversion <string>  Qlik Sense engine schema version (default: "12.612.0")
   --tenanturl <url>         URL to Qlik Sense cloud tenant
   --apikey <key>            API key used to access the Sense APIs
@@ -691,12 +737,168 @@ Options:
   -h, --help                display help for command
 ```
 
+## browser
+
+BSI has a command called `browser`. This command can be used to download, install and in other ways control which browser(s) are available to Butler Sheet Icons.  
+
+Using the `browser` command is only needed in very specific scenarios, for example when you want to use a specific version of Chrome or Firefox to capture sheet thumbnails.
+
+On Windows:
+
+```powershell
+.\butler-sheet-icons.exe browser --help
+```
+
+```powershell
+Usage: butler-sheet-icons browser [options] [command]
+
+Options:
+  -h, --help                display help for command
+
+Commands:
+  list-installed [options]  Show which browsers are currently installed and available for use by Butler Sheet Icons.
+  uninstall [options]       Uninstall a browser from the Butler Sheet Icons cache.
+                            This will remove the browser from the cache, but will not affect other browsers on this computer.
+                            Use the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.
+  uninstall-all [options]   Uninstall all browsers from the Butler Sheet Icons cache.
+                            This will remove all browsers from the cache, but will not affect other browsers on this computer.
+                            Use the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.
+  install [options]         Install a browser into the Butler Sheet Icons cache.
+                            This will download the browser and install it into the cache, where it can be used by Butler Sheet Icons.
+                            Use the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.
+  list-available [options]  Show which browsers are available for download and installation by Butler Sheet Icons.
+  help [command]            display help for command
+```
+
+### list-installed
+
+  List what browsers are currently installed and available for use by Butler Sheet Icons.
+
+  Note that this command only lists browsers that have been installed by Butler Sheet Icons - not browsers installed by other means.  
+  In other words: Butler Sheet Icons uses its own cache of browsers, it does not use browsers installed on the computer in any other way.
+
+On Windows:
+
+```powershell
+.\butler-sheet-icons.exe browser list-installed --help
+```
+
+```powershell
+Usage: butler-sheet-icons browser list-installed [options]
+
+Show which browsers are currently installed and available for use by Butler Sheet Icons.
+
+Options:
+  --loglevel <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  -h, --help          display help for command
+```
+
+### uninstall
+
+Uninstall a browser from the Butler Sheet Icons cache.
+
+This will remove the browser from the cache, but will not affect other browsers on this computer.  
+
+```powershell
+.\butler-sheet-icons.exe browser uninstall --help
+```
+
+```powershell
+Usage: butler-sheet-icons browser uninstall [options]
+
+Uninstall a browser from the Butler Sheet Icons cache.
+This will remove the browser from the cache, but will not affect other browsers on this computer.
+Use the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.
+
+Options:
+  --loglevel <level>           log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  --browser <browser>          Browser to uninstall (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently
+                               installed. (default: "chrome")
+  --browser-version <version>  Version (=build id) of the browser to uninstall. Use "butler-sheet-icons browser list-installed" to see which browsers are currently
+                               installed.
+  -h, --help                   display help for command
+```
+
+### uninstall-all
+
+Uninstall all browsers from the Butler Sheet Icons cache.  
+This will remove all browsers from the cache, but will not affect other browsers on this computer.
+
+On Windows:
+
+```powershell
+.\butler-sheet-icons.exe browser uninstall-all --help
+```
+
+```powershell
+Usage: butler-sheet-icons browser uninstall-all [options]
+
+Uninstall all browsers from the Butler Sheet Icons cache.
+This will remove all browsers from the cache, but will not affect other browsers on this computer.
+Use the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.
+
+Options:
+  --loglevel <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  -h, --help          display help for command
+```
+
+### install
+
+Install a browser into the Butler Sheet Icons cache.  
+This will download the browser and install it into the cache, where it can be used by Butler Sheet Icons.
+
+On Windows: 
+
+```powershell
+.\butler-sheet-icons.exe browser install --help
+```
+
+```powershell
+Usage: butler-sheet-icons browser install [options]
+
+Install a browser into the Butler Sheet Icons cache.
+This will download the browser and install it into the cache, where it can be used by Butler Sheet Icons.
+Use the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.
+
+Options:
+  --loglevel <level>           log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  --browser <browser>          Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. (choices:
+                               "chrome", "firefox", default: "chrome")
+  --browser-version <version>  Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.
+  -h, --help                   display help for command
+```
+
+### list-available
+
+List which browsers are available online for download and installation by Butler Sheet Icons.
+
+BSI supports Chrome and Firefox, use the `--browser` option to specify which browser's availability you want to list.  
+If using Chrome you can use the `--channel` option to specify which Chrome release channel (`stable`, `beta`, `dev`, `canary`) you want to list.
+
+BSI will detect what operating system it's running on and only list browser versions that are available for that OS.
+
+There are not many options to this command, on Windows:
+
+```powershell
+.\butler-sheet-icons.exe browser list-installed --help
+```
+
+```powershell
+Usage: butler-sheet-icons browser list-installed [options]
+
+Show which browsers are currently installed and available for use by Butler Sheet Icons.
+
+Options:
+  --loglevel <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  -h, --help          display help for command
+```
+
 # Hands-on examples
 
 The examples below show how BSI can be used in various situations.
 
 Some examples are on PowerShell in Windows, some are on cmd in Windows.  
-Others might be on PowerShell in macOS (yes it exists - and is quite good!) or bash on macOs.  
+Others might be on PowerShell in macOS (yes [it exists](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-macos?view=powershell-7.3) - and is quite good!) or bash on macOS.  
 Docker might show up too.
 
 The key thing to remember is:
@@ -790,13 +992,177 @@ Note: The command above assumes the certificates exported from QSEoW are availab
 
 ![Run Butler Sheet Icons in Docker, updating Qlik Sense Cloud apps](./docs/img/qscloud-create-thumbnails-docker-1.png "Run Butler Sheet Icons in Docker, updating Qlik Sense Cloud apps")
 
+## List installed browsers
+
+List what browsers are currently installed and available for use by Butler Sheet Icons.
+
+Note that this command only lists browsers that have been installed by Butler Sheet Icons - not browsers installed by other means.  
+In other words: Butler Sheet Icons uses its own cache of browsers, it does not use browsers installed on the computer in any other way.
+
+On Windows this would be `butler-sheet-icons.exe browser list-installed`.
+
+```powershell
+PS C:\tools\butler-sheet-icons-win\demo-dir> .\butler-sheet-icons.exe browser list-installed
+2023-07-24T19:04:06.255Z info: Installed browsers:
+2023-07-24T19:04:06.257Z info:     chrome, build id=115.0.5790.102, platform=win64, path=C:\Users\goran\.cache\puppeteer\chrome\win64-115.0.5790.102
+2023-07-24T19:04:06.266Z info:     firefox, build id=117.0a1, platform=win64, path=C:\Users\goran\.cache\puppeteer\firefox\win64-117.0a1
+PS C:\tools\butler-sheet-icons-win\demo-dir>
+```
+
+## Install a browser into the BSI cache
+
+This will download the browser and install it into the cache, where it can be used by Butler Sheet Icons.
+
+Use the `browser list-installed` command to see which browsers are currently installed.
+
+Running the command without any options will install the latest stable version of Chrome into the cache:
+
+```bash
+➜  tools ./butler-sheet-icons browser install
+2023-07-24T18:51:12.853Z info: Resolved browser build id: "115.0.5790.102" for browser "chrome" version "stable"
+2023-07-24T18:51:12.854Z info: Installing browser...
+(node:53339) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+(Use `butler-sheet-icons --trace-deprecation ...` to show where the warning was created)
+2023-07-24T18:51:37.163Z info: Browser "chrome" version "115.0.5790.102" installed
+➜  tools
+```
+
+> Regarding the deprecation warning: This is a warning (as of Butler Sheet Icons 3.1.0) from the Chrome library that BSI uses to download the browser. It's a known issue and will hopefully be fixed in a future version of the library - nothing that can be done about it in BSI.
+
+The same thing in PowerShell on Windows:
+
+```powershell
+PS C:\tools\butler-sheet-icons-win\demo-dir> .\butler-sheet-icons.exe browser install
+2023-07-24T18:56:45.142Z info: Resolved browser build id: "115.0.5790.102" for browser "chrome" version "stable"
+2023-07-24T18:56:45.143Z info: Installing browser...
+(node:9540) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from(
+) methods instead.
+(Use `butler-sheet-icons --trace-deprecation ...` to show where the warning was created)
+2023-07-24T18:57:00.221Z info: Browser "chrome" version "115.0.5790.102" installed
+PS C:\tools\butler-sheet-icons-win\demo-dir>
+```
+
+## Show what browsers are available for download and use with BSI
+
+BSI supports Chrome and Firefox, use the `--browser` option to specify which browser's availability you want to list.  
+If using Chrome you can use the `--channel` option to specify which Chrome release channel (`stable`, `beta`, `dev`, `canary`) you want to list.
+
+BSI will detect what operating system it's running on and only list browser versions that are available for that OS.
+
+For example, showing available `stable` versions of Chrome for macOS:
+
+```bash
+➜  tools ./butler-sheet-icons browser list-available --browser chrome --channel stable
+2023-07-24T18:43:13.775Z info: Chrome versions from "stable" channel:
+2023-07-24T18:43:13.776Z info:     115.0.5790.102, "chrome/platforms/mac/channels/stable/versions/115.0.5790.102"
+2023-07-24T18:43:13.776Z info:     115.0.5790.98, "chrome/platforms/mac/channels/stable/versions/115.0.5790.98"
+2023-07-24T18:43:13.776Z info:     115.0.5790.90, "chrome/platforms/mac/channels/stable/versions/115.0.5790.90"
+2023-07-24T18:43:13.776Z info:     114.0.5735.248, "chrome/platforms/mac/channels/stable/versions/114.0.5735.248"
+2023-07-24T18:43:13.776Z info:     114.0.5735.198, "chrome/platforms/mac/channels/stable/versions/114.0.5735.198"
+2023-07-24T18:43:13.776Z info:     114.0.5735.133, "chrome/platforms/mac/channels/stable/versions/114.0.5735.133"
+2023-07-24T18:43:13.776Z info:     114.0.5735.106, "chrome/platforms/mac/channels/stable/versions/114.0.5735.106"
+2023-07-24T18:43:13.777Z info:     114.0.5735.90, "chrome/platforms/mac/channels/stable/versions/114.0.5735.90"
+2023-07-24T18:43:13.777Z info:     114.0.5735.45, "chrome/platforms/mac/channels/stable/versions/114.0.5735.45"
+2023-07-24T18:43:13.777Z info:     113.0.5672.126, "chrome/platforms/mac/channels/stable/versions/113.0.5672.126"
+2023-07-24T18:43:13.777Z info:     113.0.5672.92, "chrome/platforms/mac/channels/stable/versions/113.0.5672.92"
+2023-07-24T18:43:13.777Z info:     113.0.5672.63, "chrome/platforms/mac/channels/stable/versions/113.0.5672.63"
+...
+...
+➜  tools 
+```
+
+Note the build IDs (e.g. 115.0.5790.102) in the output. These are the IDs that should be used when installing a specific version of Chrome for use with BSI
+
+For Firefox the same command would look like this:
+
+```bash
+➜  tools ./butler-sheet-icons browser list-available --browser firefox
+2023-07-24T18:45:00.372Z info: Firefox versions from past 12 months:
+2023-07-24T18:45:00.372Z info:     2023-07-21, "dev", "116.0b8"
+2023-07-24T18:45:00.372Z info:     2023-07-19, "dev", "116.0b7"
+2023-07-24T18:45:00.372Z info:     2023-07-18, "esr", "115.0.3"
+2023-07-24T18:45:00.372Z info:     2023-07-17, "dev", "116.0b6"
+2023-07-24T18:45:00.373Z info:     2023-07-14, "dev", "116.0b5"
+2023-07-24T18:45:00.373Z info:     2023-07-12, "dev", "116.0b4"
+2023-07-24T18:45:00.373Z info:     2023-07-11, "stability", "115.0.2"
+2023-07-24T18:45:00.373Z info:     2023-07-11, "esr", "115.0.2"
+2023-07-24T18:45:00.373Z info:     2023-07-10, "dev", "116.0b3"
+2023-07-24T18:45:00.373Z info:     2023-07-07, "stability", "115.0.1"
+2023-07-24T18:45:00.374Z info:     2023-07-07, "esr", "115.0.1"
+2023-07-24T18:45:00.374Z info:     2023-07-07, "dev", "116.0b2"
+2023-07-24T18:45:00.374Z info:     2023-07-05, "dev", "116.0b1"
+...
+...
+➜  tools
+```
+
+Firefox does not have build IDs, instead it has more human readable version numbers (e.g. 115.0.3).
+
+## Uninstall a browser from the BSI cache
+
+Uninstall a browser from the Butler Sheet Icons cache.
+
+This will remove the browser from the cache, but will not affect other browsers on this computer.  
+Use the `browser list-installed` command to see which browsers are currently installed.
+
+Example on Windows:  
+First list already installed browsers, then uninstall one of them. Finally list installed browsers again to verify that the uninstallation worked:
+
+```powershell
+PS C:\tools\butler-sheet-icons-win\demo-dir> .\butler-sheet-icons.exe browser list-installed
+2023-07-24T19:07:39.687Z info: Installed browsers:
+2023-07-24T19:07:39.689Z info:     chrome, build id=115.0.5790.102, platform=win64, path=C:\Users\goran\.cache\puppeteer\chrome\win64-115.0.5790.102
+2023-07-24T19:07:39.697Z info:     firefox, build id=117.0a1, platform=win64, path=C:\Users\goran\.cache\puppeteer\firefox\win64-117.0a1
+PS C:\tools\butler-sheet-icons-win\demo-dir>
+PS C:\tools\butler-sheet-icons-win\demo-dir>
+PS C:\tools\butler-sheet-icons-win\demo-dir> .\butler-sheet-icons.exe browser uninstall --browser-version 115.0.5790.102
+2023-07-24T19:07:53.836Z info: Starting browser uninstallation
+2023-07-24T19:07:53.840Z info: Uninstalling browser: chrome, build id=115.0.5790.102, platform=win64, path=C:\Users\goran\.cache\puppeteer\chrome\win64-115.0.5790.102
+2023-07-24T19:07:53.926Z info: Browser "chrome", version "115.0.5790.102" uninstalled.
+PS C:\tools\butler-sheet-icons-win\demo-dir>
+PS C:\tools\butler-sheet-icons-win\demo-dir>
+PS C:\tools\butler-sheet-icons-win\demo-dir> .\butler-sheet-icons.exe browser list-installed
+2023-07-24T19:09:17.536Z info: Installed browsers:
+2023-07-24T19:09:17.538Z info:     firefox, build id=117.0a1, platform=win64, path=C:\Users\goran\.cache\puppeteer\firefox\win64-117.0a1
+PS C:\tools\butler-sheet-icons-win\demo-dir>
+```
+
+## Uninstall all browsers from the BSI cache
+
+This will remove all browsers from the cache, but will not affect other browsers on this computer.
+
+Example on macOS:  
+First list installed browsers, then uninstall all of them. Finally list installed browsers again to verify that the uninstallation worked:
+
+```bash
+➜  tools ./butler-sheet-icons browser list-installed
+2023-07-24T19:11:30.648Z info: Installed browsers:
+2023-07-24T19:11:30.648Z info:     chrome, build id=115.0.5790.102, platform=mac, path=/Users/goran/.cache/puppeteer/chrome/mac-115.0.5790.102
+2023-07-24T19:11:30.649Z info:     firefox, build id=117.0a1, platform=mac, path=/Users/goran/.cache/puppeteer/firefox/mac-117.0a1
+➜  tools
+➜  tools
+➜  tools ./butler-sheet-icons browser uninstall-all
+2023-07-24T19:11:41.738Z info: Starting uninstallation of all browsers
+2023-07-24T19:11:41.739Z info: Uninstalling 2 browsers:
+2023-07-24T19:11:41.739Z info:     Starting uninstallation of "chrome", build id "115.0.5790.102", platform "mac", path "/Users/goran/.cache/puppeteer/chrome/mac-115.0.5790.102"
+2023-07-24T19:11:41.827Z info:     Starting uninstallation of "firefox", build id "117.0a1", platform "mac", path "/Users/goran/.cache/puppeteer/firefox/mac-117.0a1"
+2023-07-24T19:11:41.892Z info: Removing any remaining files and directories in the browser cache directory
+2023-07-24T19:11:41.893Z info: Browser "chrome" (115.0.5790.102) uninstalled.
+2023-07-24T19:11:41.893Z info: Browser "firefox" (117.0a1) uninstalled.
+➜  tools
+➜  tools
+➜  tools ./butler-sheet-icons browser list-installed
+2023-07-24T19:11:45.813Z info: No browsers installed
+➜  tools
+```
+
 # Supported Qlik Sense versions
 
 ## Client-managed Qlik Sense (=Qlik Sense Enterprise on Windows)
 
 | Version | Tested date | Comment |
 |---------|-------------|---------|
-| 2023-May IR | 2023-July-7 | Use `--sense-version 2023-May` |
+| 2023-May IR | 2023-July-24 | Use `--sense-version 2023-May` |
 | 2022-Nov patch 2 | 2023-Jan-3 | Use `--sense-version 2022-Nov` |
 | 2022-Aug patch 5 | 2023-Jan-2 | Use `--sense-version pre-2022-Nov` |
 | 2022-May IR | 2022-Sep-30 | Use `--sense-version pre-2022-Nov` |
@@ -805,6 +1171,7 @@ Note: The command above assumes the certificates exported from QSEoW are availab
 
 | Tested date | Comment |
 |-------------|---------|
+| 2023-July-24  | Works without issues |
 | 2023-July-9  | Works without issues |
 | 2023-Jan-3  | Works without issues |
 | 2022-Sep-30 | Works without issues |
@@ -819,14 +1186,6 @@ Tests are made on the following platforms and Node.js versions
   - Latest available Node.js LTS (Long Term Support) version.
 - MacOS Monterey
   - Latest available Node.js LTS version.
-
-The current status of each test suite is shown as badges at the top of the [readme file](https://github.com/ptarmiganlabs/butler-sheet-icons/blob/main/README.md).
-
-These test serve a purpose:  
-If you struggle to get Butler Sheet Icons working you can check those badges.  
-If they show that the platform you're interested in works, you should look at your command line options etc. The error is probably on your side.  
-
-If on the other hand the badges show that the platform you're interested in is broken, you might want to [raise an issue](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/new/choose) (if someone else hasn't already). Alerts are also sent to the project maintaners, so they should already be aware of the issue.
 
 # When things don't quite work
 
@@ -846,6 +1205,8 @@ If you have security concerns or ideas around BSI, please get involved in the pr
 ## Platform specific security information
 
 ### Windows
+
+The Windows version of Butler Sheet Icons is signed with a commercial code signing certificate, with Ptarmigan Labs as the publisher.
 
 ### macOS
 
