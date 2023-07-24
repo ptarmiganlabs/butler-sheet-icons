@@ -2,12 +2,13 @@
 <h3 align="center">Automatically create Qlik Sense sheet thumbnail images</h3>
 </p>
 
-A cross platform, command line tool (plus Docker!) for creating sheet thumbnails based on the actual layout of sheets in Qlik Sense apps.  
+A cross platform, command line tool (plus Docker!) for creating sheet thumbnails based on the actual layout of sheets in Qlik Sense apps.
+
 Works on both Qlik Sense Cloud apps and Qlik Sense Enterprise on Windows (QSEoW) apps.
 
 ---
 
-Butler Sheet Icons can create sheet thumbnail icons for a single app or many.
+Butler Sheet Icons ("BSI") can create sheet thumbnail icons for a single app or many.
 
 Multi-app support is easy: Use the QMC (for QSEoW) to tag the apps that should be updated, or add the apps to a collection (Qlik Sense Cloud).  
 Then run Butler Sheet Icons and all apps will get new sheet icons automatically!
@@ -32,16 +33,14 @@ butler-sheet-icons.exe qscloud create-sheet-thumbnails
 
 <p align="center">
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons"><img src="https://img.shields.io/badge/Source---" alt="Source"></a>
-
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/ci.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/ci.yml/badge.svg?branch=main" alt="Build status"></a>
-
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml/badge.svg" alt="Docker image build"></a>
-
 <a href="https://www.repostatus.org/#active"><img src="https://www.repostatus.org/badges/latest/active.svg" alt="Project Status: Active – The project has reached a stable, usable state and is being actively developed." /></a>
 
 ---
 
-Butler Sheet Icons is an open source project sponsored by Ptarmigan Labs.
+Butler Sheet Icons is an open source project sponsored by Ptarmigan Labs.  
+At [www.ptarmiganlabs.com](https://www.ptarmiganlabs.com) you will find articles about how the Butler tools can help you get the most out of Qlik Sense.
 
 For support and services relating to the Butler family of tools or Qlik Sense projects in general, please contact info -at- ptarmiganlanbs -dot- com.
 
