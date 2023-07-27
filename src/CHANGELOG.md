@@ -1,6 +1,48 @@
 # Changelog
 
 
+## [3.1.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.1.0...butler-sheet-icons-v3.1.0) (2023-07-27)
+
+
+### Features
+
+* **browser:** Add new `browser`command and sub-commands ([c5db184](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c5db184a8f2640c330adae70614d1e060bf59aa3)), closes [#394](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/394)
+* **client-managed:** Add support for QSEoW 2023-May ([9770eb4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9770eb42b0b8c93c516d44ee44d6e11aa5f84c42)), closes [#349](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/349)
+* **client-managed:** Add support for Sense 2023-Feb ([f10e0c5](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f10e0c512041e6f9361553a22c0542ce29b84382)), closes [#348](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/348)
+* **client-managed:** Let user control which browser/version to use ([31c15a2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/31c15a2cf1771e91eff9fa558b5f165387b96323))
+* **cloud:** Better error handling/logging ([e64cecf](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e64cecf68ac5822fbecd0935cf0dc3c1e9ee447c))
+* **cloud:** Let user control which browser/version to use ([26ea2ac](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/26ea2acd0e70f1b02482ac9ae6f522a17b862c54))
+* Use separate Chromium versions for Windows, macOS and Linux. ([9790a0c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9790a0cb0e070f432430811c3641c6078ed91fb0)), closes [#335](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/335)
+
+
+### Bug Fixes
+
+* Always skip hidden sheets ([fc37d2f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fc37d2f8e3b5298148694b86650f4f0c4bcc12ee)), closes [#408](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/408)
+* **browser:** Better cleanup of dirs and files for `browser uninstall-all` command ([14a0949](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/14a094951323ccb864a59f3c36737ebc8c4174db))
+* **cloud:** Update BSI wrt latest Qlik Cloud UI code ([7de1333](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7de1333b1ec1fd028c25b50df086c9e70e8ff726)), closes [#350](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/350)
+
+
+### Miscellaneous
+
+* **deps:** Update axios to v1+ ([4183548](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4183548a5ba8f0aad4816d86d50e304263d6bc8c))
+* **deps:** Update dependencies ([3cbb937](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3cbb937e32d4240935dd904ac886c395b91e0c7e))
+* **deps:** Update dependencies to stay safe and secure ([9cae768](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9cae7682419ccf525b9efe839362f378e3c93859))
+* **deps:** Update dependencies to stay safe and secure ([08b3927](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/08b39274034fd972bd5d3b65c7e0b696e64d7e30))
+* **deps:** Upgrade code linting ([ed15b76](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ed15b7634892a9a5131b576937be4c7b3607c244))
+* **deps:** Upgrade to Axios 1.4 ([d493da7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d493da73ed0bc118758090b9251167992c8a0538))
+* **main:** release butler-sheet-icons 3.0.1 ([2a42696](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2a42696660bada1f235a43a250913ec5327331e5))
+* **main:** release butler-sheet-icons 3.0.1 ([4e66994](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4e66994dd8b21f18a730ca70ec16ac1b971d9417))
+* **main:** release butler-sheet-icons 3.0.1 ([5f911a7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5f911a7d99925ab1cc1d6c315beeabf614e07a11))
+* **main:** release butler-sheet-icons 3.0.1 ([150816d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/150816d6f60b6d33dc9d0a536cb7cd1a0f9912e6))
+* **main:** release butler-sheet-icons 3.0.1 ([0bb61ac](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0bb61acdd7e748e8c8169588abcea9ed299acf6c))
+* **main:** release butler-sheet-icons 3.0.1 ([f4cd291](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f4cd291d569e5d9862df65d52a512530d5f64156))
+* **main:** release butler-sheet-icons 3.0.1 ([b5ddf27](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b5ddf2708f489409d34d208c1fcf393b6262b8f6))
+* **main:** release butler-sheet-icons 3.0.1 ([e9a90e1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e9a90e1f92384d07b2f166fc35ba5fe2e2a4307d))
+* **main:** release butler-sheet-icons 3.1.0 ([6fd47ae](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6fd47aed4a9910f2922b13b7a3d919ce8d782c7b))
+* **main:** release butler-sheet-icons 3.1.0 ([939021f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/939021fee4e6e783907ae96298947bc4ca4d71f7))
+* **main:** release butler-sheet-icons 3.1.0 ([276a26a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/276a26a12ba58e68c9f5fdd458705acb643024f9))
+* **tests:** Better testing of multiple browser install/uninstall ([b9dae1a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b9dae1aaf1e53844409bf645bc9afa39e2f85a09))
+
 ## [3.1.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.1.0...butler-sheet-icons-v3.1.0) (2023-07-23)
 
 
