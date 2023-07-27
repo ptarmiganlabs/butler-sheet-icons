@@ -437,7 +437,10 @@ When running Butler Sheet Icons for the first time, a web browser needs to be do
 If not instructed otherwise, Butler Sheet Icons will download and install the latest version of the Chrome browser.
 
 The `--browser` option can be used to specify which browser to use. Valid values are `chrome` and `firefox`.  
-If you want to use a specific version of Chrome or Firefox, you can specify that using the `--browser-version` option.  
+If you want to use a specific version of Chrome, you can specify that using the `--browser-version` option.  
+
+> Firefox does not support specifying a specific version, so `--browser-version latest` option will be automatically used when `--browser firefox` is specified.
+
 Both `--browser` and `--browser-version` are optional parameters available when creating sheet icons for both QS Cloud and client-managed QSEoW.
 
 More info is available in the [browser section](#the-browser-command).
