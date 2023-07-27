@@ -476,10 +476,20 @@ const program = new Command();
                             // eslint-disable-next-line no-param-reassign
                             options.browserVersion = 'stable';
                         } else if (options.browser === 'firefox') {
+                            // Firefox doesn't have a "stable" channel, so use "latest"
+                            // Firefox support is still experimental, so always use latest version = nightly build
                             // eslint-disable-next-line no-param-reassign
                             options.browserVersion = 'latest';
                         }
+                    } else if (options.browser === 'firefox' && options.browserVersion !== 'latest') {
+                        // Only "latest" is supported for Firefox. 
+                        // In the future we might support other/specifc versions, but for now we'll just use latest.
+                        logger.error(
+                            `Firefox support is still experimental, so only "latest" is supported for browser version. You specified a different version: ${options.browserVersion}.`
+                        );
+                        process.exit(1);
                     }
+                
                     const res = await browserInstall(options, command);
                     logger.debug(`Call to browserInstall succeeded: ${res}`);
                 } catch (err) {

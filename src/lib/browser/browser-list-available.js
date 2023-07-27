@@ -89,6 +89,12 @@ async function browserListAvailable(options) {
                 logger.info('No Chrome versions available');
             }
         } else if (options.browser === 'firefox') {
+            // For now support for older Firefox versions is not implemented
+            logger.warn(
+                'Firefox support is not implemented yet. Only latest version is supported, i.e. "browser install --browser firefox --browser-version latest", or simply "browser install --browser firefox".'
+            );
+            browsersAvailable.push({ version: 'latest' });
+
             // Firefox version history API:
             // https://wiki.mozilla.org/Release_Management/Product_details#firefox.json
             //
@@ -110,43 +116,43 @@ async function browserListAvailable(options) {
             //     ]
             // }
 
-            const axiosConfig = {
-                method: 'get',
-                responseType: 'json',
-                url: 'https://product-details.mozilla.org/1.0/firefox.json',
-            };
+            //     const axiosConfig = {
+            //         method: 'get',
+            //         responseType: 'json',
+            //         url: 'https://product-details.mozilla.org/1.0/firefox.json',
+            //     };
 
-            const response = await axios(axiosConfig);
-            const firefoxVersions = response.data.releases;
+            //     const response = await axios(axiosConfig);
+            //     const firefoxVersions = response.data.releases;
 
-            // Only include versions from past 12 months
-            const today = new Date();
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(today.getFullYear() - 1);
-            logger.debug(`Today: ${today}`);
-            logger.debug(`One year ago: ${oneYearAgo}`);
+            //     // Only include versions from past 12 months
+            //     const today = new Date();
+            //     const oneYearAgo = new Date();
+            //     oneYearAgo.setFullYear(today.getFullYear() - 1);
+            //     logger.debug(`Today: ${today}`);
+            //     logger.debug(`One year ago: ${oneYearAgo}`);
 
-            browsersAvailable = Object.keys(firefoxVersions)
-                .filter((version) => {
-                    const versionDate = new Date(firefoxVersions[version].date);
-                    return versionDate > oneYearAgo;
-                })
-                .map((version) => ({
-                    date: firefoxVersions[version].date,
-                    category: firefoxVersions[version].category,
-                    version: firefoxVersions[version].version,
-                }))
-                .sort((a, b) => new Date(b.date) - new Date(a.date));
+            //     browsersAvailable = Object.keys(firefoxVersions)
+            //         .filter((version) => {
+            //             const versionDate = new Date(firefoxVersions[version].date);
+            //             return versionDate > oneYearAgo;
+            //         })
+            //         .map((version) => ({
+            //             date: firefoxVersions[version].date,
+            //             category: firefoxVersions[version].category,
+            //             version: firefoxVersions[version].version,
+            //         }))
+            //         .sort((a, b) => new Date(b.date) - new Date(a.date));
 
-            // Output Firefox versions and names to info log
-            if (browsersAvailable.length > 0) {
-                logger.info(`Firefox versions from past 12 months:`);
-                browsersAvailable.forEach((version) => {
-                    logger.info(`    ${version.date}, "${version.category}", "${version.version}"`);
-                });
-            } else {
-                logger.info('No Firefox versions available');
-            }
+            //     // Output Firefox versions and names to info log
+            //     if (browsersAvailable.length > 0) {
+            //         logger.info(`Firefox versions from past 12 months:`);
+            //         browsersAvailable.forEach((version) => {
+            //             logger.info(`    ${version.date}, "${version.category}", "${version.version}"`);
+            //         });
+            //     } else {
+            //         logger.info('No Firefox versions available');
+            //     }
         }
         return browsersAvailable;
     } catch (err) {
