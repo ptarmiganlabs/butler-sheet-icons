@@ -94,6 +94,8 @@ Table of contents
     - [uninstall](#uninstall)
     - [uninstall-all](#uninstall-all)
     - [install](#install-1)
+    - [Older versions of Chrome](#older-versions-of-chrome)
+    - [Older versions of Firefox](#older-versions-of-firefox)
     - [list-available](#list-available)
 - [Hands-on examples](#hands-on-examples)
   - [QS Cloud, update a single app + apps in collection](#qs-cloud-update-a-single-app--apps-in-collection)
@@ -867,6 +869,30 @@ Options:
   --browser-version <version>  Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.
   -h, --help                   display help for command
 ```
+
+### Older versions of Chrome
+
+If using the command `browser list-available --browser chrome` you will see that there are several versions of Chrome available for download.  
+If you then try to install an older version of Chrome it seems the Chrome team has removed the ability to download at least some older versions of Chrome.
+
+The output would look like this in PowerShell on Windows:
+
+```powershell
+.\butler-sheet-icons.exe browser install --browser chrome --browser-version 109.0.5414.74
+2023-07-27T05:34:35.117Z info: Resolved browser build id: "109.0.5414.74" for browser "chrome" version "109.0.5414.74"
+2023-07-27T05:34:35.119Z info: Installing browser...
+2023-07-27T05:34:35.582Z error: Browser version "109.0.5414.74" not found
+2023-07-27T05:34:35.582Z error: MAIN browser install: Error: Download failed: server returned code 404. URL: https://edgedl.me.gvt1.com/edgedl/chrome/chrome-for-testing/109.0.5414.74/linux64/chrome-linux64.zip
+```
+
+There really isn't much to do about this, other than to use a newer version of Chrome.
+
+### Older versions of Firefox
+
+Support for specific Firefox versions is pending, for now only the latest version of Firefox is supported.
+
+Simply use the `--browser firefox` option to install the latest version of Firefox.  
+Using `--browser firefox --browser-version latest ` will achieve the same result.
 
 ### list-available
 

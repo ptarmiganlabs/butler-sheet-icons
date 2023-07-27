@@ -48,6 +48,7 @@ const browserInstall = async (options, _command) => {
             browser: options.browser,
             buildId,
             cacheDir: browserPath,
+            unpack: true,
         });
 
         logger.info(`Browser "${browser.browser}" version "${browser.buildId}" installed`);
