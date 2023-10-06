@@ -1191,6 +1191,7 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Version | Tested date | Comment |
 |---------|-------------|---------|
+| 2023-May patch 6 | 2023-Oct-06 | Use `--sense-version 2023-May` |
 | 2023-May IR | 2023-July-24 | Use `--sense-version 2023-May` |
 | 2022-Nov patch 2 | 2023-Jan-3 | Use `--sense-version 2022-Nov` |
 | 2022-Aug patch 5 | 2023-Jan-2 | Use `--sense-version pre-2022-Nov` |
@@ -1198,12 +1199,13 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 ## Qlik Sense cloud
 
-| Tested date | Comment |
-|-------------|---------|
-| 2023-July-24  | Works without issues |
-| 2023-July-9  | Works without issues |
-| 2023-Jan-3  | Works without issues |
-| 2022-Sep-30 | Works without issues |
+| Tested date | BSI version | Comment |
+|-------------|-------------|---------|
+| 2023-Oct-6 | 3.1.0 | Works without issues |
+| 2023-July-24 | | Works without issues |
+| 2023-July-9 | | Works without issues |
+| 2023-Jan-3 | | Works without issues |
+| 2022-Sep-30 | | Works without issues |
 
 # Testing
 
