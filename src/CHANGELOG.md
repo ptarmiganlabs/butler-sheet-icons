@@ -1,6 +1,14 @@
 # Changelog
 
 
+## [3.2.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.1.0...butler-sheet-icons-v3.2.0) (2023-10-07)
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies to stay safe and secure ([d7c0167](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d7c01679c1f4a0ef1b004ee336c57cd6d53bd9f9))
+* **deps:** Update dependencies to stay safe and secure ([e4d452a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e4d452a1e5f63a7e8bf20db9a77e10c4fe8e381d))
+
 ## [3.1.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.1.0...butler-sheet-icons-v3.1.0) (2023-07-27)
 
 
