@@ -248,6 +248,7 @@ jobs:
           pwd
           ls -la
           node --version
+          git version
         working-directory: src
 
       - name: Run tests
@@ -336,9 +337,9 @@ jobs:
 
       - name: Debugging 2
         run: |
-          pwd
-          ls -la
+          dir 
           node --version
+          git version
         working-directory: src
 
       - name: Run tests
