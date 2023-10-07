@@ -331,11 +331,14 @@ jobs:
         run: npm ci
         working-directory: src
 
-      - name: Make sure Jest is installed
-        run: npm install jest
+      # - name: Make sure Jest is installed
+      #   run: npm install jest
 
       - name: Debugging 2
-        run: dir
+        run: |
+          pwd
+          ls -la
+          node --version
         working-directory: src
 
       - name: Run tests
