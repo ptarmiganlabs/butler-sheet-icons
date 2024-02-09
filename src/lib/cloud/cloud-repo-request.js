@@ -2,6 +2,7 @@
 const axios = require('axios');
 const FormData = require('form-data');
 const { Readable } = require('stream');
+const { logger } = require('../../globals');
 
 axios.interceptors.response.use(
     async (response) => {
@@ -52,7 +53,15 @@ async function makeRequest(config, data = []) {
                 : response.data.links.Next.Href;
             return makeRequest(config, returnData);
         }
-    } catch (e) {
+    } catch (err) {
+        logger.error(`CLOUD Error in request to Qlik Cloud 1: ${err}`);
+        if (err.message) {
+            logger.error(`CLOUD Error in request to Qlik Cloud 1 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`CLOUD Error in request to Qlik Cloud 1 (stack): ${err.stack}`);
+        }
+
         throw Error({
             message: 'Error in request to Qlik Cloud',
         });

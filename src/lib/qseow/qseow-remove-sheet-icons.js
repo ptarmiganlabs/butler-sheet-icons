@@ -108,7 +108,13 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        logger.error(`QSEoW APP removeSheetIconsQSEoWApp: ${err}`);
+        logger.error(`QSEOW: removeSheetIconsQSEoWApp: ${err}`);
+        if (err.message) {
+            logger.error(`QSEOW: removeSheetIconsQSEoWApp (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`QSEOW: removeSheetIconsQSEoWApp (stack): ${err.stack}`);
+        }
     }
 };
 
@@ -185,13 +191,26 @@ const qseowRemoveSheetIcons = async (options) => {
 
                 logger.verbose(`Done processing app ${appId}`);
             } catch (err) {
-                logger.error(`QSEOW PROCESS APP: ${err}`);
+                logger.error(`QSEOW PROCESS APP: Remove sheet icons: ${err}`);
+                if (err.message) {
+                    logger.error(`QSEOW PROCESS APP: Remove sheet icons (message): ${err.message}`);
+                }
+                if (err.stack) {
+                    logger.error(`QSEOW PROCESS APP: Remove sheet icons (stack): ${err.stack}`);
+                }
             }
         }
 
         return true;
     } catch (err) {
-        logger.error(`CREATE THUMBNAILS 2: ${err}`);
+        logger.error(`QSEOW REMOVE THUMBNAILS 2: ${err}`);
+        if (err.message) {
+            logger.error(`QSEOW REMOVE THUMBNAILS 2 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`QSEOW REMOVE THUMBNAILS 2 (stack): ${err.stack}`);
+        }
+
         return false;
     }
 };

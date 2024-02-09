@@ -67,6 +67,12 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
                     logger.verbose(`QS Cloud image upload done: ${JSON.stringify(file)}`);
                 } catch (err) {
                     logger.error(`CLOUD UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
+                    if (err.message) {
+                        logger.error(`CLOUD UPLOAD 1 (stack): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`CLOUD UPLOAD 1 (stack): ${err.stack}`);
+                    }
                 }
             } else if (fileStat.isDirectory()) {
                 logger.verbose(`${fileFullPath} is a directory, skipping.`);
@@ -74,6 +80,12 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
         }
     } catch (err) {
         logger.error(`CLOUD UPLOAD 2: ${JSON.stringify(err, null, 2)}`);
+        if (err.message) {
+            logger.error(`CLOUD UPLOAD 2 (stack): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`CLOUD UPLOAD 2 (stack): ${err.stack}`);
+        }
     }
 };
 
