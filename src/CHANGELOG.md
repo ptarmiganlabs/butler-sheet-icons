@@ -1,6 +1,19 @@
 # Changelog
 
 
+## [3.2.2](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.2.1...butler-sheet-icons-v3.2.2) (2024-02-09)
+
+
+### Bug Fixes
+
+* Add better logging across the entire tool ([3341761](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/33417616289b992c9cd83cc7be13b8448813f9b8))
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies ([2f0cdad](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2f0cdad74f6cb119dde562b5062f9a944695c02c))
+* **deps:** Updated dependencies ([bab8a03](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bab8a03df636a43956ba357439cb74b6ead085fd))
+
 ## [3.2.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.2.0...butler-sheet-icons-v3.2.1) (2023-11-08)
 
 
