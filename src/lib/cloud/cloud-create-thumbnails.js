@@ -35,6 +35,13 @@ const processCloudApp = async (appId, saasInstance, options) => {
         logger.verbose(`Created cloud image directory '${options.imagedir}/cloud/${appId}'`);
     } catch (err) {
         logger.error(`CREATE THUMBNAILS 1: Error creating cloud image directory: ${err}`);
+        if (err.message) {
+            logger.error(`CREATE THUMBNAILS 1 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`CREATE THUMBNAILS 1 (stack): ${err.stack}`);
+        }
+
         throw Error('Error creating cloud image directory');
     }
 
@@ -64,6 +71,13 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 existingThumbnails = await saasInstance.Get(`apps/${appId}/media/list/thumbnails`);
             } catch (err) {
                 logger.error(`CREATE THUMBNAILS 2: Error getting existing thumbnails: ${err}`);
+                if (err.message) {
+                    logger.error(`CREATE THUMBNAILS 2 (message): ${err.message}`);
+                }
+                if (err.stack) {
+                    logger.error(`CREATE THUMBNAILS 2 (stack): ${err.stack}`);
+                }
+
                 throw Error('Error getting existing thumbnails');
             }
 
@@ -86,6 +100,13 @@ const processCloudApp = async (appId, saasInstance, options) => {
                         logger.error(
                             `CREATE THUMBNAILS 3: Error deleting existing thumbnail: ${err}`
                         );
+                        if (err.message) {
+                            logger.error(`CREATE THUMBNAILS 3 (message): ${err.message}`);
+                        }
+                        if (err.stack) {
+                            logger.error(`CREATE THUMBNAILS 3 (stack): ${err.stack}`);
+                        }
+
                         throw Error('Error deleting existing thumbnail');
                     }
                 }
@@ -163,7 +184,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
             // Returns true if browser installed successfully
             const browserInstallResult = await browserInstall(options);
             if (browserInstallResult === false) {
-                logger.error(`QSEoW APP: Error installing browser. Exiting.`);
+                logger.error(`CLOUD: Error installing browser. Exiting.`);
                 process.exit(1);
             }
 
@@ -209,6 +230,17 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 });
             } catch (err) {
                 logger.error(`CLOUD APP: Could not launch virtual browser: ${err}. Exiting.`);
+                if (err.message) {
+                    logger.error(
+                        `CLOUD APP: Could not launch virtual browser (message): ${err.message}`
+                    );
+                }
+                if (err.stack) {
+                    logger.error(
+                        `CLOUD APP: Could not launch virtual browser (stack): ${err.stack}`
+                    );
+                }
+
                 process.exit(1);
             }
 
@@ -393,6 +425,16 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 logger.verbose('Closed virtual browser');
             } catch (err) {
                 logger.error(`CLOUD APP: Could not close virtual browser: ${err}`);
+                if (err.message) {
+                    logger.error(
+                        `CLOUD APP: Could not close virtual browser (message): ${err.message}`
+                    );
+                }
+                if (err.stack) {
+                    logger.error(
+                        `CLOUD APP: Could not close virtual browser (stack): ${err.stack}`
+                    );
+                }
             }
         }
 
@@ -415,6 +457,12 @@ const processCloudApp = async (appId, saasInstance, options) => {
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
         logger.error(`CLOUD APP: ${err.stack}`);
+        if (err.message) {
+            logger.error(`CLOUD APP (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`CLOUD APP (stack): ${err.stack}`);
+        }
     }
 };
 
@@ -520,13 +568,26 @@ const qscloudCreateThumbnails = async (options) => {
 
                 logger.verbose(`Done processing app ${appId}`);
             } catch (err) {
-                logger.error(`QSEOW PROCESS APP: ${err}`);
+                logger.error(`CLOUD PROCESS APP: ${err}`);
+                if (err.message) {
+                    logger.error(`CLOUD PROCESS APP (message): ${err.message}`);
+                }
+                if (err.stack) {
+                    logger.error(`CLOUD PROCESS APP (stack): ${err.stack}`);
+                }
             }
         }
 
         return true;
     } catch (err) {
-        logger.error(`CREATE THUMBNAILS 2: ${JSON.stringify(err, null, 2)}`);
+        logger.error(`CLOUD CREATE THUMBNAILS 2: ${JSON.stringify(err, null, 2)}`);
+        if (err.message) {
+            logger.error(`CLOUD CREATE THUMBNAILS 2 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`CLOUD CREATE THUMBNAILS 2 (stack): ${err.stack}`);
+        }
+
         return false;
     }
 };

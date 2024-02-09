@@ -26,10 +26,34 @@ const qscloudListCollections = async (options) => {
             // version: X, // optional. default is: 1
         };
 
-        const saasInstance = new QlikSaas(cloudConfig);
+        let saasInstance;
+        try {
+            saasInstance = new QlikSaas(cloudConfig);
+        } catch (err) {
+            logger.error(`LIST COLLECTIONS 1: ${err}`);
+            if (err.message) {
+                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
+            }
+            if (err.stack) {
+                logger.error(`LIST COLLECTIONS 1 (stack): ${err.stack}`);
+            }
+            return false;
+        }
 
         // Get all available collections
-        const allCollections = await saasInstance.Get('collections');
+        let allCollections;
+        try {
+            allCollections = await saasInstance.Get('collections');
+        } catch (err) {
+            logger.error(`LIST COLLECTIONS 2: ${err}`);
+            if (err.message) {
+                logger.error(`LIST COLLECTIONS 2 (message): ${err.message}`);
+            }
+            if (err.stack) {
+                logger.error(`LIST COLLECTIONS 2 (stack): ${err.stack}`);
+            }
+            return false;
+        }
 
         if (options.outputformat === 'table') {
             const tableConfig = {
@@ -74,7 +98,13 @@ const qscloudListCollections = async (options) => {
 
         return true;
     } catch (err) {
-        logger.error(`LIST COLLECTIONS 1: ${err}`);
+        logger.error(`LIST COLLECTIONS 3: ${err}`);
+        if (err.message) {
+            logger.error(`LIST COLLECTIONS 3 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`LIST COLLECTIONS 3 (stack): ${err.stack}`);
+        }
         return false;
     }
 };
@@ -117,11 +147,25 @@ const qscloudVerifyCollectionExists = (options) =>
                 })
                 .catch((err) => {
                     // Return error msg
-                    logger.error(`COLLECTION EXISTS 1: ${err}`);
+                    logger.error(`CLOUD COLLECTION EXISTS 1: ${err}`);
+                    if (err.message) {
+                        logger.error(`CLOUD COLLECTION EXISTS 1 (message): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`CLOUD COLLECTION EXISTS 1 (stack): ${err.stack}`);
+                    }
+
                     reject(new Error(`COLLECTION EXISTS 1: ${err}`));
                 });
         } catch (err) {
-            logger.error(`COLLECTION EXISTS: ${JSON.stringify(err, null, 2)}`);
+            logger.error(`CLOUD COLLECTION EXISTS 2: ${JSON.stringify(err, null, 2)}`);
+            if (err.message) {
+                logger.error(`CLOUD COLLECTION EXISTS 2 (stack): ${err.message}`);
+            }
+            if (err.stack) {
+                logger.error(`CLOUD COLLECTION EXISTS 2 (stack): ${err.stack}`);
+            }
+
             reject(new Error(`COLLECTION EXISTS: ${err}`));
         }
     });

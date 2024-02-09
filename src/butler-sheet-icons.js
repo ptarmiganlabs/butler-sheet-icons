@@ -50,7 +50,13 @@ const program = new Command();
                 const res = await qseowCreateThumbnails(options, command);
                 logger.debug(`Call to qseowCreateThumbnails succeeded: ${res}`);
             } catch (err) {
-                logger.error(`MAIN qseow: ${err}`);
+                logger.error(`QSEOW MAIN 1: ${err}`);
+                if (err.message) {
+                    logger.error(`QSEOW MAIN 1 (message): ${err.message}`);
+                }
+                if (err.stack) {
+                    logger.error(`QSEOW MAIN 1 (stack): ${err.stack}`);
+                }
             }
         })
         .addOption(
@@ -178,7 +184,13 @@ const program = new Command();
                 const res = await qseowRemoveSheetIcons(options, command);
                 logger.debug(`Call to qseowRemoveSheetIcons succeeded: ${res}`);
             } catch (err) {
-                logger.error(`MAIN qseow: ${err}`);
+                logger.error(`QSEOW MAIN 2: ${err}`);
+                if (err.message) {
+                    logger.error(`QSEOW MAIN 2 (message): ${err.message}`);
+                }
+                if (err.stack) {
+                    logger.error(`QSEOW MAIN 2 (stack): ${err.stack}`);
+                }
             }
         })
         .addOption(
@@ -261,7 +273,13 @@ const program = new Command();
                     const res = await qscloudCreateThumbnails(options, command);
                     logger.debug(`Call to qscloudCreateThumbnails succeeded: ${res}`);
                 } catch (err) {
-                    logger.error(`MAIN cloud: ${err}`);
+                    logger.error(`CLOUD MAIN 3: ${err}`);
+                    if (err.message) {
+                        logger.error(`CLOUD MAIN 3 (message): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`CLOUD MAIN 3 (stack): ${err.stack}`);
+                    }
                 }
             })
             .addOption(
@@ -337,7 +355,13 @@ const program = new Command();
                     const res = await qscloudListCollections(options, command);
                     logger.debug(`Call to qscloudListCollections succeeded: ${res}`);
                 } catch (err) {
-                    logger.error(`MAIN cloud: ${err}`);
+                    logger.error(`CLOUD MAIN 4: ${err}`);
+                    if (err.message) {
+                        logger.error(`CLOUD MAIN 4 (message): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`CLOUD MAIN 4 (stack): ${err.stack}`);
+                    }
                 }
             })
             .addOption(
@@ -362,7 +386,13 @@ const program = new Command();
                     const res = await qscloudRemoveSheetIcons(options, command);
                     logger.debug(`Call to qscloudRemoveSheetIcons succeeded: ${res}`);
                 } catch (err) {
-                    logger.error(`MAIN cloud: ${err}`);
+                    logger.error(`CLOUD MAIN 5: ${err}`);
+                    if (err.message) {
+                        logger.error(`CLOUD MAIN 5 (message): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`CLOUD MAIN 5 (stack): ${err.stack}`);
+                    }
                 }
             })
             .addOption(
@@ -404,7 +434,13 @@ const program = new Command();
                     const res = await browserInstalled(options, command);
                     logger.debug(`Call to browserInstalled succeeded: ${res}`);
                 } catch (err) {
-                    logger.error(`MAIN browser list-installed: ${err}`);
+                    logger.error(`BROWSER MAIN 6: ${err}`);
+                    if (err.message) {
+                        logger.error(`BROWSER MAIN 6 (message): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`BROWSER MAIN 6 (stack): ${err.stack}`);
+                    }
                 }
             })
             .addOption(
@@ -424,7 +460,13 @@ const program = new Command();
                     const res = await browserUninstall(options, command);
                     logger.debug(`Call to browserUninstall succeeded: ${res}`);
                 } catch (err) {
-                    logger.error(`MAIN browser uninstall: ${err}`);
+                    logger.error(`BROWSER MAIN 7: ${err}`);
+                    if (err.message) {
+                        logger.error(`BROWSER MAIN 7 (message): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`BROWSER MAIN 7 (stack): ${err.stack}`);
+                    }
                 }
             })
             .addOption(
@@ -453,7 +495,13 @@ const program = new Command();
                     const res = await browserUninstallAll(options, command);
                     logger.debug(`Call to browserUninstallAll succeeded: ${res}`);
                 } catch (err) {
-                    logger.error(`MAIN browser uninstall-all: ${err}`);
+                    logger.error(`BROWSER MAIN 8: ${err}`);
+                    if (err.message) {
+                        logger.error(`BROWSER MAIN 8 (message): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`BROWSER MAIN 8 (stack): ${err.stack}`);
+                    }
                 }
             })
             .addOption(
@@ -489,11 +537,17 @@ const program = new Command();
                         );
                         process.exit(1);
                     }
-                
+
                     const res = await browserInstall(options, command);
                     logger.debug(`Call to browserInstall succeeded: ${res}`);
                 } catch (err) {
-                    logger.error(`MAIN browser install: ${err}`);
+                    logger.error(`BROWSER MAIN 9: ${err}`);
+                    if (err.message) {
+                        logger.error(`BROWSER MAIN 9 (message): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`BROWSER MAIN 9 (stack): ${err.stack}`);
+                    }
                 }
             })
             .addOption(
@@ -525,7 +579,13 @@ const program = new Command();
                     const res = await browserListAvailable(options, command);
                     logger.debug(`Call to browserAvailable succeeded: ${res}`);
                 } catch (err) {
-                    logger.error(`MAIN browser available: ${err}`);
+                    logger.error(`BROWSER MAIN 10: ${err}`);
+                    if (err.message) {
+                        logger.error(`BROWSER MAIN 10 (message): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`BROWSER MAIN 10 (stack): ${err.stack}`);
+                    }
                 }
             })
 

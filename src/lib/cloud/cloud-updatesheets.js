@@ -99,16 +99,20 @@ const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
 
         if ((await session.close()) === true) {
             logger.verbose(
-                `Closed session after updating sheet thumbnail images in QSEoW app ${appId} on host ${options.host}`
+                `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
             );
         } else {
             logger.error(`Error closing session for QS Cloud app ${appId}`);
         }
     } catch (err) {
-        logger.error(`UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
-        if (err.stack) {
-            logger.error(`UPDATE SHEETS: ${err.stack}`);
+        logger.error(`CLOUD UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
+        if (err.message) {
+            logger.error(`CLOUD UPDATE SHEETS (stack): ${err.message}`);
         }
+        if (err.stack) {
+            logger.error(`CLOUD UPDATE SHEETS (stack): ${err.stack}`);
+        }
+
         process.exit(1);
     }
 };

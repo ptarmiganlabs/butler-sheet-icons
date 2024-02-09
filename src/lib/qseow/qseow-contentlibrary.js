@@ -37,11 +37,25 @@ const qseowVerifyContentLibraryExists = (options) =>
                 })
                 .catch((err) => {
                     // Return error msg
-                    logger.error(`CONTENT LIBRARY 1: ${err}`);
+                    logger.error(`QSEOW CONTENT LIBRARY 1: ${err}`);
+                    if (err.message) {
+                        logger.error(`QSEOW CONTENT LIBRARY 1 (message): ${err.message}`);
+                    }
+                    if (err.stack) {
+                        logger.error(`QSEOW CONTENT LIBRARY 1 (stack): ${err.stack}`);
+                    }
+
                     reject(new Error(`CONTENT LIBRARY 1: ${err}`));
                 });
         } catch (err) {
-            logger.error(`CONTENT LIBRARY 2: ${JSON.stringify(err, null, 2)}`);
+            logger.error(`QSEOW CONTENT LIBRARY 2: ${JSON.stringify(err, null, 2)}`);
+            if (err.message) {
+                logger.error(`QSEOW CONTENT LIBRARY 2 (message): ${err.message}`);
+            }
+            if (err.stack) {
+                logger.error(`QSEOW CONTENT LIBRARY 2 (stack): ${err.stack}`);
+            }
+
             reject(new Error(`CONTENT LIBRARY 2: ${err}`));
         }
     });

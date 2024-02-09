@@ -126,7 +126,7 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
 
             if ((await session.close()) === true) {
                 logger.verbose(
-                    `Closed session after updating sheet thumbnail images in QSEoW app ${appId} on host ${options.host}`
+                    `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
                 );
             } else {
                 logger.error(`Error closing session for QS Cloud app ${appId}`);
@@ -135,7 +135,13 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        logger.error(`CLOUD REMOVE SHEET ICONS: ${err}`);
+        logger.error(`CLOUD REMOVE SHEET ICONS 1: ${err}`);
+        if (err.message) {
+            logger.error(`CLOUD REMOVE SHEET ICONS 1 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`CLOUD REMOVE SHEET ICONS 1 (stack): ${err.stack}`);
+        }
     }
 };
 
@@ -226,13 +232,26 @@ const qscloudRemoveSheetIcons = async (options) => {
 
                 logger.verbose(`Done processing app ${appId}`);
             } catch (err) {
-                logger.error(`QSEOW PROCESS APP: ${err}`);
+                logger.error(`CLOUD PROCESS APP 2: ${err}`);
+                if (err.message) {
+                    logger.error(`CLOUD PROCESS APP 2 (message): ${err.message}`);
+                }
+                if (err.stack) {
+                    logger.error(`CLOUD PROCESS APP 2 (stack): ${err.stack}`);
+                }
             }
         }
 
         return true;
     } catch (err) {
-        logger.error(`CREATE THUMBNAILS 2: ${JSON.stringify(err, null, 2)}`);
+        logger.error(`CLOUD REMOVE THUMBNAILS 3: ${JSON.stringify(err, null, 2)}`);
+        if (err.message) {
+            logger.error(`CLOUD REMOVE THUMBNAILS 3 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`CLOUD REMOVE THUMBNAILS 3 (stack): ${err.stack}`);
+        }
+
         return false;
     }
 };

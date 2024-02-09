@@ -57,7 +57,14 @@ const qseowVerifyCertificatesExist = (options) =>
 
             resolve(true);
         } catch (err) {
-            logger.error(`CERT CHECK: ${JSON.stringify(err, null, 2)}`);
+            logger.error(`QSEOW CERT CHECK: ${JSON.stringify(err, null, 2)}`);
+            if (err.message) {
+                logger.error(`QSEOW CERT CHECK (message): ${err.message}`);
+            }
+            if (err.stack) {
+                logger.error(`QSEOW CERT CHECK (stack): ${err.stack}`);
+            }
+
             resolve(false);
         }
     });

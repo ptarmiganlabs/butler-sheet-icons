@@ -74,7 +74,14 @@ const processQSEoWApp = async (appId, g, options) => {
         fs.mkdirSync(`${options.imagedir}/qseow/${appId}`, { recursive: true });
         logger.verbose(`Created image QSEoW directory '${options.imagedir}/qseow/${appId}'`);
     } catch (err) {
-        logger.error(`CREATE THUMBNAILS 1: Error creating QSEoW image directory: ${err}`);
+        logger.error(`QSEOW CREATE THUMBNAILS 1: Error creating QSEoW image directory: ${err}`);
+        if (err.message) {
+            logger.error(`QSEOW CREATE THUMBNAILS 1 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`QSEOW CREATE THUMBNAILS 1 (stack): ${err.stack}`);
+        }
+
         throw Error('Error creating QSEoW image directory');
     }
 
@@ -213,7 +220,16 @@ const processQSEoWApp = async (appId, g, options) => {
                     ],
                 });
             } catch (err) {
-                logger.error(`QSEoW APP: Could not launch virtual browser: ${err}. Exiting.`);
+                logger.error(`QSEOW Could not launch virtual browser: ${err}. Exiting.`);
+                if (err.message) {
+                    logger.error(
+                        `QSEOW Could not launch virtual browser (message): ${err.message}`
+                    );
+                }
+                if (err.stack) {
+                    logger.error(`QSEOW Could not launch virtual browser (stack): ${err.stack}`);
+                }
+
                 process.exit(1);
             }
 
@@ -442,9 +458,17 @@ const processQSEoWApp = async (appId, g, options) => {
                     page.waitForNavigation({ waitUntil: ['networkidle2'] }),
                 ]);
             } catch (err) {
-                logger.error(
-                    `QSEoW APP: Could not open hub after generating thumbnail images: ${err}`
-                );
+                logger.error(`QSEOW: Could not open hub after generating thumbnail images: ${err}`);
+                if (err.message) {
+                    logger.error(
+                        `QSEOW: Could not open hub after generating thumbnail images (message): ${err.message}`
+                    );
+                }
+                if (err.stack) {
+                    logger.error(
+                        `QSEOW: Could not open hub after generating thumbnail images (stack): ${err.stack}`
+                    );
+                }
             }
 
             let elementHandle;
@@ -460,8 +484,18 @@ const processQSEoWApp = async (appId, g, options) => {
                 await Promise.all([elementHandle[0].click()]);
             } catch (err) {
                 logger.error(
-                    `QSEoW APP: Error waiting for, or clicking, user button in hub default view: ${err}`
+                    `QSEOW: Error waiting for, or clicking, user button in hub default view: ${err}`
                 );
+                if (err.message) {
+                    logger.error(
+                        `QSEOW: Error waiting for, or clicking, user button in hub default view (message): ${err.message}`
+                    );
+                }
+                if (err.stack) {
+                    logger.error(
+                        `QSEOW: Error waiting for, or clicking, user button in hub default view (stack): ${err.stack}`
+                    );
+                }
             }
 
             try {
@@ -476,15 +510,33 @@ const processQSEoWApp = async (appId, g, options) => {
                 await page.waitForTimeout(options.pagewait * 1000);
             } catch (err) {
                 logger.error(
-                    `QSEoW APP: Error while waiting for, or clicking, logout button in hub's user menu: ${err}`
+                    `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu: ${err}`
                 );
+                if (err.message) {
+                    logger.error(
+                        `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu (message): ${err.message}`
+                    );
+                }
+                if (err.stack) {
+                    logger.error(
+                        `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu (stack): ${err.stack}`
+                    );
+                }
             }
 
             try {
                 await browser.close();
                 logger.verbose('Closed virtual browser');
             } catch (err) {
-                logger.error(`QSEoW APP: Could not close virtual browser: ${err}`);
+                logger.error(`QSEOW: Could not close virtual browser: ${err}`);
+                if (err.message) {
+                    logger.error(
+                        `QSEOW: Could not close virtual browser (message): ${err.message}`
+                    );
+                }
+                if (err.stack) {
+                    logger.error(`QSEOW: Could not close virtual browser (stack): ${err.stack}`);
+                }
             }
         }
 
@@ -504,7 +556,13 @@ const processQSEoWApp = async (appId, g, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        logger.error(`QSEoW APP processQSEoWApp: ${err}`);
+        logger.error(`QSEOW: processQSEoWApp: ${err}`);
+        if (err.message) {
+            logger.error(`QSEOW: processQSEoWApp (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`QSEOW: processQSEoWApp (stack): ${err.stack}`);
+        }
     }
 };
 
@@ -608,12 +666,25 @@ const qseowCreateThumbnails = async (options) => {
                 logger.verbose(`Done processing app ${appId}`);
             } catch (err) {
                 logger.error(`QSEOW PROCESS APP: ${err}`);
+                if (err.message) {
+                    logger.error(`QSEOW PROCESS APP (message): ${err.message}`);
+                }
+                if (err.stack) {
+                    logger.error(`QSEOW PROCESS APP (stack): ${err.stack}`);
+                }
             }
         }
 
         return true;
     } catch (err) {
-        logger.error(`CREATE THUMBNAILS 2: ${err}`);
+        logger.error(`QSEOW CREATE THUMBNAILS 2: ${err}`);
+        if (err.message) {
+            logger.error(`QSEOW CREATE THUMBNAILS 2 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`QSEOW CREATE THUMBNAILS 2 (stack): ${err.stack}`);
+        }
+
         return false;
     }
 };
