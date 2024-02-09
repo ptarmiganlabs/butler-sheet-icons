@@ -18,7 +18,7 @@
     "screenshot"
   ],
   "dependencies": {
-    "@puppeteer/browsers": "^1.9.0",
+    "@puppeteer/browsers": "^2.0.0",
     "axios": "^1.6.7",
     "commander": "^11.1.0",
     "enigma.js": "^2.12.0",
