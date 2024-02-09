@@ -31,7 +31,7 @@
     "form-data": "^4.0.0",
     "fs-extra": "^11.2.0",
     "os": "^0.1.2",
-    "puppeteer-core": "^21.6.0",
+    "puppeteer-core": "^22.0.0",
     "qrs-interact": "^6.3.1",
     "table": "^6.8.1",
     "upath": "^2.0.1",
