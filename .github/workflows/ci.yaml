@@ -533,10 +533,10 @@ jobs:
     needs: 
       - release-please
     runs-on:
-        - self-hosted
-        - x64
-        - macos
-        - sp53
+      - self-hosted
+      - x64
+      - macos
+      - sp53
     if: needs.release-please.outputs.releases_created  == 'true'
     # timeout-minutes: 15
 
