@@ -533,13 +533,13 @@ jobs:
     needs: 
       - release-please
     runs-on:
-      - self-hosted
-      - x64
-      - macos
-      - sp53
+        - self-hosted
+        - x64
+        - macos
+        - sp53
+    if: needs.release-please.outputs.releases_created  == 'true'
     # timeout-minutes: 15
 
-    if: ${{ needs.release-please.outputs.releases_created }} == 'true'
     env:
       DIST_FILE_NAME: butler-sheet-icons
       GITHUB_TOKEN: ${{ secrets.PAT }}
