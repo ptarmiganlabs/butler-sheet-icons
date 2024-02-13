@@ -499,7 +499,7 @@ jobs:
           # this assumes that you have created a personal access token
           # (PAT) and configured it as a GitHub action secret named
           # `MY_RELEASE_PLEASE_TOKEN` (this secret name is not important).
-          token: ${{ secrets.PAT }}
+          token: ${{ secrets.RELEASE_PLEASE_PAT }}
           # optional. customize path to release-please-config.json
           #config-file: release-please-config.json
           # optional. customize path to .release-please-manifest.json
