@@ -7,479 +7,478 @@ on:
       - main
 
 jobs:
-  # insiders-build:
-  #   strategy:
-  #     matrix:
-  #       os: [Windows, mac-build1, ubuntu-latest]
-  #       include:
-  #         - os: Windows
-  #           build: |
-  #             cd src
-  #             ./node_modules/.bin/esbuild "${env:DIST_FILE_NAME}.js" --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
-  #             pkg --output "../${env:DIST_FILE_NAME}.exe" -t node18-win-x64 ./build.cjs --config package.json --compress GZip
+  insiders-build:
+    strategy:
+      matrix:
+        os: [Windows, mac-build1, ubuntu-latest]
+        include:
+          - os: Windows
+            build: |
+              cd src
+              ./node_modules/.bin/esbuild "${env:DIST_FILE_NAME}.js" --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
+              pkg --output "../${env:DIST_FILE_NAME}.exe" -t node18-win-x64 ./build.cjs --config package.json --compress GZip
 
-  #             dir
-  #             cd ..
-  #             dir
+              dir
+              cd ..
+              dir
 
-  #             # Sign the executable
-  #             New-Item -ItemType directory -Path certificate
-  #             Set-Content -Path certificate\certificate.txt -Value $env:CODESIGN_BASE64
-  #             certutil -decode certificate\certificate.txt certificate\certificate.pfx
-  #             Set-Content -Path certificate\intermediate.txt -Value $env:CODESIGN_INTERMEDIATE_BASE64
-  #             certutil -decode certificate\intermediate.txt certificate\intermediate.crt
+              # Sign the executable
+              New-Item -ItemType directory -Path certificate
+              Set-Content -Path certificate\certificate.txt -Value $env:CODESIGN_BASE64
+              certutil -decode certificate\certificate.txt certificate\certificate.pfx
+              Set-Content -Path certificate\intermediate.txt -Value $env:CODESIGN_INTERMEDIATE_BASE64
+              certutil -decode certificate\intermediate.txt certificate\intermediate.crt
 
-  #             $processOptions = @{
-  #               FilePath = "C:\Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe"
-  #               Wait = $true
-  #               ArgumentList = "sign", "/fd", "SHA256", "/p", "$env:CODESIGN_PWD", "/ac", "certificate\intermediate.crt", "/f", "certificate\certificate.pfx", "/tr", "http://timestamp.sectigo.com/rfc3161", "/td", "sha256", "./${env:DIST_FILE_NAME}.exe"
-  #               WorkingDirectory = "."
-  #               NoNewWindow = $true
-  #             }
-  #             Start-Process @processOptions
+              $processOptions = @{
+                FilePath = "C:\Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe"
+                Wait = $true
+                ArgumentList = "sign", "/fd", "SHA256", "/p", "$env:CODESIGN_PWD", "/ac", "certificate\intermediate.crt", "/f", "certificate\certificate.pfx", "/tr", "http://timestamp.sectigo.com/rfc3161", "/td", "sha256", "./${env:DIST_FILE_NAME}.exe"
+                WorkingDirectory = "."
+                NoNewWindow = $true
+              }
+              Start-Process @processOptions
 
-  #             Remove-Item -Recurse -Force certificate
+              Remove-Item -Recurse -Force certificate
 
-  #             # # Create release binary
-  #             # mkdir release-binaries-win
-  #             # Copy-Item -Path ".\${env:DIST_FILE_NAME}.exe" -Destination "release-binaries-win\"
+              # # Create release binary
+              # mkdir release-binaries-win
+              # Copy-Item -Path ".\${env:DIST_FILE_NAME}.exe" -Destination "release-binaries-win\"
 
-  #             # dir
-  #             # dir release-binaries-win
+              # dir
+              # dir release-binaries-win
 
-  #             # Create insider's build zip
-  #             $compress = @{
-  #               Path = "./${env:DIST_FILE_NAME}.exe"
-  #               CompressionLevel = "Fastest"
-  #               DestinationPath = "${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip"
-  #             }
-  #             Compress-Archive @compress
-  #             # dir
-  #           # artifact_release_name: release-binaries-win
-  #           # artifact_release_path: release-binaries-win/*
-  #           artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
-  #         - os: mac-build1
-  #           build: |
-  #             cd src
-  #             ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
-  #             pkg --output "../${DIST_FILE_NAME}" -t node18-macos-x64 ./build.cjs --config package.json --compress GZip
+              # Create insider's build zip
+              $compress = @{
+                Path = "./${env:DIST_FILE_NAME}.exe"
+                CompressionLevel = "Fastest"
+                DestinationPath = "${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip"
+              }
+              Compress-Archive @compress
+              # dir
+            # artifact_release_name: release-binaries-win
+            # artifact_release_path: release-binaries-win/*
+            artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
+          - os: mac-build1
+            build: |
+              cd src
+              ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
+              pkg --output "../${DIST_FILE_NAME}" -t node18-macos-x64 ./build.cjs --config package.json --compress GZip
 
-  #             cd ..
-  #             chmod +x "${DIST_FILE_NAME}"
-  #             security delete-keychain build.keychain || true
+              cd ..
+              chmod +x "${DIST_FILE_NAME}"
+              security delete-keychain build.keychain || true
 
-  #             pwd
-  #             ls -la
+              pwd
+              ls -la
 
-  #             # Turn our base64-encoded certificate back to a regular .p12 file
+              # Turn our base64-encoded certificate back to a regular .p12 file
               
-  #             echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+              echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
 
-  #             # We need to create a new keychain, otherwise using the certificate will prompt
-  #             # with a UI dialog asking for the certificate password, which we can't
-  #             # use in a headless CI environment
+              # We need to create a new keychain, otherwise using the certificate will prompt
+              # with a UI dialog asking for the certificate password, which we can't
+              # use in a headless CI environment
               
-  #             security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-  #             security list-keychains -d user -s build.keychain
-  #             security default-keychain -d user -s build.keychain
-  #             security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-  #             security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-  #             security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+              security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+              security list-keychains -d user -s build.keychain
+              security default-keychain -d user -s build.keychain
+              security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+              security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+              security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
           
-  #             codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
+              codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
 
 
-  #             # Notarize
-  #             # Store the notarization credentials so that we can prevent a UI password dialog from blocking the CI
+              # Notarize
+              # Store the notarization credentials so that we can prevent a UI password dialog from blocking the CI
 
-  #             echo "Create keychain profile"
-  #             xcrun notarytool store-credentials "notarytool-profile" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" --password "$PROD_MACOS_NOTARIZATION_PWD"
+              echo "Create keychain profile"
+              xcrun notarytool store-credentials "notarytool-profile" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" --password "$PROD_MACOS_NOTARIZATION_PWD"
 
-  #             # We can't notarize an app bundle directly, but we need to compress it as an archive.
-  #             # Therefore, we create a zip file containing our app bundle, so that we can send it to the
-  #             # notarization service
+              # We can't notarize an app bundle directly, but we need to compress it as an archive.
+              # Therefore, we create a zip file containing our app bundle, so that we can send it to the
+              # notarization service
 
 
-  #             # Notarize insider binary
-  #             echo "Creating temp notarization archive for insider build"
-  #             ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip"
+              # Notarize insider binary
+              echo "Creating temp notarization archive for insider build"
+              ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip"
 
-  #             # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
-  #             # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
-  #             # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
-  #             # you're curious
-  #             echo "Notarize insider app"
-  #             xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
+              # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
+              # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
+              # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
+              # you're curious
+              echo "Notarize insider app"
+              xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
 
-  #             # Delete build keychain
-  #             security delete-keychain build.keychain
-  #           # artifact_release_name: release-binaries-macos
-  #           # artifact_release_path: release-binaries-macos/*
-  #           artifact_insider: butler-sheet-icons--macos-x64--${{ github.sha }}.zip
-  #         - os: ubuntu-latest
-  #           build: |
-  #             cd src
-  #             ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
-  #             pkg --output "../${DIST_FILE_NAME}" -t node18-linux-x64 ./build.cjs --config package.json --compress GZip
+              # Delete build keychain
+              security delete-keychain build.keychain
+            # artifact_release_name: release-binaries-macos
+            # artifact_release_path: release-binaries-macos/*
+            artifact_insider: butler-sheet-icons--macos-x64--${{ github.sha }}.zip
+          - os: ubuntu-latest
+            build: |
+              cd src
+              ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
+              pkg --output "../${DIST_FILE_NAME}" -t node18-linux-x64 ./build.cjs --config package.json --compress GZip
 
-  #             cd ..
-  #             chmod +x ${DIST_FILE_NAME}
+              cd ..
+              chmod +x ${DIST_FILE_NAME}
 
-  #             # # Copy binary to release catalog              
-  #             # mkdir release-binaries-linux
-  #             # cp ${DIST_FILE_NAME} release-binaries-linux
-  #             # ls -la release-binaries-linux
+              # # Copy binary to release catalog              
+              # mkdir release-binaries-linux
+              # cp ${DIST_FILE_NAME} release-binaries-linux
+              # ls -la release-binaries-linux
 
-  #             # Compress insider's build
-  #             tar -czf "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
-  #             ls -la
+              # Compress insider's build
+              tar -czf "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
+              ls -la
 
-  #           # artifact_release_name: release-binaries-linux
-  #           # artifact_release_path: release-binaries-linux/*
-  #           artifact_insider: butler-sheet-icons--linux-x64--${{ github.sha }}.tgz
-  #   runs-on: ${{ matrix.os }}
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
+            # artifact_release_name: release-binaries-linux
+            # artifact_release_path: release-binaries-linux/*
+            artifact_insider: butler-sheet-icons--linux-x64--${{ github.sha }}.tgz
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: lts/*
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
 
-  #     - name: Install tool for creating stand-alone executables
-  #       run: |
-  #         npm install pkg --location=global
+      - name: Install tool for creating stand-alone executables
+        run: |
+          npm install pkg --location=global
 
-  #     - name: Install dependencies
-  #       run: |
-  #         pwd 
-  #         cd src
-  #         npm ci
+      - name: Install dependencies
+        run: |
+          pwd 
+          cd src
+          npm ci
 
-  #     - name: Run Snyk to check for vulnerabilities
-  #       if: |
-  #         github.repository_owner == 'ptarmiganlabs' &&
-  #         matrix.os == 'ubuntu-latest'
-  #       uses: snyk/actions/node@master
-  #       continue-on-error: true
-  #       env:
-  #         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-  #       with:
-  #         args: --file=./src/package.json --sarif-file-output=snyk.sarif
-  #         # command: test
+      - name: Run Snyk to check for vulnerabilities
+        if: |
+          github.repository_owner == 'ptarmiganlabs' &&
+          matrix.os == 'ubuntu-latest'
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=./src/package.json --sarif-file-output=snyk.sarif
+          # command: test
           
-  #     - name: Upload Snyk result to GitHub Code Scanning
-  #       if: |
-  #         github.repository_owner == 'ptarmiganlabs' &&
-  #         matrix.os == 'ubuntu-latest'
-  #       uses: github/codeql-action/upload-sarif@v3
-  #       with:
-  #         sarif_file: snyk.sarif
+      - name: Upload Snyk result to GitHub Code Scanning
+        if: |
+          github.repository_owner == 'ptarmiganlabs' &&
+          matrix.os == 'ubuntu-latest'
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk.sarif
 
-  #     - name: Create binaries
-  #       env:
-  #         DIST_FILE_NAME: butler-sheet-icons     
-  #         GITHUB_TOKEN: ${{ secrets.PAT }}
-  #         MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
-  #         MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
-  #         MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
-  #         MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
-  #         PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
-  #         PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
-  #         PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
-  #         CODESIGN_PWD: ${{ secrets.WIN_CODESIGN_PWD}}
-  #         CODESIGN_INTERMEDIATE_BASE64: ${{ secrets.WIN_CODESIGN_INTERMEDIATE_BASE64 }}
-  #         CODESIGN_BASE64: ${{ secrets.WIN_CODESIGN_BASE64}}
-  #       run: |
-  #         pwd
-  #         ${{ matrix.build }}
+      - name: Create binaries
+        env:
+          DIST_FILE_NAME: butler-sheet-icons     
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
+          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
+          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
+          CODESIGN_PWD: ${{ secrets.WIN_CODESIGN_PWD}}
+          CODESIGN_INTERMEDIATE_BASE64: ${{ secrets.WIN_CODESIGN_INTERMEDIATE_BASE64 }}
+          CODESIGN_BASE64: ${{ secrets.WIN_CODESIGN_BASE64}}
+        run: |
+          pwd
+          ${{ matrix.build }}
 
-  #     # - name: Upload release artifacts to GitHub
-  #     #   uses: actions/upload-artifact@v3
-  #     #   with:
-  #     #     name: ${{ matrix.artifact_release_name }}
-  #     #     path: ${{ matrix.artifact_release_path }}
+      # - name: Upload release artifacts to GitHub
+      #   uses: actions/upload-artifact@v3
+      #   with:
+      #     name: ${{ matrix.artifact_release_name }}
+      #     path: ${{ matrix.artifact_release_path }}
 
-  #     - name: Upload insider build artifacts to GitHub
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: ${{ matrix.artifact_insider }}
-  #         path: ${{ matrix.artifact_insider }}
+      - name: Upload insider build artifacts to GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_insider }}
+          path: ${{ matrix.artifact_insider }}
 
-  # test-macos:
-  #   needs: 
-  #     - insiders-build
-  #   runs-on:
-  #     - self-hosted
-  #     - ${{ matrix.os }}
-  #     - ${{ matrix.architecture }}
-  #     - sp53
-  #   strategy:
-  #     matrix:
-  #       node:
-  #         - lts/*
-  #       architecture:
-  #         - x64
-  #       os:
-  #         - macos
+  test-macos:
+    needs: 
+      - insiders-build
+    runs-on:
+      - self-hosted
+      - ${{ matrix.os }}
+      - ${{ matrix.architecture }}
+      - sp53
+    strategy:
+      matrix:
+        node:
+          - lts/*
+        architecture:
+          - x64
+        os:
+          - macos
 
-  #   steps:
-  #     - uses: actions/checkout@v4
+    steps:
+      - uses: actions/checkout@v4
 
-  #     - name: Debugging 1
-  #       run: pwd && ls -la
-  #       working-directory: src
+      - name: Debugging 1
+        run: pwd && ls -la
+        working-directory: src
 
-  #     - name: Setup node
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: ${{ matrix.node }}
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
 
-  #     - name: Install modules
-  #       run: npm ci
-  #       working-directory: src
+      - name: Install modules
+        run: npm ci
+        working-directory: src
 
-  #     # - name: Make sure Jest is installed
-  #     #   run: npm install jest
+      # - name: Make sure Jest is installed
+      #   run: npm install jest
 
-  #     - name: Debugging 2
-  #       run: |
-  #         pwd
-  #         ls -la
-  #         node --version
-  #         git version
-  #       working-directory: src
+      - name: Debugging 2
+        run: |
+          pwd
+          ls -la
+          node --version
+          git version
+        working-directory: src
 
-  #     - name: Run browser tests
-  #       run: npm run test browser -- -i
-  #       working-directory: src
-  #       env:
-  #         BSI_LOG_LEVEL: "info"
-  #         BSI_CONTENT_LIBRARY: "abc 123"
-  #         BSI_HOST: ${{ secrets.BSI_HOST }}
-  #         BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-  #         BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
-  #         BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-  #         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-  #         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-  #         BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-  #         BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
-  #         BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
-  #         BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-  #         BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-  #         BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-  #         BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-  #         BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-  #         BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-  #         BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-  #         BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
+      - name: Run browser tests
+        run: npm run test browser -- -i
+        working-directory: src
+        env:
+          BSI_LOG_LEVEL: "info"
+          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_HOST: ${{ secrets.BSI_HOST }}
+          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
+          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
+          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
+          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
+          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
+          BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
+          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
+          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
-  #     - name: Run QS cloud tests
-  #       run: npm run test cloud -- -i
-  #       working-directory: src
-  #       env:
-  #         BSI_LOG_LEVEL: "info"
-  #         BSI_CONTENT_LIBRARY: "abc 123"
-  #         BSI_HOST: ${{ secrets.BSI_HOST }}
-  #         BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-  #         BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
-  #         BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-  #         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-  #         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-  #         BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-  #         BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
-  #         BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
-  #         BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-  #         BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-  #         BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-  #         BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-  #         BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-  #         BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-  #         BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-  #         BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
+      - name: Run QS cloud tests
+        run: npm run test cloud -- -i
+        working-directory: src
+        env:
+          BSI_LOG_LEVEL: "info"
+          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_HOST: ${{ secrets.BSI_HOST }}
+          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
+          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
+          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
+          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
+          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
+          BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
+          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
+          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
-  #     - name: Run QSEoW tests
-  #       run: npm run test qseow -- -i
-  #       working-directory: src
-  #       env:
-  #         BSI_LOG_LEVEL: "info"
-  #         BSI_CONTENT_LIBRARY: "abc 123"
-  #         BSI_HOST: ${{ secrets.BSI_HOST }}
-  #         BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-  #         BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
-  #         BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-  #         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-  #         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-  #         BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-  #         BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
-  #         BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
-  #         BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-  #         BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-  #         BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-  #         BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-  #         BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-  #         BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-  #         BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-  #         BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
+      - name: Run QSEoW tests
+        run: npm run test qseow -- -i
+        working-directory: src
+        env:
+          BSI_LOG_LEVEL: "info"
+          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_HOST: ${{ secrets.BSI_HOST }}
+          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
+          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
+          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
+          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
+          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
+          BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
+          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
+          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
 
-  #     # - name: Send job status to MQTT (starting job)
-  #     #   uses: potaesm/github-actions-mqtt-request@1.0.0
-  #     #   if: always()
-  #     #   env:
-  #     #     JOB_CONCLUSION: ${{ job.status }}
-  #     #     NODE_VERSION: ${{ matrix.node }}
-  #     #   with:
-  #     #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
-  #     #     topic: control/sp53/mac-build1/action-runner
-  #     #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
-  #     #     connectTimeout: 30000
+      # - name: Send job status to MQTT (starting job)
+      #   uses: potaesm/github-actions-mqtt-request@1.0.0
+      #   if: always()
+      #   env:
+      #     JOB_CONCLUSION: ${{ job.status }}
+      #     NODE_VERSION: ${{ matrix.node }}
+      #   with:
+      #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
+      #     topic: control/sp53/mac-build1/action-runner
+      #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
+      #     connectTimeout: 30000
 
-  # test-winsrv:
-  #   needs: 
-  #     - test-macos
-  #   runs-on:
-  #     - self-hosted
-  #     - ${{ matrix.os }}
-  #     - ${{ matrix.architecture }}
-  #     - sp53
-  #   strategy:
-  #     matrix:
-  #       node:
-  #         - lts/*
-  #       architecture:
-  #         - x64
-  #       os:
-  #         - Windows
+  test-winsrv:
+    needs: 
+      - test-macos
+    runs-on:
+      - self-hosted
+      - ${{ matrix.os }}
+      - ${{ matrix.architecture }}
+      - sp53
+    strategy:
+      matrix:
+        node:
+          - lts/*
+        architecture:
+          - x64
+        os:
+          - Windows
 
-  #   steps:
-  #     # - name: Send job status to MQTT (starting job)
-  #     #   uses: potaesm/github-actions-mqtt-request@1.0.0
-  #     #   if: always()
-  #     #   env:
-  #     #     JOB_CONCLUSION: ${{ job.status }}
-  #     #     NODE_VERSION: ${{ matrix.node }}
-  #     #   with:
-  #     #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
-  #     #     topic: control/sp53/pro2-win2/action-runner
-  #     #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
-  #     #     connectTimeout: 30000
+    steps:
+      # - name: Send job status to MQTT (starting job)
+      #   uses: potaesm/github-actions-mqtt-request@1.0.0
+      #   if: always()
+      #   env:
+      #     JOB_CONCLUSION: ${{ job.status }}
+      #     NODE_VERSION: ${{ matrix.node }}
+      #   with:
+      #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
+      #     topic: control/sp53/pro2-win2/action-runner
+      #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
+      #     connectTimeout: 30000
 
-  #     - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-  #     - name: Debugging 1
-  #       run: dir
-  #       working-directory: src
+      - name: Debugging 1
+        run: dir
+        working-directory: src
 
-  #     - name: Setup node
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: ${{ matrix.node }}
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
 
-  #     - name: Install modules
-  #       run: npm ci
-  #       working-directory: src
+      - name: Install modules
+        run: npm ci
+        working-directory: src
 
-  #     # - name: Make sure Jest is installed
-  #     #   run: npm install jest
+      # - name: Make sure Jest is installed
+      #   run: npm install jest
 
-  #     - name: Debugging 2
-  #       run: |
-  #         dir 
-  #         node --version
-  #         git version
-  #       working-directory: src
+      - name: Debugging 2
+        run: |
+          dir 
+          node --version
+          git version
+        working-directory: src
 
-  #     - name: Run browser tests
-  #       run: npm run test browser -- -i
-  #       working-directory: src
-  #       env:
-  #         BSI_LOG_LEVEL: "info"
-  #         BSI_CONTENT_LIBRARY: "abc 123"
-  #         BSI_HOST: ${{ secrets.BSI_HOST }}
-  #         BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-  #         BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
-  #         BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-  #         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-  #         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-  #         BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-  #         BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
-  #         BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
-  #         BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-  #         BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-  #         BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-  #         BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-  #         BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-  #         BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-  #         BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-  #         BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
+      - name: Run browser tests
+        run: npm run test browser -- -i
+        working-directory: src
+        env:
+          BSI_LOG_LEVEL: "info"
+          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_HOST: ${{ secrets.BSI_HOST }}
+          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
+          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
+          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
+          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
+          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
+          BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
+          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
+          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
-  #     - name: Run QS cloud tests
-  #       run: npm run test cloud -- -i
-  #       working-directory: src
-  #       env:
-  #         BSI_LOG_LEVEL: "info"
-  #         BSI_CONTENT_LIBRARY: "abc 123"
-  #         BSI_HOST: ${{ secrets.BSI_HOST }}
-  #         BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-  #         BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
-  #         BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-  #         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-  #         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-  #         BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-  #         BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
-  #         BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
-  #         BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-  #         BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-  #         BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-  #         BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-  #         BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-  #         BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-  #         BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-  #         BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}          
+      - name: Run QS cloud tests
+        run: npm run test cloud -- -i
+        working-directory: src
+        env:
+          BSI_LOG_LEVEL: "info"
+          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_HOST: ${{ secrets.BSI_HOST }}
+          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
+          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
+          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
+          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
+          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
+          BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
+          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
+          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}          
 
-  #     - name: Run QSEoW tests
-  #       run: npm run test qseow -- -i
-  #       working-directory: src
-  #       env:
-  #         BSI_LOG_LEVEL: "info"
-  #         BSI_CONTENT_LIBRARY: "abc 123"
-  #         BSI_HOST: ${{ secrets.BSI_HOST }}
-  #         BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-  #         BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
-  #         BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-  #         BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-  #         BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-  #         BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-  #         BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
-  #         BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
-  #         BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-  #         BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-  #         BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-  #         BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-  #         BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-  #         BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-  #         BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-  #         BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
+      - name: Run QSEoW tests
+        run: npm run test qseow -- -i
+        working-directory: src
+        env:
+          BSI_LOG_LEVEL: "info"
+          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_HOST: ${{ secrets.BSI_HOST }}
+          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
+          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
+          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
+          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
+          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
+          BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
+          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
+          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
-  #     # - name: Send job status to MQTT when done
-  #     #   uses: potaesm/github-actions-mqtt-request@1.0.0
-  #     #   if: always()
-  #     #   env:
-  #     #     JOB_CONCLUSION: ${{ job.status }}
-  #     #     NODE_VERSION: 16
-  #     #   with:
-  #     #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
-  #     #     topic: control/sp53/pro2-win2/action-runner
-  #     #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
-  #     #     connectTimeout: 30000
+      # - name: Send job status to MQTT when done
+      #   uses: potaesm/github-actions-mqtt-request@1.0.0
+      #   if: always()
+      #   env:
+      #     JOB_CONCLUSION: ${{ job.status }}
+      #     NODE_VERSION: 16
+      #   with:
+      #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
+      #     topic: control/sp53/pro2-win2/action-runner
+      #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
+      #     connectTimeout: 30000
 
 
   release-please:
-    # needs: 
-    #   - test-winsrv
-    name: release-please
+    needs: 
+      - test-winsrv
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
@@ -529,17 +528,15 @@ jobs:
           echo "sha             : ${{ steps.release.outputs['src--sha'] }}"
 
   release-macos:
-    name: release-macos
-    needs: 
-      - release-please
+    needs: release-please
     runs-on:
       - self-hosted
       - x64
       - macos
       - sp53
-    if: needs.release-please.outputs.releases_created  == 'true'
     # timeout-minutes: 15
 
+    if: needs.release-please.outputs.releases_created == 'true'
     env:
       DIST_FILE_NAME: butler-sheet-icons
       GITHUB_TOKEN: ${{ secrets.PAT }}
@@ -549,14 +546,8 @@ jobs:
       MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
       PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
       PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
-      PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
-      AAA: ${{ needs.release-please.outputs.releases_created }}
+      PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}    
     steps:
-      - name: Debug
-        run: |
-          echo "AAA1: ${{ needs.release-please.outputs.releases_created }}"
-          echo "AAA2: ${AAA}"
-
       - name: Release tag and upload url from previous job
         run: |
           echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
@@ -677,7 +668,7 @@ jobs:
       - windows
       - sp53
     # timeout-minutes: 15
-    if: ${{ needs.release-please.outputs.releases_created }} == true
+    if: needs.release-please.outputs.releases_created == 'true'
     env:
       DIST_FILE_NAME: butler-sheet-icons
       GITHUB_TOKEN: ${{ secrets.PAT }}
@@ -786,7 +777,7 @@ jobs:
     runs-on: ubuntu-latest
     # timeout-minutes: 15
 
-    if: ${{ needs.release-please.outputs.releases_created }} == true
+    if: needs.release-please.outputs.releases_created == 'true'
     env:
       DIST_FILE_NAME: butler-sheet-icons
       GITHUB_TOKEN: ${{ secrets.PAT }}
