@@ -7,7 +7,13 @@ const qlikSaas = function QlikSaas(config) {
     if (!config.token) throw Error({ message: 'API token parameter is required' });
     if (!config.version) config.version = 1;
 
-    config.baseURL = `https://${config.url}`;
+    // Does the URL start with "http://" or "https://"?
+    // If not, add "https://" to the beginning of the URL
+    if (!config.url.startsWith('http://') && !config.url.startsWith('https://')) {
+        config.url = `https://${config.url}`;
+    }
+
+    config.baseURL = config.url;
 
     this.Get = async (path) => {
         if (!path) throw Error({ message: `"path" parameter is missing` });

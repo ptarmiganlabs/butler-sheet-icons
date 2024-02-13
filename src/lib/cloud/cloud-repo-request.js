@@ -43,7 +43,18 @@ async function makeRequest(config, data = []) {
     let returnData = [...data];
 
     try {
+        logger.debug(`CLOUD Sending request 1 using config: ${JSON.stringify(config)}`);
         const response = await axios(config);
+        if (response.status) logger.debug(`CLOUD Got response 1 (status): ${response.status}`);
+        if (response.statusText)
+            logger.debug(`CLOUD Got response 1 (statusText): ${response.statusText}`);
+        if (response.data)
+            logger.debug(`CLOUD Got response 1 (data): ${JSON.stringify(response.data, null, 2)}`);
+        if (response.headers)
+            logger.debug(
+                `CLOUD Got response 1 (headers): ${JSON.stringify(response.headers, null, 2)}`
+            );
+
         if (response.data.data) returnData = [...returnData, ...response.data.data];
         if (!response.data.data) returnData = { data: response.data, status: response.status };
 
@@ -118,7 +129,9 @@ module.exports = async (
         config.data = bufferToStream(data);
     }
 
+    logger.debug(`CLOUD About to make request to Qlik Cloud: ${JSON.stringify(config)}`);
     const response = await makeRequest(config);
+    logger.debug(`CLOUD Got response from Qlik Cloud 2: ${JSON.stringify(response)}`);
 
     if (response.data) return response.data;
     if (type === 'post') return response.status;
