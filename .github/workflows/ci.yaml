@@ -479,6 +479,7 @@ jobs:
   release-please:
     # needs: 
     #   - test-winsrv
+    name: release-please
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
@@ -528,7 +529,9 @@ jobs:
           echo "sha             : ${{ steps.release.outputs['src--sha'] }}"
 
   release-macos:
-    needs: release-please
+    name: release-macos
+    needs: 
+      - release-please
     runs-on:
       - self-hosted
       - x64
@@ -536,7 +539,7 @@ jobs:
       - sp53
     # timeout-minutes: 15
 
-    if: ${{ needs.release-please.outputs.releases_created }} == true
+    if: ${{ needs.release-please.outputs.releases_created }} == 'true'
     env:
       DIST_FILE_NAME: butler-sheet-icons
       GITHUB_TOKEN: ${{ secrets.PAT }}
