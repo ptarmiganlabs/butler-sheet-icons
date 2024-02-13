@@ -529,6 +529,7 @@ jobs:
           echo "sha             : ${{ steps.release.outputs['src--sha'] }}"
 
   release-macos:
+    name: release-macos
     needs: 
       - release-please
     runs-on:
