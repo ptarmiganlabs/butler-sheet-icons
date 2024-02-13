@@ -1,6 +1,6 @@
 {
-  "last-release-sha": "31e70538be31d00f19662c88d02b0cf31a39df30",
-  "release-as": "3.2.2",
+  "last-release-sha": "4b6b9008737ff66321d5baf0a473fb698391a42b",
+  "release-as": "3.2.3",
   "release-type": "node",
   "draft": true,
   "changelog-sections": [
