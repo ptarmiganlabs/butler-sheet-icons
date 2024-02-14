@@ -1,6 +1,18 @@
 # Changelog
 
 
+## [3.2.3](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.2.2...butler-sheet-icons-v3.2.3) (2024-02-14)
+
+
+### Bug Fixes
+
+* **cloud:** Be more tolerant wrt --tenanturl format ([16dfba1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/16dfba109d556a2b30b23fecb11d6c04b85d5daa)), closes [#476](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/476)
+
+
+### Miscellaneous
+
+* Make build action work with release-please v4 ([b060acc](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b060acc1a7c96f5bd9437c7104d0c641e8d4b931))
+
 ## [3.2.2](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.2.1...butler-sheet-icons-v3.2.2) (2024-02-09)
 
 
