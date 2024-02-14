@@ -19,6 +19,7 @@ No worries, here's what you need for Qlik Sense Cloud:
 1. [Download](https://github.com/ptarmiganlabs/butler-sheet-icons/releases/latest) the binary you need (Windows, macOS, Docker).
 2. [Create an API key](https://qlik.dev/authenticate/api-key/generate-your-first-api-key) for Qlik Sense Cloud.
 3. Make sure you know your Qlik Sense Cloud tenant URL, user ID, password and ID of the app to update.
+   1. The tenant URL can be specified with or without the `https://` prefix.
 4. Run Butler Sheet Icons with the options below (adapt as needed).
 5. 🎉😎 Sit back and enjoy not having to manually screen shot and process those 10 sheets each in 50 different apps... 
 
@@ -33,8 +34,8 @@ butler-sheet-icons.exe qscloud create-sheet-thumbnails
 
 <p align="center">
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons"><img src="https://img.shields.io/badge/Source---" alt="Source"></a>
-<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/ci.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/ci.yml/badge.svg?branch=main" alt="Build status"></a>
-<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yml/badge.svg" alt="Docker image build"></a>
+<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/ci.yaml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/ci.yaml/badge.svg?branch=main" alt="Build status"></a>
+<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yaml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yaml/badge.svg" alt="Docker image build"></a>
 <a href="https://www.repostatus.org/#active"><img src="https://www.repostatus.org/badges/latest/active.svg" alt="Project Status: Active – The project has reached a stable, usable state and is being actively developed." /></a>
 
 ---
@@ -133,14 +134,14 @@ Here a Qlik Sense Cloud app is updated by running Butler Sheet Icons on a macOS 
 - Qlik Sense applications contains zero or more *sheets*.
 - Each sheet contains various kind of charts, KPIs, texts or other visualisations.
 - A sheet icon/thumbnail image can be added to each sheet in a Sense app.  
-  This image provides visual guidance and makes it easier for users to find the sheet they are looking for.
+  This image provides visual guidance and makes it easier for users to find the sheet they are looking for within a Sense app.
 
 There are various approaches when it comes to creating useful sheet icons:
 
 1. Use random images you've found somewhere online.  
    Usually not recommended, at least not if you want a consistent, professional looking Sense application.
 2. Use animated GIFs.  
-   If it's a good idea? You decide... examples can be found in the blog post "[Animated GIF horror for Qlik Sense](https://ptarmiganlabs.com/blog/2020/01/10/animated-gif-horror-for-qlik-sense/)".
+   If it's a good idea? You decide... examples can be found in the blog post "[Animated GIF horror for Qlik Sense](https://ptarmiganlabs.com/animated-gif-horror-for-qlik-sense/)".
 3. Use a professional icon/image library such as Font Awesome.  
    This gives you a nice, consistent look across all sheet icons. Converting the images to a suitable format and uploading them to Qlik Sense can be a challenge though, here tools such as [Butler Icon Upload](https://github.com/ptarmiganlabs/butler-icon-upload) can greatly simplify things.
 4. Create thumbnail images that are miniatures of the actual sheet layout.  
@@ -151,7 +152,7 @@ There are various approaches when it comes to creating useful sheet icons:
 Specifically:
 
 - The tool is cross platform and runs on Windows, MacOS, Linux and as a Docker container.
-- Stand-alone, download-and-use binaries for Windows and macOS are available.
+- Stand-alone, download-and-use binaries for Windows, macOS and Linux are available.
   - The macOS binary is notarized by Apple.
   - The Windows binary is signed by Ptarmigan Labs using a commercial signing certificate.
 - Works on both Qlik Sense Cloud and client-managed Qlik Sense Enterprise on Windows. Qlik Sense Desktop not supported.
@@ -185,7 +186,7 @@ The idea is simply to more or less mimic the steps a human would take to create 
     - Use Sense APIs to upload the thumbnail images to Sense (QSEoW or QS Cloud).
     - Assign the images to the correct sheet in the correct app.
 - Repeat previous step for each app that should be processed.
-  - Apps can be specified in several ways
+              - Apps can be specified in several ways
     - By app ID (both QS Cloud and QSEoW).
     - By tag (QSEoW). All apps having the specified tag will be updated.
     - By collection (QS Cloud). All apps part of the specified collection will be updated.
