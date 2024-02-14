@@ -1,8 +1,6 @@
 const winston = require('winston');
 const upath = require('upath');
 
-require('winston-daily-rotate-file');
-
 // Get app version from package.json file
 const appVersion = require('./package.json').version;
 
