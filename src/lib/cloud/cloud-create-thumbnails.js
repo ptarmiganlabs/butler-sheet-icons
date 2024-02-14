@@ -253,6 +253,10 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 deviceScaleFactor: 1,
             });
 
+            // Set default timeout for all page operations to 90 seconds
+            // https://stackoverflow.com/questions/52163547/node-js-puppeteer-how-to-set-navigation-timeout
+            await page.setDefaultTimeout(90000);
+
             // Qlik Sense cloud URL format:
             // https://<tenant FQDN>/sense/app/<app ID>>
 
@@ -260,8 +264,9 @@ const processCloudApp = async (appId, saasInstance, options) => {
             logger.debug(`App URL: ${appUrl}`);
 
             await Promise.all([
-                page.goto(appUrl),
-                page.waitForNavigation({ waitUntil: ['networkidle2'] }),
+                page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
+                // page.goto(appUrl),
+                // page.waitForNavigation({ waitUntil: ['networkidle2'] }),
             ]);
 
             await sleep(options.pagewait * 1000);
@@ -294,7 +299,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                     clickCount: 1,
                     delay: 10,
                 }),
-                page.waitForNavigation({ waitUntil: 'networkidle2' }),
+                page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 90000 }),
             ]);
             await sleep(options.pagewait * 1000);
 
@@ -388,11 +393,14 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
                     // Open sheet in browser, then take screen shot
                     await Promise.all([
-                        page.goto(sheetUrl),
-                        page.waitForNavigation({ waitUntil: 'networkidle2' }),
+                        page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
+                        // page.goto(sheetUrl),
+                        // page.waitForNavigation({ waitUntil: 'networkidle2' }),
                     ]);
 
-                    await page.waitForTimeout(options.pagewait * 1000);
+                    // await page.waitForTimeout(options.pagewait * 1000);
+                    await sleep(options.pagewait * 1000);
+
                     const fileName = `${imgDir}/cloud/${appId}/thumbnail-${iSheetNum}.png`;
                     const fileNameShort = `thumbnail-${iSheetNum}.png`;
 

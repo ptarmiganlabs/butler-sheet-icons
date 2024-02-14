@@ -27,6 +27,7 @@ const options = {
 /**
  * Create thumbnails with proper parameters
  * Should succeed
+ * Set timeout based on BSI_TEST_TIMEOUT environment variable
  */
 test(
     'qs cloud create sheet thumbnails, correct parameters (should succeed)',
