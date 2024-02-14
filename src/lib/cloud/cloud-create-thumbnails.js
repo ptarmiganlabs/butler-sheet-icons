@@ -253,16 +253,17 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 deviceScaleFactor: 1,
             });
 
+            // Set default timeout for all page operations to 90 seconds
+            // https://stackoverflow.com/questions/52163547/node-js-puppeteer-how-to-set-navigation-timeout
+            await page.setDefaultTimeout(90000);
+
             // Qlik Sense cloud URL format:
             // https://<tenant FQDN>/sense/app/<app ID>>
 
             const appUrl = `https://${options.tenanturl}/sense/app/${appId}`;
             logger.debug(`App URL: ${appUrl}`);
 
-            await Promise.all([
-                page.goto(appUrl),
-                page.waitForNavigation({ waitUntil: ['networkidle2'] }),
-            ]);
+            await Promise.all([page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 90000 })]);
 
             await sleep(options.pagewait * 1000);
             await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-1.png` });
@@ -294,7 +295,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                     clickCount: 1,
                     delay: 10,
                 }),
-                page.waitForNavigation({ waitUntil: 'networkidle2' }),
+                page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 90000 }),
             ]);
             await sleep(options.pagewait * 1000);
 
@@ -383,16 +384,17 @@ const processCloudApp = async (appId, saasInstance, options) => {
                         `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
                     );
                     // Build URL to current sheet
-                    const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
+                    const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}/state/analysis`;
                     logger.debug(`Sheet URL: ${sheetUrl}`);
 
                     // Open sheet in browser, then take screen shot
                     await Promise.all([
-                        page.goto(sheetUrl),
-                        page.waitForNavigation({ waitUntil: 'networkidle2' }),
+                        page.goto(sheetUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
                     ]);
 
-                    await page.waitForTimeout(options.pagewait * 1000);
+                    // await page.waitForTimeout(options.pagewait * 1000);
+                    await sleep(options.pagewait * 1000);
+
                     const fileName = `${imgDir}/cloud/${appId}/thumbnail-${iSheetNum}.png`;
                     const fileNameShort = `thumbnail-${iSheetNum}.png`;
 

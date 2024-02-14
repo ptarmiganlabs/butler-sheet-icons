@@ -8,7 +8,7 @@ const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1200000; // 20 minute
 console.log(`Jest timeout: ${defaultTestTimeout}`);
 
 const options = {
-    loglevel: process.env.BSI_LOG_LEVEL || 'debug',
+    loglevel: process.env.BSI_LOG_LEVEL || 'verbose',
     engineport: process.env.BSI_ENGINE_PORT || '4747',
     qrsport: process.env.BSI_QRS_PORT || '4242',
     schemaversion: process.env.BSI_SCHEMA_VERSION || '12.612.0',
