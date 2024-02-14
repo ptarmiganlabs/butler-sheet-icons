@@ -292,7 +292,10 @@ const program = new Command();
                 'Qlik Sense engine schema version',
                 '12.612.0'
             )
-            .requiredOption('--tenanturl <url>', 'URL to Qlik Sense cloud tenant')
+            .requiredOption(
+                '--tenanturl <url>',
+                'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
+            )
             .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
             .requiredOption(
                 '--logonuserid <userid>',
@@ -369,7 +372,10 @@ const program = new Command();
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
-            .requiredOption('--tenanturl <url>', 'URL to Qlik Sense cloud tenant')
+            .requiredOption(
+                '--tenanturl <url>',
+                'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
+            )
             .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
             .addOption(
                 new Option('--outputformat <table|json>', 'Output format')
@@ -405,7 +411,10 @@ const program = new Command();
                 'Qlik Sense engine schema version',
                 '12.612.0'
             )
-            .requiredOption('--tenanturl <url>', 'URL to Qlik Sense cloud tenant')
+            .requiredOption(
+                '--tenanturl <url>',
+                'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
+            )
             .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
             .option('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.')
             .option(
@@ -529,8 +538,11 @@ const program = new Command();
                             // eslint-disable-next-line no-param-reassign
                             options.browserVersion = 'latest';
                         }
-                    } else if (options.browser === 'firefox' && options.browserVersion !== 'latest') {
-                        // Only "latest" is supported for Firefox. 
+                    } else if (
+                        options.browser === 'firefox' &&
+                        options.browserVersion !== 'latest'
+                    ) {
+                        // Only "latest" is supported for Firefox.
                         // In the future we might support other/specifc versions, but for now we'll just use latest.
                         logger.error(
                             `Firefox support is still experimental, so only "latest" is supported for browser version. You specified a different version: ${options.browserVersion}.`
