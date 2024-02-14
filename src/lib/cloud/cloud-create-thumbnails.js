@@ -263,11 +263,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
             const appUrl = `https://${options.tenanturl}/sense/app/${appId}`;
             logger.debug(`App URL: ${appUrl}`);
 
-            await Promise.all([
-                page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
-                // page.goto(appUrl),
-                // page.waitForNavigation({ waitUntil: ['networkidle2'] }),
-            ]);
+            await Promise.all([page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 90000 })]);
 
             await sleep(options.pagewait * 1000);
             await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-1.png` });
@@ -388,14 +384,12 @@ const processCloudApp = async (appId, saasInstance, options) => {
                         `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
                     );
                     // Build URL to current sheet
-                    const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
+                    const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}/state/analysis`;
                     logger.debug(`Sheet URL: ${sheetUrl}`);
 
                     // Open sheet in browser, then take screen shot
                     await Promise.all([
-                        page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
-                        // page.goto(sheetUrl),
-                        // page.waitForNavigation({ waitUntil: 'networkidle2' }),
+                        page.goto(sheetUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
                     ]);
 
                     // await page.waitForTimeout(options.pagewait * 1000);
