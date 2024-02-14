@@ -1,6 +1,24 @@
 # Changelog
 
 
+## [3.2.3](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.2.3...butler-sheet-icons-v3.2.3) (2024-02-14)
+
+
+### Bug Fixes
+
+* **cloud:** Be more tolerant wrt --tenanturl format ([16dfba1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/16dfba109d556a2b30b23fecb11d6c04b85d5daa)), closes [#476](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/476)
+* **cloud:** Better handling of long browser startup times ([bec940c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bec940c1ff8c600bbb1a7c03caacd160dfdb7c58)), closes [#485](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/485)
+* **qseow:** Add support for Qlik Sense 2023-Aug and 2023-Nov. ([cbc273b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cbc273b3bfb3c9ce4a34bf60a2e917996779d17c)), closes [#486](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/486)
+
+
+### Miscellaneous
+
+* **cloud:** Switch to verbose logging for QS Cloud test cases ([8f2abb2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8f2abb249c949642f6f0b0db9907097ca6a384ab))
+* **deps:** Upgrade dependencies ([8876b8a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8876b8a8c549397c56524e611ec501c1b52cd424))
+* **main:** release butler-sheet-icons 3.2.3 ([8a960d1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8a960d1b48c818c99dc23e194154bf866e49ae27))
+* Make build action work with release-please v4 ([b060acc](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b060acc1a7c96f5bd9437c7104d0c641e8d4b931))
+* Remove unused dependencies ([eaad90c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/eaad90cdb0f4dc9708eb295dda589ac90dc059ff))
+
 ## [3.2.3](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.2.2...butler-sheet-icons-v3.2.3) (2024-02-14)
 
 
