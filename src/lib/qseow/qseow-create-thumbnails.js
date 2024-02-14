@@ -22,21 +22,34 @@ const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
 const selectorLoginPageLoginButton = '#loginbtn';
 
-const xpathHubUserPageButtonPre2022Nov = '//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
+const xpathHubUserPageButtonPre2022Nov = 'xpath/.//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
 const xpathLogoutButtonPre2022Nov =
-    '//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
+    'xpath/.//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
 
 const xpathHubUserPageButton2022Nov =
-    '//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button';
-const xpathLogoutButton2022Nov = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
+    'xpath/.//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button';
+const xpathLogoutButton2022Nov =
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
 const xpathHubUserPageButton2023Feb =
-    '//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button/span/span';
-const xpathLogoutButton2023Feb = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[5]/span[2]';
+    'xpath/.//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button/span/span';
+const xpathLogoutButton2023Feb =
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[5]/span[2]';
 
 const xpathHubUserPageButton2023May =
-    '//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
-const xpathLogoutButton2023May = '//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
+    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
+const xpathLogoutButton2023May =
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
+
+const xpathHubUserPageButton2023Aug =
+    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
+const xpathLogoutButton2023Aug =
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
+
+const xpathHubUserPageButton2023Nov =
+    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
+const xpathLogoutButton2023Nov =
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
 /**
  *
@@ -62,6 +75,12 @@ const processQSEoWApp = async (appId, g, options) => {
     } else if (options.senseVersion === '2023-May') {
         xpathHubUserPageButton = xpathHubUserPageButton2023May;
         xpathLogoutButton = xpathLogoutButton2023May;
+    } else if (options.senseVersion === '2023-Aug') {
+        xpathHubUserPageButton = xpathHubUserPageButton2023Aug;
+        xpathLogoutButton = xpathLogoutButton2023Aug;
+    } else if (options.senseVersion === '2023-Nov') {
+        xpathHubUserPageButton = xpathHubUserPageButton2023Nov;
+        xpathLogoutButton = xpathLogoutButton2023Nov;
     } else {
         logger.error(
             `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
@@ -242,6 +261,10 @@ const processQSEoWApp = async (appId, g, options) => {
                 deviceScaleFactor: 1,
             });
 
+            // Set default timeout for all page operations to 90 seconds
+            // https://stackoverflow.com/questions/52163547/node-js-puppeteer-how-to-set-navigation-timeout
+            await page.setDefaultTimeout(90000);
+
             let appUrl = '';
             let hubUrl = '';
 
@@ -263,10 +286,7 @@ const processQSEoWApp = async (appId, g, options) => {
             logger.debug(`App URL: ${appUrl}`);
             logger.debug(`Hub URL: ${hubUrl}`);
 
-            await Promise.all([
-                page.goto(appUrl),
-                page.waitForNavigation({ waitUntil: ['networkidle2'] }),
-            ]);
+            await Promise.all([page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 90000 })]);
 
             await sleep(options.pagewait * 1000);
             await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-1.png` });
@@ -414,11 +434,11 @@ const processQSEoWApp = async (appId, g, options) => {
 
                     // Open sheet in browser, then take screen shot
                     await Promise.all([
-                        page.goto(sheetUrl),
-                        page.waitForNavigation({ waitUntil: 'networkidle2' }),
+                        page.goto(sheetUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
                     ]);
 
-                    await page.waitForTimeout(options.pagewait * 1000);
+                    await sleep(options.pagewait * 1000);
+
                     const fileName = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}.png`;
                     const fileNameShort = `thumbnail-${appId}-${iSheetNum}.png`;
 
@@ -454,8 +474,7 @@ const processQSEoWApp = async (appId, g, options) => {
             try {
                 // Log out
                 await Promise.all([
-                    page.goto(hubUrl),
-                    page.waitForNavigation({ waitUntil: ['networkidle2'] }),
+                    page.goto(hubUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
                 ]);
             } catch (err) {
                 logger.error(`QSEOW: Could not open hub after generating thumbnail images: ${err}`);
@@ -474,11 +493,11 @@ const processQSEoWApp = async (appId, g, options) => {
             let elementHandle;
             try {
                 // wait for user button to become visible, then click it to open the user menu
-                await page.waitForXPath(xpathHubUserPageButton);
+                await page.waitForSelector(xpathHubUserPageButton);
                 // evaluate XPath expression of the target selector (it returns array of ElementHandle)
-                elementHandle = await page.$x(xpathHubUserPageButton);
+                elementHandle = await page.$$(xpathHubUserPageButton);
 
-                await page.waitForTimeout(options.pagewait * 1000);
+                await sleep(options.pagewait * 1000);
 
                 // Click user button and wait for page to load
                 await Promise.all([elementHandle[0].click()]);
@@ -500,14 +519,14 @@ const processQSEoWApp = async (appId, g, options) => {
 
             try {
                 // Wait for logout button to become visible, then click it
-                await page.waitForXPath(xpathLogoutButton);
-                elementHandle = await page.$x(xpathLogoutButton);
+                await page.waitForSelector(xpathLogoutButton);
+                elementHandle = await page.$$(xpathLogoutButton);
 
-                await page.waitForTimeout(options.pagewait * 1000);
+                await sleep(options.pagewait * 1000);
 
                 // Click logout button and wait for page to load
                 await Promise.all([elementHandle[0].click()]);
-                await page.waitForTimeout(options.pagewait * 1000);
+                await sleep(options.pagewait * 1000);
             } catch (err) {
                 logger.error(
                     `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu: ${err}`
