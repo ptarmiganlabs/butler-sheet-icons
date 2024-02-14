@@ -155,7 +155,7 @@ jobs:
         run: |
           pwd 
           cd src
-          npm ci
+          npm ci --include=prod
 
       - name: Run Snyk to check for vulnerabilities
         if: |
@@ -236,9 +236,11 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: Install modules
-        run: npm ci
-        working-directory: src
+      - name: Install dependencies
+        run: |
+          pwd 
+          cd src
+          npm ci --include=dev --include=prod
 
       # - name: Make sure Jest is installed
       #   run: npm install jest
@@ -377,9 +379,11 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: Install modules
-        run: npm ci
-        working-directory: src
+      - name: Install dependencies
+        run: |
+          dir
+          cd src
+          npm ci --include=dev --include=prod
 
       # - name: Make sure Jest is installed
       #   run: npm install jest
@@ -392,8 +396,10 @@ jobs:
         working-directory: src
 
       - name: Run browser tests
-        run: npm run test browser -- -i
-        working-directory: src
+        run: |
+          dir
+          cd src
+          npm run test browser -- -i
         env:
           BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
@@ -416,8 +422,10 @@ jobs:
           BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       - name: Run QS cloud tests
-        run: npm run test cloud -- -i
-        working-directory: src
+        run: |
+          dir
+          cd src
+          npm run test cloud -- -i
         env:
           BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
@@ -440,8 +448,10 @@ jobs:
           BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}          
 
       - name: Run QSEoW tests
-        run: npm run test qseow -- -i
-        working-directory: src
+        run: |
+          dir
+          cd src
+          npm run test qseow -- -i
         env:
           BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
@@ -569,7 +579,7 @@ jobs:
         run: |
           pwd 
           cd src
-          npm ci
+          npm ci --include=prod
 
       - name: Build binaries
         run: |
@@ -697,7 +707,7 @@ jobs:
         run: |
           pwd 
           cd src
-          npm ci
+          npm ci --include=prod
 
       - name: Build binaries
         run: |
@@ -803,7 +813,7 @@ jobs:
         run: |
           pwd 
           cd src
-          npm ci
+          npm ci --include=prod
 
       - name: Build binaries
         run: |
