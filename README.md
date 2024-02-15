@@ -1083,9 +1083,6 @@ The same thing in PowerShell on Windows:
 PS C:\tools\butler-sheet-icons-win\demo-dir> .\butler-sheet-icons.exe browser install
 2023-07-24T18:56:45.142Z info: Resolved browser build id: "115.0.5790.102" for browser "chrome" version "stable"
 2023-07-24T18:56:45.143Z info: Installing browser...
-(node:9540) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from(
-) methods instead.
-(Use `butler-sheet-icons --trace-deprecation ...` to show where the warning was created)
 2023-07-24T18:57:00.221Z info: Browser "chrome" version "115.0.5790.102" installed
 PS C:\tools\butler-sheet-icons-win\demo-dir>
 ```
