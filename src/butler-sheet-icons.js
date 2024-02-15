@@ -560,12 +560,12 @@ const program = new Command();
                     const res = await browserInstall(options, command);
                     logger.debug(`Call to browserInstall succeeded: ${res}`);
                 } catch (err) {
-                    logger.error(`BROWSER MAIN 9: ${err}`);
-                    if (err.message) {
-                        logger.error(`BROWSER MAIN 9 (message): ${err.message}`);
-                    }
                     if (err.stack) {
                         logger.error(`BROWSER MAIN 9 (stack): ${err.stack}`);
+                    } else if (err.message) {
+                        logger.error(`BROWSER MAIN 9 (message): ${err.message}`);
+                    } else {
+                        logger.error(`BROWSER MAIN 9: ${err}`);
                     }
                 }
             })
@@ -596,7 +596,9 @@ const program = new Command();
             .action(async (options, command) => {
                 try {
                     const res = await browserListAvailable(options, command);
-                    logger.debug(`Call to browserAvailable succeeded: ${res}`);
+                    logger.debug(
+                        `Call to browserAvailable succeeded: ${JSON.stringify(res, null, 2)}`
+                    );
                 } catch (err) {
                     logger.error(`BROWSER MAIN 10: ${err}`);
                     if (err.message) {

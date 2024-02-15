@@ -1,4 +1,4 @@
-const { detectBrowserPlatform } = require('@puppeteer/browsers');
+const { detectBrowserPlatform, canDownload } = require('@puppeteer/browsers');
 const path = require('path');
 const { homedir } = require('os');
 const axios = require('axios');
@@ -45,6 +45,8 @@ async function browserListAvailable(options) {
         // Get versions for the selected browser
         let browsersAvailable = [];
         if (options.browser === 'chrome') {
+            // https://developer.chrome.com/docs/web-platform/versionhistory/guide
+            //
             // Chome version history API:
             // https://developer.chrome.com/docs/versionhistory/guide/
             //
@@ -69,6 +71,10 @@ async function browserListAvailable(options) {
             //     "nextPageToken": ""
             // }
 
+            logger.debug(
+                `Get Chrome versions from: https://versionhistory.googleapis.com/v1/chrome/platforms/${platform}/channels/${options.channel}/versions`
+            );
+
             const axiosConfig = {
                 method: 'get',
                 responseType: 'json',
@@ -82,9 +88,27 @@ async function browserListAvailable(options) {
             // Output Chrome versions and names to info log
             if (browsersAvailable.length > 0) {
                 logger.info(`Chrome versions from "${options.channel}" channel:`);
-                browsersAvailable.forEach((version) => {
-                    logger.info(`    ${version.version}, "${version.name}"`);
-                });
+                logger.info(
+                    'Note that not all versions may be available for use with Butler Sheet Icons.'
+                );
+
+                // eslint-disable-next-line no-restricted-syntax
+                for (const version of browsersAvailable) {
+                    // Can this version be downloaded?
+                    // eslint-disable-next-line no-await-in-loop
+                    const canDownloadBrowser = await canDownload({
+                        browser: options.browser,
+                        buildId: version.version,
+                        cacheDir: browserPath,
+                        unpack: true,
+                    });
+
+                    if (canDownloadBrowser) {
+                        logger.info(`    ${version.version}, "${version.name}"`);
+                    } else {
+                        logger.info(`    ${version.version}, "${version.name}" (not available)`);
+                    }
+                }
             } else {
                 logger.info('No Chrome versions available');
             }
