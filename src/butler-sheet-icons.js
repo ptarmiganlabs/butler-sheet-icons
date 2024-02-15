@@ -33,6 +33,9 @@ const program = new Command();
             'Create thumbnail images based on the layout of each sheet in Qlik Sense Enterprise on Windows (QSEoW) applications.\nMultiple apps can be updated with a single command, using a Qlik Sense tag to identify  which apps will be updated.'
         )
         .action(async (options, command) => {
+            // Show app version
+            logger.info(`App version: ${appVersion}`);
+
             logger.verbose(`appid=${options.appid}`);
             logger.verbose(`itemid=${options.itemid}`);
             try {
@@ -187,6 +190,9 @@ const program = new Command();
         .command('remove-sheet-icons')
         .description('Remove all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) app.')
         .action(async (options, command) => {
+            // Show app version
+            logger.info(`App version: ${appVersion}`);
+
             try {
                 const res = await qseowRemoveSheetIcons(options, command);
                 logger.debug(`Call to qseowRemoveSheetIcons succeeded: ${res}`);
@@ -264,6 +270,9 @@ const program = new Command();
                 'Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.\nMultiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.'
             )
             .action(async (options, command) => {
+                // Show app version
+                logger.info(`App version: ${appVersion}`);
+
                 logger.verbose(`appid=${options.appid}`);
                 try {
                     // Set default browser version per browser
@@ -355,11 +364,15 @@ const program = new Command();
                 '--browser-version <version>',
                 'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
             );
+
         // ---------
         cloud
             .command('list-collections')
             .description('List available collections.')
             .action(async (options, command) => {
+                // Show app version
+                logger.info(`App version: ${appVersion}`);
+
                 logger.verbose(`collection=${options.collection}`);
                 try {
                     const res = await qscloudListCollections(options, command);
@@ -395,6 +408,9 @@ const program = new Command();
             .command('remove-sheet-icons')
             .description('Remove all sheet icons from a Qlik Sense Cloud app.')
             .action(async (options, command) => {
+                // Show app version
+                logger.info(`App version: ${appVersion}`);
+
                 try {
                     const res = await qscloudRemoveSheetIcons(options, command);
                     logger.debug(`Call to qscloudRemoveSheetIcons succeeded: ${res}`);
@@ -445,6 +461,9 @@ const program = new Command();
                 'Show which browsers are currently installed and available for use by Butler Sheet Icons.'
             )
             .action(async (options, command) => {
+                // Show app version
+                logger.info(`App version: ${appVersion}`);
+
                 logger.verbose(`appid=${options.appid}`);
                 try {
                     const res = await browserInstalled(options, command);
@@ -472,6 +491,9 @@ const program = new Command();
                 'Uninstall a browser from the Butler Sheet Icons cache.\nThis will remove the browser from the cache, but will not affect other browsers on this computer.\nUse the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.'
             )
             .action(async (options, command) => {
+                // Show app version
+                logger.info(`App version: ${appVersion}`);
+
                 try {
                     const res = await browserUninstall(options, command);
                     logger.debug(`Call to browserUninstall succeeded: ${res}`);
@@ -507,6 +529,9 @@ const program = new Command();
                 'Uninstall all browsers from the Butler Sheet Icons cache.\nThis will remove all browsers from the cache, but will not affect other browsers on this computer.\nUse the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.'
             )
             .action(async (options, command) => {
+                // Show app version
+                logger.info(`App version: ${appVersion}`);
+
                 try {
                     const res = await browserUninstallAll(options, command);
                     logger.debug(`Call to browserUninstallAll succeeded: ${res}`);
@@ -533,6 +558,9 @@ const program = new Command();
                 'Install a browser into the Butler Sheet Icons cache.\nThis will download the browser and install it into the cache, where it can be used by Butler Sheet Icons.\nUse the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.'
             )
             .action(async (options, command) => {
+                // Show app version
+                logger.info(`App version: ${appVersion}`);
+
                 try {
                     // Set default browser version per browser
                     if (!options.browserVersion || options.browserVersion === '') {
@@ -594,6 +622,9 @@ const program = new Command();
                 'Show which browsers are available for download and installation by Butler Sheet Icons.'
             )
             .action(async (options, command) => {
+                // Show app version
+                logger.info(`App version: ${appVersion}`);
+
                 try {
                     const res = await browserListAvailable(options, command);
                     logger.debug(
