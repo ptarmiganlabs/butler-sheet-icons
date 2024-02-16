@@ -6,6 +6,7 @@ const {
 } = require('@puppeteer/browsers');
 const path = require('path');
 const { homedir } = require('os');
+const ProgressBar = require('progress');
 
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
 const { getMostRecentUsableChromeBuildId } = require('./browser-list-available');
@@ -35,6 +36,9 @@ const browserInstall = async (options, _command) => {
         logger.verbose(`Running as standalone app: ${isPkg}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+
+        // Create a new progress bar instance
+        const bar = new ProgressBar('(:percent) :bar', { total: 100 });
 
         // Install browser
         const browserPath = path.join(homedir(), '.cache/puppeteer');
@@ -79,6 +83,17 @@ const browserInstall = async (options, _command) => {
             browser: options.browser,
             buildId,
             cacheDir: browserPath,
+            downloadProgressCallback: (downloadedBytes, totalBytes) => {
+                logger.verbose(
+                    `Downloaded ${downloadedBytes} of ${totalBytes} bytes (${(
+                        (downloadedBytes / totalBytes) *
+                        100
+                    ).toFixed(2)}%)`
+                );
+
+                // Update the progress bar. Make sure to pass integer values to `bar.tick()`
+                bar.tick((downloadedBytes / totalBytes) * 100 - bar.curr);
+            },
             unpack: true,
         });
 
