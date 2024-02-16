@@ -103,12 +103,12 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
             logger.error(`Error closing session for QSEoW app ${appId} on host ${options.host}`);
         }
     } catch (err) {
-        logger.error(`QSEOW UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
-        if (err.message) {
-            logger.error(`QSEOW UPDATE SHEETS (message): ${err.message}`);
-        }
         if (err.stack) {
             logger.error(`QSEOW UPDATE SHEETS (stack): ${err.stack}`);
+        } else if (err.message) {
+            logger.error(`QSEOW UPDATE SHEETS (message): ${err.message}`);
+        } else {
+            logger.error(`QSEOW UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
         }
 
         process.exit(1);

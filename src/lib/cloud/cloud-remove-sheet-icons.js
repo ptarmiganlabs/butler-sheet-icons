@@ -136,12 +136,12 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        logger.error(`CLOUD REMOVE SHEET ICONS 1: ${err}`);
-        if (err.message) {
-            logger.error(`CLOUD REMOVE SHEET ICONS 1 (message): ${err.message}`);
-        }
         if (err.stack) {
             logger.error(`CLOUD REMOVE SHEET ICONS 1 (stack): ${err.stack}`);
+        } else if (err.message) {
+            logger.error(`CLOUD REMOVE SHEET ICONS 1 (message): ${err.message}`);
+        } else {
+            logger.error(`CLOUD REMOVE SHEET ICONS 1: ${err}`);
         }
     }
 };
@@ -264,12 +264,12 @@ const qscloudRemoveSheetIcons = async (options) => {
 
         return true;
     } catch (err) {
-        logger.error(`CLOUD REMOVE THUMBNAILS 3: ${JSON.stringify(err, null, 2)}`);
-        if (err.message) {
-            logger.error(`CLOUD REMOVE THUMBNAILS 3 (message): ${err.message}`);
-        }
         if (err.stack) {
             logger.error(`CLOUD REMOVE THUMBNAILS 3 (stack): ${err.stack}`);
+        } else if (err.message) {
+            logger.error(`CLOUD REMOVE THUMBNAILS 3 (message): ${err.message}`);
+        } else {
+            logger.error(`CLOUD REMOVE THUMBNAILS 3: ${JSON.stringify(err, null, 2)}`);
         }
 
         return false;

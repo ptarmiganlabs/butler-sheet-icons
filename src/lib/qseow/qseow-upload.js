@@ -66,12 +66,12 @@ const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
                     logger.debug(`QSEoW image upload result=${JSON.stringify(result)}`);
                     logger.verbose(`QSEoW image upload done: ${JSON.stringify(file)}`);
                 } catch (err) {
-                    logger.error(`QSEOW UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
-                    if (err.message) {
-                        logger.error(`QSEOW UPLOAD 1 (message): ${err.message}`);
-                    }
                     if (err.stack) {
                         logger.error(`QSEOW UPLOAD 1 (stack): ${err.stack}`);
+                    } else if (err.message) {
+                        logger.error(`QSEOW UPLOAD 1 (message): ${err.message}`);
+                    } else {
+                        logger.error(`QSEOW UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
                     }
                 }
             } else if (fileStat.isDirectory()) {
@@ -79,12 +79,12 @@ const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
             }
         }
     } catch (err) {
-        logger.error(`QSEOW UPLOAD 2: ${JSON.stringify(err, null, 2)}`);
-        if (err.message) {
-            logger.error(`QSEOW UPLOAD 2 (message): ${err.message}`);
-        }
         if (err.stack) {
             logger.error(`QSEOW UPLOAD 2 (stack): ${err.stack}`);
+        } else if (err.message) {
+            logger.error(`QSEOW UPLOAD 2 (message): ${err.message}`);
+        } else {
+            logger.error(`QSEOW UPLOAD 2: ${JSON.stringify(err, null, 2)}`);
         }
     }
 };

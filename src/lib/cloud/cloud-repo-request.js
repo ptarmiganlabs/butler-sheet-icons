@@ -22,24 +22,13 @@ axios.interceptors.response.use(
 
         return response;
     },
-    (e) => {
-        return Promise.reject({
+    (e) =>
+        // eslint-disable-next-line prefer-promise-reject-errors
+        Promise.reject({
             status: e.response.status,
             statusText: e.response.statusText,
             message: e.message,
-        });
-
-        // return {
-        //     status: e.response.status,
-        //     statusText: e.response.statusText,
-        //     message: e.message,
-        // };
-        // throw Error({
-        //     status: e.response.status,
-        //     statusText: e.response.statusText,
-        //     message: e.message,
-        // });
-    }
+        })
 );
 
 function bufferToStream(buffer) {
@@ -77,9 +66,6 @@ async function makeRequest(config, data = []) {
         }
     } catch (err) {
         return Promise.reject(err);
-        // throw Error({
-        //     message: 'Error in request to Qlik Cloud',
-        // });
     }
 
     // Original code:
