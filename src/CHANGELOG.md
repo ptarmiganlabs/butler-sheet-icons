@@ -1,6 +1,15 @@
 # Changelog
 
 
+## [3.3.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.2.3...butler-sheet-icons-v3.3.0) (2024-02-16)
+
+
+### Features
+
+* **browser:** In `list-available` command, show which versions can be used. ([e9fc470](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e9fc470cfe1fb26f15fb21a4dfc71a1a51545b8a)), closes [#496](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/496)
+* **cloud:** Test connection to QS Cloud before starting BSI commands ([61703c1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/61703c1c18bb8fcd70a23dade14c46c48e82aeb3)), closes [#494](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/494)
+* Show app version on startup ([3285b20](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3285b20759aeb7205d3c2ff1f55530177192a806)), closes [#495](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/495)
+
 ## [3.2.3](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.2.3...butler-sheet-icons-v3.2.3) (2024-02-14)
 
 
