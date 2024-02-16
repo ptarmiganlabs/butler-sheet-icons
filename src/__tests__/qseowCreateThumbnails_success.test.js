@@ -31,7 +31,7 @@ const options = {
     qliksensetag: process.env.BSI_QLIK_SENSE_TAG || '',
     senseVersion: process.env.BSI_SENSE_VERSION,
     browser: process.env.BSI_BROWSER || 'chrome',
-    browserVersion: process.env.BSI_BROWSER_VERSION || 'stable',
+    browserVersion: process.env.BSI_BROWSER_VERSION || 'latest',
 };
 
 /**

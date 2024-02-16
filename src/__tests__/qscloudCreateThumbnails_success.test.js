@@ -21,7 +21,7 @@ const options = {
     appid: process.env.BSI_CLOUD_APP_ID,
     includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || 1,
     browser: process.env.BSI_BROWSER || 'chrome',
-    browserVersion: process.env.BSI_BROWSER_VERSION || 'stable',
+    browserVersion: process.env.BSI_BROWSER_VERSION || 'latest',
 };
 
 /**

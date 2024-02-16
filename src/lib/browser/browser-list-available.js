@@ -184,5 +184,69 @@ async function browserListAvailable(options) {
         throw err;
     }
 }
+// Function to find most recent version of Chrome that Puppeteer can download and use
+// Returns the version number
+async function getMostRecentUsableChromeBuildId(channel) {
+    try {
+        logger.verbose(`Get most recent usable Chrome build ID: Channel "${channel}"`);
 
-module.exports = { browserListAvailable };
+        // Verify release channek is valid
+        if (
+            channel !== 'stable' &&
+            channel !== 'beta' &&
+            channel !== 'dev' &&
+            channel !== 'canary'
+        ) {
+            throw new Error(`Invalid Chrome release channel "${channel}"`);
+        }
+
+        const browserPath = path.join(homedir(), '.cache/puppeteer');
+        logger.debug(`Get most recent usable Chrome build ID: Browser cache path: ${browserPath}`);
+
+        // Get current platform
+        const platform = await detectBrowserPlatform();
+        logger.debug(
+            `Get most recent usable Chrome build ID: Detected browser platform: ${platform}`
+        );
+
+        logger.debug(
+            `Get Chrome versions from: https://versionhistory.googleapis.com/v1/chrome/platforms/${platform}/channels/${channel}/versions`
+        );
+
+        const axiosConfig = {
+            method: 'get',
+            responseType: 'json',
+            url: `https://versionhistory.googleapis.com/v1/chrome/platforms/${platform}/channels/${channel}/versions`,
+        };
+
+        const response = await axios(axiosConfig);
+        const browsersAvailable = response.data.versions;
+        logger.debug(`Chrome versions: ${JSON.stringify(browsersAvailable, null, 2)}`);
+
+        // Output Chrome versions and names to info log
+        if (browsersAvailable.length > 0) {
+            // eslint-disable-next-line no-restricted-syntax
+            for (const version of browsersAvailable) {
+                // Can this version be downloaded?
+                // eslint-disable-next-line no-await-in-loop
+                const canDownloadBrowser = await canDownload({
+                    browser: 'chrome',
+                    buildId: version.version,
+                    cacheDir: browserPath,
+                    unpack: false,
+                });
+
+                if (canDownloadBrowser) {
+                    return version.version;
+                }
+            }
+        }
+        logger.info('No Chrome versions available');
+        return false;
+    } catch (err) {
+        logger.error(`Error getting most recent usable Chrome build ID: ${err}`);
+        throw err;
+    }
+}
+
+module.exports = { browserListAvailable, getMostRecentUsableChromeBuildId };
