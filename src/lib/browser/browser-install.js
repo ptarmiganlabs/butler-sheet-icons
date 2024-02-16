@@ -84,14 +84,7 @@ const browserInstall = async (options, _command) => {
             buildId,
             cacheDir: browserPath,
             downloadProgressCallback: (downloadedBytes, totalBytes) => {
-                logger.verbose(
-                    `Downloaded ${downloadedBytes} of ${totalBytes} bytes (${(
-                        (downloadedBytes / totalBytes) *
-                        100
-                    ).toFixed(2)}%)`
-                );
-
-                // Update the progress bar. Make sure to pass integer values to `bar.tick()`
+                // Update the progress bar.
                 bar.tick((downloadedBytes / totalBytes) * 100 - bar.curr);
             },
             unpack: true,
