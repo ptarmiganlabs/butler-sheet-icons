@@ -6,7 +6,7 @@ const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
 const { homedir } = require('os');
-const { install, computeExecutablePath } = require('@puppeteer/browsers');
+const { computeExecutablePath } = require('@puppeteer/browsers');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg, sleep } = require('../../globals.js');
@@ -14,6 +14,7 @@ const { qscloudUploadToApp } = require('./cloud-upload.js');
 const { qscloudUpdateSheetThumbnails } = require('./cloud-updatesheets.js');
 const QlikSaas = require('./cloud-repo');
 const { browserInstall } = require('../browser/browser-install.js');
+const { qscloudTestConnection } = require('./cloud-test-connection');
 
 const selectorLoginPageUserName =
     '#lock-container > div > div > form > div > div > div:nth-child(3) > span > div > div > div > div > div > div > div > div > div > div.auth0-lock-input-block.auth0-lock-input-email > div.auth0-lock-input-wrap.auth0-lock-input-wrap-with-icon > input';
@@ -508,6 +509,25 @@ const qscloudCreateThumbnails = async (options) => {
         };
         const saasInstance = new QlikSaas(cloudConfig);
 
+        // Test connection to QS Cloud by getting info about the user associated with the API key
+        try {
+            const res = await qscloudTestConnection(options, saasInstance);
+            logger.verbose(
+                `Connection to tenant ${options.tenanturl} successful: ${JSON.stringify(res)}`
+            );
+        } catch (err) {
+            if (err.stack) {
+                logger.error(`LIST COLLECTIONS 1 (stack): ${err.stack}`);
+            } else if (err.message) {
+                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
+                logger.error(`LIST COLLECTIONS 1 (error code): ${err.status}="${err.statusText}"`);
+            } else {
+                logger.error(`LIST COLLECTIONS 1: ${err}`);
+            }
+
+            return false;
+        }
+
         // Is there a specific app ID specified?
         if (options.appid) {
             appIdsToProcess.push(options.appid);
@@ -582,12 +602,12 @@ const qscloudCreateThumbnails = async (options) => {
 
         return true;
     } catch (err) {
-        logger.error(`CLOUD CREATE THUMBNAILS 2: ${JSON.stringify(err, null, 2)}`);
-        if (err.message) {
-            logger.error(`CLOUD CREATE THUMBNAILS 2 (message): ${err.message}`);
-        }
         if (err.stack) {
             logger.error(`CLOUD CREATE THUMBNAILS 2 (stack): ${err.stack}`);
+        } else if (err.message) {
+            logger.error(`CLOUD CREATE THUMBNAILS 2 (message): ${err.message}`);
+        } else {
+            logger.error(`CLOUD CREATE THUMBNAILS 2: ${JSON.stringify(err, null, 2)}`);
         }
 
         return false;

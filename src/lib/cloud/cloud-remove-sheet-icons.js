@@ -5,6 +5,7 @@ const enigma = require('enigma.js');
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
 const QlikSaas = require('./cloud-repo');
+const { qscloudTestConnection } = require('./cloud-test-connection');
 
 /**
  *
@@ -169,6 +170,25 @@ const qscloudRemoveSheetIcons = async (options) => {
             // version: X, // optional. default is: 1
         };
         const saasInstance = new QlikSaas(cloudConfig);
+
+        // Test connection to QS Cloud by getting info about the user associated with the API key
+        try {
+            const res = await qscloudTestConnection(options, saasInstance);
+            logger.verbose(
+                `Connection to tenant ${options.tenanturl} successful: ${JSON.stringify(res)}`
+            );
+        } catch (err) {
+            if (err.stack) {
+                logger.error(`LIST COLLECTIONS 1 (stack): ${err.stack}`);
+            } else if (err.message) {
+                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
+                logger.error(`LIST COLLECTIONS 1 (error code): ${err.status}="${err.statusText}"`);
+            } else {
+                logger.error(`LIST COLLECTIONS 1: ${err}`);
+            }
+
+            return false;
+        }
 
         // Is there a specific app ID specified?
         if (options.appid) {
