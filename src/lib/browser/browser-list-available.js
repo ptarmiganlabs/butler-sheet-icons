@@ -88,7 +88,7 @@ async function browserListAvailable(options) {
             // Output Chrome versions and names to info log
             if (browsersAvailable.length > 0) {
                 logger.info(`Chrome versions from "${options.channel}" channel:`);
-                logger.info(
+                logger.verbose(
                     'Note that not all versions may be available for use with Butler Sheet Icons.'
                 );
 
@@ -106,7 +106,7 @@ async function browserListAvailable(options) {
                     if (canDownloadBrowser) {
                         logger.info(`    ${version.version}, "${version.name}"`);
                     } else {
-                        logger.info(`    ${version.version}, "${version.name}" (not available)`);
+                        logger.verbose(`    ${version.version}, "${version.name}" (not available)`);
                     }
                 }
             } else {
