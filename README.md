@@ -123,7 +123,7 @@ Table of contents
 
 # Demo
 
-Here a Qlik Sense Cloud app is updated by running Butler Sheet Icons on a macOS laptop:
+Here a Qlik Sense Cloud app is updated by running (a slighly older version of) Butler Sheet Icons on a macOS laptop:
 
 ![Running Butler Sheet Icons on macOS](./docs/img/qscloud-create-thumbnails-macos-bash-animated-1.gif "Running Butler Sheet Icons on macOS")
 
@@ -197,11 +197,13 @@ The idea is simply to more or less mimic the steps a human would take to create 
 
 ## Sample screen shots
 
-Using Butler Sheet Icons on MacOS:
+Using Butler Sheet Icons on MacOS, updating shet icons in a client-managed Qlik Sense Enterprise on Windows app:
 
 ![Run Butler Sheet Icons](./docs/img/create-qseow_macos_1.png "Run Butler Sheet Icons on MacOS")
 
-Using Butler Sheet Icons, running in PowerShell on Windows Server 2016:
+Same as above, running in PowerShell on Windows 10.  
+In this case (on Windows) we need to add the `--prefix form` parameter, otherwise BSI will try to use Windows authentication to log in to the Sense server.  
+The `--prefix form` parameter tells BSI to use a Qlik Sense virtual proxy that uses form based authentication.
 
 ![Run Butler Sheet Icons](./docs/img/create-qseow-win_2.png "Run Butler Sheet Icons on Windows Server 2016")
 
@@ -954,49 +956,43 @@ The key thing to remember is:
 
 ## QS Cloud, update a single app + apps in collection
 
-Using PowerShell on Windows Server 2016, with the API key stored in an PowerShell variable.
+Using PowerShell on Windows Server 2016, with most parameters stored in PowerShell variables.
 
-Credentials and IDs removed intentionally, replace with ones relevant for your QS Cloud tenant/app.
-
-`.\butler-sheet-icons.exe qscloud create-sheet-thumbnails --tenanturl <removed>.eu.qlikcloud.com --apikey "$BSI_CLOUD_API_KEY" --logonuserid "<removed>" --logonpwd <removed> --collectionid 6203<removed>d10 --headless true --includesheetpart 2 --appid 712cd<removed>6a1 --pagewait 10`
+`.\butler-sheet-icons.exe qscloud create-sheet-thumbnails --tenanturl $env:BSI_CLOUD_TENANT_URL --collectionid $env:BSI_CLOUD_COLLECTION_ID --apikey $env:BSI_CLOUD_API_KEY --logonuserid $env:BSI_CLOUD_LOGON_USERID --logonpwd $env:BSI_CLOUD_LOGON_PWD --pagewait 5 --imagedir ./img --includesheetpart 4 --exclude-sheet-number 2 --exclude-sheet-title Sheet 3 --loglevel info --headless true --appid $env:BSI_CLOUD_APP_ID`
 
 ![Create thumbnails in QS Cloud](./docs/img/qscloud-create-thumbnails-winssrv2016-ps-1.png "Create thumbnails in QS Cloud")
 
-PowerShell is quite flexible when it comes to environment variables, using the $Env scope all parameters could be stored in environment variables:
-
-`.\butler-sheet-icons.exe qscloud create-sheet-thumbnails --tenanturl $env:BSI_CLOUD_TENANT_URL --apikey $env:BSI_CLOUD_API_KEY --logonuserid $env:BSI_CLOUD_LOGON_USERID --logonpwd $env:BSI_CLOUD_LOGON_PWD --collectionid $env:BSI_CLOUD_COLLECTION_ID --headless true --includesheetpart 2 --appid "$env:BSI_CLOUD_APP_ID" --pagewait 10`
-
-The result would be the same as in the first example.
+Note that many of the options used above (e.g. `--loglevel info`) have their default values, and thus could be omitted to shorten the command a bit.
 
 ## QS Cloud, list all available collections
 
-Here we're showing the collections in a table, but it's also possible to get them as JSON.
-
 Using bash on macOS:
 
-` ./butler-sheet-icons qscloud list-collections --tenanturl $BSI_CLOUD_TENANT_URL --apikey $BSI_CLOUD_API_KEY --outputformat table`
+`./butler-sheet-icons qscloud list-collections --tenanturl $BSI_CLOUD_TENANT_URL --apikey $BSI_CLOUD_API_KEY --outputformat table`
 
 ![List available collections in QS Cloud](./docs/img/qscloud-list-collection-macos-bash-1.png "List available collections in QS Cloud")
+
+Here we're showing the collections in a table, but it's also possible to get them as JSON by changing the last option to `--outputformat json`.
 
 ## Client-managed/QSEoW, update a single app + apps with a certain tag, exclude some sheets
 
 Running the command will
 
 1. Create new sheet icons for all sheets in
-   1. the app with app ID `a3e0f5d2-000a-464f-998d-33d333b175d7`.
+   1. the app with app ID stored in the BSI_APP_ID environment variable. Sample app ID: `a3e0f5d2-000a-464f-998d-33d333b175d7`.
    2. all apps with the tag `👍😎 updateSheetThumbnail` set.
 2. Exclude some sheets (i.e. don't create thumbnails for them)
    1. all sheets named `Intro`, `Definitions` or `Help`.
    2. sheets with position `1` or `10`.
    3. all sheets tagged with the tag `❌excludeSheetThumbnailUpdate` set.
-3. Create thumbnail images in the `./img` directory (specificed by the `--imagedir` option). 
+3. Create thumbnail images in the `./img` directory (specificed by the `--imagedir` option).
 4. Each screen shot will include the main sheet area and the title row above it (`--includesheetpart 2`).
-5. Upload the sheet thumbnails to the content library specified in the `--contentlibrary` option. The login page and app overview screen shots are not uploaded.
+5. Upload the sheet thumbnails to the content library specified in the `--contentlibrary` option.
 6. Each sheet's icon is updated with the corresponding image in the content library.
 
 Running in bash on macOS with most parameters are set in environment variables:
 
-`./butler-sheet-icons qseow create-sheet-thumbnails --host $BSI_HOST --appid a3e0f5d2-000a-464f-998d-33d333b175d7 --apiuserdir Internal --apiuserid sa_api --loglevel info --logonuserdir $BSI_LOGON_USER_DIR --logonuserid $BSI_LOGON_USER_ID --logonpwd $BSI_LOGON_PWD --contentlibrary 'abc 123' --pagewait 5 --secure true --headless true --imagedir './img' --certfile $BSI_CERT_FILE --certkeyfile $BSI_CERT_KEY_FILE --includesheetpart 4 --qliksensetag "👍😎 updateSheetThumbnail" --exclude-sheet-tag "❌excludeSheetThumbnailUpdate" --exclude-sheet-title "Sheet 5" --exclude-sheet-number 1 10`
+`./butler-sheet-icons qseow create-sheet-thumbnails --loglevel info --host $BSI_HOST --appid $BSI_APP_ID --apiuserdir 'Internal' --apiuserid sa_api --logonuserdir $BSI_LOGON_USER_DIR --logonuserid $BSI_LOGON_USER_ID --logonpwd $BSI_LOGON_PWD --contentlibrary $BSI_CONTENT_LIBRARY --pagewait 5 --secure true --imagedir ./img --certfile $BSI_CERT_FILE --certkeyfile $BSI_CERT_KEY_FILE --includesheetpart 2 --headless true --exclude-sheet-tag '❌excludeSheetThumbnailUpdate' --exclude-sheet-title 'Intro' 'Definitions' 'Help' --exclude-sheet-number 1 10  --qliksensetag "👍😎 updateSheetThumbnail"`
 
 ![Create QSEoW thumbnails on macOS](./docs/img/create-qseow-macos-bash-1.png "Create QSEoW thumbnails on macOS")
 
@@ -1028,15 +1024,17 @@ Commands:
 ➜  
 ```
 
-If we pass in proper parameters we will get new sheet icons in the specified app:
+If we pass in proper parameters we will get new sheet icons in the specified apps:
 
-![Using different parts of Sense sheet's as thumbnails](./docs/img/create-qseow_macos_2.png "Using different parts of Sense sheet's as thumbnails")
+`docker run -it --name butler-sheet-icons -v /Users/goran/code/temp/img:/nodeapp/img -v /Users/goran/code/temp/cert:/nodeapp/cert --rm ptarmiganlabs/butler-sheet-icons:latest qseow create-sheet-thumbnails --loglevel info --host $BSI_HOST --appid $BSI_APP_ID --apiuserdir 'Internal' --apiuserid sa_api --logonuserdir $BSI_LOGON_USER_DIR --logonuserid $BSI_LOGON_USER_ID --logonpwd $BSI_LOGON_PWD --contentlibrary $BSI_CONTENT_LIBRARY --pagewait 5 --secure true --imagedir ./img --includesheetpart 2 --headless true --exclude-sheet-tag '❌excludeSheetThumbnailUpdate' --exclude-sheet-title 'Intro' 'Definitions' 'Help' --exclude-sheet-number 1 10 --qliksensetag "👍😎 updateSheetThumbnail"`
+
+![Running Butler Sheet Icons using Docker, updating client-managed Sense app](./docs/img/qseow-create-thumbnails-docker-1.png "Running Butler Sheet Icons using Docker, updating client-managed Sense app")
 
 Note: The command above assumes the certificates exported from QSEoW are available in `/Users/goran/code/temp/cert`.
 
 ## QS Cloud, Docker container, update a single app + apps in collection
 
-`docker run -it --rm ptarmiganlabs/butler-sheet-icons:latest qscloud create-sheet-thumbnails --tenanturl '$BSI_CLOUD_TENANT_URL' --apikey '$BSI_CLOUD_API_KEY' --logonuserid '$BSI_CLOUD_LOGON_USERID' --logonpwd '$BSI_CLOUD_LOGON_PWD' --collectionid '$BSI_CLOUD_COLLECTION_ID' --headless true --includesheetpart 2 --appid '$BSI_CLOUD_APP_ID' --pagewait 10`
+`docker run -it --name butler-sheet-icons -v /Users/goran/code/temp/img:/nodeapp/img -v /Users/goran/code/temp/cert:/nodeapp/cert --rm ptarmiganlabs/butler-sheet-icons:latest qscloud create-sheet-thumbnails --tenanturl $BSI_CLOUD_TENANT_URL --apikey $BSI_CLOUD_API_KEY --logonuserid $BSI_CLOUD_LOGON_USERID --logonpwd $BSI_CLOUD_LOGON_PWD --collectionid $BSI_CLOUD_COLLECTION_ID --headless true --includesheetpart 2 --appid $BSI_CLOUD_APP_ID --pagewait 10`
 
 ![Run Butler Sheet Icons in Docker, updating Qlik Sense Cloud apps](./docs/img/qscloud-create-thumbnails-docker-1.png "Run Butler Sheet Icons in Docker, updating Qlik Sense Cloud apps")
 
@@ -1050,41 +1048,55 @@ In other words: Butler Sheet Icons uses its own cache of browsers, it does not u
 On Windows this would be `butler-sheet-icons.exe browser list-installed`.
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win> .\butler-sheet-icons.exe browser list-installed
-2023-07-24T19:04:06.255Z info: Installed browsers:
-2023-07-24T19:04:06.257Z info:     chrome, build id=115.0.5790.102, platform=win64, path=C:\Users\goran\.cache\puppeteer\chrome\win64-115.0.5790.102
-2023-07-24T19:04:06.266Z info:     firefox, build id=117.0a1, platform=win64, path=C:\Users\goran\.cache\puppeteer\firefox\win64-117.0a1
-PS C:\tools\butler-sheet-icons-win>
+PS C:\tools\butler-sheet-icons> .\butler-sheet-icons.exe browser list-installed
+2024-02-16T14:10:55.141Z info: App version: 3.2.3
+2024-02-16T14:10:55.141Z info: Installed browsers:
+2024-02-16T14:10:55.156Z info:     chrome, build id=121.0.6167.85, platform=win64, path=C:\Users\goran\.cache\puppeteer\chrome\win64-121.0.6167.85
+PS C:\tools\butler-sheet-icons>
 ```
 
 ## Install a browser into the BSI cache
 
-This will download the browser and install it into the cache, where it can be used by Butler Sheet Icons.
+This will download and install a specific version of a browser into BSI's browser cache, where it can be used by Butler Sheet Icons.
 
 Use the `browser list-installed` command to see which browsers are currently installed.
 
-Running the command without any options will install the latest stable version of Chrome into the cache:
+Running the `install` command without any options will install the latest stable version of Chrome into the cache.
+
+On macOS:
 
 ```bash
-
-
-➜  tools ./butler-sheet-icons browser install
-2023-07-24T18:51:12.853Z info: Resolved browser build id: "115.0.5790.102" for browser "chrome" version "stable"
-2023-07-24T18:51:12.854Z info: Installing browser...
-2023-07-24T18:51:37.163Z info: Browser "chrome" version "115.0.5790.102" installed
-➜  tools
+➜  butler-sheet-icons ./butler-sheet-icons browser install
+2024-02-16T14:14:57.561Z info: App version: 3.2.3
+2024-02-16T14:14:57.668Z info: Resolved browser build id: "121.0.6167.85" for browser "chrome" version "stable"
+2024-02-16T14:14:57.712Z info: Installing browser...
+2024-02-16T14:14:57.712Z info: Browser "chrome" version "121.0.6167.85" installed
+➜  butler-sheet-icons
 ```
-
-> Regarding the deprecation warning: This is a warning (as of Butler Sheet Icons 3.1.0) from the Chrome library that BSI uses to download the browser. It's a known issue and will hopefully be fixed in a future version of the library - nothing that can be done about it in BSI.
 
 The same thing in PowerShell on Windows:
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win\demo-dir> .\butler-sheet-icons.exe browser install
-2023-07-24T18:56:45.142Z info: Resolved browser build id: "115.0.5790.102" for browser "chrome" version "stable"
-2023-07-24T18:56:45.143Z info: Installing browser...
-2023-07-24T18:57:00.221Z info: Browser "chrome" version "115.0.5790.102" installed
-PS C:\tools\butler-sheet-icons-win\demo-dir>
+PS C:\tools\butler-sheet-icons> .\butler-sheet-icons.exe browser install
+2024-02-16T14:13:35.312Z info: App version: 3.2.3
+2024-02-16T14:13:35.484Z info: Resolved browser build id: "121.0.6167.85" for browser "chrome" version "stable"
+2024-02-16T14:13:35.562Z info: Installing browser...
+2024-02-16T14:13:44.062Z info: Browser "chrome" version "121.0.6167.85" installed
+PS C:\tools\butler-sheet-icons>
+```
+
+Firefox can be installed in the same way, just use `--browser firefox` instead of `--browser chrome`.  
+Only the `latest` version of Firefox can be installed at this time.  
+
+On macOS:
+
+```bash
+➜  butler-sheet-icons ./butler-sheet-icons browser install --browser firefox --browser-version latest
+2024-02-16T14:17:47.673Z info: App version: 3.2.3
+2024-02-16T14:17:47.976Z info: Resolved browser build id: "124.0a1" for browser "firefox" version "latest"
+2024-02-16T14:17:48.343Z info: Installing browser...
+2024-02-16T14:19:06.845Z info: Browser "firefox" version "124.0a1" installed
+➜  butler-sheet-icons
 ```
 
 ## Show what browsers are available for download and use with BSI
@@ -1097,50 +1109,26 @@ BSI will detect what operating system it's running on and only list browser vers
 For example, showing available `stable` versions of Chrome for macOS:
 
 ```bash
-➜  tools ./butler-sheet-icons browser list-available --browser chrome --channel stable
-2023-07-24T18:43:13.775Z info: Chrome versions from "stable" channel:
-2023-07-24T18:43:13.776Z info:     115.0.5790.102, "chrome/platforms/mac/channels/stable/versions/115.0.5790.102"
-2023-07-24T18:43:13.776Z info:     115.0.5790.98, "chrome/platforms/mac/channels/stable/versions/115.0.5790.98"
-2023-07-24T18:43:13.776Z info:     115.0.5790.90, "chrome/platforms/mac/channels/stable/versions/115.0.5790.90"
-2023-07-24T18:43:13.776Z info:     114.0.5735.248, "chrome/platforms/mac/channels/stable/versions/114.0.5735.248"
-2023-07-24T18:43:13.776Z info:     114.0.5735.198, "chrome/platforms/mac/channels/stable/versions/114.0.5735.198"
-2023-07-24T18:43:13.776Z info:     114.0.5735.133, "chrome/platforms/mac/channels/stable/versions/114.0.5735.133"
-2023-07-24T18:43:13.776Z info:     114.0.5735.106, "chrome/platforms/mac/channels/stable/versions/114.0.5735.106"
-2023-07-24T18:43:13.777Z info:     114.0.5735.90, "chrome/platforms/mac/channels/stable/versions/114.0.5735.90"
-2023-07-24T18:43:13.777Z info:     114.0.5735.45, "chrome/platforms/mac/channels/stable/versions/114.0.5735.45"
-2023-07-24T18:43:13.777Z info:     113.0.5672.126, "chrome/platforms/mac/channels/stable/versions/113.0.5672.126"
-2023-07-24T18:43:13.777Z info:     113.0.5672.92, "chrome/platforms/mac/channels/stable/versions/113.0.5672.92"
-2023-07-24T18:43:13.777Z info:     113.0.5672.63, "chrome/platforms/mac/channels/stable/versions/113.0.5672.63"
+➜  butler-sheet-icons ./butler-sheet-icons browser list-available --browser chrome --channel stable
+2024-02-16T14:15:46.237Z info: App version: 3.2.3
+2024-02-16T14:15:46.677Z info: Chrome versions from "stable" channel:
+2024-02-16T14:15:49.320Z info:     121.0.6167.85, "chrome/platforms/mac/channels/stable/versions/121.0.6167.85"
+2024-02-16T14:15:49.684Z info:     121.0.6167.75, "chrome/platforms/mac/channels/stable/versions/121.0.6167.75"
+2024-02-16T14:15:52.633Z info:     120.0.6099.109, "chrome/platforms/mac/channels/stable/versions/120.0.6099.109"
+2024-02-16T14:15:53.060Z info:     120.0.6099.71, "chrome/platforms/mac/channels/stable/versions/120.0.6099.71"
+2024-02-16T14:15:53.545Z info:     120.0.6099.62, "chrome/platforms/mac/channels/stable/versions/120.0.6099.62"
+2024-02-16T14:15:53.998Z info:     120.0.6099.56, "chrome/platforms/mac/channels/stable/versions/120.0.6099.56"
+2024-02-16T14:15:54.968Z info:     119.0.6045.159, "chrome/platforms/mac/channels/stable/versions/119.0.6045.159"
+2024-02-16T14:15:55.288Z info:     119.0.6045.123, "chrome/platforms/mac/channels/stable/versions/119.0.6045.123"
 ...
 ...
 ➜  tools 
 ```
 
-Note the build IDs (e.g. 115.0.5790.102) in the output. These are the IDs that should be used when installing a specific version of Chrome for use with BSI
+Note the build IDs (e.g. 121.0.6167.85) in the output.  
+These are the IDs that should be used when installing a specific version of Chrome for use with BSI
 
-For Firefox the same command would look like this:
-
-```bash
-➜  tools ./butler-sheet-icons browser list-available --browser firefox
-2023-07-24T18:45:00.372Z info: Firefox versions from past 12 months:
-2023-07-24T18:45:00.372Z info:     2023-07-21, "dev", "116.0b8"
-2023-07-24T18:45:00.372Z info:     2023-07-19, "dev", "116.0b7"
-2023-07-24T18:45:00.372Z info:     2023-07-18, "esr", "115.0.3"
-2023-07-24T18:45:00.372Z info:     2023-07-17, "dev", "116.0b6"
-2023-07-24T18:45:00.373Z info:     2023-07-14, "dev", "116.0b5"
-2023-07-24T18:45:00.373Z info:     2023-07-12, "dev", "116.0b4"
-2023-07-24T18:45:00.373Z info:     2023-07-11, "stability", "115.0.2"
-2023-07-24T18:45:00.373Z info:     2023-07-11, "esr", "115.0.2"
-2023-07-24T18:45:00.373Z info:     2023-07-10, "dev", "116.0b3"
-2023-07-24T18:45:00.373Z info:     2023-07-07, "stability", "115.0.1"
-2023-07-24T18:45:00.374Z info:     2023-07-07, "esr", "115.0.1"
-2023-07-24T18:45:00.374Z info:     2023-07-07, "dev", "116.0b2"
-2023-07-24T18:45:00.374Z info:     2023-07-05, "dev", "116.0b1"
-...
-...
-➜  tools
-```
-
+Firefox support is limited, only the `latest` version of Firefox is supported.  
 Firefox does not have build IDs, instead it has more human readable version numbers (e.g. 115.0.3).
 
 ## Uninstall a browser from the BSI cache
@@ -1154,22 +1142,23 @@ Example on Windows:
 First list already installed browsers, then uninstall one of them. Finally list installed browsers again to verify that the uninstallation worked:
 
 ```powershell
-PS C:\tools\butler-sheet-icons-win\demo-dir> .\butler-sheet-icons.exe browser list-installed
-2023-07-24T19:07:39.687Z info: Installed browsers:
-2023-07-24T19:07:39.689Z info:     chrome, build id=115.0.5790.102, platform=win64, path=C:\Users\goran\.cache\puppeteer\chrome\win64-115.0.5790.102
-2023-07-24T19:07:39.697Z info:     firefox, build id=117.0a1, platform=win64, path=C:\Users\goran\.cache\puppeteer\firefox\win64-117.0a1
-PS C:\tools\butler-sheet-icons-win\demo-dir>
-PS C:\tools\butler-sheet-icons-win\demo-dir>
-PS C:\tools\butler-sheet-icons-win\demo-dir> .\butler-sheet-icons.exe browser uninstall --browser-version 115.0.5790.102
-2023-07-24T19:07:53.836Z info: Starting browser uninstallation
-2023-07-24T19:07:53.840Z info: Uninstalling browser: chrome, build id=115.0.5790.102, platform=win64, path=C:\Users\goran\.cache\puppeteer\chrome\win64-115.0.5790.102
-2023-07-24T19:07:53.926Z info: Browser "chrome", version "115.0.5790.102" uninstalled.
-PS C:\tools\butler-sheet-icons-win\demo-dir>
-PS C:\tools\butler-sheet-icons-win\demo-dir>
-PS C:\tools\butler-sheet-icons-win\demo-dir> .\butler-sheet-icons.exe browser list-installed
-2023-07-24T19:09:17.536Z info: Installed browsers:
-2023-07-24T19:09:17.538Z info:     firefox, build id=117.0a1, platform=win64, path=C:\Users\goran\.cache\puppeteer\firefox\win64-117.0a1
-PS C:\tools\butler-sheet-icons-win\demo-dir>
+PS C:\tools\butler-sheet-icons> .\butler-sheet-icons.exe browser list-installed
+2024-02-16T14:24:20.096Z info: App version: 3.2.3
+2024-02-16T14:24:20.112Z info: Installed browsers:
+2024-02-16T14:24:20.112Z info:     chrome, build id=121.0.6167.85, platform=win64, path=C:\Users\goran\.cache\puppeteer\chrome\win64-121.0.6167.85
+2024-02-16T14:24:20.112Z info:     firefox, build id=124.0a1, platform=win64, path=C:\Users\goran\.cache\puppeteer\firefox\win64-124.0a1
+PS C:\tools\butler-sheet-icons>
+PS C:\tools\butler-sheet-icons> .\butler-sheet-icons.exe browser uninstall --browser-version 121.0.6167.85
+2024-02-16T14:26:39.018Z info: App version: 3.2.3
+2024-02-16T14:26:39.018Z info: Starting browser uninstallation
+2024-02-16T14:26:39.018Z info: Uninstalling browser: chrome, build id=121.0.6167.85, platform=win64, path=C:\Users\goran\.cache\puppeteer\chrome\win64-121.0.6167.85
+2024-02-16T14:26:39.096Z info: Browser "chrome", version "121.0.6167.85" uninstalled.
+PS C:\tools\butler-sheet-icons>
+PS C:\tools\butler-sheet-icons> .\butler-sheet-icons.exe browser list-installed
+2024-02-16T14:26:44.597Z info: App version: 3.2.3
+2024-02-16T14:26:44.597Z info: Installed browsers:
+2024-02-16T14:26:44.613Z info:     firefox, build id=124.0a1, platform=win64, path=C:\Users\goran\.cache\puppeteer\firefox\win64-124.0a1
+PS C:\tools\butler-sheet-icons>
 ```
 
 ## Uninstall all browsers from the BSI cache
@@ -1180,25 +1169,26 @@ Example on macOS:
 First list installed browsers, then uninstall all of them. Finally list installed browsers again to verify that the uninstallation worked:
 
 ```bash
-➜  tools ./butler-sheet-icons browser list-installed
-2023-07-24T19:11:30.648Z info: Installed browsers:
-2023-07-24T19:11:30.648Z info:     chrome, build id=115.0.5790.102, platform=mac, path=/Users/goran/.cache/puppeteer/chrome/mac-115.0.5790.102
-2023-07-24T19:11:30.649Z info:     firefox, build id=117.0a1, platform=mac, path=/Users/goran/.cache/puppeteer/firefox/mac-117.0a1
-➜  tools
-➜  tools
-➜  tools ./butler-sheet-icons browser uninstall-all
-2023-07-24T19:11:41.738Z info: Starting uninstallation of all browsers
-2023-07-24T19:11:41.739Z info: Uninstalling 2 browsers:
-2023-07-24T19:11:41.739Z info:     Starting uninstallation of "chrome", build id "115.0.5790.102", platform "mac", path "/Users/goran/.cache/puppeteer/chrome/mac-115.0.5790.102"
-2023-07-24T19:11:41.827Z info:     Starting uninstallation of "firefox", build id "117.0a1", platform "mac", path "/Users/goran/.cache/puppeteer/firefox/mac-117.0a1"
-2023-07-24T19:11:41.892Z info: Removing any remaining files and directories in the browser cache directory
-2023-07-24T19:11:41.893Z info: Browser "chrome" (115.0.5790.102) uninstalled.
-2023-07-24T19:11:41.893Z info: Browser "firefox" (117.0a1) uninstalled.
-➜  tools
-➜  tools
-➜  tools ./butler-sheet-icons browser list-installed
-2023-07-24T19:11:45.813Z info: No browsers installed
-➜  tools
+➜  butler-sheet-icons ./butler-sheet-icons browser list-installed
+2024-02-16T14:27:20.425Z info: App version: 3.2.3
+2024-02-16T14:27:20.427Z info: Installed browsers:
+2024-02-16T14:27:20.428Z info:     chrome, build id=121.0.6167.85, platform=mac, path=/Users/goran/.cache/puppeteer/chrome/mac-121.0.6167.85
+2024-02-16T14:27:20.428Z info:     firefox, build id=124.0a1, platform=mac, path=/Users/goran/.cache/puppeteer/firefox/mac-124.0a1
+➜  butler-sheet-icons
+➜  butler-sheet-icons ./butler-sheet-icons browser uninstall-all
+2024-02-16T14:29:24.989Z info: App version: 3.2.3
+2024-02-16T14:29:24.990Z info: Starting uninstallation of all browsers
+2024-02-16T14:29:24.991Z info: Uninstalling 2 browsers:
+2024-02-16T14:29:24.992Z info:     Starting uninstallation of "chrome", build id "121.0.6167.85", platform "mac", path "/Users/goran/.cache/puppeteer/chrome/mac-121.0.6167.85"
+2024-02-16T14:29:25.880Z info:     Starting uninstallation of "firefox", build id "124.0a1", platform "mac", path "/Users/goran/.cache/puppeteer/firefox/mac-124.0a1"
+2024-02-16T14:29:26.214Z info: Removing any remaining files and directories in the browser cache directory
+2024-02-16T14:29:26.214Z info: Browser "chrome" (121.0.6167.85) uninstalled.
+2024-02-16T14:29:26.214Z info: Browser "firefox" (124.0a1) uninstalled.
+➜  butler-sheet-icons
+➜  butler-sheet-icons ./butler-sheet-icons browser list-installed
+2024-02-16T14:29:29.943Z info: App version: 3.2.3
+2024-02-16T14:29:29.944Z info: No browsers installed
+➜  butler-sheet-icons
 ```
 
 # Supported Qlik Sense versions
@@ -1207,6 +1197,8 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Version | Tested date | Comment |
 |---------|-------------|---------|
+| 2023-Nov patch 3 | 2024-Feb-16 | Use `--sense-version 2023-Nov` |
+| 2023-Aug patch 3 | 2023-Jan-04 | Use `--sense-version 2023-Aug` |
 | 2023-May patch 6 | 2023-Oct-06 | Use `--sense-version 2023-May` |
 | 2023-May IR | 2023-July-24 | Use `--sense-version 2023-May` |
 | 2022-Nov patch 2 | 2023-Jan-3 | Use `--sense-version 2022-Nov` |
@@ -1217,7 +1209,7 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Tested date | BSI version | Comment |
 |-------------|-------------|---------|
-| 2024-Feb-9 | 3.2.0 | Works without issues |
+| 2024-Feb-16 | 3.2.3 | Works without issues |
 | 2023-Dec-6 | 3.2.0 | Works without issues |
 | 2023-Nov-7 | 3.1.0 | Works without issues |
 | 2023-July-24 | | Works without issues |
@@ -1229,12 +1221,17 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 Whenever changes are made to Butler Sheet Icons the new version is automatically tested against both a real client-managed Qlik Sense server and a Qlik Sense Cloud tenant.
 
-Tests are made on the following platforms and Node.js versions
+Tests are made on the following platforms and Node.js versions during the automated build process:
 
 - Windows Server 2016
   - Latest available Node.js LTS (Long Term Support) version.
+- Windows Server 2019
+  - Latest available Node.js LTS (Long Term Support) version.
 - MacOS Monterey
+  - Intel x64
   - Latest available Node.js LTS version.
+
+Manual tests are also frequently done on Windows 10 and macOS.
 
 # When things don't quite work
 
