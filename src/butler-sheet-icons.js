@@ -612,7 +612,8 @@ const program = new Command();
             )
             .option(
                 '--browser-version <version>',
-                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.',
+                'latest'
             );
 
         // available sub-command

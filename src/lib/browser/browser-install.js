@@ -8,6 +8,7 @@ const path = require('path');
 const { homedir } = require('os');
 
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
+const { getMostRecentUsableChromeBuildId } = require('./browser-list-available');
 
 /**
  * Install browser
@@ -42,8 +43,18 @@ const browserInstall = async (options, _command) => {
         const platform = await detectBrowserPlatform();
         logger.debug(`Detected browser platform: ${platform}`);
 
-        // Determine which browser version to install
-        const buildId = await resolveBuildId(options.browser, platform, options.browserVersion);
+        let buildId;
+        if (options.browser === 'chrome') {
+            if (options.browserVersion === 'latest') {
+                // Get most recent stable Chrome build id that works with Puppeteer
+                buildId = await getMostRecentUsableChromeBuildId('stable');
+            } else {
+                buildId = await resolveBuildId(options.browser, platform, options.browserVersion);
+            }
+        } else if (options.browser === 'firefox') {
+            buildId = await resolveBuildId(options.browser, platform, options.browserVersion);
+        }
+
         logger.info(
             `Resolved browser build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}"`
         );
