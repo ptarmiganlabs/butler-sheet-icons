@@ -4,6 +4,7 @@
 const { table } = require('table');
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
 const QlikSaas = require('./cloud-repo');
+const { qscloudTestConnection } = require('./cloud-test-connection');
 
 /**
  *
@@ -30,13 +31,33 @@ const qscloudListCollections = async (options) => {
         try {
             saasInstance = new QlikSaas(cloudConfig);
         } catch (err) {
-            logger.error(`LIST COLLECTIONS 1: ${err}`);
-            if (err.message) {
-                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
-            }
             if (err.stack) {
                 logger.error(`LIST COLLECTIONS 1 (stack): ${err.stack}`);
+            } else if (err.message) {
+                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
+            } else {
+                logger.error(`LIST COLLECTIONS 1: ${err}`);
             }
+
+            return false;
+        }
+
+        // Test connection to QS Cloud by getting info about the user associated with the API key
+        try {
+            const res = await qscloudTestConnection(options, saasInstance);
+            logger.verbose(
+                `Connection to tenant ${options.tenanturl} successful: ${JSON.stringify(res)}`
+            );
+        } catch (err) {
+            if (err.stack) {
+                logger.error(`LIST COLLECTIONS 1 (stack): ${err.stack}`);
+            } else if (err.message) {
+                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
+                logger.error(`LIST COLLECTIONS 1 (error code): ${err.status}="${err.statusText}"`);
+            } else {
+                logger.error(`LIST COLLECTIONS 1: ${err}`);
+            }
+
             return false;
         }
 
@@ -45,12 +66,12 @@ const qscloudListCollections = async (options) => {
         try {
             allCollections = await saasInstance.Get('collections');
         } catch (err) {
-            logger.error(`LIST COLLECTIONS 2: ${err}`);
-            if (err.message) {
-                logger.error(`LIST COLLECTIONS 2 (message): ${err.message}`);
-            }
             if (err.stack) {
                 logger.error(`LIST COLLECTIONS 2 (stack): ${err.stack}`);
+            } else if (err.message) {
+                logger.error(`LIST COLLECTIONS 2 (message): ${err.message}`);
+            } else {
+                logger.error(`LIST COLLECTIONS 2: ${err}`);
             }
             return false;
         }
@@ -98,13 +119,14 @@ const qscloudListCollections = async (options) => {
 
         return true;
     } catch (err) {
-        logger.error(`LIST COLLECTIONS 3: ${err}`);
-        if (err.message) {
-            logger.error(`LIST COLLECTIONS 3 (message): ${err.message}`);
-        }
         if (err.stack) {
             logger.error(`LIST COLLECTIONS 3 (stack): ${err.stack}`);
+        } else if (err.message) {
+            logger.error(`LIST COLLECTIONS 3 (message): ${err.message}`);
+        } else {
+            logger.error(`LIST COLLECTIONS 3: ${err}`);
         }
+
         return false;
     }
 };
@@ -147,23 +169,23 @@ const qscloudVerifyCollectionExists = (options) =>
                 })
                 .catch((err) => {
                     // Return error msg
-                    logger.error(`CLOUD COLLECTION EXISTS 1: ${err}`);
-                    if (err.message) {
-                        logger.error(`CLOUD COLLECTION EXISTS 1 (message): ${err.message}`);
-                    }
                     if (err.stack) {
                         logger.error(`CLOUD COLLECTION EXISTS 1 (stack): ${err.stack}`);
+                    } else if (err.message) {
+                        logger.error(`CLOUD COLLECTION EXISTS 1 (message): ${err.message}`);
+                    } else {
+                        logger.error(`CLOUD COLLECTION EXISTS 1: ${err}`);
                     }
 
                     reject(new Error(`COLLECTION EXISTS 1: ${err}`));
                 });
         } catch (err) {
-            logger.error(`CLOUD COLLECTION EXISTS 2: ${JSON.stringify(err, null, 2)}`);
-            if (err.message) {
-                logger.error(`CLOUD COLLECTION EXISTS 2 (stack): ${err.message}`);
-            }
             if (err.stack) {
                 logger.error(`CLOUD COLLECTION EXISTS 2 (stack): ${err.stack}`);
+            } else if (err.message) {
+                logger.error(`CLOUD COLLECTION EXISTS 2 (stack): ${err.message}`);
+            } else {
+                logger.error(`CLOUD COLLECTION EXISTS 2: ${JSON.stringify(err, null, 2)}`);
             }
 
             reject(new Error(`COLLECTION EXISTS: ${err}`));

@@ -22,13 +22,13 @@ axios.interceptors.response.use(
 
         return response;
     },
-    (e) => {
-        throw Error({
+    (e) =>
+        // eslint-disable-next-line prefer-promise-reject-errors
+        Promise.reject({
             status: e.response.status,
             statusText: e.response.statusText,
             message: e.message,
-        });
-    }
+        })
 );
 
 function bufferToStream(buffer) {
@@ -65,17 +65,7 @@ async function makeRequest(config, data = []) {
             return makeRequest(config, returnData);
         }
     } catch (err) {
-        logger.error(`CLOUD Error in request to Qlik Cloud 1: ${err}`);
-        if (err.message) {
-            logger.error(`CLOUD Error in request to Qlik Cloud 1 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`CLOUD Error in request to Qlik Cloud 1 (stack): ${err.stack}`);
-        }
-
-        throw Error({
-            message: 'Error in request to Qlik Cloud',
-        });
+        return Promise.reject(err);
     }
 
     // Original code:

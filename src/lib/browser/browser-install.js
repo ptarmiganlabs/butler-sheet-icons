@@ -1,4 +1,9 @@
-const { install, resolveBuildId, detectBrowserPlatform } = require('@puppeteer/browsers');
+const {
+    install,
+    resolveBuildId,
+    detectBrowserPlatform,
+    canDownload,
+} = require('@puppeteer/browsers');
 const path = require('path');
 const { homedir } = require('os');
 
@@ -42,6 +47,21 @@ const browserInstall = async (options, _command) => {
         logger.info(
             `Resolved browser build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}"`
         );
+
+        // Ensure browser can be downloaded
+        const canDownloadBrowser = await canDownload({
+            browser: options.browser,
+            buildId,
+            cacheDir: browserPath,
+            unpack: true,
+        });
+
+        if (!canDownloadBrowser) {
+            throw new Error(
+                `Browser "${options.browser}" version "${options.browserVersion}" cannot be downloaded. Please use the "list-available" command to check available versions`
+            );
+        }
+
         logger.info('Installing browser...');
 
         const browser = await install({

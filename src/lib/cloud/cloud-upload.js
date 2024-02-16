@@ -79,12 +79,12 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
             }
         }
     } catch (err) {
-        logger.error(`CLOUD UPLOAD 2: ${JSON.stringify(err, null, 2)}`);
-        if (err.message) {
-            logger.error(`CLOUD UPLOAD 2 (stack): ${err.message}`);
-        }
         if (err.stack) {
             logger.error(`CLOUD UPLOAD 2 (stack): ${err.stack}`);
+        } else if (err.message) {
+            logger.error(`CLOUD UPLOAD 2 (stack): ${err.message}`);
+        } else {
+            logger.error(`CLOUD UPLOAD 2: ${JSON.stringify(err, null, 2)}`);
         }
     }
 };

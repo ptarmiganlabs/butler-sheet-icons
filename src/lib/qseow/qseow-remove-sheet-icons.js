@@ -108,12 +108,12 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        logger.error(`QSEOW: removeSheetIconsQSEoWApp: ${err}`);
-        if (err.message) {
-            logger.error(`QSEOW: removeSheetIconsQSEoWApp (message): ${err.message}`);
-        }
         if (err.stack) {
             logger.error(`QSEOW: removeSheetIconsQSEoWApp (stack): ${err.stack}`);
+        } else if (err.message) {
+            logger.error(`QSEOW: removeSheetIconsQSEoWApp (message): ${err.message}`);
+        } else {
+            logger.error(`QSEOW: removeSheetIconsQSEoWApp: ${err}`);
         }
     }
 };
