@@ -154,7 +154,7 @@ Specifically:
 - The tool is cross platform and runs on Windows, MacOS, Linux and as a Docker container.
 - Stand-alone, download-and-use binaries for Windows, macOS and Linux are available.
   - The macOS binary is notarized by Apple.
-  - The Windows binary is signed by Ptarmigan Labs using a commercial signing certificate.
+  - The Windows binary is signed with a commercial signing certificate from Certum.
 - Works on both Qlik Sense Cloud and client-managed Qlik Sense Enterprise on Windows. Qlik Sense Desktop not supported.
 - A single command will create thumbnail images, upload them to Qlik Sense and assign them as sheet icons to sheets in the Sense app(s).
 
@@ -1252,7 +1252,9 @@ If you have security concerns or ideas around BSI, please get involved in the pr
 
 ### Windows
 
-The Windows version of Butler Sheet Icons is signed with a commercial code signing certificate, with Ptarmigan Labs as the publisher.
+The Windows version of Butler Sheet Icons is signed with a code signing certificate issued by Certum, issued to "Open Source Developer, Göran Sander".
+
+![Butler Sheet Icons binary for Windows is signed](./docs/img/butler-sheet-icons-win-signing-certificate-1.png "Butler Sheet Icons binary for Windows is signed")
 
 ### macOS
 
