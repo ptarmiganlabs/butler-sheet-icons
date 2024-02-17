@@ -1,6 +1,20 @@
 # Changelog
 
 
+## [3.4.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.4.0...butler-sheet-icons-v3.4.0) (2024-02-17)
+
+
+### Features
+
+* **browser:** Add progress bar during browser install ([5493ea4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5493ea4851df18d56249d62ce065a7fd4ee2e6e6)), closes [#505](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/505)
+
+
+### Miscellaneous
+
+* **browser:** Fix broken browser test cases ([72a0d6f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/72a0d6f3d6283aa4e457a7a7ff00a7719e2516a2)), closes [#503](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/503)
+* **deps:** Update dependencies ([7db60a9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7db60a98f986ebbae27f6af65fd9ac230c0b19b9))
+* **main:** release butler-sheet-icons 3.4.0 ([c9fc6c5](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c9fc6c5eab314b1f3f4808af1e8474b3d8d27bc0))
+
 ## [3.4.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.3.0...butler-sheet-icons-v3.4.0) (2024-02-16)
 
 
