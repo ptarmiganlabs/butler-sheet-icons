@@ -210,9 +210,9 @@ jobs:
           PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
           PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
           PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
-          CODESIGN_PWD: ${{ secrets.WIN_CODESIGN_PWD}}
-          CODESIGN_INTERMEDIATE_BASE64: ${{ secrets.WIN_CODESIGN_INTERMEDIATE_BASE64 }}
-          CODESIGN_BASE64: ${{ secrets.WIN_CODESIGN_BASE64}}
+          # CODESIGN_PWD: ${{ secrets.WIN_CODESIGN_PWD}}
+          # CODESIGN_INTERMEDIATE_BASE64: ${{ secrets.WIN_CODESIGN_INTERMEDIATE_BASE64 }}
+          # CODESIGN_BASE64: ${{ secrets.WIN_CODESIGN_BASE64}}
           CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT}}
         run: |
           pwd
@@ -705,9 +705,10 @@ jobs:
     env:
       DIST_FILE_NAME: butler-sheet-icons
       GITHUB_TOKEN: ${{ secrets.PAT }}
-      CODESIGN_PWD: ${{ secrets.WIN_CODESIGN_PWD}}
-      CODESIGN_INTERMEDIATE_BASE64: ${{ secrets.WIN_CODESIGN_INTERMEDIATE_BASE64 }}
-      CODESIGN_BASE64: ${{ secrets.WIN_CODESIGN_BASE64}}
+      # CODESIGN_PWD: ${{ secrets.WIN_CODESIGN_PWD}}
+      # CODESIGN_INTERMEDIATE_BASE64: ${{ secrets.WIN_CODESIGN_INTERMEDIATE_BASE64 }}
+      # CODESIGN_BASE64: ${{ secrets.WIN_CODESIGN_BASE64}}
+      CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT}}
     steps:
       - name: Release tag and upload url from previous job
         run: |
