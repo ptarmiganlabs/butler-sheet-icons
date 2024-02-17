@@ -192,6 +192,7 @@ jobs:
           # command: test
           
       - name: Upload Snyk result to GitHub Code Scanning
+        continue-on-error: true
         if: |
           github.repository_owner == 'ptarmiganlabs' &&
           matrix.os == 'ubuntu-latest'
