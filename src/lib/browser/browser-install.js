@@ -7,6 +7,7 @@ const {
 const path = require('path');
 const { homedir } = require('os');
 const ProgressBar = require('progress');
+const cliProgress = require('cli-progress');
 
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
 const { getMostRecentUsableChromeBuildId } = require('./browser-list-available');
@@ -38,7 +39,15 @@ const browserInstall = async (options, _command) => {
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
         // Create a new progress bar instance
-        const bar = new ProgressBar('(:percent) :bar', { total: 100 });
+        // const bar = new ProgressBar('(:percent) :bar', { total: 100 });
+
+        // Create a new progress bar instance using cli-progress
+        const progressBar = new cliProgress.SingleBar(
+            {
+                format: ' {bar} {percentage}% | ETA: {eta_formatted}',
+            },
+            cliProgress.Presets.shades_classic
+        );
 
         // Install browser
         const browserPath = path.join(homedir(), '.cache/puppeteer');
@@ -79,16 +88,22 @@ const browserInstall = async (options, _command) => {
 
         logger.info('Installing browser...');
 
+        // start the progress bar with a total value of 100 and start value of 0
+        progressBar.start(100, 0);
+
         const browser = await install({
             browser: options.browser,
             buildId,
             cacheDir: browserPath,
             downloadProgressCallback: (downloadedBytes, totalBytes) => {
                 // Update the progress bar.
-                bar.tick((downloadedBytes / totalBytes) * 100 - bar.curr);
+                progressBar.update((downloadedBytes / totalBytes) * 100);
+                // bar.tick((downloadedBytes / totalBytes) * 100 - bar.curr);
             },
             unpack: true,
         });
+        // stop the progress bar
+        progressBar.stop();
 
         logger.info(`Browser "${browser.browser}" version "${browser.buildId}" installed`);
 

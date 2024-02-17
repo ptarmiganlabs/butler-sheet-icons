@@ -20,6 +20,7 @@
   "dependencies": {
     "@puppeteer/browsers": "^2.0.0",
     "axios": "^1.6.7",
+    "cli-progress": "^3.12.0",
     "commander": "^12.0.0",
     "enigma.js": "^2.12.0",
     "esbuild": "^0.20.0",
