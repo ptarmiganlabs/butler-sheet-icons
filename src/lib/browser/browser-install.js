@@ -6,7 +6,6 @@ const {
 } = require('@puppeteer/browsers');
 const path = require('path');
 const { homedir } = require('os');
-const ProgressBar = require('progress');
 const cliProgress = require('cli-progress');
 
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
@@ -37,9 +36,6 @@ const browserInstall = async (options, _command) => {
         logger.verbose(`Running as standalone app: ${isPkg}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
-
-        // Create a new progress bar instance
-        // const bar = new ProgressBar('(:percent) :bar', { total: 100 });
 
         // Create a new progress bar instance using cli-progress
         const progressBar = new cliProgress.SingleBar(
@@ -98,11 +94,12 @@ const browserInstall = async (options, _command) => {
             downloadProgressCallback: (downloadedBytes, totalBytes) => {
                 // Update the progress bar.
                 progressBar.update((downloadedBytes / totalBytes) * 100);
-                // bar.tick((downloadedBytes / totalBytes) * 100 - bar.curr);
             },
             unpack: true,
         });
+
         // stop the progress bar
+        progressBar.update(100);
         progressBar.stop();
 
         logger.info(`Browser "${browser.browser}" version "${browser.buildId}" installed`);
