@@ -517,12 +517,12 @@ const qscloudCreateThumbnails = async (options) => {
             );
         } catch (err) {
             if (err.stack) {
-                logger.error(`LIST COLLECTIONS 1 (stack): ${err.stack}`);
+                logger.error(`TEST CONNECTIVITY 1 (stack): ${err.stack}`);
             } else if (err.message) {
-                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
-                logger.error(`LIST COLLECTIONS 1 (error code): ${err.status}="${err.statusText}"`);
+                logger.error(`TEST CONNECTIVITY 1 (message): ${err.message}`);
+                logger.error(`TEST CONNECTIVITY 1 (error code): ${err.status}="${err.statusText}"`);
             } else {
-                logger.error(`LIST COLLECTIONS 1: ${err}`);
+                logger.error(`TEST CONNECTIVITY 1: ${err}`);
             }
 
             return false;
