@@ -65,7 +65,7 @@ const browserInstall = async (options, _command) => {
         }
 
         logger.info(
-            `Resolved browser build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}"`
+            `Resolved browser build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}" on platform "${platform}"`
         );
 
         // Ensure browser can be downloaded
