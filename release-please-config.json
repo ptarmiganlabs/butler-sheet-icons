@@ -1,6 +1,4 @@
 {
-  "last-release-sha": "2cb7ab61dee64789ebd561a0bb3875c476bc13c6",
-  "release-as": "3.4.0",
   "release-type": "node",
   "prerelease": false,
   "draft": true,
