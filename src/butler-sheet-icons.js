@@ -43,7 +43,7 @@ const program = new Command();
                 if (!options.browserVersion || options.browserVersion === '') {
                     if (options.browser === 'chrome') {
                         // eslint-disable-next-line no-param-reassign
-                        options.browserVersion = 'stable';
+                        options.browserVersion = 'latest';
                     } else if (options.browser === 'firefox') {
                         // eslint-disable-next-line no-param-reassign
                         options.browserVersion = 'latest';
@@ -279,7 +279,7 @@ const program = new Command();
                     if (!options.browserVersion || options.browserVersion === '') {
                         if (options.browser === 'chrome') {
                             // eslint-disable-next-line no-param-reassign
-                            options.browserVersion = 'stable';
+                            options.browserVersion = 'latest';
                         } else if (options.browser === 'firefox') {
                             // eslint-disable-next-line no-param-reassign
                             options.browserVersion = 'latest';
@@ -362,7 +362,7 @@ const program = new Command();
             )
             .option(
                 '--browser-version <version>',
-                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. Leave empty or set to "latest" to get latest available version.'
             );
 
         // ---------
