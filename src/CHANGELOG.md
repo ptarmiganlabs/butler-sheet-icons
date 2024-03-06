@@ -1,6 +1,18 @@
 # Changelog
 
 
+## [3.4.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.4.0...butler-sheet-icons-v3.4.1) (2024-03-06)
+
+
+### Bug Fixes
+
+* More robust logic to determine latest available Chrome version ([182c1fc](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/182c1fc0997a07e10736704af2651f6a4dcd3238)), closes [#517](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/517)
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies to stay safe and secure ([e02209a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e02209a90be0667d7adceffa3be2c31f262521bd))
+
 ## [3.4.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.4.0...butler-sheet-icons-v3.4.0) (2024-02-17)
 
 
