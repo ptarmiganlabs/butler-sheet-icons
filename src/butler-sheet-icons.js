@@ -148,6 +148,14 @@ const program = new Command();
             'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
             ''
         )
+        .addOption(
+            new Option(
+                '--exclude-sheet-status <status...>',
+                'Exclude all sheets with specified status(es)'
+            )
+                .choices(['private', 'published', 'public'])
+                .default([])
+        )
         .option(
             '--exclude-sheet-tag <value>',
             'Sheets with this tag set will be excluded from sheet icon update.'
@@ -344,6 +352,14 @@ const program = new Command();
                 '--collectionid <id>',
                 'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated',
                 ''
+            )
+            .addOption(
+                new Option(
+                    '--exclude-sheet-status <status...>',
+                    'Exclude all sheets with specified status(es)'
+                )
+                    .choices(['private', 'published', 'public'])
+                    .default([])
             )
             .option(
                 '--exclude-sheet-number <number...>',

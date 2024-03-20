@@ -51,6 +51,11 @@ const xpathHubUserPageButton2023Nov =
 const xpathLogoutButton2023Nov =
     'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
+const xpathHubUserPageButton2024Feb =
+    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
+const xpathLogoutButton2024Feb =
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
+
 /**
  *
  * @param {*} appId
@@ -81,6 +86,9 @@ const processQSEoWApp = async (appId, g, options) => {
     } else if (options.senseVersion === '2023-Nov') {
         xpathHubUserPageButton = xpathHubUserPageButton2023Nov;
         xpathLogoutButton = xpathLogoutButton2023Nov;
+    } else if (options.senseVersion === '2024-Feb') {
+        xpathHubUserPageButton = xpathHubUserPageButton2024Feb;
+        xpathLogoutButton = xpathLogoutButton2024Feb;
     } else {
         logger.error(
             `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
@@ -342,38 +350,79 @@ const processQSEoWApp = async (appId, g, options) => {
                 // --exclude-sheet-tag <value>
                 // --exclude-sheet-number <number...>
                 // --exclude-sheet-title <title...>
+                // --exclude-sheet-status <status...>
 
-                let excludeSheet;
+                let excludeSheet = false;
+
+                // Should this sheet be excluded based on its published status?
+                // Deal with public sheets first
+                if (
+                    sheet.qMeta.approved === true &&
+                    sheet.qMeta.published === true &&
+                    options.excludeSheetStatus.includes('public')
+                ) {
+                    excludeSheet = true;
+                    logger.verbose(
+                        `Excluded sheet (status public): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
+                    );
+                }
+
+                // Next check published sheets
+                if (
+                    sheet.qMeta.approved === false &&
+                    sheet.qMeta.published === true &&
+                    options.excludeSheetStatus.includes('published')
+                ) {
+                    excludeSheet = true;
+                    logger.verbose(
+                        `Excluded sheet (status published): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
+                    );
+                }
+
+                // Next check private sheets
+                if (
+                    sheet.qMeta.approved === false &&
+                    sheet.qMeta.published === false &&
+                    options.excludeSheetStatus.includes('private')
+                ) {
+                    excludeSheet = true;
+                    logger.verbose(
+                        `Excluded sheet (status private): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
+                    );
+                }
 
                 // Is this sheet hidden?
+                // Never process hidden sheets
                 // Evaluate showCondition
                 const showConditionCall = {
                     qExpression: sheet?.qData?.showCondition,
                 };
 
                 const showConditionEval = await app.evaluateEx(showConditionCall);
-
-                if (
+                const sheetIsHidden =
+                    // eslint-disable-next-line no-unneeded-ternary
                     sheet.qData.showCondition &&
                     (sheet.qData.showCondition.toLowerCase() === 'false' ||
                         (showConditionEval?.qIsNumeric === true &&
-                            showConditionEval?.qNumber === 0)) &&
-                    excludeSheet === undefined
-                ) {
+                            showConditionEval?.qNumber === 0))
+                        ? true
+                        : false;
+
+                if (sheetIsHidden === true && excludeSheet === false) {
                     excludeSheet = true;
                     logger.verbose(
-                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
                 }
 
                 // Is this sheet on the exclude list via tags?
-                if (options.excludeSheetTag && excludeSheet === undefined) {
+                if (options.excludeSheetTag && excludeSheet === false) {
                     // eslint-disable-next-line no-loop-func
                     excludeSheet = tagExcludeSheetAppMetadata.find((element) => {
                         try {
                             if (element.engineObjectId === sheet.qInfo.qId) {
                                 logger.verbose(
-                                    `Excluded sheet (via tag): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                                    `Excluded sheet (via tag): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                                 );
                                 return true;
                             }
@@ -385,13 +434,13 @@ const processQSEoWApp = async (appId, g, options) => {
                 }
 
                 // Is this sheet on the exclude list via sheet number?
-                if (options.excludeSheetNumber && excludeSheet === undefined) {
+                if (options.excludeSheetNumber && excludeSheet === false) {
                     // eslint-disable-next-line no-loop-func
                     excludeSheet = options.excludeSheetNumber.find((element) => {
                         try {
                             if (parseInt(element, 10) === iSheetNum) {
                                 logger.verbose(
-                                    `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                                    `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                                 );
                                 return true;
                             }
@@ -403,30 +452,24 @@ const processQSEoWApp = async (appId, g, options) => {
                 }
 
                 // Is this sheet on the exclude list via sheet title?
-                if (options.excludeSheetTitle && excludeSheet === undefined) {
-                    // eslint-disable-next-line no-loop-func
-                    excludeSheet = options.excludeSheetTitle.find((element) => {
-                        try {
-                            if (element === sheet.qMeta.title) {
-                                logger.verbose(
-                                    `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch {
-                            return false;
-                        }
-                    });
+                if (options.excludeSheetTitle && excludeSheet === false) {
+                    // Does the sheet title match any of the titles options.excludeSheetTitle array?
+                    if (options.excludeSheetTitle.includes(sheet.qMeta.title)) {
+                        excludeSheet = true;
+
+                        logger.verbose(
+                            `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        );
+                    }
                 }
 
-                if (excludeSheet !== undefined) {
+                if (excludeSheet === true) {
                     logger.info(
-                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
                 } else {
                     logger.info(
-                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
                     // Build URL to current sheet
                     const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
