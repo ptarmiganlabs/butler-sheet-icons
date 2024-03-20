@@ -14,6 +14,10 @@ const { qscloudTestConnection } = require('./cloud-test-connection');
 const qscloudListCollections = async (options) => {
     try {
         // Set log level
+        if (options.loglevel === undefined || options.logLevel) {
+            // eslint-disable-next-line no-param-reassign
+            options.loglevel = options.logLevel;
+        }
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting listing of available collections');

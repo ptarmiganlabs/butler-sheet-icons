@@ -14,6 +14,10 @@ const QlikSaas = require('./cloud-repo');
 const qscloudUploadToApp = async (filesToUpload, appId, options) => {
     try {
         // Set log level
+        if (options.loglevel === undefined || options.logLevel) {
+            // eslint-disable-next-line no-param-reassign
+            options.loglevel = options.logLevel;
+        }
         setLoggingLevel(options.loglevel);
 
         // Get array of all available collections

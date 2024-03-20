@@ -63,7 +63,7 @@ const program = new Command();
             }
         })
         .addOption(
-            new Option('--loglevel <level>', 'log level')
+            new Option('--loglevel, --log-level <level>', 'log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
         )
@@ -216,7 +216,7 @@ const program = new Command();
             }
         })
         .addOption(
-            new Option('--loglevel <level>', 'log level')
+            new Option('--loglevel, --log-level <level>', 'log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
         )
@@ -308,7 +308,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -405,7 +405,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -442,7 +442,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -496,7 +496,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             );
@@ -525,7 +525,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -563,7 +563,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             );
@@ -615,7 +615,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -660,7 +660,7 @@ const program = new Command();
             })
 
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )

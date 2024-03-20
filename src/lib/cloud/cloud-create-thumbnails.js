@@ -359,6 +359,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 } else if (
                     sheetApproved === false &&
                     sheetPublished === true &&
+                    options.excludeSheetStatus &&
                     options.excludeSheetStatus.includes('public')
                 ) {
                     // App is not published. Public sheets in this case have approved===false and published===true
@@ -374,6 +375,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                     if (
                         sheetApproved === false &&
                         sheetPublished === true &&
+                        options.excludeSheetStatus &&
                         options.excludeSheetStatus.includes('published')
                     ) {
                         excludeSheet = true;
@@ -388,6 +390,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 if (
                     sheetApproved === false &&
                     sheetPublished === false &&
+                    options.excludeSheetStatus &&
                     options.excludeSheetStatus.includes('private')
                 ) {
                     excludeSheet = true;
@@ -545,6 +548,10 @@ const processCloudApp = async (appId, saasInstance, options) => {
 const qscloudCreateThumbnails = async (options) => {
     try {
         // Set log level
+        if (options.loglevel === undefined || options.logLevel) {
+            // eslint-disable-next-line no-param-reassign
+            options.loglevel = options.logLevel;
+        }
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Cloud');

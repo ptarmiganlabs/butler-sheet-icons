@@ -359,6 +359,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 if (
                     sheet.qMeta.approved === true &&
                     sheet.qMeta.published === true &&
+                    options.excludeSheetStatus &&
                     options.excludeSheetStatus.includes('public')
                 ) {
                     excludeSheet = true;
@@ -371,6 +372,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 if (
                     sheet.qMeta.approved === false &&
                     sheet.qMeta.published === true &&
+                    options.excludeSheetStatus &&
                     options.excludeSheetStatus.includes('published')
                 ) {
                     excludeSheet = true;
@@ -383,6 +385,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 if (
                     sheet.qMeta.approved === false &&
                     sheet.qMeta.published === false &&
+                    options.excludeSheetStatus &&
                     options.excludeSheetStatus.includes('private')
                 ) {
                     excludeSheet = true;
@@ -625,6 +628,10 @@ const processQSEoWApp = async (appId, g, options) => {
 const qseowCreateThumbnails = async (options) => {
     try {
         // Set log level
+        if (options.loglevel === undefined || options.logLevel) {
+            // eslint-disable-next-line no-param-reassign
+            options.loglevel = options.logLevel;
+        }
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');

@@ -9,6 +9,10 @@ const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../glo
 const browserUninstall = async (options) => {
     try {
         // Set log level
+        if (options.loglevel === undefined || options.logLevel) {
+            // eslint-disable-next-line no-param-reassign
+            options.loglevel = options.logLevel;
+        }
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting browser uninstallation');
@@ -62,6 +66,10 @@ const browserUninstall = async (options) => {
 const browserUninstallAll = async (options) => {
     try {
         // Set log level
+        if (options.loglevel === undefined || options.logLevel) {
+            // eslint-disable-next-line no-param-reassign
+            options.loglevel = options.logLevel;
+        }
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting uninstallation of all browsers');
