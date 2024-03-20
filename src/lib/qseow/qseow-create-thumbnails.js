@@ -51,6 +51,11 @@ const xpathHubUserPageButton2023Nov =
 const xpathLogoutButton2023Nov =
     'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
+const xpathHubUserPageButton2024Feb =
+    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
+const xpathLogoutButton2024Feb =
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
+
 /**
  *
  * @param {*} appId
@@ -81,6 +86,9 @@ const processQSEoWApp = async (appId, g, options) => {
     } else if (options.senseVersion === '2023-Nov') {
         xpathHubUserPageButton = xpathHubUserPageButton2023Nov;
         xpathLogoutButton = xpathLogoutButton2023Nov;
+    } else if (options.senseVersion === '2024-Feb') {
+        xpathHubUserPageButton = xpathHubUserPageButton2024Feb;
+        xpathLogoutButton = xpathLogoutButton2024Feb;
     } else {
         logger.error(
             `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
@@ -117,7 +125,7 @@ const processQSEoWApp = async (appId, g, options) => {
         let appMetadata = await qrsInteractInstance.Get(`app?filter=id eq ${appId}`);
         appMetadata = appMetadata.body;
 
-        // Get app objet metadata
+        // Get metadata for the app sheets that should be excluded based on sheet tags
         logger.debug(
             `GET tagExcludeSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
         );
@@ -125,6 +133,20 @@ const processQSEoWApp = async (appId, g, options) => {
             `app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
         );
         tagExcludeSheetAppMetadata = tagExcludeSheetAppMetadata.body;
+
+        // Create mapping between repo db sheet id and engine sheet id
+        let mapRepoEngineSheetIdTmp1 = await qrsInteractInstance.Get(
+            `app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId}`
+        );
+        mapRepoEngineSheetIdTmp1 = mapRepoEngineSheetIdTmp1.body;
+
+        // mapRepoEngineSheetIdTmp1 is an array of sheet objects, each object has properties called 'id' and 'engineObjectId'
+        // Create a new bidirectional map between repo db sheet id and engine sheet id
+        const mapRepoEngineSheetId = new Map();
+        mapRepoEngineSheetIdTmp1.forEach((element) => {
+            mapRepoEngineSheetId.set(element.id, element.engineObjectId);
+            mapRepoEngineSheetId.set(element.engineObjectId, element.id);
+        });
 
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
@@ -337,96 +359,125 @@ const processQSEoWApp = async (appId, g, options) => {
             // Loop over all sheets in app
             // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
+                // Get repository db sheet id from mapRepoEngineSheetIdTmp1, using sheet.qInfo.qId as key
+                const repoDbSheetId = mapRepoEngineSheetId.get(sheet.qInfo.qId);
+                const engineSheetId = sheet.qInfo.qId;
+
                 // Should this sheet be processed, or is it on exclude list?
                 // Options are
                 // --exclude-sheet-tag <value>
                 // --exclude-sheet-number <number...>
                 // --exclude-sheet-title <title...>
+                // --exclude-sheet-status <status...>
 
-                let excludeSheet;
+                let excludeSheet = false;
+
+                // Should this sheet be excluded based on its published status?
+                // Deal with public sheets first
+                if (
+                    sheet.qMeta.approved === true &&
+                    sheet.qMeta.published === true &&
+                    options.excludeSheetStatus &&
+                    options.excludeSheetStatus.includes('public')
+                ) {
+                    excludeSheet = true;
+                    logger.verbose(
+                        `Excluded sheet (status public): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
+                    );
+                }
+
+                // Next check published sheets
+                if (
+                    sheet.qMeta.approved === false &&
+                    sheet.qMeta.published === true &&
+                    options.excludeSheetStatus &&
+                    options.excludeSheetStatus.includes('published')
+                ) {
+                    excludeSheet = true;
+                    logger.verbose(
+                        `Excluded sheet (status published): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
+                    );
+                }
+
+                // Next check private sheets
+                if (
+                    sheet.qMeta.approved === false &&
+                    sheet.qMeta.published === false &&
+                    options.excludeSheetStatus &&
+                    options.excludeSheetStatus.includes('private')
+                ) {
+                    excludeSheet = true;
+                    logger.verbose(
+                        `Excluded sheet (status private): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
+                    );
+                }
 
                 // Is this sheet hidden?
+                // Never process hidden sheets
                 // Evaluate showCondition
                 const showConditionCall = {
                     qExpression: sheet?.qData?.showCondition,
                 };
 
                 const showConditionEval = await app.evaluateEx(showConditionCall);
-
-                if (
+                const sheetIsHidden =
+                    // eslint-disable-next-line no-unneeded-ternary
                     sheet.qData.showCondition &&
                     (sheet.qData.showCondition.toLowerCase() === 'false' ||
                         (showConditionEval?.qIsNumeric === true &&
-                            showConditionEval?.qNumber === 0)) &&
-                    excludeSheet === undefined
-                ) {
+                            showConditionEval?.qNumber === 0))
+                        ? true
+                        : false;
+
+                if (sheetIsHidden === true && excludeSheet === false) {
                     excludeSheet = true;
                     logger.verbose(
-                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
                 }
 
                 // Is this sheet on the exclude list via tags?
-                if (options.excludeSheetTag && excludeSheet === undefined) {
-                    // eslint-disable-next-line no-loop-func
-                    excludeSheet = tagExcludeSheetAppMetadata.find((element) => {
-                        try {
-                            if (element.engineObjectId === sheet.qInfo.qId) {
-                                logger.verbose(
-                                    `Excluded sheet (via tag): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch {
-                            return false;
-                        }
-                    });
+                // options.excludeSheetTag is an array of strings
+                // tagExcludeSheetAppMetadata is an array of sheet objects, with the id property being the sheet id
+                if (options.excludeSheetTag && excludeSheet === false) {
+                    // Does the sheet id match any of the ids in tagExcludeSheetAppMetadata array?
+                    // Set excludeSheet to true/false based on the result
+                    excludeSheet = tagExcludeSheetAppMetadata.some(
+                        (element) => element.engineObjectId === sheet.qInfo.qId
+                    );
                 }
 
                 // Is this sheet on the exclude list via sheet number?
-                if (options.excludeSheetNumber && excludeSheet === undefined) {
-                    // eslint-disable-next-line no-loop-func
-                    excludeSheet = options.excludeSheetNumber.find((element) => {
-                        try {
-                            if (parseInt(element, 10) === iSheetNum) {
-                                logger.verbose(
-                                    `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch {
-                            return false;
-                        }
-                    });
+                if (options.excludeSheetNumber && excludeSheet === false) {
+                    // Does the sheet number match any of the numbers in options.excludeSheetNumber array?
+                    // Take into account that iSheetNum is an integer, so we need to convert it to a string
+                    if (options.excludeSheetNumber.includes(iSheetNum.toString())) {
+                        excludeSheet = true;
+                        logger.verbose(
+                            `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        );
+                    }
                 }
 
                 // Is this sheet on the exclude list via sheet title?
-                if (options.excludeSheetTitle && excludeSheet === undefined) {
-                    // eslint-disable-next-line no-loop-func
-                    excludeSheet = options.excludeSheetTitle.find((element) => {
-                        try {
-                            if (element === sheet.qMeta.title) {
-                                logger.verbose(
-                                    `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch {
-                            return false;
-                        }
-                    });
+                if (options.excludeSheetTitle && excludeSheet === false) {
+                    // Does the sheet title match any of the titles options.excludeSheetTitle array?
+                    if (options.excludeSheetTitle.includes(sheet.qMeta.title)) {
+                        excludeSheet = true;
+
+                        logger.verbose(
+                            `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        );
+                    }
                 }
 
-                if (excludeSheet !== undefined) {
+                if (excludeSheet === true) {
                     logger.info(
-                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
                 } else {
                     logger.info(
-                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
                     // Build URL to current sheet
                     const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
@@ -595,6 +646,10 @@ const processQSEoWApp = async (appId, g, options) => {
 const qseowCreateThumbnails = async (options) => {
     try {
         // Set log level
+        if (options.loglevel === undefined || options.logLevel) {
+            // eslint-disable-next-line no-param-reassign
+            options.loglevel = options.logLevel;
+        }
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');

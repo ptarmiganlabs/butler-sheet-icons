@@ -117,6 +117,11 @@ const processCloudApp = async (appId, saasInstance, options) => {
         // Get app name
         const appMetadata = await saasInstance.Get(`apps/${appId}`);
 
+        // Is app published?
+        // appMetadata.attributes.publishTime is a string like "2021-09-01T12:34:56.789Z"
+        // If empty the app is not published
+        const appIsPublished = !!appMetadata.attributes.publishTime;
+
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
         const imgDir = options.imagedir;
@@ -317,72 +322,138 @@ const processCloudApp = async (appId, saasInstance, options) => {
                 // Options are
                 // --exclude-sheet-number <number...>
                 // --exclude-sheet-title <title...>
+                // --exclude-sheet-status <status...>
 
-                let excludeSheet;
+                let excludeSheet = false;
+
+                // Get published status of sheet
+                let sheetPublished;
+                if (sheet.qMeta?.published === undefined || sheet.qMeta.published === false) {
+                    sheetPublished = false;
+                } else {
+                    sheetPublished = true;
+                }
+
+                // Get approved status of sheet
+                let sheetApproved;
+                if (sheet.qMeta?.approved === undefined || sheet.qMeta.approved === false) {
+                    sheetApproved = false;
+                } else {
+                    sheetApproved = true;
+                }
+
+                // Should this sheet be excluded based on its published status?
+                // Deal with public sheets first. Published and unpublished apps need to be handled differently.
+                if (appIsPublished === true) {
+                    // App is published
+                    if (
+                        sheetApproved === true &&
+                        sheetPublished === true &&
+                        options.excludeSheetStatus.includes('public')
+                    ) {
+                        excludeSheet = true;
+                        logger.verbose(
+                            `Excluded sheet (status public): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}'`
+                        );
+                    }
+                } else if (
+                    sheetApproved === false &&
+                    sheetPublished === true &&
+                    options.excludeSheetStatus &&
+                    options.excludeSheetStatus.includes('public')
+                ) {
+                    // App is not published. Public sheets in this case have approved===false and published===true
+                    excludeSheet = true;
+                    logger.verbose(
+                        `Excluded sheet (status public): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}'`
+                    );
+                }
+
+                // Next check published sheets
+                // Only applicable to published apps
+                if (appIsPublished === true) {
+                    if (
+                        sheetApproved === false &&
+                        sheetPublished === true &&
+                        options.excludeSheetStatus &&
+                        options.excludeSheetStatus.includes('published')
+                    ) {
+                        excludeSheet = true;
+                        logger.verbose(
+                            `Excluded sheet (status published): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}'`
+                        );
+                    }
+                }
+
+                // Next check private sheets
+                // Handled the same way for both published and unpublished apps
+                if (
+                    sheetApproved === false &&
+                    sheetPublished === false &&
+                    options.excludeSheetStatus &&
+                    options.excludeSheetStatus.includes('private')
+                ) {
+                    excludeSheet = true;
+                    logger.verbose(
+                        `Excluded sheet (status private): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}'`
+                    );
+                }
 
                 // Is this sheet hidden?
+                // Never process hidden sheets
                 // Evaluate showCondition
                 const showConditionCall = {
                     qExpression: sheet?.qData?.showCondition,
                 };
 
                 const showConditionEval = await app.evaluateEx(showConditionCall);
-
-                if (
+                const sheetIsHidden =
+                    // eslint-disable-next-line no-unneeded-ternary
                     sheet.qData.showCondition &&
                     (sheet.qData.showCondition.toLowerCase() === 'false' ||
                         (showConditionEval?.qIsNumeric === true &&
-                            showConditionEval?.qNumber === 0)) &&
-                    excludeSheet === undefined
-                ) {
+                            showConditionEval?.qNumber === 0))
+                        ? true
+                        : false;
+
+                if (sheetIsHidden === true && excludeSheet === false) {
                     excludeSheet = true;
                     logger.verbose(
-                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}', hidden '${sheetIsHidden}'`
                     );
                 }
 
                 // Is this sheet on the exclude list via sheet number?
-                if (options.excludeSheetNumber && excludeSheet === undefined) {
-                    // eslint-disable-next-line no-loop-func
-                    excludeSheet = options.excludeSheetNumber.find((element) => {
-                        try {
-                            if (parseInt(element, 10) === iSheetNum) {
-                                logger.verbose(
-                                    `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch {
-                            return false;
-                        }
-                    });
+                if (options.excludeSheetNumber && excludeSheet === false) {
+                    // Does the sheet number match any of the numbers in options.excludeSheetNumber array?
+                    // Take into account that iSheetNum is an integer, so we need to convert it to a string
+                    if (options.excludeSheetNumber.includes(iSheetNum.toString())) {
+                        excludeSheet = true;
+                        logger.verbose(
+                            `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        );
+                    }
                 }
 
                 // Is this sheet on the exclude list via sheet title?
-                if (options.excludeSheetTitle && excludeSheet === undefined) {
-                    // eslint-disable-next-line no-loop-func
-                    excludeSheet = options.excludeSheetTitle.find((element) => {
-                        try {
-                            if (element === sheet.qMeta.title) {
-                                logger.verbose(
-                                    `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch {
-                            return false;
-                        }
-                    });
+                if (options.excludeSheetTitle && excludeSheet === false) {
+                    // Does the sheet title match any of the titles options.excludeSheetTitle array?
+                    if (options.excludeSheetTitle.includes(sheet.qMeta.title)) {
+                        excludeSheet = true;
+
+                        logger.verbose(
+                            `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        );
+                    }
                 }
-                if (excludeSheet !== undefined) {
+
+                if (excludeSheet === true) {
                     logger.info(
-                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}', hidden '${sheetIsHidden}'`
                     );
                 } else {
                     logger.info(
-                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}', hidden '${sheetIsHidden}'`
                     );
                     // Build URL to current sheet
                     const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}/state/analysis`;
@@ -477,6 +548,10 @@ const processCloudApp = async (appId, saasInstance, options) => {
 const qscloudCreateThumbnails = async (options) => {
     try {
         // Set log level
+        if (options.loglevel === undefined || options.logLevel) {
+            // eslint-disable-next-line no-param-reassign
+            options.loglevel = options.logLevel;
+        }
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Cloud');

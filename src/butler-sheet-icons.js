@@ -63,7 +63,7 @@ const program = new Command();
             }
         })
         .addOption(
-            new Option('--loglevel <level>', 'log level')
+            new Option('--loglevel, --log-level <level>', 'log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
         )
@@ -148,6 +148,14 @@ const program = new Command();
             'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
             ''
         )
+        .addOption(
+            new Option(
+                '--exclude-sheet-status <status...>',
+                'Exclude all sheets with specified status(es)'
+            )
+                .choices(['private', 'published', 'public'])
+                .default([])
+        )
         .option(
             '--exclude-sheet-tag <value>',
             'Sheets with this tag set will be excluded from sheet icon update.'
@@ -169,8 +177,9 @@ const program = new Command();
                     '2023-May',
                     '2023-Aug',
                     '2023-Nov',
+                    '2024-Feb',
                 ])
-                .default('2023-Nov')
+                .default('2024-Feb')
         )
         .addOption(
             new Option(
@@ -207,7 +216,7 @@ const program = new Command();
             }
         })
         .addOption(
-            new Option('--loglevel <level>', 'log level')
+            new Option('--loglevel, --log-level <level>', 'log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
         )
@@ -299,7 +308,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -343,6 +352,14 @@ const program = new Command();
                 '--collectionid <id>',
                 'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated',
                 ''
+            )
+            .addOption(
+                new Option(
+                    '--exclude-sheet-status <status...>',
+                    'Exclude all sheets with specified status(es)'
+                )
+                    .choices(['private', 'published', 'public'])
+                    .default([])
             )
             .option(
                 '--exclude-sheet-number <number...>',
@@ -388,7 +405,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -425,7 +442,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -479,7 +496,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             );
@@ -508,7 +525,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -546,7 +563,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             );
@@ -598,7 +615,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -643,7 +660,7 @@ const program = new Command();
             })
 
             .addOption(
-                new Option('--loglevel <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )

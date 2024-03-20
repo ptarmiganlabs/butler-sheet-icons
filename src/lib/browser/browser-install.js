@@ -30,6 +30,10 @@ const { getMostRecentUsableChromeBuildId } = require('./browser-list-available')
 const browserInstall = async (options, _command) => {
     try {
         // Set log level
+        if (options.loglevel === undefined || options.logLevel) {
+            // eslint-disable-next-line no-param-reassign
+            options.loglevel = options.logLevel;
+        }
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting browser install');
