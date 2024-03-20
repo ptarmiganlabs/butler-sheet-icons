@@ -125,7 +125,7 @@ const processQSEoWApp = async (appId, g, options) => {
         let appMetadata = await qrsInteractInstance.Get(`app?filter=id eq ${appId}`);
         appMetadata = appMetadata.body;
 
-        // Get app objet metadata
+        // Get metadata for the app sheets that should be excluded based on sheet tags
         logger.debug(
             `GET tagExcludeSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
         );
@@ -133,6 +133,20 @@ const processQSEoWApp = async (appId, g, options) => {
             `app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
         );
         tagExcludeSheetAppMetadata = tagExcludeSheetAppMetadata.body;
+
+        // Create mapping between repo db sheet id and engine sheet id
+        let mapRepoEngineSheetIdTmp1 = await qrsInteractInstance.Get(
+            `app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId}`
+        );
+        mapRepoEngineSheetIdTmp1 = mapRepoEngineSheetIdTmp1.body;
+
+        // mapRepoEngineSheetIdTmp1 is an array of sheet objects, each object has properties called 'id' and 'engineObjectId'
+        // Create a new bidirectional map between repo db sheet id and engine sheet id
+        const mapRepoEngineSheetId = new Map();
+        mapRepoEngineSheetIdTmp1.forEach((element) => {
+            mapRepoEngineSheetId.set(element.id, element.engineObjectId);
+            mapRepoEngineSheetId.set(element.engineObjectId, element.id);
+        });
 
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
@@ -345,6 +359,10 @@ const processQSEoWApp = async (appId, g, options) => {
             // Loop over all sheets in app
             // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
+                // Get repository db sheet id from mapRepoEngineSheetIdTmp1, using sheet.qInfo.qId as key
+                const repoDbSheetId = mapRepoEngineSheetId.get(sheet.qInfo.qId);
+                const engineSheetId = sheet.qInfo.qId;
+
                 // Should this sheet be processed, or is it on exclude list?
                 // Options are
                 // --exclude-sheet-tag <value>
@@ -364,7 +382,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 ) {
                     excludeSheet = true;
                     logger.verbose(
-                        `Excluded sheet (status public): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
+                        `Excluded sheet (status public): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
                     );
                 }
 
@@ -377,7 +395,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 ) {
                     excludeSheet = true;
                     logger.verbose(
-                        `Excluded sheet (status published): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
+                        `Excluded sheet (status published): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
                     );
                 }
 
@@ -390,7 +408,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 ) {
                     excludeSheet = true;
                     logger.verbose(
-                        `Excluded sheet (status private): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
+                        `Excluded sheet (status private): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
                     );
                 }
 
@@ -414,7 +432,7 @@ const processQSEoWApp = async (appId, g, options) => {
                 if (sheetIsHidden === true && excludeSheet === false) {
                     excludeSheet = true;
                     logger.verbose(
-                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
                 }
 
@@ -436,7 +454,7 @@ const processQSEoWApp = async (appId, g, options) => {
                     if (options.excludeSheetNumber.includes(iSheetNum.toString())) {
                         excludeSheet = true;
                         logger.verbose(
-                            `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                            `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                         );
                     }
                 }
@@ -448,18 +466,18 @@ const processQSEoWApp = async (appId, g, options) => {
                         excludeSheet = true;
 
                         logger.verbose(
-                            `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                            `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                         );
                     }
                 }
 
                 if (excludeSheet === true) {
                     logger.info(
-                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
                 } else {
                     logger.info(
-                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
                     // Build URL to current sheet
                     const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
