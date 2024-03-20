@@ -416,39 +416,26 @@ const processQSEoWApp = async (appId, g, options) => {
                 }
 
                 // Is this sheet on the exclude list via tags?
+                // options.excludeSheetTag is an array of strings
+                // tagExcludeSheetAppMetadata is an array of sheet objects, with the id property being the sheet id
                 if (options.excludeSheetTag && excludeSheet === false) {
-                    // eslint-disable-next-line no-loop-func
-                    excludeSheet = tagExcludeSheetAppMetadata.find((element) => {
-                        try {
-                            if (element.engineObjectId === sheet.qInfo.qId) {
-                                logger.verbose(
-                                    `Excluded sheet (via tag): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch {
-                            return false;
-                        }
-                    });
+                    // Does the sheet id match any of the ids in tagExcludeSheetAppMetadata array?
+                    // Set excludeSheet to true/false based on the result
+                    excludeSheet = tagExcludeSheetAppMetadata.some(
+                        (element) => element.engineObjectId === sheet.qInfo.qId
+                    );
                 }
 
                 // Is this sheet on the exclude list via sheet number?
                 if (options.excludeSheetNumber && excludeSheet === false) {
-                    // eslint-disable-next-line no-loop-func
-                    excludeSheet = options.excludeSheetNumber.find((element) => {
-                        try {
-                            if (parseInt(element, 10) === iSheetNum) {
-                                logger.verbose(
-                                    `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch {
-                            return false;
-                        }
-                    });
+                    // Does the sheet number match any of the numbers in options.excludeSheetNumber array?
+                    // Take into account that iSheetNum is an integer, so we need to convert it to a string
+                    if (options.excludeSheetNumber.includes(iSheetNum.toString())) {
+                        excludeSheet = true;
+                        logger.verbose(
+                            `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        );
+                    }
                 }
 
                 // Is this sheet on the exclude list via sheet title?

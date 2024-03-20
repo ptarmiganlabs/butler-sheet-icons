@@ -422,38 +422,26 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
                 // Is this sheet on the exclude list via sheet number?
                 if (options.excludeSheetNumber && excludeSheet === false) {
-                    // eslint-disable-next-line no-loop-func
-                    excludeSheet = options.excludeSheetNumber.find((element) => {
-                        try {
-                            if (parseInt(element, 10) === iSheetNum) {
-                                logger.verbose(
-                                    `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}', hidden '${sheetIsHidden}'`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch {
-                            return false;
-                        }
-                    });
+                    // Does the sheet number match any of the numbers in options.excludeSheetNumber array?
+                    // Take into account that iSheetNum is an integer, so we need to convert it to a string
+                    if (options.excludeSheetNumber.includes(iSheetNum.toString())) {
+                        excludeSheet = true;
+                        logger.verbose(
+                            `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        );
+                    }
                 }
 
                 // Is this sheet on the exclude list via sheet title?
                 if (options.excludeSheetTitle && excludeSheet === false) {
-                    // eslint-disable-next-line no-loop-func
-                    excludeSheet = options.excludeSheetTitle.find((element) => {
-                        try {
-                            if (element === sheet.qMeta.title) {
-                                logger.verbose(
-                                    `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}', hidden '${sheetIsHidden}'`
-                                );
-                                return true;
-                            }
-                            return false;
-                        } catch {
-                            return false;
-                        }
-                    });
+                    // Does the sheet title match any of the titles options.excludeSheetTitle array?
+                    if (options.excludeSheetTitle.includes(sheet.qMeta.title)) {
+                        excludeSheet = true;
+
+                        logger.verbose(
+                            `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        );
+                    }
                 }
 
                 if (excludeSheet === true) {
