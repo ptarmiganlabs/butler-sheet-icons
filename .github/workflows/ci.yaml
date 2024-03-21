@@ -10,7 +10,7 @@ jobs:
   insiders-build:
     strategy:
       matrix:
-        os: [Windows, mac-build1, ubuntu-latest]
+        os: [win-code-sign, mac-build1, ubuntu-latest]
         include:
           - os: Windows
             build: |
@@ -699,7 +699,7 @@ jobs:
     runs-on:
       - self-hosted
       - x64
-      - windows
+      - win-code-sign
       - sp53
     # timeout-minutes: 15
     if: needs.release-please.outputs.releases_created == 'true'
