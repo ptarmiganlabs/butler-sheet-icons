@@ -8,7 +8,8 @@ Works on both Qlik Sense Cloud apps and Qlik Sense Enterprise on Windows (QSEoW)
 
 ---
 
-Butler Sheet Icons ("BSI") can create sheet thumbnail icons for a single app or many.
+Butler Sheet Icons ("BSI") can create sheet thumbnail icons for a single app or many - in both Qlik Sense Cloud and client-managed Qlik Sense Enterprise on Windows (QSEoW).  
+It can also remove sheet icons from Sense apps if needed. 
 
 Multi-app support is easy: Use the QMC (for QSEoW) to tag the apps that should be updated, or add the apps to a collection (Qlik Sense Cloud).  
 Then run Butler Sheet Icons and all apps will get new sheet icons automatically!
@@ -21,16 +22,29 @@ No worries, here's what you need for Qlik Sense Cloud:
 3. Make sure you know your Qlik Sense Cloud tenant URL, user ID, password and ID of the app to update.
    1. The tenant URL can be specified with or without the `https://` prefix.
 4. Run Butler Sheet Icons with the options below (adapt as needed).
-5. 🎉😎 Sit back and enjoy not having to manually screen shot and process those 10 sheets each in 50 different apps... 
+5. 🎉😎 Sit back and enjoy not having to manually screen shot and process those 10 sheets each in 50 different apps...
 
+Butler Sheet Icons tries to offer sane defaults, making the most basic use cases as simple as possible.  
+For example, updating sheets in a QS Cloud app can be as simple as (running BSI on Windows):
+
+```PowerShell
+butler-sheet-icons.exe qscloud create-sheet-icons `
+  --tenanturl <your-tenant> `
+  --apikey <your-key> `
+  --logonuserid <your-user-id> `
+  --logonpwd <your-passowrd> `
+  --appid <app id>
 ```
-butler-sheet-icons.exe qscloud create-sheet-thumbnails 
---tenanturl <your-tenant> 
---apikey <your-key> 
---logonuserid <your-user-id> 
---logonpwd <your-passowrd> 
---appid <app id>
+
+Similarly, removing all sheet icons from a QS Cloud app can be done with (again, on Windows):
+
+```PowerShell
+butler-sheet-icons.exe qscloud remove-sheet-icons `
+  --tenanturl <your-tenant> `
+  --apikey <your-key> `
+  --appid <app id>
 ```
+
 
 <p align="center">
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons"><img src="https://img.shields.io/badge/Source---" alt="Source"></a>
@@ -41,7 +55,7 @@ butler-sheet-icons.exe qscloud create-sheet-thumbnails
 ---
 
 Butler Sheet Icons is an open source project sponsored by Ptarmigan Labs.  
-At [www.ptarmiganlabs.com](https://www.ptarmiganlabs.com) you will find articles about how the various open source Butler tools can help you get the most out of Qlik Sense.
+At [ptarmiganlabs.com](https://ptarmiganlabs.com) you will find articles about how the various open source Butler tools can help you get the most out of Qlik Sense.
 
 For support and services relating to the Butler family of tools or Qlik Sense projects in general, please contact info -at- ptarmiganlanbs -dot- com.
 
@@ -71,6 +85,7 @@ Table of contents
 - [Concepts](#concepts)
   - [Concepts shared between QS Cloud and client-managed QS](#concepts-shared-between-qs-cloud-and-client-managed-qs)
     - [Logging](#logging)
+    - [Hidden sheets never updated](#hidden-sheets-never-updated)
     - [Which part of each sheet to use as thumbnail](#which-part-of-each-sheet-to-use-as-thumbnail)
     - [Excluding sheets](#excluding-sheets)
     - [Excluding sheets based on the sheet's status](#excluding-sheets-based-on-the-sheets-status)
@@ -200,7 +215,36 @@ The idea is simply to more or less mimic the steps a human would take to create 
 
 ## Sample screen shots
 
-Using Butler Sheet Icons on MacOS, updating shet icons in a client-managed Qlik Sense Enterprise on Windows app:
+Using Butler Sheet Icons on MacOS, updating shet icons in a client-managed Qlik Sense Enterprise on Windows app can look like below.  
+Environment variables are used to store most parameters, which makes it easier to run the command without having to remember all the parameter values.
+
+The command below could actually be slimmed down a bit given that many of the options have good default values, but it's shown here with a full set of parameters to make it easier to understand what's going on.
+
+```bash
+./butler-sheet-icons qseow create-sheet-thumbnails \
+  --loglevel
+  --host $BSI_HOST \
+  --appid $BSI_APPID \
+  --apiuserdir 'Internal' \
+  --apiuserid sa_api \
+  --logonuserdir $BSI_LOGON_USER_DIR \
+  --logonuserid $BSI_LOGON_USER_ID \
+  --logonpwd $BSI_LOGON_PWD \
+  --contentlibrary $BSI_CONTENT_LIBRARY \
+  --pagewait 5 \
+  --secure true \
+  --imagedir ./img \
+  --certfile $BSI_CERT_FILE \
+  --certkeyfile $BSI_CERT_KEY_FILE \
+  --includesheetpart 1 \
+  --headless true \
+  --exclude-sheet-tag '❌excludeSheetThumbnailUpdate' \
+  --exclude-sheet-title 'Sheet 5' 'Debug sheet' \
+  --exclude-sheet-number 1 2 \
+  --exclude-sheet-status private \
+  --sense-version 2024-Feb
+```
+
 
 ![Run Butler Sheet Icons](./docs/img/create-qseow_macos_1.png "Run Butler Sheet Icons on MacOS")
 
@@ -337,6 +381,13 @@ This will give you *very* detailed logging, but this can be useful when investig
 
 Default logging level is `info`.
 
+### Hidden sheets never updated
+
+If a sheet is hidden in a Qlik Sense app, Butler Sheet Icons will not update the sheet's thumbnail image.
+
+In QSEoW it is possible to hide sheets by using the "Hide sheet" option in the sheet's properties, wheres this is currently not possible in QS Cloud.  
+Still, Butler Sheet Icons handles hidden sheets the same way in both QSEoW and QS Cloud.
+
 ### Which part of each sheet to use as thumbnail
 
 A sheet in a standard Qlik Sense application consists of several parts.  
@@ -409,6 +460,10 @@ The following table shows which sheets can be updated by Butler Sheet Icons:
 | --- | --- | --- |
 | Published | Private | Public<br>Published<br>Private |
 | Unpublished | Public<br>Published<br>Private | Public<br>Published<br>Private |
+
+For example, if updating a published app in QS Cloud, the `--exclude-sheet-status public published` option should be used to exclude public and public sheets from getting new sheet icons. Failing to do so will result in an error message:
+
+![ Access denied when trying to update public or published sheet icons in QS Cloud ](docs/img/butler-sheet-icons-qscloud-access-denied_1.png "Access denied when trying to update public or published sheet icons in QS Cloud")
 
 ### Screen shots taken by Butler Sheet Icons
 
