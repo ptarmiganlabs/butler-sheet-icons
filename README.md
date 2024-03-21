@@ -73,14 +73,16 @@ Table of contents
     - [Logging](#logging)
     - [Which part of each sheet to use as thumbnail](#which-part-of-each-sheet-to-use-as-thumbnail)
     - [Excluding sheets](#excluding-sheets)
+    - [Excluding sheets based on the sheet's status](#excluding-sheets-based-on-the-sheets-status)
     - [Screen shots taken by Butler Sheet Icons](#screen-shots-taken-by-butler-sheet-icons)
     - [Headless browser](#headless-browser)
     - [Downloading a browser](#downloading-a-browser)
     - [Using BSI with a proxy server](#using-bsi-with-a-proxy-server)
   - [Concepts specific to QS Cloud](#concepts-specific-to-qs-cloud)
+  - [Login method](#login-method)
   - [Concepts specific to client-managed QS (QSEoW)](#concepts-specific-to-client-managed-qs-qseow)
     - [Which Sense version is server using](#which-sense-version-is-server-using)
-    - [Login method](#login-method)
+    - [Login method](#login-method-1)
     - [Using QSEoW's built-in Node.js](#using-qseows-built-in-nodejs)
 - [Commands](#commands)
   - [qseow](#qseow)
@@ -186,13 +188,14 @@ The idea is simply to more or less mimic the steps a human would take to create 
     - Use Sense APIs to upload the thumbnail images to Sense (QSEoW or QS Cloud).
     - Assign the images to the correct sheet in the correct app.
 - Repeat previous step for each app that should be processed.
-              - Apps can be specified in several ways
+  - Apps can be specified in several ways
     - By app ID (both QS Cloud and QSEoW).
     - By tag (QSEoW). All apps having the specified tag will be updated.
     - By collection (QS Cloud). All apps part of the specified collection will be updated.
 - It's possible to specify that some sheets should *not* get new sheet icons. Exclude sheets can be specified using
   - Sheet position in the app. For example sheet 3, 7 and 8.
-  - Sheet title. For example sheet "Intro" and "Definitions"
+  - Sheet title. For example sheet "Intro" and "Definitions".
+  - Sheet status, i.e. whether the sheet is public, published or private.
   - All sheets tagged with a specific tag. Only available on client-managed Qlik Sense Enterprise as tags are not available in Qlik Cloud.
 
 ## Sample screen shots
@@ -324,7 +327,8 @@ If not told otherwise by means of the `--contentlibrary` option, BSI will try to
 
 ### Logging
 
-Logging is controlled by the `--loglevel` option.
+Logging is controlled by the `--loglevel` option.  
+`--log-level` is an alias for `--loglevel`.
 
 Valid values are (in order of increasing verbosity): `error`, `warning`, `info`, `verbose`, `debug`, `silly`.
 
@@ -361,16 +365,18 @@ Looking at a sheet in client-managed QS we have:
 
 ### Excluding sheets
 
-- The `--exclude-sheet-number` and `--exclude-sheet-title` options are available for both QS Cloud apps and client-managed QS apps.  
+- The `--exclude-sheet-number`, `--exclude-sheet-title` and `--exclude-sheet-status` options are available for both QS Cloud apps and client-managed QS apps.
 - The `--exclude-sheet-tag` option is only available for client-managed QS, as there is no way to tag individual sheets in QS Cloud.
 
-Both `--exclude-sheet-number` and `--exclude-sheet-title` options take one or more parameters:
+`--exclude-sheet-number`, `--exclude-sheet-title` and `--exclude-sheet-status` options all take one or more parameters:
 
 ```bash
 --exclude-sheet-number 3 7
-
---exclude-sheet-title "Intro" "Definitions" "Help"
+--exclude-sheet-title Intro "Metrics dfinitions" Help
+--exclude-sheet-status published private
 ```
+
+Note above how option parameters (in this case sheet titles) with spaces must be enclosed in double quotes.
 
 There can be various reasons why you want to exclude sheets from getting new icons.
 
@@ -386,6 +392,23 @@ Follow these steps to use that option:
 3. When starting Butler Sheet Icons you should pass in the option `--exclude-sheet-tag "❌excludeSheetThumbnailUpdate"`.
 
 Tagged sheets will be excluded from getting new sheet icons.
+
+### Excluding sheets based on the sheet's status
+
+The `--exclude-sheet-status` is available for both QSEoW and QS Cloud, but works slightly differently between the two.  
+
+- For QS Cloud:
+  - Any sheet icon (private, published and public sheets) belonging to *unpublished* apps cam be updated by Butler Sheet Icons.  
+  - Only icons associated with *private* sheets can be updated in *published* apps.
+- For QSEoW:
+  - All sheet icons for all sheets in both unpublished and published apps can be updated by Butler Sheet Icons.
+
+The following table shows which sheets can be updated by Butler Sheet Icons:
+
+|  | QS Cloud | QSEoW |
+| --- | --- | --- |
+| Published | Private | Public<br>Published<br>Private |
+| Unpublished | Public<br>Published<br>Private | Public<br>Published<br>Private |
 
 ### Screen shots taken by Butler Sheet Icons
 
@@ -468,6 +491,10 @@ export https_proxy='http://username:password@proxy.example.com:port'
 ```
 
 ## Concepts specific to QS Cloud
+
+## Login method
+
+TODO
 
 ## Concepts specific to client-managed QS (QSEoW)
 
