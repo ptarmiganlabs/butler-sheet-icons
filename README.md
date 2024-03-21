@@ -1343,3 +1343,6 @@ The Windows version of Butler Sheet Icons is signed with a code signing certific
 
 The macOS version is signed and notarized by Apple's standard process.  
 A warning may still be shown first time the app is started. This is expected and normal.
+
+
+
