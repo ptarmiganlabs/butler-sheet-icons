@@ -10,9 +10,9 @@ jobs:
   insiders-build:
     strategy:
       matrix:
-        runson: [win-code-sign, mac-build1, ubuntu-latest]
+        os: [win-code-sign, mac-build1, ubuntu-latest]
         include:
-          - runson: Windows
+          - os: win-code-sign
             build: |
               cd src
               ./node_modules/.bin/esbuild "${env:DIST_FILE_NAME}.js" --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
@@ -51,10 +51,12 @@ jobs:
                 CompressionLevel = "Fastest"
                 DestinationPath = "${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip"
               }
+              
               Compress-Archive @compress
-              # dir
+
             artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
-          - runson: mac-build1
+
+          - os: mac-build1
             build: |
               cd src
               ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
@@ -109,10 +111,10 @@ jobs:
 
               # Delete build keychain
               security delete-keychain build.keychain
-            # artifact_release_name: release-binaries-macos
-            # artifact_release_path: release-binaries-macos/*
+
             artifact_insider: butler-sheet-icons--macos-x64--${{ github.sha }}.zip
-          - runson: ubuntu-latest
+
+          - os: ubuntu-latest
             build: |
               cd src
               ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --external:vm2 --external:axios --outfile=build.cjs --format=cjs --platform=node --target=node18.5.0
@@ -130,10 +132,8 @@ jobs:
               tar -czf "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
               ls -la
 
-            # artifact_release_name: release-binaries-linux
-            # artifact_release_path: release-binaries-linux/*
             artifact_insider: butler-sheet-icons--linux-x64--${{ github.sha }}.tgz
-    runs-on: ${{ matrix.runson }}
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -156,7 +156,7 @@ jobs:
       - name: Run Snyk to check for vulnerabilities
         if: |
           github.repository_owner == 'ptarmiganlabs' &&
-          matrix.runson == 'ubuntu-latest'
+          matrix.os == 'ubuntu-latest'
         uses: snyk/actions/node@master
         continue-on-error: true
         env:
@@ -168,7 +168,7 @@ jobs:
         continue-on-error: true
         if: |
           github.repository_owner == 'ptarmiganlabs' &&
-          matrix.runson == 'ubuntu-latest'
+          matrix.os == 'ubuntu-latest'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk.sarif
