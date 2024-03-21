@@ -29,6 +29,7 @@ const program = new Command();
     const qseow = program.command('qseow');
     qseow
         .command('create-sheet-thumbnails')
+        .alias('create-sheet-icons')
         .description(
             'Create thumbnail images based on the layout of each sheet in Qlik Sense Enterprise on Windows (QSEoW) applications.\nMultiple apps can be updated with a single command, using a Qlik Sense tag to identify  which apps will be updated.'
         )
@@ -197,6 +198,7 @@ const program = new Command();
     // ---------
     qseow
         .command('remove-sheet-icons')
+        .alias('remove-sheet-thumbnails')
         .description('Remove all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) app.')
         .action(async (options, command) => {
             // Show app version
@@ -275,6 +277,7 @@ const program = new Command();
 
         cloud
             .command('create-sheet-thumbnails')
+            .alias('create-sheet-icons')
             .description(
                 'Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.\nMultiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.'
             )
@@ -423,6 +426,7 @@ const program = new Command();
         // ---------
         cloud
             .command('remove-sheet-icons')
+            .alias('remove-sheet-thumbnails')
             .description('Remove all sheet icons from a Qlik Sense Cloud app.')
             .action(async (options, command) => {
                 // Show app version
