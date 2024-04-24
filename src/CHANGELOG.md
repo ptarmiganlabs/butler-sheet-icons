@@ -1,6 +1,31 @@
 # Changelog
 
 
+## [3.5.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.5.0...butler-sheet-icons-v3.5.0) (2024-04-24)
+
+
+### Features
+
+* Add `--log-level` option as alias for `--loglevel` ([f2194e6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f2194e6544005669ddef69f78104f927d5ee1f52))
+* Add aliases for BSI commands ([f70d493](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f70d4931c39467677a320f318678da2098188335)), closes [#533](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/533)
+* Add new option --exclude-sheet-status for excluding private/published/public sheets from thumbnail update ([dc932a3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/dc932a3149cac11cdabad1883c896d4926a15e9f)), closes [#526](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/526)
+
+
+### Bug Fixes
+
+* More robust implementation for `--except-sheet-*` options ([7c73b73](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7c73b73fa58881377eb5ce973f1d939cb212ff67)), closes [#528](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/528)
+* **qscloud:** Fix broken login to QS Cloud ([146f715](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/146f715eea1a411bd0486404c3710fe5130e0cbd))
+* **qseow:** Show regular sheet ids instead of engine sheet ids in log output ([a962adc](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a962adcf9e5524aed73cc9faafc4199c1c6f0afd)), closes [#529](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/529)
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies ([8c3266b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8c3266b822101db70e75a14c1863d406debcc6b3))
+* **deps:** Update dependencies ([1ec3d1c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1ec3d1c29b43c659668821bceef025451b2bf17e))
+* **deps:** Update dependencies ([af3b6e8](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/af3b6e85cb031c4e1f658d68979b211742a5d850))
+* **main:** release butler-sheet-icons 3.5.0 ([e86fdf0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e86fdf0d936a388a58b0bf34a1f28e06c52a8663))
+* **qseow:** Change default Sense version to 2024-Feb ([d71f14a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d71f14ae85732725b50557743c5632dd84fb1102))
+
 ## [3.5.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.4.1...butler-sheet-icons-v3.5.0) (2024-03-20)
 
 
