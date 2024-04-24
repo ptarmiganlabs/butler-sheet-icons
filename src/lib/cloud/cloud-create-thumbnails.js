@@ -593,7 +593,11 @@ const qscloudCreateThumbnails = async (options) => {
                 logger.error(`TEST CONNECTIVITY 1 (stack): ${err.stack}`);
             } else if (err.message) {
                 logger.error(`TEST CONNECTIVITY 1 (message): ${err.message}`);
-                logger.error(`TEST CONNECTIVITY 1 (error code): ${err.status}="${err.statusText}"`);
+                if (err.status && err.statusText) {
+                    logger.error(
+                        `TEST CONNECTIVITY 1 (error code): ${err.status}="${err.statusText}"`
+                    );
+                }
             } else {
                 logger.error(`TEST CONNECTIVITY 1: ${err}`);
             }
