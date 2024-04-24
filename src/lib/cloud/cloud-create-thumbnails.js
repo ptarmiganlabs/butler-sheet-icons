@@ -16,12 +16,10 @@ const QlikSaas = require('./cloud-repo');
 const { browserInstall } = require('../browser/browser-install.js');
 const { qscloudTestConnection } = require('./cloud-test-connection');
 
-const selectorLoginPageUserName =
-    '#lock-container > div > div > form > div > div > div:nth-child(3) > span > div > div > div > div > div > div > div > div > div > div.auth0-lock-input-block.auth0-lock-input-email > div.auth0-lock-input-wrap.auth0-lock-input-wrap-with-icon > input';
-const selectorLoginPageUserPwd =
-    '#lock-container > div > div > form > div > div > div:nth-child(3) > span > div > div > div > div > div > div > div > div > div > div.auth0-lock-input-block.auth0-lock-input-show-password > div > div.auth0-lock-input-wrap.auth0-lock-input-wrap-with-icon > input';
-const selectorLoginPageLoginButton =
-    '#lock-container > div > div > form > div > div > div.login-form--actions > button';
+// Selector paths to elements on login page
+const selectorLoginPageUserName = '[id="\u0031-email"]';
+const selectorLoginPageUserPwd = '[id="\u0031-password"]';
+const selectorLoginPageLoginButton = '[id="\u0031-submit"]';
 
 /**
  *
