@@ -326,6 +326,12 @@ const program = new Command();
             )
             .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
             .requiredOption(
+                '--skip-login',
+                'skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense',
+                false
+            )
+
+            .requiredOption(
                 '--logonuserid <userid>',
                 'user ID for user to connect with when logging into web UI'
             )

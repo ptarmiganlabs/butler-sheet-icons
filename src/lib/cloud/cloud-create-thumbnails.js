@@ -272,36 +272,41 @@ const processCloudApp = async (appId, saasInstance, options) => {
             await sleep(options.pagewait * 1000);
             await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-1.png` });
 
-            // Enter credentials
-            // User
-            await page.click(selectorLoginPageUserName, {
-                button: 'left',
-                clickCount: 1,
-                delay: 10,
-            });
-            const user = `${options.logonuserid}`;
-            await page.keyboard.type(user);
-
-            // Pwd
-            await page.click(selectorLoginPageUserPwd, {
-                button: 'left',
-                clickCount: 1,
-                delay: 10,
-            });
-            await page.keyboard.type(options.logonpwd);
-
-            await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-2.png` });
-
-            // Click login button and wait for page to load
-            await Promise.all([
-                page.click(selectorLoginPageLoginButton, {
+            // Should login be skipped?
+            if (options.skiplogin === true) {
+                logger.info('Skipping login as --skip-login is set to true');
+            } else {
+                // Enter credentials
+                // User
+                await page.click(selectorLoginPageUserName, {
                     button: 'left',
                     clickCount: 1,
                     delay: 10,
-                }),
-                page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 90000 }),
-            ]);
-            await sleep(options.pagewait * 1000);
+                });
+                const user = `${options.logonuserid}`;
+                await page.keyboard.type(user);
+
+                // Pwd
+                await page.click(selectorLoginPageUserPwd, {
+                    button: 'left',
+                    clickCount: 1,
+                    delay: 10,
+                });
+                await page.keyboard.type(options.logonpwd);
+
+                await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-2.png` });
+
+                // Click login button and wait for page to load
+                await Promise.all([
+                    page.click(selectorLoginPageLoginButton, {
+                        button: 'left',
+                        clickCount: 1,
+                        delay: 10,
+                    }),
+                    page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 90000 }),
+                ]);
+                await sleep(options.pagewait * 1000);
+            }
 
             // Take screenshot of app overview page
             await page.screenshot({ path: `${imgDir}/cloud/${appId}/overview-1.png` });
