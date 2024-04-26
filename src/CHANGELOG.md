@@ -1,6 +1,18 @@
 # Changelog
 
 
+## [3.6.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.5.0...butler-sheet-icons-v3.6.0) (2024-04-26)
+
+
+### Features
+
+* **qscloud:** Add --skip-login command line flag ([17cae88](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/17cae88961c92d4ce1fff4c585d109339492e66b))
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies ([e5efbea](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e5efbeada1e042226cddfea64b1e31348daf5063))
+
 ## [3.5.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.5.0...butler-sheet-icons-v3.5.0) (2024-04-24)
 
 
