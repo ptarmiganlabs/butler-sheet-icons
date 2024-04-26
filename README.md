@@ -94,10 +94,11 @@ Table of contents
     - [Downloading a browser](#downloading-a-browser)
     - [Using BSI with a proxy server](#using-bsi-with-a-proxy-server)
   - [Concepts specific to QS Cloud](#concepts-specific-to-qs-cloud)
-  - [Login method](#login-method)
+    - [Logging into QS Cloud](#logging-into-qs-cloud)
+    - [Skipping the login page](#skipping-the-login-page)
   - [Concepts specific to client-managed QS (QSEoW)](#concepts-specific-to-client-managed-qs-qseow)
     - [Which Sense version is server using](#which-sense-version-is-server-using)
-    - [Login method](#login-method-1)
+    - [Login method](#login-method)
     - [Using QSEoW's built-in Node.js](#using-qseows-built-in-nodejs)
 - [Commands](#commands)
   - [qseow](#qseow)
@@ -547,9 +548,31 @@ export https_proxy='http://username:password@proxy.example.com:port'
 
 ## Concepts specific to QS Cloud
 
-## Login method
+### Logging into QS Cloud
 
-TODO
+QS Cloud is quite flexible when it comes to logging in, supporting both username/password and various Single Sign On (SSO) solutions.
+
+Butler Sheet Icons supports the username/password method, i.e. the method where you enter your username and password in a web form.  
+Let's say you have a URL to a Sense app in QS Cloud: `https://mytenant.eu.qlikcloud.com/sense/app/25dd1bf9-bc47-47c7-8ed1-16e198b26096/hubUrl/%2Fhub`
+
+Opening this URL in a clean browser page (i.e. a browser where you are not already logged in to QS Cloud) will show a login page like the one below.  
+Do note that this page change appearance every now and then - what is shown below is how the login page looked in late April 2024.
+
+![Login page in Qlik Sense Cloud](./docs/img/qscloud-loginpage_1.png "Login page in Qlik Sense Cloud")
+
+The email/username and password entered here should be present in the QMC's user management section.  
+The same is true for the username and password used when starting BSI (using the `--logonuserid` and `--logonpwd` options) - these credentials must also be present in the QMC.
+
+### Skipping the login page
+
+If your company has a Single Sign On (SSO) solution in place, you may never see the QS Cloud login page, but instead arrive directly to the app overview page.
+BSI will by default wait for the QS Cloud login page to be fully loaded before proceeding - which will never happen in this case.  
+
+We're entering somewhat deep water here, as there are many variants of SSO out there.  
+You can however try to use the `--skip-login` option (introduced in BSI 3.6.0) to tell BSI to skip the login page all together.  
+This may or may not work for you, depending on how your company's SSO solution is set up.
+
+Note: The `--skip-login` option is a beta feature and is subject to change in coming versions of BSI. 
 
 ## Concepts specific to client-managed QS (QSEoW)
 
