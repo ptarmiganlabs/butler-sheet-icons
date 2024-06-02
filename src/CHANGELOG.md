@@ -1,6 +1,18 @@
 # Changelog
 
 
+## [3.6.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.6.0...butler-sheet-icons-v3.6.1) (2024-06-02)
+
+
+### Bug Fixes
+
+* Add support for QSEoW 2024-May ([85acb6f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/85acb6fdc7291de1a7780fc2f1e25c6b5b2c3c9c)), closes [#555](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/555)
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies ([5e3a393](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5e3a393644c0f84ec950b1aab26032376794d4ce))
+
 ## [3.6.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.5.0...butler-sheet-icons-v3.6.0) (2024-04-26)
 
 
