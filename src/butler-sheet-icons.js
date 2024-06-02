@@ -179,8 +179,9 @@ const program = new Command();
                     '2023-Aug',
                     '2023-Nov',
                     '2024-Feb',
+                    '2024-May',
                 ])
-                .default('2024-Feb')
+                .default('2024-May')
         )
         .addOption(
             new Option(
