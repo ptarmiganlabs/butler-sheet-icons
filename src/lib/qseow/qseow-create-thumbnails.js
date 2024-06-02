@@ -89,6 +89,9 @@ const processQSEoWApp = async (appId, g, options) => {
     } else if (options.senseVersion === '2024-Feb') {
         xpathHubUserPageButton = xpathHubUserPageButton2024Feb;
         xpathLogoutButton = xpathLogoutButton2024Feb;
+    } else if (options.senseVersion === '2024-May') {
+        xpathHubUserPageButton = xpathHubUserPageButton2024Feb;
+        xpathLogoutButton = xpathLogoutButton2024Feb;
     } else {
         logger.error(
             `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
