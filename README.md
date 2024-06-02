@@ -1302,6 +1302,7 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Version | Tested date | Comment |
 |---------|-------------|---------|
+| 2024-May IR | 2024-Jun-2 | Use `--sense-version 2024-May` |
 | 2023-Nov patch 3 | 2024-Feb-16 | Use `--sense-version 2023-Nov` |
 | 2023-Aug patch 3 | 2023-Jan-04 | Use `--sense-version 2023-Aug` |
 | 2023-May patch 6 | 2023-Oct-06 | Use `--sense-version 2023-May` |
@@ -1314,6 +1315,7 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Tested date | BSI version | Comment |
 |-------------|-------------|---------|
+| 2024-Jun-2 | 3.6.0 | Works without issues |
 | 2024-Apr-24 | 3.5.0 | Works without issues |
 | 2024-Apr-22 | 3.4.1 | Login page has changed, cannot log in |
 | 2024-Mar-8 | 3.4.1 | Works without issues |
