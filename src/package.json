@@ -24,7 +24,7 @@
     "commander": "^12.1.0",
     "enigma.js": "^2.14.0",
     "esbuild": "^0.21.4",
-    "eslint": "^8.57.0",
+    "eslint": "^9.0.0",
     "eslint-config-airbnb-base": "^15.0.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-import": "^2.29.1",
