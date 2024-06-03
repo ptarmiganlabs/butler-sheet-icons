@@ -1302,19 +1302,21 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Version | BSI version | Tested date | Comment |
 |---------|-------------|-------------|---------|
+| 2024-May IR | 3.6.2 | 2024-Jun-3 | Use `--sense-version 2024-May` |
 | 2024-May IR | 3.6.1 | 2024-Jun-2 | Use `--sense-version 2024-May` |
 | 2023-Nov patch 3 | | 2024-Feb-16 | Use `--sense-version 2023-Nov` |
 | 2023-Aug patch 3 | | 2023-Jan-04 | Use `--sense-version 2023-Aug` |
 | 2023-May patch 6 | | 2023-Oct-06 | Use `--sense-version 2023-May` |
 | 2023-May IR | | 2023-July-24 | Use `--sense-version 2023-May` |
 | 2022-Nov patch 2 | | 2023-Jan-3 | Use `--sense-version 2022-Nov` |
-| 2022-Aug patch 5 | 2023-Jan-2 | Use `--sense-version pre-2022-Nov` |
+| 2022-Aug patch 5 | | 2023-Jan-2 | Use `--sense-version pre-2022-Nov` |
 | 2022-May IR | | 2022-Sep-30 | Use `--sense-version pre-2022-Nov` |
 
 ## Qlik Sense cloud
 
 | Tested date | BSI version | Comment |
 |-------------|-------------|---------|
+| 2024-Jun-3 | 3.6.2 | Works without issues |
 | 2024-Jun-2 | 3.6.1 | Works without issues |
 | 2024-Apr-24 | 3.5.0 | Works without issues |
 | 2024-Apr-22 | 3.4.1 | Login page has changed, cannot log in |
