@@ -1,6 +1,13 @@
 # Changelog
 
 
+## [3.6.2](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.6.1...butler-sheet-icons-v3.6.2) (2024-06-03)
+
+
+### Miscellaneous
+
+* **deps:** Upgrade Docker image from Node 19 to 20 ([79e33d7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/79e33d70691a50d7b0c1797977cef8ab70cc75ed))
+
 ## [3.6.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.6.0...butler-sheet-icons-v3.6.1) (2024-06-02)
 
 
