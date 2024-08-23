@@ -1,6 +1,14 @@
 # Changelog
 
 
+## [3.6.3](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.6.2...butler-sheet-icons-v3.6.3) (2024-08-23)
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies ([70b3cdf](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/70b3cdf060640ff239bb2d6070e4a2c82d944e6f))
+* **deps:** Update dependencies to stay safe and secure ([966193e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/966193e9a3235c665dc6704f0130cd0151cf6fb9))
+
 ## [3.6.2](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.6.1...butler-sheet-icons-v3.6.2) (2024-06-03)
 
 
