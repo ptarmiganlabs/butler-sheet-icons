@@ -1317,6 +1317,7 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Tested date | BSI version | Comment |
 |-------------|-------------|---------|
+| 2024-Nov-5 | 3.6.3 | Works without issues |
 | 2024-Aug-23 | 3.6.3 | Works without issues |
 | 2024-Jun-3 | 3.6.2 | Works without issues |
 | 2024-Jun-2 | 3.6.1 | Works without issues |
