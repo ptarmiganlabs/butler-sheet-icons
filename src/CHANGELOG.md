@@ -1,6 +1,15 @@
 # Changelog
 
 
+## [3.6.4](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.6.4...butler-sheet-icons-v3.6.4) (2024-11-06)
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies ([9aecbf7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9aecbf7173077c0b2c8205c69d4b9aa2d4df0af8))
+* **deps:** update node.js to v22 ([fe48a2f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fe48a2f18f81d41d529e75240449ca4442bb4cdc))
+* **main:** release butler-sheet-icons 3.6.4 ([aef67ea](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/aef67ea51f924c5df4a9d64ac30f2a06733349de))
+
 ## [3.6.4](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.6.3...butler-sheet-icons-v3.6.4) (2024-11-06)
 
 
