@@ -73,7 +73,7 @@ jobs:
               
               Compress-Archive @compress
 
-            artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
+            artifact_insider: ./src/butler-sheet-icons--win-x64--${{ github.sha }}.zip
 
           - os: mac-build1
             build: |
