@@ -35,9 +35,6 @@ jobs:
           cd src
           npm ci --include=dev --include=prod
 
-      # - name: Make sure Jest is installed
-      #   run: npm install jest
-
       - name: Debugging 2
         run: |
           pwd
@@ -169,9 +166,6 @@ jobs:
           dir
           cd src
           npm ci --include=dev --include=prod
-
-      # - name: Make sure Jest is installed
-      #   run: npm install jest
 
       - name: Debugging 2
         run: |
@@ -422,28 +416,6 @@ jobs:
 
           ls -la
 
-      # - name: Download-Binaries
-      #   uses: actions/download-artifact@v3
-      #   with:
-      #     name: release-binaries-macos
-      #     path: release-macos/
-
-      # - name: Make binary executable
-      #   run: |
-      #     chmod +x release-macos/${DIST_FILE_NAME}
-
-      # - name: Debug
-      #   run: |
-      #     ls -la
-      #     ls -la ./release-macos
-
-      # - name: Change name of zip file
-      #   run: |
-      #     pwd
-      #     ls -la
-      #     ls -la ./release-macos
-      #     mv ./${{ env.DIST_FILE_NAME }}-macos.zip ./${{ needs.release-please.outputs.release_tag_name }}-macos.zip
-
       - name: Upload to existing release
         uses: ncipollo/release-action@v1
         with:
@@ -561,10 +533,6 @@ jobs:
           Remove-Item -Force build.cjs
 
           dir
-      # - name: Debug
-      #   run: |
-      #     dir
-      #     dir ./release-win
 
       - name: Upload to existing release
         uses: ncipollo/release-action@v1
@@ -573,7 +541,6 @@ jobs:
           omitBodyDuringUpdate: true
           omitNameDuringUpdate: true
           artifactContentType: raw
-          # artifactContentType: application/zip
           draft: true
           tag: ${{ needs.release-please.outputs.release_tag_name }}
           artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-win.zip
@@ -649,7 +616,6 @@ jobs:
           omitBodyDuringUpdate: true
           omitNameDuringUpdate: true
           artifactContentType: raw
-          # artifactContentType: application/zip
           draft: true
           tag: ${{ needs.release-please.outputs.release_tag_name }}
           artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-linux.zip
