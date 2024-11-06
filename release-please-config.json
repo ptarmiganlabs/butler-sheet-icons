@@ -1,4 +1,6 @@
 {
+  "last-release-sha": "",
+  "release-as": "3.6.4",
   "release-type": "node",
   "prerelease": false,
   "draft": true,
