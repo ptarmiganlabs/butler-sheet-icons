@@ -526,7 +526,7 @@ jobs:
 
           # -------------------
           # Move the zip file to the root directory
-          Move-Item "${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip" "../${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip"
+          Move-Item -Path "${{ needs.release-please.outputs.release_tag_name }}-win.zip" -Destination ..
 
           # -------------------
           # Clean up
