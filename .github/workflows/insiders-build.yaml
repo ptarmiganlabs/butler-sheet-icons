@@ -22,6 +22,7 @@ jobs:
               pwd
               dir
 
+              # -------------------
               # Remove the signature from the executable
               $processOptions1 = @{
                 FilePath = "C:\Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe"
@@ -34,6 +35,7 @@ jobs:
 
               npx postject "${env:DIST_FILE_NAME}.exe" NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 
+              # -------------------
               # Sign the executable
               # 1st signing
               $processOptions1 = @{
@@ -45,6 +47,7 @@ jobs:
               }
               Start-Process @processOptions1
 
+              # -------------------
               # 2nd signing
               $processOptions2 = @{
                 FilePath = "C:\Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe"
@@ -55,17 +58,16 @@ jobs:
               }
               Start-Process @processOptions2
 
-              # Remove-Item -Recurse -Force certificate
-
+              # -------------------
               # Create insider's build zip
               $compress = @{
                 Path = "./${env:DIST_FILE_NAME}.exe"
                 CompressionLevel = "Fastest"
                 DestinationPath = "${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip"
               }
-              
               Compress-Archive @compress
 
+              # -------------------
               # Move the zip file to the root directory
               Move-Item "${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip" "../${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip"
 
@@ -73,6 +75,7 @@ jobs:
               # Clean up
               Remove-Item -Force build.cjs
 
+              dir
             artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
 
           - os: mac-build1
@@ -83,8 +86,6 @@ jobs:
               cp $(command -v node) ${DIST_FILE_NAME}
               npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
 
-              #cd ..
-              #chmod +x "${DIST_FILE_NAME}"
               security delete-keychain build.keychain || true
 
               pwd
@@ -129,14 +130,17 @@ jobs:
               echo "Notarize insider app"
               xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
 
+              # -------------------
               # Move the zip file to the root directory
-              mv "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" "../${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip"
+              mv "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" ..
 
               # -------------------
               # Clean up
               # Delete build keychain
               security delete-keychain build.keychain
               rm build.cjs
+
+              ls -la
 
             artifact_insider: butler-sheet-icons--macos-x64--${{ github.sha }}.zip
 
@@ -152,12 +156,15 @@ jobs:
               tar -czf "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
               ls -la
 
+              # -------------------
               # Move the zip file to the root directory
-              mv "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" ".."
+              mv "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" ..
 
               # -------------------
               # Clean up
               rm build.cjs
+
+              ls -la
 
             artifact_insider: butler-sheet-icons--linux-x64--${{ github.sha }}.tgz
     runs-on: ${{ matrix.os }}
