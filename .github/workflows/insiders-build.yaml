@@ -148,14 +148,6 @@ jobs:
               cp $(command -v node) ${DIST_FILE_NAME}
               npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 
-              cd ..
-              chmod +x ${DIST_FILE_NAME}
-
-              # # Copy binary to release catalog              
-              # mkdir release-binaries-linux
-              # cp ${DIST_FILE_NAME} release-binaries-linux
-              # ls -la release-binaries-linux
-
               # Compress insider's build
               tar -czf "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
               ls -la
