@@ -76,7 +76,7 @@ jobs:
               # Move the zip file to the root directory
               Move-Item "${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip" "../${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip"
 
-            artifact_insider: ./src/butler-sheet-icons--win-x64--${{ github.sha }}.zip
+            artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
 
           - os: mac-build1
             build: |
