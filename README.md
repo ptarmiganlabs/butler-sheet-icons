@@ -1302,6 +1302,7 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Version | BSI version | Tested date | Comment |
 |---------|-------------|-------------|---------|
+| 2024-May IR | 3.6.4 | 2024-Nov-6 | Use `--sense-version 2024-May` |
 | 2024-May IR | 3.6.3 | 2024-Aug-23 | Use `--sense-version 2024-May` |
 | 2024-May IR | 3.6.2 | 2024-Jun-3 | Use `--sense-version 2024-May` |
 | 2024-May IR | 3.6.1 | 2024-Jun-2 | Use `--sense-version 2024-May` |
@@ -1317,7 +1318,7 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Tested date | BSI version | Comment |
 |-------------|-------------|---------|
-| 2024-Nov-5 | 3.6.3 | Works without issues |
+| 2024-Nov-6 | 3.6.4 | Works without issues |
 | 2024-Aug-23 | 3.6.3 | Works without issues |
 | 2024-Jun-3 | 3.6.2 | Works without issues |
 | 2024-Jun-2 | 3.6.1 | Works without issues |
