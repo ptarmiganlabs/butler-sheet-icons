@@ -153,7 +153,7 @@ jobs:
               ls -la
 
               # Move the zip file to the root directory
-              mv "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz"
+              mv "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" ".."
 
               # -------------------
               # Clean up
