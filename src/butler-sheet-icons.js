@@ -158,8 +158,8 @@ const program = new Command();
                 .default([])
         )
         .option(
-            '--exclude-sheet-tag <value>',
-            'Sheets with this tag set will be excluded from sheet icon update.'
+            '--exclude-sheet-tag <value...>',
+            'Sheets with one or more of these tags set will be excluded from sheet icon update.'
         )
         .option(
             '--exclude-sheet-number <number...>',
@@ -168,6 +168,31 @@ const program = new Command();
         .option(
             '--exclude-sheet-title <title...>',
             'Use sheet titles to control which sheets that will be excluded from sheet icon update.'
+        )
+        .addOption(
+            new Option(
+                '--blur-sheet-status <status...>',
+                'Blur all sheets with specified status(es)'
+            )
+                .choices(['published', 'public'])
+                .default([])
+        )
+        .option(
+            '--blur-sheet-tag <value>',
+            'Sheets with one or more of these tags set will be blurred in the sheet icon update.'
+        )
+        .option(
+            '--blur-sheet-number <number...>',
+            'Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.'
+        )
+        .option(
+            '--blur-sheet-title <title...>',
+            'Sheets with this title will be blurred in the sheet icon update.'
+        )
+        .option(
+            '--blur-factor <factor>',
+            'Factor to blur the sheets with. 0 = no blur, 1000 = full blur.',
+            '10'
         )
         .addOption(
             new Option('--sense-version <version>', 'Version of the QSEoW server to connect to')
@@ -352,10 +377,13 @@ const program = new Command();
                 'directory in which thumbnail images will be stored. Relative or absolute path',
                 './img'
             )
-            .requiredOption(
-                '--includesheetpart <value>',
-                'which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen',
-                '1'
+            .addOption(
+                new Option(
+                    '--includesheetpart <value>',
+                    'which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen',
+                )
+                    .choices(['1', '2', '4'])
+                    .default('1')
             )
             .option('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.')
             .option(
@@ -378,6 +406,27 @@ const program = new Command();
             .option(
                 '--exclude-sheet-title <title...>',
                 'Use sheet titles to control which sheets that will be excluded from sheet icon update.'
+            )
+            .addOption(
+                new Option(
+                    '--blur-sheet-status <status...>',
+                    'Blur all sheets with specified status(es)'
+                )
+                    .choices(['published', 'public'])
+                    .default([])
+            )
+            .option(
+                '--blur-sheet-number <number...>',
+                'Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.'
+            )
+            .option(
+                '--blur-sheet-title <title...>',
+                'Sheets with this title will be blurred in the sheet icon update.'
+            )
+            .option(
+                '--blur-factor <factor>',
+                'Factor to blur the sheets with. 0 = no blur, 1000 = full blur.',
+                '10'
             )
             .addOption(
                 new Option(

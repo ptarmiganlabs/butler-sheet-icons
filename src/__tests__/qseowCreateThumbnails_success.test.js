@@ -32,6 +32,10 @@ const options = {
     senseVersion: process.env.BSI_SENSE_VERSION,
     browser: process.env.BSI_BROWSER || 'chrome',
     browserVersion: process.env.BSI_BROWSER_VERSION || 'latest',
+    blurSheetStatus: process.env.BSI_BLUR_SHEET_STATUS || [],
+    blurSheetTag: process.env.BSI_BLUR_SHEET_TAG || '',
+    blurSheetNumber: process.env.BSI_BLUR_SHEET_NUMBER || '5',
+    blurFactor: process.env.BSI_BLUR_FACTOR || '10',
 };
 
 /**

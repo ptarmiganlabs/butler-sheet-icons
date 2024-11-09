@@ -41,7 +41,7 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
 
         // eslint-disable-next-line no-restricted-syntax
         for (const file of filesToUpload) {
-            logger.verbose(`Uploading file: ${JSON.stringify(file)}`);
+            logger.info(`Uploading file: ${file.fileNameShort}`);
 
             // Get complete path for file
             const fileFullPath = path.join(iconFolderAbsolute, file.fileNameShort);
@@ -68,7 +68,7 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
                     });
 
                     logger.debug(`QS Cloud image upload result=${JSON.stringify(result)}`);
-                    logger.verbose(`QS Cloud image upload done: ${JSON.stringify(file)}`);
+                    logger.verbose(`Image upload done.`);
                 } catch (err) {
                     logger.error(`CLOUD UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
                     if (err.message) {

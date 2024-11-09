@@ -70,26 +70,105 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
                 // Is this sheet among those that should be updated?
                 // eslint-disable-next-line no-loop-func
                 if (createdFiles.find((element) => element.sheetPos === iSheetNum) === undefined) {
-                    // This sheet should not be updated
+                    // No thumbnail for this sheet, skip
                     logger.info(
                         `Skipping update of sheet sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
                     );
                 } else {
-                    logger.info(
-                        `Updating thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                    );
+                    // Should blurred sheet thumbnail be used?
+                    // Options are
+                    // --blur-sheet-tag <value>
+                    // --blur-sheet-number <number...>
+                    // --blur-sheet-title <title...>
+                    // --blur-sheet-status <status...>
 
+                    let blurSheet = false;
+
+                    // Should this sheet be blurred based on its published status?
+                    // Public sheets
+                    if (
+                        sheet.qMeta.approved === true &&
+                        sheet.qMeta.published === true &&
+                        options.blurSheetStatus &&
+                        options.blurSheetStatus.includes('public')
+                    ) {
+                        blurSheet = true;
+                        logger.verbose(
+                            `Blurred sheet thumbnail (status public): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                        );
+                    }
+
+                    // Published sheets
+                    if (
+                        sheet.qMeta.approved === false &&
+                        sheet.qMeta.published === true &&
+                        options.blurSheetStatus &&
+                        options.blurSheetStatus.includes('published')
+                    ) {
+                        blurSheet = true;
+                        logger.verbose(
+                            `Blurred sheet thumbnail (status published): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                        );
+                    }
+
+                    // Should this sheet be blurred based on tags?
+                    // options.blurSheetTag is an array of strings
+                    // tagSheetAppMetadata is an array of sheet objects, with the id property being the sheet id
+                    if (options.blurSheetTag && blurSheet === false) {
+                        // Does the sheet id match any of the ids in tagSheetAppMetadata array?
+                        // Set blurSheet to true/false based on the result
+                        blurSheet = tagSheetAppMetadata.some(
+                            (element) => element.engineObjectId === sheet.qInfo.qId
+                        );
+                        logger.verbose(
+                            `Blurred sheet thumbnail (via tags): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                        );
+                    }
+                    
+                    // Should this sheet be blurred based on its position/sheet number?
+                    if (options.blurSheetNumber && blurSheet === false) {
+                        // Does the sheet number match any of the numbers in options.blurSheetNumber array?
+                        // Take into account that iSheetNum is an integer, so we need to convert it to a string
+                        if (options.blurSheetNumber.includes(iSheetNum.toString())) {
+                            blurSheet = true;
+                            logger.verbose(
+                                `Blurred sheet thumbnail (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                            );
+                        }
+                    }    
+
+                    // Should this sheet be blurred based on its title?
+                    if (options.blurSheetTitle && blurSheet === false) {
+                        // Does the sheet title match any of the titles options.blurSheetTitle array?
+                        if (options.blurSheetTitle.includes(sheet.qMeta.title)) {
+                            blurSheet = true;
+                            logger.verbose(
+                                `Blurred sheet thumbnail (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                            );
+                        }
+                    }
+    
                     // Get properties of current sheet
                     const sheetObj = await app.getObject(sheet.qInfo.qId);
                     const sheetProperties = await sheetObj.getProperties();
 
-                    // Set new sheet thumbnail
-                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}.png`;
+                    if (blurSheet === true) {
+                        logger.info(`Using blurred thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`);
 
+                        // Set new sheet thumbnail
+                        sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}-blurred.png`;
+                    } else {
+                        logger.info(`Using regular thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`);
+                                                
+                        // Set new sheet thumbnail
+                        sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}.png`;
+                    }
+  
+                    // Set & save new sheet thumbnail
                     const res = await sheetObj.setProperties(sheetProperties);
                     logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
                     await app.doSave();
-                }
+            }
 
                 iSheetNum += 1;
             }

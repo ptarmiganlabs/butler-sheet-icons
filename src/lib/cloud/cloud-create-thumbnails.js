@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { homedir } = require('os');
 const { computeExecutablePath } = require('@puppeteer/browsers');
+const sharp = require('sharp');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg, sleep } = require('../../globals.js');
@@ -458,6 +459,7 @@ const processCloudApp = async (appId, saasInstance, options) => {
                     logger.info(
                         `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}', hidden '${sheetIsHidden}'`
                     );
+
                     // Build URL to current sheet
                     const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}/state/analysis`;
                     logger.debug(`Sheet URL: ${sheetUrl}`);
@@ -467,7 +469,6 @@ const processCloudApp = async (appId, saasInstance, options) => {
                         page.goto(sheetUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
                     ]);
 
-                    // await page.waitForTimeout(options.pagewait * 1000);
                     await sleep(options.pagewait * 1000);
 
                     const fileName = `${imgDir}/cloud/${appId}/thumbnail-${iSheetNum}.png`;
@@ -493,6 +494,32 @@ const processCloudApp = async (appId, saasInstance, options) => {
                         path: fileName,
                     });
                     createdFiles.push({ sheetPos: iSheetNum, fileNameShort });
+
+                    // Blur image and store as separate file
+                    const fileNameBlurred = `${imgDir}/cloud/${appId}/thumbnail-${iSheetNum}-blurred.png`;
+                    const fileNameShortBlurred = `thumbnail-${iSheetNum}-blurred.png`;
+
+                    // Create blurred image from the already taken screenshot
+                    // Load the image from disk, blur it, then save it back to disk with new name
+                    const imageBuffer = fs.readFileSync(fileName);
+
+                    let blurFactor;
+                    if (options?.blurFactor < 0.3) {
+                        blurFactor = 0.3;
+                    } else if (options?.blurFactor > 1000) {
+                        blurFactor = 1000;
+                    } else {
+                        // Convert to float
+                        blurFactor = parseFloat(options?.blurFactor);
+                    }
+
+                    const result = await sharp(imageBuffer)
+                        .blur(blurFactor)
+                        .toFile(fileNameBlurred);
+
+                    createdFiles.push({ sheetPos: iSheetNum, blurred: true, fileNameShort: fileNameShortBlurred });
+
+                    logger.verbose(`Created blurred image: ${fileNameBlurred}`);                    
                 }
                 iSheetNum += 1;
             }

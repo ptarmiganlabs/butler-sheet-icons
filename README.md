@@ -89,6 +89,7 @@ Table of contents
     - [Which part of each sheet to use as thumbnail](#which-part-of-each-sheet-to-use-as-thumbnail)
     - [Excluding sheets](#excluding-sheets)
     - [Excluding sheets based on the sheet's status](#excluding-sheets-based-on-the-sheets-status)
+    - [Blurring sheet icons](#blurring-sheet-icons)
     - [Screen shots taken by Butler Sheet Icons](#screen-shots-taken-by-butler-sheet-icons)
     - [Headless browser](#headless-browser)
     - [Downloading a browser](#downloading-a-browser)
@@ -97,7 +98,7 @@ Table of contents
     - [Logging into QS Cloud](#logging-into-qs-cloud)
     - [Skipping the login page](#skipping-the-login-page)
   - [Concepts specific to client-managed QS (QSEoW)](#concepts-specific-to-client-managed-qs-qseow)
-    - [Which Sense version is server using](#which-sense-version-is-server-using)
+    - [Which version is the Sense server using](#which-version-is-the-sense-server-using)
     - [Login method](#login-method)
     - [Using QSEoW's built-in Node.js](#using-qseows-built-in-nodejs)
 - [Commands](#commands)
@@ -199,10 +200,12 @@ The idea is simply to more or less mimic the steps a human would take to create 
     - Take screen shot of the desired part of the sheet.
     - Resize the screen shot to the correct size and aspect ratio.
     - Save the thumbnail image to disk.
+    - Create a blurred version of the thumbnail image. Blurred images are created for all sheets, for possible future use.
+    - Save the blurred image to disk.
   - Repeat previous step for each sheet in the app (public and private sheet are both processed).
   - Update sheet images.
     - Use Sense APIs to upload the thumbnail images to Sense (QSEoW or QS Cloud).
-    - Assign the images to the correct sheet in the correct app.
+    - Assign the images to the correct sheet in the correct app. Blurred images will be used for the sheets matching the filter criteria specified via `--blur-sheet-....` command line options.
 - Repeat previous step for each app that should be processed.
   - Apps can be specified in several ways
     - By app ID (both QS Cloud and QSEoW).
@@ -219,13 +222,13 @@ The idea is simply to more or less mimic the steps a human would take to create 
 Using Butler Sheet Icons on MacOS, updating shet icons in a client-managed Qlik Sense Enterprise on Windows app can look like below.  
 Environment variables are used to store most parameters, which makes it easier to run the command without having to remember all the parameter values.
 
-The command below could actually be slimmed down a bit given that many of the options have good default values, but it's shown here with a full set of parameters to make it easier to understand what's going on.
+The command below could actually be slimmed down a bit given that many of the options have good default values, but it's shown here with a full set of parameters to make it easier to understand what's going on. Please note that environment variables are used to pass in some of the actual values.
 
 ```bash
 ./butler-sheet-icons qseow create-sheet-thumbnails \
-  --loglevel
+  --loglevel info \
   --host $BSI_HOST \
-  --appid $BSI_APPID \
+  --appid $BSI_APP_ID \
   --apiuserdir 'Internal' \
   --apiuserid sa_api \
   --logonuserdir $BSI_LOGON_USER_DIR \
@@ -243,9 +246,10 @@ The command below could actually be slimmed down a bit given that many of the op
   --exclude-sheet-title 'Sheet 5' 'Debug sheet' \
   --exclude-sheet-number 1 2 \
   --exclude-sheet-status private \
+  --blur-sheet-number 3 5 \
+  --blur-factor 10 \
   --sense-version 2024-Feb
 ```
-
 
 ![Run Butler Sheet Icons](./docs/img/create-qseow_macos_1.png "Run Butler Sheet Icons on MacOS")
 
@@ -253,7 +257,7 @@ Same as above, running in PowerShell on Windows 10.
 In this case (on Windows) we need to add the `--prefix form` parameter, otherwise BSI will try to use Windows authentication to log in to the Sense server.  
 The `--prefix form` parameter tells BSI to use a Qlik Sense virtual proxy that uses form based authentication.
 
-![Run Butler Sheet Icons](./docs/img/create-qseow-win_2.png "Run Butler Sheet Icons on Windows Server 2016")
+![Run Butler Sheet Icons](./docs/img/create-qseow-win_2.png "Run Butler Sheet Icons on Windows 10")
 
 App overview before running Butler Sheet Icons:
 ![Qlik Sense app overview](./docs/img/create-qseow-appoverview_1.png   "No sheet icons")
@@ -466,6 +470,19 @@ For example, if updating a published app in QS Cloud, the `--exclude-sheet-statu
 
 ![ Access denied when trying to update public or published sheet icons in QS Cloud ](docs/img/butler-sheet-icons-qscloud-access-denied_1.png "Access denied when trying to update public or published sheet icons in QS Cloud")
 
+### Blurring sheet icons
+
+Butler Sheet Icons can create blurred versions of the sheet icons.  
+This can be useful when sheets contain sensitive information that should not be visible in the sheet thumbnails.
+
+Blurring of images works much like the `--exclude-sheet-...` options.
+The same options are available, but with `--blur-sheet-...` as the prefix.
+
+Sheet blurring is available both for QS Cloud and client-managed QSEoW.
+
+Note that blurred images are created for all sheets and stored on disk just as the regular sheet thumbnail images.  
+If an app sheet matches the filter criteria specified via `--blur-sheet-....` command line options, the blurred image will be used as the sheet icon.
+
 ### Screen shots taken by Butler Sheet Icons
 
 Image files are created (=screen shots are taken)
@@ -476,35 +493,38 @@ Image files are created (=screen shots are taken)
 - Each sheet in all apps that are processed.
   - Separate directories for QS Cloud and QSEoW screen shots.
   - Within those separate directories, each app has its own subdirectory.
+  - Blurred images are stored with a `-blurred` suffix in the file name.
 
 Example:
 
 ```
 img
 ├── cloud
-│   ├── 07ac6467-16b6-4964-a08c-d2be46988fb8
-│   │   ├── loginpage-1.png
-│   │   ├── loginpage-2.png
-│   │   ├── overview-1.png
-│   │   ├── thumbnail-1.png
-│   │   ├── thumbnail-2.png
-│   │   ├── thumbnail-3.png
-│   │   └── thumbnail-4.png
-│   └── 712cdef6-99fb-43c1-97a3-177a7e5766a1
+│   └── 97089caf-f386-454e-9b9a-726aa89f5e88
 │       ├── loginpage-1.png
 │       ├── loginpage-2.png
 │       ├── overview-1.png
+│       ├── thumbnail-1-blurred.png
 │       ├── thumbnail-1.png
-│       ├── thumbnail-2.png
+│       ├── thumbnail-3-blurred.png
 │       ├── thumbnail-3.png
+│       ├── thumbnail-4-blurred.png
 │       └── thumbnail-4.png
 └── qseow
-    └── c840670c-7178-4a5e-8409-ba2da69127e2
+    └── a3e0f5d2-000a-464f-998d-33d333b175d7
         ├── loginpage-1.png
         ├── loginpage-2.png
         ├── overview-1.png
-        ├── thumbnail-c840670c-7178-4a5e-8409-ba2da69127e2-1.png
-        └── thumbnail-c840670c-7178-4a5e-8409-ba2da69127e2-2.png
+        ├── thumbnail-a3e0f5d2-000a-464f-998d-33d333b175d7-2-blurred.png
+        ├── thumbnail-a3e0f5d2-000a-464f-998d-33d333b175d7-2.png
+        ├── thumbnail-a3e0f5d2-000a-464f-998d-33d333b175d7-3-blurred.png
+        ├── thumbnail-a3e0f5d2-000a-464f-998d-33d333b175d7-3.png
+        ├── thumbnail-a3e0f5d2-000a-464f-998d-33d333b175d7-4-blurred.png
+        ├── thumbnail-a3e0f5d2-000a-464f-998d-33d333b175d7-4.png
+        ├── thumbnail-a3e0f5d2-000a-464f-998d-33d333b175d7-7-blurred.png
+        ├── thumbnail-a3e0f5d2-000a-464f-998d-33d333b175d7-7.png
+        ├── thumbnail-a3e0f5d2-000a-464f-998d-33d333b175d7-8-blurred.png
+        └── thumbnail-a3e0f5d2-000a-464f-998d-33d333b175d7-8.png
 ```
 
 ### Headless browser
@@ -576,7 +596,7 @@ Note: The `--skip-login` option is a beta feature and is subject to change in co
 
 ## Concepts specific to client-managed QS (QSEoW)
 
-### Which Sense version is server using
+### Which version is the Sense server using
 
 Different QSEoW versions may (will!) have differnen HTML code in the Hub's and apps' user interface.  
 As BSI pretends to be user accessing Sense, BSI needs to adapt to each Sense version.
@@ -584,7 +604,7 @@ As BSI pretends to be user accessing Sense, BSI needs to adapt to each Sense ver
 The solution is to use the `--sense-version` command line parameter to specify which version your Sense server is running.  
 The list of allowed values is available in the BSI help that's shown by running `.\butler-sheet-icons.exe qseow create-sheet-thumbnails --help` (on Windows/PowerShell in this case).
 
-NOTE: The `--sense-version` parameter was added in BSI 3.0 and is a mandatory parameter!
+NOTE: The `--sense-version` parameter was added in BSI 3.0 and is a mandatory parameter!  
 
 ### Login method
 
@@ -618,9 +638,11 @@ In this scenario it might be tempting to use the Node.js engine that ships with 
 
 While this might sound like a good idea, there are several reasons to stay away from it:
 
-- QSEoW's bundled Node.js version is pretty old. As of QSEoW Nov 2021 Node.js version 12.x is bundled. Latest version is 16.x.
+- QSEoW's bundled Node.js version is usually pretty old.
 - You don't get the npm tool, which is needed to install the dependencies Butler Sheet Icons need (the `npm install` command).
   It may be possible to manually install npm and then use Sense's bundled Node version, but it's ***not*** recommended.
+
+A better solution is to use the stand-alone Butler Sheet Icons binaries. They are built to work on all major operating systems and are tested against the most recent Long Term Support (LTS) version of Node.js.
 
 # Commands
 
@@ -681,13 +703,13 @@ A complete session using this command is described [here](./docs/qseow-demo_1.md
 ```
 
 ```powershell
-Usage: butler-sheet-icons qseow create-sheet-thumbnails [options]
+Usage: butler-sheet-icons qseow create-sheet-thumbnails|create-sheet-icons [options]
 
 Create thumbnail images based on the layout of each sheet in Qlik Sense Enterprise on Windows (QSEoW) applications.
 Multiple apps can be updated with a single command, using a Qlik Sense tag to identify  which apps will be updated.
 
 Options:
-  --loglevel <level>                  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  --loglevel, --log-level <level>     log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
   --host <host>                       Qlik Sense server IP/FQDN
   --engineport <port>                 Qlik Sense server engine port (default: "4747")
   --qrsport <port>                    Qlik Sense server repository service (QRS) port (default: "4242")
@@ -705,23 +727,23 @@ Options:
   --logonuserid <userid>              user ID for user to connect with when logging into web UI
   --logonpwd <password>               password for user to connect with
   --headless <true|false>             headless (=not visible) browser (true, false) (default: true)
-  --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly
-                                      (default: 5)
+  --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
   --imagedir <directory>              directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
   --contentlibrary <library-name>     Qlik Sense content library to which thumbnails will be uploaded (default: "Butler sheet thumbnails")
-  --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3
-                                      + menu bar (default: "1")
-  --qliksensetag <value>              Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.
-                                      (default: "")
-  --exclude-sheet-tag <value>         Sheets with this tag set will be excluded from sheet icon update.
+  --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar (default: "1")
+  --qliksensetag <value>              Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. (default: "")
+  --exclude-sheet-status <status...>  Exclude all sheets with specified status(es) (choices: "private", "published", "public", default: [])
+  --exclude-sheet-tag <value...>      Sheets with one or more of these tags set will be excluded from sheet icon update.
   --exclude-sheet-number <number...>  Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.
   --exclude-sheet-title <title...>    Use sheet titles to control which sheets that will be excluded from sheet icon update.
-  --sense-version <version>           Version of the QSEoW server to connect to (choices: "pre-2022-Nov", "2022-Nov", "2023-Feb", "2023-May", "2023-Aug",
-                                      "2023-Nov", default: "2023-Nov")
-  --browser <browser>                 Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers
-                                      are currently installed. (choices: "chrome", "firefox", default: "chrome")
-  --browser-version <version>         Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are
-                                      currently installed.
+  --blur-sheet-status <status...>     Blur all sheets with specified status(es) (choices: "published", "public", default: [])
+  --blur-sheet-tag <value>            Sheets with one or more of these tags set will be blurred in the sheet icon update.
+  --blur-sheet-number <number...>     Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.
+  --blur-sheet-title <title...>       Sheets with this title will be blurred in the sheet icon update.
+  --blur-factor <factor>              Factor to blur the sheets with. 0 = no blur, 1000 = full blur. (default: "10")
+  --sense-version <version>           Version of the QSEoW server to connect to (choices: "pre-2022-Nov", "2022-Nov", "2023-Feb", "2023-May", "2023-Aug", "2023-Nov", "2024-Feb", "2024-May", default: "2024-May")
+  --browser <browser>                 Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. (choices: "chrome", "firefox", default: "chrome")
+  --browser-version <version>         Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. Leave empty or set to "latest" to get latest available version.
   -h, --help                          display help for command
 ```
 
@@ -736,12 +758,12 @@ The options to this command are a subset of the options for the `qseow create-sh
 ```
 
 ```powershell
-Usage: butler-sheet-icons qseow remove-sheet-icons [options]
+Usage: butler-sheet-icons qseow remove-sheet-icons|remove-sheet-thumbnails [options]
 
 Remove all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) app.
 
 Options:
-  --loglevel <level>                 log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  --loglevel, --log-level <level>    log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
   --host <host>                      Qlik Sense server IP/FQDN
   --engineport <port>                Qlik Sense server engine port (default: "4747")
   --qrsport <port>                   Qlik Sense server repository service (QRS) port (default: "4242")
@@ -755,8 +777,7 @@ Options:
   --secure <true|false>              connection to Qlik Sense engine is via https (default: true)
   --apiuserdir <directory>           user directory for user to connect with when using Sense APIs
   --apiuserid <userid>               user ID for user to connect with when using Sense APIs
-  --qliksensetag <value>             Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.
-                                     (default: "")
+  --qliksensetag <value>             Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated. (default: "")
   -h, --help                         display help for command
 ```
 
@@ -770,14 +791,14 @@ Options:
 Usage: butler-sheet-icons qscloud [options] [command]
 
 Options:
-  -h, --help                         display help for command
+  -h, --help                                            display help for command
 
 Commands:
-  create-sheet-thumbnails [options]  Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.
-                                     Multiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.
-  list-collections [options]         List available collections.
-  remove-sheet-icons [options]       Remove all sheet icons from a Qlik Sense Cloud app.
-  help [command]                     display help for command
+  create-sheet-thumbnails|create-sheet-icons [options]  Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.
+                                                        Multiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.
+  list-collections [options]                            List available collections.
+  remove-sheet-icons|remove-sheet-thumbnails [options]  Remove all sheet icons from a Qlik Sense Cloud app.
+  help [command]                                        display help for command
 ```
 
 ### create-sheet-thumbnails
@@ -787,33 +808,46 @@ Commands:
 ```
 
 ```powershell
-Usage: butler-sheet-icons qscloud create-sheet-thumbnails [options]
+Usage: butler-sheet-icons qscloud [options] [command]
+
+Options:
+  -h, --help                                            display help for command
+
+Commands:
+  create-sheet-thumbnails|create-sheet-icons [options]  Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.
+                                                        Multiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.
+  list-collections [options]                            List available collections.
+  remove-sheet-icons|remove-sheet-thumbnails [options]  Remove all sheet icons from a Qlik Sense Cloud app.
+  help [command]                                        display help for command
+PS /Users/goran/code/butler-sheet-icons/src> node ./butler-sheet-icons.js qscloud create-sheet-thumbnails --help
+Usage: butler-sheet-icons qscloud create-sheet-thumbnails|create-sheet-icons [options]
 
 Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.
 Multiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.
 
 Options:
-  --loglevel <level>                  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  --loglevel, --log-level <level>     log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
   --schemaversion <string>            Qlik Sense engine schema version (default: "12.612.0")
   --tenanturl <url>                   URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"
   --apikey <key>                      API key used to access the Sense APIs
+  --skip-login                        skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense (default: false)
   --logonuserid <userid>              user ID for user to connect with when logging into web UI
   --logonpwd <password>               password for user to connect with
   --headless <true|false>             headless (=not visible) browser (true, false) (default: true)
-  --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly
-                                      (default: 5)
+  --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
   --imagedir <directory>              directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
-  --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen
-                                      (default: "1")
+  --includesheetpart <value>          which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen (choices: "1", "2", "4", default: "1")
   --appid <id>                        Qlik Sense app whose sheet icons should be modified.
-  --collectionid <id>                 Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be
-                                      updated (default: "")
+  --collectionid <id>                 Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated (default: "")
+  --exclude-sheet-status <status...>  Exclude all sheets with specified status(es) (choices: "private", "published", "public", default: [])
   --exclude-sheet-number <number...>  Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.
   --exclude-sheet-title <title...>    Use sheet titles to control which sheets that will be excluded from sheet icon update.
-  --browser <browser>                 Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers
-                                      are currently installed. (choices: "chrome", "firefox", default: "chrome")
-  --browser-version <version>         Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are
-                                      currently installed.
+  --blur-sheet-status <status...>     Blur all sheets with specified status(es) (choices: "published", "public", default: [])
+  --blur-sheet-number <number...>     Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.
+  --blur-sheet-title <title...>       Sheets with this title will be blurred in the sheet icon update.
+  --blur-factor <factor>              Factor to blur the sheets with. 0 = no blur, 1000 = full blur. (default: "10")
+  --browser <browser>                 Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. (choices: "chrome", "firefox", default: "chrome")
+  --browser-version <version>         Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. Leave empty or set to "latest" to get latest available version.
   -h, --help                          display help for command
 ```
 
@@ -829,11 +863,11 @@ Usage: butler-sheet-icons qscloud list-collections [options]
 List available collections.
 
 Options:
-  --loglevel <level>           log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
-  --tenanturl <url>            URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"
-  --apikey <key>               API key used to access the Sense APIs
-  --outputformat <table|json>  Output format (choices: "table", "json", default: "table")
-  -h, --help                   display help for command
+  --loglevel, --log-level <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  --tenanturl <url>                URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"
+  --apikey <key>                   API key used to access the Sense APIs
+  --outputformat <table|json>      Output format (choices: "table", "json", default: "table")
+  -h, --help                       display help for command
 ```
 
 ### remove-sheet-icons
@@ -914,8 +948,8 @@ Usage: butler-sheet-icons browser list-installed [options]
 Show which browsers are currently installed and available for use by Butler Sheet Icons.
 
 Options:
-  --loglevel <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
-  -h, --help          display help for command
+  --loglevel, --log-level <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  -h, --help                       display help for command
 ```
 
 ### uninstall
@@ -936,12 +970,10 @@ This will remove the browser from the cache, but will not affect other browsers 
 Use the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.
 
 Options:
-  --loglevel <level>           log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
-  --browser <browser>          Browser to uninstall (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are
-                               currently installed. (default: "chrome")
-  --browser-version <version>  Version (=build id) of the browser to uninstall. Use "butler-sheet-icons browser list-installed" to see which browsers are
-                               currently installed.
-  -h, --help                   display help for command
+  --loglevel, --log-level <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  --browser <browser>              Browser to uninstall (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. (default: "chrome")
+  --browser-version <version>      Version (=build id) of the browser to uninstall. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.
+  -h, --help                       display help for command
 ```
 
 ### uninstall-all
@@ -963,8 +995,8 @@ This will remove all browsers from the cache, but will not affect other browsers
 Use the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.
 
 Options:
-  --loglevel <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
-  -h, --help          display help for command
+  --loglevel, --log-level <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  -h, --help                       display help for command
 ```
 
 ### install
@@ -972,7 +1004,7 @@ Options:
 Install a browser into the Butler Sheet Icons cache.  
 This will download the browser and install it into the cache, where it can be used by Butler Sheet Icons.
 
-On Windows: 
+On Windows:
 
 ```powershell
 .\butler-sheet-icons.exe browser install --help
@@ -986,12 +1018,10 @@ This will download the browser and install it into the cache, where it can be us
 Use the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.
 
 Options:
-  --loglevel <level>           log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
-  --browser <browser>          Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are
-                               currently installed. (choices: "chrome", "firefox", default: "chrome")
-  --browser-version <version>  Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are
-                               currently installed.
-  -h, --help                   display help for command
+  --loglevel, --log-level <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  --browser <browser>              Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. (choices: "chrome", "firefox", default: "chrome")
+  --browser-version <version>      Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. (default: "latest")
+  -h, --help                       display help for command
 ```
 
 #### Older versions of Chrome
@@ -1039,12 +1069,11 @@ Usage: butler-sheet-icons browser list-available [options]
 Show which browsers are available for download and installation by Butler Sheet Icons.
 
 Options:
-  --loglevel <level>   log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
-  --browser <browser>  Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently
-                       installed. (choices: "chrome", "firefox", default: "chrome")
-  --channel <browser>  Which of the browser's release channel versions should be listed?
+  --loglevel, --log-level <level>  log level (choices: "error", "warn", "info", "verbose", "debug", "silly", default: "info")
+  --browser <browser>              Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. (choices: "chrome", "firefox", default: "chrome")
+  --channel <browser>              Which of the browser's release channel versions should be listed?
    This option is only used for Chrome. (choices: "stable", "beta", "dev", "canary", default: "stable")
-  -h, --help           display help for command
+  -h, --help                       display help for command
 ```
 
 # Hands-on examples
@@ -1067,7 +1096,7 @@ Using PowerShell on Windows Server 2016, with most parameters stored in PowerShe
 
 ![Create thumbnails in QS Cloud](./docs/img/qscloud-create-thumbnails-winssrv2016-ps-1.png "Create thumbnails in QS Cloud")
 
-Note that many of the options used above (e.g. `--loglevel info`) have their default values, and thus could be omitted to shorten the command a bit.
+Note that many of the options used above (e.g. `--loglevel info`) have their default values, and could thus be omitted to shorten the command a bit.
 
 ## QS Cloud, list all available collections
 
