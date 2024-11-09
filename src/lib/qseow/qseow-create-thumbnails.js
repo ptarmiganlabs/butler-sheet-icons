@@ -8,6 +8,7 @@ const qrsInteract = require('qrs-interact');
 const path = require('path');
 const { homedir } = require('os');
 const { computeExecutablePath } = require('@puppeteer/browsers');
+const sharp = require('sharp');
 
 const { setupEnigmaConnection } = require('./qseow-enigma.js');
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg, sleep } = require('../../globals.js');
@@ -128,14 +129,14 @@ const processQSEoWApp = async (appId, g, options) => {
         let appMetadata = await qrsInteractInstance.Get(`app?filter=id eq ${appId}`);
         appMetadata = appMetadata.body;
 
-        // Get metadata for the app sheets that should be excluded based on sheet tags
+        // Get metadata for the app sheets that should be exclude, blur etc based on sheet tags
         logger.debug(
-            `GET tagExcludeSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
+            `GET tagSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
         );
-        let tagExcludeSheetAppMetadata = await qrsInteractInstance.Get(
+        let tagSheetAppMetadata = await qrsInteractInstance.Get(
             `app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
         );
-        tagExcludeSheetAppMetadata = tagExcludeSheetAppMetadata.body;
+        tagSheetAppMetadata = tagSheetAppMetadata.body;
 
         // Create mapping between repo db sheet id and engine sheet id
         let mapRepoEngineSheetIdTmp1 = await qrsInteractInstance.Get(
@@ -426,9 +427,9 @@ const processQSEoWApp = async (appId, g, options) => {
                 const sheetIsHidden =
                     // eslint-disable-next-line no-unneeded-ternary
                     sheet.qData.showCondition &&
-                    (sheet.qData.showCondition.toLowerCase() === 'false' ||
-                        (showConditionEval?.qIsNumeric === true &&
-                            showConditionEval?.qNumber === 0))
+                        (sheet.qData.showCondition.toLowerCase() === 'false' ||
+                            (showConditionEval?.qIsNumeric === true &&
+                                showConditionEval?.qNumber === 0))
                         ? true
                         : false;
 
@@ -441,12 +442,15 @@ const processQSEoWApp = async (appId, g, options) => {
 
                 // Is this sheet on the exclude list via tags?
                 // options.excludeSheetTag is an array of strings
-                // tagExcludeSheetAppMetadata is an array of sheet objects, with the id property being the sheet id
+                // tagSheetAppMetadata is an array of sheet objects, with the id property being the sheet id
                 if (options.excludeSheetTag && excludeSheet === false) {
-                    // Does the sheet id match any of the ids in tagExcludeSheetAppMetadata array?
+                    // Does the sheet id match any of the ids in tagSheetAppMetadata array?
                     // Set excludeSheet to true/false based on the result
-                    excludeSheet = tagExcludeSheetAppMetadata.some(
+                    excludeSheet = tagSheetAppMetadata.some(
                         (element) => element.engineObjectId === sheet.qInfo.qId
+                    );
+                    logger.verbose(
+                        `Excluded sheet (via tags): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
                 }
 
@@ -467,7 +471,6 @@ const processQSEoWApp = async (appId, g, options) => {
                     // Does the sheet title match any of the titles options.excludeSheetTitle array?
                     if (options.excludeSheetTitle.includes(sheet.qMeta.title)) {
                         excludeSheet = true;
-
                         logger.verbose(
                             `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                         );
@@ -482,6 +485,7 @@ const processQSEoWApp = async (appId, g, options) => {
                     logger.info(
                         `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                     );
+
                     // Build URL to current sheet
                     const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
                     logger.debug(`Sheet URL: ${sheetUrl}`);
@@ -518,7 +522,33 @@ const processQSEoWApp = async (appId, g, options) => {
                     await sheetMainPart.screenshot({
                         path: fileName,
                     });
-                    createdFiles.push({ sheetPos: iSheetNum, fileNameShort });
+                    createdFiles.push({ sheetPos: iSheetNum, blurred: false,  fileNameShort });
+
+                    // Blur image and store as separate file
+                    const fileNameBlurred = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}-blurred.png`;
+                    const fileNameShortBlurred = `thumbnail-${appId}-${iSheetNum}-blurred.png`;
+
+                    // Create blurred image from the already taken screenshot
+                    // Load the image from disk, blur it, then save it back to disk with new name
+                    const imageBuffer = fs.readFileSync(fileName);
+
+                    let blurFactor;
+                    if (options?.blurFactor < 0.3) {
+                        blurFactor = 0.3;
+                    } else if (options?.blurFactor > 1000) {
+                        blurFactor = 1000;
+                    } else {
+                        // Convert to float
+                        blurFactor = parseFloat(options?.blurFactor);
+                    }
+
+                    const result = await sharp(imageBuffer)
+                        .blur(blurFactor)
+                        .toFile(fileNameBlurred);
+
+                    createdFiles.push({ sheetPos: iSheetNum, blurred: true, fileNameShort: fileNameShortBlurred });
+
+                    logger.verbose(`Created blurred image: ${fileNameBlurred}`);
                 }
                 iSheetNum += 1;
             }
@@ -623,7 +653,7 @@ const processQSEoWApp = async (appId, g, options) => {
             logger.error(`Error closing session for QSEoW app ${appId} on host ${options.host}`);
         }
 
-        // Upload to  QSEoW content library
+        // Upload to QSEoW content library
         await qseowUploadToContentLibrary(createdFiles, appId, options);
 
         // Update sheets in app
