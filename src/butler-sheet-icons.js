@@ -86,6 +86,11 @@ const program = new Command();
             'Qlik Sense certificate file (exported from QMC)',
             './cert/client.pem'
         )
+        .option(
+            '--qliksensetag <value>',
+            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
+            ''
+        )
         .requiredOption(
             '--certkeyfile <file>',
             'Qlik Sense certificate key file (exported from QMC)',
@@ -143,11 +148,6 @@ const program = new Command();
             '--includesheetpart <value>',
             'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar',
             '1'
-        )
-        .option(
-            '--qliksensetag <value>',
-            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
-            ''
         )
         .addOption(
             new Option(
@@ -261,6 +261,11 @@ const program = new Command();
         )
         .requiredOption('--schemaversion <string>', 'Qlik Sense engine schema version', '12.612.0')
         .requiredOption('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.', '')
+        .option(
+            '--qliksensetag <value>',
+            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
+            ''
+        )
         .requiredOption(
             '--certfile <file>',
             'Qlik Sense certificate file (exported from QMC)',
@@ -289,11 +294,6 @@ const program = new Command();
         .requiredOption(
             '--apiuserid <userid>',
             'User ID for user to connect with when using Sense APIs'
-        )
-        .option(
-            '--qliksensetag <value>',
-            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
-            ''
         );
 
     // ------------------
@@ -356,7 +356,6 @@ const program = new Command();
                 'Skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense',
                 false
             )
-
             .requiredOption(
                 '--logonuserid <userid>',
                 'User ID for user to connect with when logging into web UI'
