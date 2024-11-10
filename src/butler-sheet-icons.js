@@ -64,7 +64,7 @@ const program = new Command();
             }
         })
         .addOption(
-            new Option('--loglevel, --log-level <level>', 'log level')
+            new Option('--loglevel, --log-level <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
         )
@@ -86,6 +86,11 @@ const program = new Command();
             'Qlik Sense certificate file (exported from QMC)',
             './cert/client.pem'
         )
+        .option(
+            '--qliksensetag <value>',
+            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
+            ''
+        )
         .requiredOption(
             '--certkeyfile <file>',
             'Qlik Sense certificate key file (exported from QMC)',
@@ -99,39 +104,39 @@ const program = new Command();
         .requiredOption('--prefix <prefix>', 'Qlik Sense virtual proxy prefix', '')
         .requiredOption(
             '--secure <true|false>',
-            'connection to Qlik Sense engine is via https',
+            'Connection to Qlik Sense engine is via https',
             true
         )
         .requiredOption(
             '--apiuserdir <directory>',
-            'user directory for user to connect with when using Sense APIs'
+            'User directory for user to connect with when using Sense APIs'
         )
         .requiredOption(
             '--apiuserid <userid>',
-            'user ID for user to connect with when using Sense APIs'
+            'User ID for user to connect with when using Sense APIs'
         )
         .requiredOption(
             '--logonuserdir <directory>',
-            'user directory for user to connect with when logging into web UI'
+            'User directory for user to connect with when logging into web UI'
         )
         .requiredOption(
             '--logonuserid <userid>',
-            'user ID for user to connect with when logging into web UI'
+            'User ID for user to connect with when logging into web UI'
         )
         .requiredOption('--logonpwd <password>', 'password for user to connect with')
         .requiredOption(
             '--headless <true|false>',
-            'headless (=not visible) browser (true, false)',
+            'Headless (=not visible) browser (true, false)',
             true
         )
         .requiredOption(
             '--pagewait <seconds>',
-            'number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly',
+            'Number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly',
             5
         )
         .requiredOption(
             '--imagedir <directory>',
-            'directory in which thumbnail images will be stored. Relative or absolute path',
+            'Directory in which thumbnail images will be stored. Relative or absolute path',
             './img'
         )
         .requiredOption(
@@ -141,13 +146,8 @@ const program = new Command();
         )
         .requiredOption(
             '--includesheetpart <value>',
-            'which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar',
+            'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar',
             '1'
-        )
-        .option(
-            '--qliksensetag <value>',
-            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
-            ''
         )
         .addOption(
             new Option(
@@ -244,7 +244,7 @@ const program = new Command();
             }
         })
         .addOption(
-            new Option('--loglevel, --log-level <level>', 'log level')
+            new Option('--loglevel, --log-level <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
         )
@@ -261,6 +261,11 @@ const program = new Command();
         )
         .requiredOption('--schemaversion <string>', 'Qlik Sense engine schema version', '12.612.0')
         .requiredOption('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.', '')
+        .option(
+            '--qliksensetag <value>',
+            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
+            ''
+        )
         .requiredOption(
             '--certfile <file>',
             'Qlik Sense certificate file (exported from QMC)',
@@ -279,21 +284,16 @@ const program = new Command();
         .requiredOption('--prefix <prefix>', 'Qlik Sense virtual proxy prefix', '')
         .requiredOption(
             '--secure <true|false>',
-            'connection to Qlik Sense engine is via https',
+            'Connection to Qlik Sense engine is via https',
             true
         )
         .requiredOption(
             '--apiuserdir <directory>',
-            'user directory for user to connect with when using Sense APIs'
+            'User directory for user to connect with when using Sense APIs'
         )
         .requiredOption(
             '--apiuserid <userid>',
-            'user ID for user to connect with when using Sense APIs'
-        )
-        .option(
-            '--qliksensetag <value>',
-            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
-            ''
+            'User ID for user to connect with when using Sense APIs'
         );
 
     // ------------------
@@ -337,7 +337,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel, --log-level <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -353,34 +353,33 @@ const program = new Command();
             .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
             .requiredOption(
                 '--skip-login',
-                'skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense',
+                'Skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense',
                 false
             )
-
             .requiredOption(
                 '--logonuserid <userid>',
-                'user ID for user to connect with when logging into web UI'
+                'User ID for user to connect with when logging into web UI'
             )
             .requiredOption('--logonpwd <password>', 'password for user to connect with')
             .requiredOption(
                 '--headless <true|false>',
-                'headless (=not visible) browser (true, false)',
+                'Headless (=not visible) browser (true, false)',
                 true
             )
             .requiredOption(
                 '--pagewait <seconds>',
-                'number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly',
+                'Number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly',
                 5
             )
             .requiredOption(
                 '--imagedir <directory>',
-                'directory in which thumbnail images will be stored. Relative or absolute path',
+                'Directory in which thumbnail images will be stored. Relative or absolute path',
                 './img'
             )
             .addOption(
                 new Option(
                     '--includesheetpart <value>',
-                    'which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen',
+                    'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen',
                 )
                     .choices(['1', '2', '4'])
                     .default('1')
@@ -464,7 +463,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel, --log-level <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -502,7 +501,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel, --log-level <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -556,7 +555,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel, --log-level <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             );
@@ -585,7 +584,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel, --log-level <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -623,7 +622,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel, --log-level <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             );
@@ -675,7 +674,7 @@ const program = new Command();
                 }
             })
             .addOption(
-                new Option('--loglevel, --log-level <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
@@ -720,7 +719,7 @@ const program = new Command();
             })
 
             .addOption(
-                new Option('--loglevel, --log-level <level>', 'log level')
+                new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
