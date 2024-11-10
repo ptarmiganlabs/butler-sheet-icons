@@ -135,66 +135,50 @@ const qscloudListCollections = async (options) => {
     }
 };
 
-const qscloudVerifyCollectionExists = (options) =>
-    new Promise((resolve, reject) => {
-        try {
-            logger.debug('Checking if QS Cloud collection already exists');
+const qscloudVerifyCollectionExists = async (options) => {
+    try {
+        logger.debug('Checking if QS Cloud collection already exists');
 
-            const cloudConfig = {
-                url: options.tenanturl,
-                token: options.apikey,
-                // version: X, // optional. default is: 1
-            };
+        const cloudConfig = {
+            url: options.tenanturl,
+            token: options.apikey,
+            // version: X, // optional. default is: 1
+        };
 
-            const saasInstance = new QlikSaas(cloudConfig);
+        const saasInstance = new QlikSaas(cloudConfig);
 
-            // Get all available collections
-            saasInstance
-                .Get('collections')
-                .then((allCollections) => {
-                    logger.debug(
-                        `COLLECTION EXISTS: Collections:\n${JSON.stringify(
-                            allCollections,
-                            null,
-                            2
-                        )}`
-                    );
+        // Get all available collections
+        const allCollections = await saasInstance.Get('collections');
+        logger.debug(
+            `COLLECTION EXISTS: Collections:\n${JSON.stringify(
+                allCollections,
+                null,
+                2
+            )}`
+        );
 
-                    // Get index of specified collection among the existin ones.
-                    const index = allCollections.map((e) => e.id).indexOf(options.collectionid);
+        // Get index of specified collection among the existing ones.
+        const index = allCollections.map((e) => e.id).indexOf(options.collectionid);
 
-                    if (index === -1) {
-                        // Content library mpt found
-                        resolve(false);
-                    } else {
-                        // Collection found
-                        resolve(true);
-                    }
-                })
-                .catch((err) => {
-                    // Return error msg
-                    if (err.stack) {
-                        logger.error(`CLOUD COLLECTION EXISTS 1 (stack): ${err.stack}`);
-                    } else if (err.message) {
-                        logger.error(`CLOUD COLLECTION EXISTS 1 (message): ${err.message}`);
-                    } else {
-                        logger.error(`CLOUD COLLECTION EXISTS 1: ${err}`);
-                    }
-
-                    reject(new Error(`COLLECTION EXISTS 1: ${err}`));
-                });
-        } catch (err) {
-            if (err.stack) {
-                logger.error(`CLOUD COLLECTION EXISTS 2 (stack): ${err.stack}`);
-            } else if (err.message) {
-                logger.error(`CLOUD COLLECTION EXISTS 2 (stack): ${err.message}`);
-            } else {
-                logger.error(`CLOUD COLLECTION EXISTS 2: ${JSON.stringify(err, null, 2)}`);
-            }
-
-            reject(new Error(`COLLECTION EXISTS: ${err}`));
+        if (index === -1) {
+            // Collection not found
+            return false;
+        } else {
+            // Collection found
+            return true;
         }
-    });
+    } catch (err) {
+        if (err.stack) {
+            logger.error(`CLOUD COLLECTION EXISTS 1 (stack): ${err.stack}`);
+        } else if (err.message) {
+            logger.error(`CLOUD COLLECTION EXISTS 1 (message): ${err.message}`);
+        } else {
+            logger.error(`CLOUD COLLECTION EXISTS 1: ${err}`);
+        }
+
+        throw new Error(`COLLECTION EXISTS 1: ${err}`);
+    }
+};
 
 module.exports = {
     qscloudListCollections,
