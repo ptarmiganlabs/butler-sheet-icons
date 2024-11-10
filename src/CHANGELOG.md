@@ -1,6 +1,18 @@
 # Changelog
 
 
+## [3.7.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.6.4...butler-sheet-icons-v3.7.0) (2024-11-10)
+
+
+### Features
+
+* Add possibility to blur sheet thumbnails ([c6bd4f4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c6bd4f480aaaa49c915976a6e98f0c2783370fa3)), closes [#227](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/227)
+
+
+### Miscellaneous
+
+* **deps:** Update dependencies ([e261aa5](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e261aa55a7448e4e3f30beb26927f539bff24d89))
+
 ## [3.6.4](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.6.4...butler-sheet-icons-v3.6.4) (2024-11-06)
 
 
