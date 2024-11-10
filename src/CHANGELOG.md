@@ -1,6 +1,14 @@
 # Changelog
 
 
+## [3.7.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.7.0...butler-sheet-icons-v3.7.1) (2024-11-10)
+
+
+### Bug Fixes
+
+* Make all command option descriptions start with upper case ([12ce4d2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/12ce4d27dc9563b9f4e7b4b25bd9dcad166ff112)), closes [#607](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/607)
+* Make order in which command options appear more consistent across all commands. ([189b81f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/189b81f096c97fe7077e4798cd7c9d82cb31809d))
+
 ## [3.7.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.6.4...butler-sheet-icons-v3.7.0) (2024-11-10)
 
 
