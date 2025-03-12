@@ -114,7 +114,11 @@ const browserInstall = async (options, _command) => {
         if (err.message.includes('Download failed: server returned code 404.')) {
             logger.error(`Browser version "${options.browserVersion}" not found`);
         } else {
-            logger.error(`Error installing browser: ${err}`);
+            logger.error(`Error installing browser: ${err.message}`);
+
+            if (err.stack) {
+                logger.error(err.stack);
+            }
         }
 
         throw err;

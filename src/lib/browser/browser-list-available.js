@@ -5,6 +5,26 @@ const axios = require('axios');
 
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
 
+/**
+ * Maps Puppeteer's platform values to the Chrome version history API platform values
+ * @param {string} puppeteerPlatform - Platform value from detectBrowserPlatform()
+ * @returns {string} - Platform value for Chrome version history API
+ */
+function mapPlatformToChrome(puppeteerPlatform) {
+    // Chrome API expects: win, mac, linux
+    if (puppeteerPlatform.startsWith('win')) {
+        return 'win';
+    }
+    if (puppeteerPlatform.startsWith('mac')) {
+        return 'mac';
+    }
+    if (puppeteerPlatform.startsWith('linux')) {
+        return 'linux';
+    }
+    // Default to original value if we can't map it
+    return puppeteerPlatform;
+}
+
 // Function to list all available browser versions
 // Returns an array of available browsers
 async function browserListAvailable(options) {
@@ -46,6 +66,10 @@ async function browserListAvailable(options) {
         const platform = await detectBrowserPlatform();
         logger.debug(`Detected browser platform: ${platform}`);
 
+        // Map platform to Chrome API compatible value
+        const chromePlatform = mapPlatformToChrome(platform);
+        logger.debug(`Mapped Chrome API platform: ${chromePlatform}`);
+
         // Get versions for the selected browser
         let browsersAvailable = [];
         if (options.browser === 'chrome') {
@@ -76,13 +100,13 @@ async function browserListAvailable(options) {
             // }
 
             logger.debug(
-                `Get Chrome versions from: https://versionhistory.googleapis.com/v1/chrome/platforms/${platform}/channels/${options.channel}/versions`
+                `Get Chrome versions from: https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${options.channel}/versions`
             );
 
             const axiosConfig = {
                 method: 'get',
                 responseType: 'json',
-                url: `https://versionhistory.googleapis.com/v1/chrome/platforms/${platform}/channels/${options.channel}/versions`,
+                url: `https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${options.channel}/versions`,
             };
 
             const response = await axios(axiosConfig);
@@ -213,14 +237,20 @@ async function getMostRecentUsableChromeBuildId(channel) {
             `Get most recent usable Chrome build ID: Detected browser platform: ${platform}`
         );
 
+        // Map platform to Chrome API compatible value
+        const chromePlatform = mapPlatformToChrome(platform);
         logger.debug(
-            `Get Chrome versions from: https://versionhistory.googleapis.com/v1/chrome/platforms/${platform}/channels/${channel}/versions`
+            `Get most recent usable Chrome build ID: Mapped Chrome API platform: ${chromePlatform}`
+        );
+
+        logger.debug(
+            `Get Chrome versions from: https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${channel}/versions`
         );
 
         const axiosConfig = {
             method: 'get',
             responseType: 'json',
-            url: `https://versionhistory.googleapis.com/v1/chrome/platforms/${platform}/channels/${channel}/versions`,
+            url: `https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${channel}/versions`,
         };
 
         const response = await axios(axiosConfig);
@@ -248,7 +278,12 @@ async function getMostRecentUsableChromeBuildId(channel) {
         logger.info('No Chrome versions available');
         return false;
     } catch (err) {
-        logger.error(`Error getting most recent usable Chrome build ID: ${err}`);
+        logger.error(`Error getting most recent usable Chrome build ID: ${err.message}`);
+
+        if (err.stack) {
+            logger.error(err.stack);
+        }
+
         throw err;
     }
 }
