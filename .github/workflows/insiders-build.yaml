@@ -15,8 +15,14 @@ jobs:
           - os: win-code-sign
             build: |
               cd src
+
+              # Create a single JS file using esbuild
               ./node_modules/.bin/esbuild "${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23
+
+              # Generate blob to be injected into the binary
               node --experimental-sea-config sea-config.json
+
+              # Get a copy of the Node executable
               node -e "require('fs').copyFileSync(process.execPath, '${env:DIST_FILE_NAME}.exe')" 
 
               pwd
@@ -81,15 +87,28 @@ jobs:
           - os: mac-build1
             build: |
               cd src
+
+              # Create a single JS file using esbuild
               ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23
+
+              # Generate blob to be injected into the binary
               node --experimental-sea-config sea-config.json
+
+              # Get a copy of the Node executable
               cp $(command -v node) ${DIST_FILE_NAME}
+
+              # Remove the signature from the Node executable
+              codesign --remove-signature ${DIST_FILE_NAME}
+
+              # Inject the blob
               npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
 
               security delete-keychain build.keychain || true
 
               pwd
               ls -la
+
+              # Start signing of the binary
 
               # -------------------
               # Turn our base64-encoded certificate back to a regular .p12 file              
@@ -105,7 +124,7 @@ jobs:
               security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
               security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
               security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          
+
               codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ../release-config/${DIST_FILE_NAME}.entitlements
 
 
@@ -177,10 +196,6 @@ jobs:
         with:
           node-version: 23
 
-      - name: Install tool for creating stand-alone executables
-        run: |
-          npm install pkg --location=global
-
       - name: Install dependencies
         run: |
           pwd 
@@ -197,7 +212,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           args: --file=./src/package.json --sarif-file-output=snyk.sarif
-          
+
       - name: Upload Snyk result to GitHub Code Scanning
         continue-on-error: true
         if: |
@@ -209,7 +224,7 @@ jobs:
 
       - name: Create binaries
         env:
-          DIST_FILE_NAME: butler-sheet-icons     
+          DIST_FILE_NAME: butler-sheet-icons
           GITHUB_TOKEN: ${{ secrets.PAT }}
           MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}

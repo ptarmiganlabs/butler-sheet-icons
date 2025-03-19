@@ -7,7 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const { homedir } = require('os');
 const { computeExecutablePath } = require('@puppeteer/browsers');
-const sharp = require('sharp');
+const { Jimp } = require('jimp');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg, sleep } = require('../../globals.js');
@@ -501,25 +501,38 @@ const processCloudApp = async (appId, saasInstance, options) => {
 
                     // Create blurred image from the already taken screenshot
                     // Load the image from disk, blur it, then save it back to disk with new name
-                    const imageBuffer = fs.readFileSync(fileName);
+                    try {
+                        let blurFactor;
 
-                    let blurFactor;
-                    if (options?.blurFactor < 0.3) {
-                        blurFactor = 0.3;
-                    } else if (options?.blurFactor > 1000) {
-                        blurFactor = 1000;
-                    } else {
-                        // Convert to float
-                        blurFactor = parseFloat(options?.blurFactor);
+                        // Blur factor should be between 1 and 100
+                        if (options?.blurFactor < 1) {
+                            blurFactor = 1; // Min blur value
+                        } else if (options?.blurFactor > 100) {
+                            blurFactor = 100; // Max blur value
+                        } else {
+                            // Parse blur factor from options into an integer
+                            blurFactor = parseInt(options?.blurFactor, 10);
+                        }
+
+                        // Use Jimp instead of Sharp
+                        const image = await Jimp.read(fileName);
+                        await image.blur(blurFactor).write(fileNameBlurred);
+
+                        createdFiles.push({
+                            sheetPos: iSheetNum,
+                            blurred: true,
+                            fileNameShort: fileNameShortBlurred,
+                        });
+                        logger.verbose(`Created blurred image: ${fileNameBlurred}`);
+                    } catch (err) {
+                        logger.error(`Failed to create blurred image: ${err}`);
+                        if (err.message) {
+                            logger.error(`CREATE BLURRED IMAGE (message): ${err.message}`);
+                        }
+                        if (err.stack) {
+                            logger.error(`CREATE BLURRED IMAGE (stack): ${err.stack}`);
+                        }
                     }
-
-                    const result = await sharp(imageBuffer)
-                        .blur(blurFactor)
-                        .toFile(fileNameBlurred);
-
-                    createdFiles.push({ sheetPos: iSheetNum, blurred: true, fileNameShort: fileNameShortBlurred });
-
-                    logger.verbose(`Created blurred image: ${fileNameBlurred}`);                    
                 }
                 iSheetNum += 1;
             }

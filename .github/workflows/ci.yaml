@@ -27,7 +27,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 23
 
       - name: Install dependencies
         run: |
@@ -115,7 +115,6 @@ jobs:
           BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
           BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
-
       # - name: Send job status to MQTT (starting job)
       #   uses: potaesm/github-actions-mqtt-request@1.0.0
       #   if: always()
@@ -129,7 +128,7 @@ jobs:
       #     connectTimeout: 30000
 
   test-winsrv:
-    needs: 
+    needs:
       - test-macos
     runs-on:
       - self-hosted
@@ -224,7 +223,7 @@ jobs:
           BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
           BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
           BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}          
+          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       - name: Run QSEoW tests
         run: |
@@ -264,9 +263,8 @@ jobs:
       #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
       #     connectTimeout: 30000
 
-
   release-please:
-    needs: 
+    needs:
       - test-winsrv
     runs-on: ubuntu-latest
     outputs:
@@ -336,7 +334,7 @@ jobs:
       MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
       PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
       PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
-      PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}    
+      PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
     steps:
       - name: Release tag and upload url from previous job
         run: |
@@ -351,10 +349,6 @@ jobs:
         with:
           node-version: 23
 
-      - name: Install tool for creating stand-alone executables
-        run: |
-          npm install pkg --location=global
-
       - name: Install dependencies
         run: |
           pwd 
@@ -364,11 +358,23 @@ jobs:
       - name: Build binaries
         run: |
           cd src
+
+          # Create a single JS file using esbuild
           ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23
+
+          # Generate blob to be injected into the binary
           node --experimental-sea-config sea-config.json
+
+          # Get a copy of the Node executable
           cp $(command -v node) ${DIST_FILE_NAME}
+
+          # Remove the signature from the Node executable
+          codesign --remove-signature ${DIST_FILE_NAME}
+
+          # Inject the blob
           npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
 
+          # Start signing of the binary    
           security delete-keychain build.keychain || true
 
           # -------------------
@@ -385,7 +391,7 @@ jobs:
           security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
           security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-      
+
           codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ../release-config/${DIST_FILE_NAME}.entitlements
 
           # -------------------
@@ -462,10 +468,6 @@ jobs:
         with:
           node-version: 23
 
-      - name: Install tool for creating stand-alone executables
-        run: |
-          npm install pkg --location=global
-
       - name: Install dependencies
         run: |
           pwd 
@@ -475,8 +477,14 @@ jobs:
       - name: Build binaries
         run: |
           cd src
+
+          # Create a single JS file using esbuild
           ./node_modules/.bin/esbuild "${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23
+
+          # Generate blob to be injected into the binary
           node --experimental-sea-config sea-config.json
+
+          # Get a copy of the Node executable
           node -e "require('fs').copyFileSync(process.execPath, '${env:DIST_FILE_NAME}.exe')" 
 
           # -------------------
@@ -573,10 +581,6 @@ jobs:
         with:
           node-version: 23
 
-      - name: Install tool for creating stand-alone executables
-        run: |
-          npm install pkg --location=global
-
       - name: Install dependencies
         run: |
           pwd 
@@ -586,8 +590,14 @@ jobs:
       - name: Build binaries
         run: |
           cd src
+
+          # Create a single JS file using esbuild
           ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23
+
+          # Generate blob to be injected into the binary
           node --experimental-sea-config sea-config.json
+
+          # Get a copy of the Node executable
           cp $(command -v node) ${DIST_FILE_NAME}
           npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 

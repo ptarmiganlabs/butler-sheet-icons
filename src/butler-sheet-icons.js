@@ -379,7 +379,7 @@ const program = new Command();
             .addOption(
                 new Option(
                     '--includesheetpart <value>',
-                    'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen',
+                    'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen'
                 )
                     .choices(['1', '2', '4'])
                     .default('1')
@@ -424,8 +424,8 @@ const program = new Command();
             )
             .option(
                 '--blur-factor <factor>',
-                'Factor to blur the sheets with. 0 = no blur, 1000 = full blur.',
-                '10'
+                'Factor to blur the sheets with. 0 = no blur, 100 = full blur.',
+                '5'
             )
             .addOption(
                 new Option(
