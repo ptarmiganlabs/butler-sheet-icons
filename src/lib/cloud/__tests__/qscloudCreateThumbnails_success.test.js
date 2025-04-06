@@ -1,7 +1,9 @@
 /* eslint-disable no-console */
 const { test, expect, describe } = require('@jest/globals');
 
-const { qscloudCreateThumbnails } = require('../lib/cloud/cloud-create-thumbnails');
+const { qscloudCreateThumbnails } = require('../cloud-create-thumbnails');
+const { browserInstalled } = require('../../browser/browser-installed.js');
+const { browserUninstallAll } = require('../../browser/browser-uninstall.js');
 
 const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1200000; // 20 minute default timeout
 
@@ -36,7 +38,16 @@ const options = {
 test(
     'qs cloud create sheet thumbnails, correct parameters (should succeed)',
     async () => {
+        // Remove all installed browsers
+        const uninstallRes1 = await browserUninstallAll(options);
+        expect(uninstallRes1).toEqual(true);
+
+        // There should now be zero installed browsers
+        const installedBrowsers1 = await browserInstalled(options);
+        expect(installedBrowsers1.length).toEqual(0);
+
         const data = await qscloudCreateThumbnails(options);
+
         expect(data).toBe(true);
     },
     defaultTestTimeout
