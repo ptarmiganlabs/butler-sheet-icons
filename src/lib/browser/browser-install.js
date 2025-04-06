@@ -18,6 +18,9 @@ const { getMostRecentUsableChromeBuildId } = require('./browser-list-available')
  * @param {string} options.browser - Browser to install
  * @param {string} options.browserVersion - Browser version to install
  * @returns {boolean} - True if browser installed successfully
+ *
+ * @returns {Promise<Object>} - Browser info if installed successfully
+ *
  * @throws {Error} - If browser not installed successfully
  * @throws {Error} - If browser version not found
  * @throws {Error} - If error installing browser
@@ -29,6 +32,10 @@ const { getMostRecentUsableChromeBuildId } = require('./browser-list-available')
 // eslint-disable-next-line no-unused-vars
 const browserInstall = async (options, _command) => {
     try {
+        if (!options.browser || !options.browserVersion) {
+            throw new Error('Missing required options: "browser" and "browserVersion"');
+        }
+
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
             // eslint-disable-next-line no-param-reassign
@@ -66,6 +73,17 @@ const browserInstall = async (options, _command) => {
             }
         } else if (options.browser === 'firefox') {
             buildId = await resolveBuildId(options.browser, platform, options.browserVersion);
+        }
+
+        // Check if build id is valid
+        if (!buildId) {
+            logger.error(
+                `Invalid build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}"`
+            );
+
+            throw new Error(
+                `Invalid build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}"`
+            );
         }
 
         logger.info(
