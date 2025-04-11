@@ -121,7 +121,7 @@ const qseowCreateThumbnails = async (options) => {
                 logger.info(`--------------------------------------------------`);
                 logger.info(`About to process app ${appId}`);
 
-                await qseowProcessApp(appId, global, options);
+                await qseowProcessApp(appId, options);
 
                 logger.verbose(`Done processing app ${appId}`);
             } catch (err) {

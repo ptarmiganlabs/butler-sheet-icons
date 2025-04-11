@@ -15,6 +15,7 @@ const { qseowUploadToContentLibrary } = require('./qseow-upload.js');
 const { qseowUpdateSheetThumbnails } = require('./qseow-updatesheets.js');
 const { setupQseowQrsConnection } = require('./qseow-qrs.js');
 const { browserInstall } = require('../browser/browser-install.js');
+const { determineSheetExcludeStatus } = require('./determine-sheet-exclude-status.js');
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -384,7 +385,7 @@ const qseowProcessApp = async (appId, options) => {
                 return 0;
             });
 
-            // Loop over all sheets in app
+            // Loop over all sheets in app, processing each one unless excluded
             // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
                 // Get repository db sheet id from mapRepoEngineSheetIdTmp1, using sheet.qInfo.qId as key
@@ -398,108 +399,16 @@ const qseowProcessApp = async (appId, options) => {
                 // --exclude-sheet-title <title...>
                 // --exclude-sheet-status <status...>
 
-                let excludeSheet = false;
-
-                // Should this sheet be excluded based on its published status?
-                // Deal with public sheets first
-                if (
-                    sheet.qMeta.approved === true &&
-                    sheet.qMeta.published === true &&
-                    options.excludeSheetStatus &&
-                    options.excludeSheetStatus.includes('public')
-                ) {
-                    excludeSheet = true;
-                    logger.verbose(
-                        `Excluded sheet (status public): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
-                    );
-                }
-
-                // Next check published sheets
-                if (
-                    sheet.qMeta.approved === false &&
-                    sheet.qMeta.published === true &&
-                    options.excludeSheetStatus &&
-                    options.excludeSheetStatus.includes('published')
-                ) {
-                    excludeSheet = true;
-                    logger.verbose(
-                        `Excluded sheet (status published): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
-                    );
-                }
-
-                // Next check private sheets
-                if (
-                    sheet.qMeta.approved === false &&
-                    sheet.qMeta.published === false &&
-                    options.excludeSheetStatus &&
-                    options.excludeSheetStatus.includes('private')
-                ) {
-                    excludeSheet = true;
-                    logger.verbose(
-                        `Excluded sheet (status private): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved ${sheet.qMeta.approved}, published ${sheet.qMeta.published}`
-                    );
-                }
-
-                // Is this sheet hidden?
-                // Never process hidden sheets
-                // Evaluate showCondition
-                const showConditionCall = {
-                    qExpression: sheet?.qData?.showCondition,
-                };
-
-                const showConditionEval = await app.evaluateEx(showConditionCall);
-                const sheetIsHidden =
-                    // eslint-disable-next-line no-unneeded-ternary
-                    sheet.qData.showCondition &&
-                    (sheet.qData.showCondition.toLowerCase() === 'false' ||
-                        (showConditionEval?.qIsNumeric === true &&
-                            showConditionEval?.qNumber === 0))
-                        ? true
-                        : false;
-
-                if (sheetIsHidden === true && excludeSheet === false) {
-                    excludeSheet = true;
-                    logger.verbose(
-                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                    );
-                }
-
-                // Is this sheet on the exclude list via tags?
-                // options.excludeSheetTag is an array of strings
-                // tagSheetAppMetadata is an array of sheet objects, with the id property being the sheet id
-                if (options.excludeSheetTag && excludeSheet === false) {
-                    // Does the sheet id match any of the ids in tagSheetAppMetadata array?
-                    // Set excludeSheet to true/false based on the result
-                    excludeSheet = tagSheetAppMetadata.some(
-                        (element) => element.engineObjectId === sheet.qInfo.qId
-                    );
-                    logger.verbose(
-                        `Excluded sheet (via tags): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                    );
-                }
-
-                // Is this sheet on the exclude list via sheet number?
-                if (options.excludeSheetNumber && excludeSheet === false) {
-                    // Does the sheet number match any of the numbers in options.excludeSheetNumber array?
-                    // Take into account that iSheetNum is an integer, so we need to convert it to a string
-                    if (options.excludeSheetNumber.includes(iSheetNum.toString())) {
-                        excludeSheet = true;
-                        logger.verbose(
-                            `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                        );
-                    }
-                }
-
-                // Is this sheet on the exclude list via sheet title?
-                if (options.excludeSheetTitle && excludeSheet === false) {
-                    // Does the sheet title match any of the titles options.excludeSheetTitle array?
-                    if (options.excludeSheetTitle.includes(sheet.qMeta.title)) {
-                        excludeSheet = true;
-                        logger.verbose(
-                            `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                        );
-                    }
-                }
+                let { excludeSheet, sheetIsHidden } = await determineSheetExcludeStatus(
+                    app,
+                    sheet,
+                    options,
+                    tagSheetAppMetadata,
+                    iSheetNum,
+                    repoDbSheetId,
+                    engineSheetId,
+                    logger
+                );
 
                 if (excludeSheet === true) {
                     logger.info(
