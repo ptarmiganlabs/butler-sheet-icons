@@ -57,6 +57,11 @@ const xpathHubUserPageButton2024Feb =
 const xpathLogoutButton2024Feb =
     'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
+const xpathHubUserPageButton2024Nov =
+    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
+const xpathLogoutButton2024Nov =
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
+
 /**
  *
  * @param {*} appId
@@ -93,6 +98,9 @@ const processQSEoWApp = async (appId, g, options) => {
     } else if (options.senseVersion === '2024-May') {
         xpathHubUserPageButton = xpathHubUserPageButton2024Feb;
         xpathLogoutButton = xpathLogoutButton2024Feb;
+    } else if (options.senseVersion === '2024-Nov') {
+        xpathHubUserPageButton = xpathHubUserPageButton2024Nov;
+        xpathLogoutButton = xpathLogoutButton2024Nov;
     } else {
         logger.error(
             `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
