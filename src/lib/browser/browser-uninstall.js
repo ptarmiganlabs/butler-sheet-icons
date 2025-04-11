@@ -5,7 +5,18 @@ const fs = require('fs-extra');
 
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
 
-// Function to delete a specific browser
+/**
+ * Uninstall a browser from the Butler Sheet Icons cache.
+ * @param {object} options - An options object.
+ * @param {string} options.browser - The browser to uninstall.
+ * @param {string} options.browserVersion - The version of the browser to uninstall.
+ * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
+ *
+ * @returns {Promise<boolean>} - A promise that resolves to true if the browser was uninstalled successfully, false otherwise.
+ *
+ * @throws {Error} - If the browser was not found.
+ * @throws {Error} - If there was an error uninstalling the browser.
+ */
 const browserUninstall = async (options) => {
     try {
         // Set log level
@@ -62,7 +73,16 @@ const browserUninstall = async (options) => {
     }
 };
 
-// Function to delete all browsers
+/**
+ * Uninstall all browsers from the Butler Sheet Icons cache.
+ *
+ * @param {object} options - An options object.
+ * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
+ *
+ * @returns {Promise<boolean>} - A promise that resolves to true when all browsers are uninstalled.
+ *
+ * @throws {Error} - If there is an error during the uninstallation process.
+ */
 const browserUninstallAll = async (options) => {
     try {
         // Set log level

@@ -6,10 +6,24 @@ const { logger, setLoggingLevel } = require('../../globals.js');
 const QlikSaas = require('./cloud-repo');
 
 /**
+ * Uploads image files to a Qlik Sense Cloud app.
  *
- * @param {*} filesToUpload
- * @param {*} appId
- * @param {*} options
+ * @param {array} filesToUpload - Array of objects describing the files to be
+ *     uploaded, each file represented as an object with properties `fileNameShort`
+ *     (short name of the file, without path), and `fileNameFull` (full name of the
+ *     file, including path).
+ * @param {string} appId - The ID of the Qlik Sense Cloud app to which the files
+ *     will be uploaded.
+ * @param {object} options - Object containing options for the upload. Must
+ *     contain the following properties:
+ *     - `loglevel` (string): Log level for the upload operation. One of 'error',
+ *         'warn', 'info', 'verbose', 'debug', 'silly'. Default is 'info'.
+ *     - `tenanturl` (string): URL of the Qlik Sense Cloud tenant.
+ *     - `apikey` (string): API key for authentication.
+ *     - `imagedir` (string): Directory path for storing image thumbnails.
+ *
+ * @returns {Promise<void>} A promise that resolves when the files have been
+ *     successfully uploaded to the Qlik Sense Cloud app.
  */
 const qscloudUploadToApp = async (filesToUpload, appId, options) => {
     try {

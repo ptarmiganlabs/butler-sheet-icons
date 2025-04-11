@@ -7,10 +7,19 @@ const QlikSaas = require('./cloud-repo');
 const { qscloudTestConnection } = require('./cloud-test-connection');
 
 /**
+ * Lists all available collections in the Qlik Sense Cloud tenant.
  *
- * @param {*} options
- * @returns
+ * @param {Object} options - Configuration options for listing collections.
+ * @param {string} options.tenanturl - URL or host of Qlik Sense cloud tenant.
+ * @param {string} options.apikey - API key used to access the Sense APIs.
+ * @param {string} options.outputformat - Output format, either 'table' or 'json'.
+ * @param {string} [options.loglevel] - Optional log level.
+ *
+ * @returns {Promise<boolean>} - Resolves to true if collections are successfully listed, false otherwise.
+ *
+ * @throws {Error} - Throws an error if there is an issue during the listing process.
  */
+
 const qscloudListCollections = async (options) => {
     try {
         // Set log level
@@ -135,6 +144,18 @@ const qscloudListCollections = async (options) => {
     }
 };
 
+/**
+ * Checks if a specified QS Cloud collection already exists.
+ *
+ * @param {object} options - Configuration options for the verification.
+ * @param {string} options.tenanturl - URL of the QS Cloud tenant.
+ * @param {string} options.apikey - API key for the QS Cloud tenant.
+ * @param {string} options.collectionid - ID of the collection to check for existence.
+ *
+ * @returns {Promise<boolean>} - Resolves to true if the collection exists, false otherwise.
+ *
+ * @throws {Error} - Throws an error if there is an issue during the verification process.
+ */
 const qscloudVerifyCollectionExists = async (options) => {
     try {
         logger.debug('Checking if QS Cloud collection already exists');
@@ -149,13 +170,7 @@ const qscloudVerifyCollectionExists = async (options) => {
 
         // Get all available collections
         const allCollections = await saasInstance.Get('collections');
-        logger.debug(
-            `COLLECTION EXISTS: Collections:\n${JSON.stringify(
-                allCollections,
-                null,
-                2
-            )}`
-        );
+        logger.debug(`COLLECTION EXISTS: Collections:\n${JSON.stringify(allCollections, null, 2)}`);
 
         // Get index of specified collection among the existing ones.
         const index = allCollections.map((e) => e.id).indexOf(options.collectionid);

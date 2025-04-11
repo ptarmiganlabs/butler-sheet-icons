@@ -8,10 +8,16 @@ const QlikSaas = require('./cloud-repo');
 const { qscloudTestConnection } = require('./cloud-test-connection');
 
 /**
+ * Removes all sheet icons from a Qlik Sense Cloud app.
  *
- * @param {*} appId
- * @param {*} saasInstance
- * @param {*} options
+ * @param {string} appId - The ID of the Qlik Sense Cloud app to process.
+ * @param {Object} saasInstance - Instance of the QlikSaas class.
+ * @param {Object} options - Configuration options for processing the app.
+ * @param {string} options.tenanturl - Host address of the Qlik Sense Cloud tenant.
+ * @param {string} options.apikey - API key for the Qlik Sense Cloud tenant.
+ * @param {string} options.loglevel - The level of logging to output. Valid values are 'error', 'warn', 'info', 'verbose', 'debug', 'silly'.
+ *
+ * @returns {Promise<void>}
  */
 const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
     try {
@@ -147,9 +153,16 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
 };
 
 /**
+ * Removes all sheet icons from one or more Qlik Sense Cloud applications.
  *
- * @param {*} options
- * @returns
+ * @param {Object} options - Configuration options for the command.
+ * @param {string} options.tenanturl - URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"
+ * @param {string} options.apikey - API key used to access the Sense APIs
+ * @param {string} options.appid - The ID of the Qlik Sense Cloud application to process.
+ * @param {string} options.collectionid - The ID of the collection containing apps to process.
+ * @param {string} options.loglevel - The level of logging to output. Valid values are 'error', 'warn', 'info', 'verbose', 'debug', 'silly'.
+ *
+ * @returns {Promise<boolean>} - true if thumbnails were removed successfully, false otherwise.
  */
 const qscloudRemoveSheetIcons = async (options) => {
     try {

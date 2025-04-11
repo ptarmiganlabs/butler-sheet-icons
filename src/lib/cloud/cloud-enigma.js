@@ -5,13 +5,17 @@ const WebSocket = require('ws');
 const { logger } = require('../../globals');
 
 /**
+ * Sets up an Enigma connection to a Qlik Sense SaaS tenant.
  *
- * @param {*} appId
- * @param {*} options
- * @param {*} command
- * @returns
+ * @param {string} appId - The ID of the Qlik Sense app to connect to.
+ * @param {Object} options - Options for the Enigma connection.
+ * @param {string} options.schemaversion - The version of the Enigma schema to use.
+ * @param {string} options.tenanturl - The URL of the Qlik Sense SaaS tenant.
+ * @param {string} options.apikey - The API key to use for authentication.
+ * @param {Object} command - Command options, used for logging.
+ *
+ * @returns {Object} An object with properties `schema` and `url` to be used when creating an Enigma session.
  */
-// eslint-disable-next-line no-unused-vars
 const setupEnigmaConnection = (appId, options, command) => {
     logger.debug(`Prepping for cloud Enigma connection for app ${appId}`);
 

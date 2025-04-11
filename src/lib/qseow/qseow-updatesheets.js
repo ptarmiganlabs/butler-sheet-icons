@@ -5,10 +5,15 @@ const { setupEnigmaConnection } = require('./qseow-enigma');
 const { logger } = require('../../globals');
 
 /**
+ * Updates sheet thumbnails in a Qlik Sense Enterprise on Windows (QSEoW) app.
  *
- * @param {*} createdFiles
- * @param {*} appId
- * @param {*} options
+ * @param {Array<Object>} createdFiles - Array of objects describing the files
+ * that were created during the previous step in the process.
+ * @param {string} appId - The ID of the QSEoW app to process.
+ * @param {Object} options - Configuration options for processing the app.
+ *
+ * @returns {Promise<void>} A promise that resolves when the sheet thumbnails have
+ * been updated in the QSEoW app.
  */
 const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
     try {
@@ -124,7 +129,7 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
                             `Blurred sheet thumbnail (via tags): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
                         );
                     }
-                    
+
                     // Should this sheet be blurred based on its position/sheet number?
                     if (options.blurSheetNumber && blurSheet === false) {
                         // Does the sheet number match any of the numbers in options.blurSheetNumber array?
@@ -135,7 +140,7 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
                                 `Blurred sheet thumbnail (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
                             );
                         }
-                    }    
+                    }
 
                     // Should this sheet be blurred based on its title?
                     if (options.blurSheetTitle && blurSheet === false) {
@@ -147,28 +152,32 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
                             );
                         }
                     }
-    
+
                     // Get properties of current sheet
                     const sheetObj = await app.getObject(sheet.qInfo.qId);
                     const sheetProperties = await sheetObj.getProperties();
 
                     if (blurSheet === true) {
-                        logger.info(`Using blurred thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`);
+                        logger.info(
+                            `Using blurred thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                        );
 
                         // Set new sheet thumbnail
                         sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}-blurred.png`;
                     } else {
-                        logger.info(`Using regular thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`);
-                                                
+                        logger.info(
+                            `Using regular thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                        );
+
                         // Set new sheet thumbnail
                         sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}.png`;
                     }
-  
+
                     // Set & save new sheet thumbnail
                     const res = await sheetObj.setProperties(sheetProperties);
                     logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
                     await app.doSave();
-            }
+                }
 
                 iSheetNum += 1;
             }

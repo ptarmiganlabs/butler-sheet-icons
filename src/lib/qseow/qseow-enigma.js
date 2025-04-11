@@ -7,20 +7,31 @@ const upath = require('upath');
 const { logger, bsiExecutablePath } = require('../../globals');
 
 /**
- * Helper function to read the contents of the certificate files:
+ *
  * @param {*} filename
  * @returns
  */
 const readCert = (filename) => fs.readFileSync(filename);
 
 /**
+ * Sets up an Enigma connection to a Qlik Sense Enterprise on Windows (QSEoW) server.
  *
- * @param {*} appId
- * @param {*} options
- * @param {*} command
- * @returns
+ * @param {string} appId - The ID of the Qlik Sense app to connect to.
+ * @param {Object} options - Options for the Enigma connection.
+ * @param {string} options.host - Host name or IP address of the Qlik Sense server.
+ * @param {string} [options.port=4747] - Port number to connect to on the Qlik Sense server.
+ * @param {string} options.prefix - URL prefix for accessing the Qlik Sense engine.
+ * @param {boolean|string} [options.secure=false] - Whether to use a secure connection (HTTPS).
+ * @param {string} options.apiuserdir - User directory for login.
+ * @param {string} options.apiuserid - User ID for login.
+ * @param {string} options.certfile - Path to the certificate file to use for authentication.
+ * @param {string} options.certkeyfile - Path to the certificate key file to use for authentication.
+ * @param {boolean|string} [options.rejectUnauthorized=false] - Whether to reject unauthorized certificates.
+ * @param {string} options.schemaversion - The version of the Enigma schema to use.
+ * @param {Object} command - Command options, used for logging.
+ *
+ * @returns {Object} An object with properties `schema` and `url` to be used when creating an Enigma session.
  */
-// eslint-disable-next-line no-unused-vars
 const setupEnigmaConnection = (appId, options, command) => {
     logger.debug(`Prepping for QSEoW Enigma connection for app ${appId}`);
 

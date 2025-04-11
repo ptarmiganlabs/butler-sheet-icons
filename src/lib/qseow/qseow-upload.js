@@ -7,10 +7,25 @@ const { logger, setLoggingLevel } = require('../../globals.js');
 const { setupQseowQrsConnection } = require('./qseow-qrs.js');
 
 /**
+ * Upload files to a Qlik Sense Enterprise on Windows (QSEoW) content library.
  *
- * @param {*} filesToUpload
- * @param {*} appId
- * @param {*} options
+ * @param {array} filesToUpload - Array of files to be uploaded, each file
+ *     represented as an object with properties `fileNameShort` (short name of
+ *     the file, without path), and `fileNameFull` (full name of the file,
+ *     including path).
+ * @param {string} appId - ID of the app to which the files will be uploaded.
+ * @param {object} options - Object containing options for the upload. Must
+ *     contain the following properties:
+ *     - `loglevel` (string): Log level for the upload operation. One of 'error',
+ *         'warn', 'info', 'verbose', 'debug', 'silly'. Default is 'info'.
+ *     - `contentlibrary` (string): Name of the content library where the files
+ *         will be uploaded.
+ *     - `imagedir` (string): Directory where the files to be uploaded are
+ *         located. Must contain a subdirectory named `qseow` with a subdirectory
+ *         named after the app ID, which contains the files to be uploaded.
+ *
+ * @returns {Promise<boolean>} - true if the files were uploaded successfully,
+ *     false otherwise.
  */
 const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
     try {

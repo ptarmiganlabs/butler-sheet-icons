@@ -23,10 +23,13 @@ const selectorLoginPageUserPwd = '[id="\u0031-password"]';
 const selectorLoginPageLoginButton = '[id="\u0031-submit"]';
 
 /**
+ * Process a single Qlik Sense Cloud app.
  *
- * @param {*} appId
- * @param {*} saasInstance
- * @param {*} options
+ * @param {string} appId      App ID of the app to process.
+ * @param {QlikSaas} saasInstance QlikSaas object.
+ * @param {Object}  options    Options object.
+ *
+ * @returns {Promise<void>}
  */
 const processCloudApp = async (appId, saasInstance, options) => {
     // Create image directory on disk for this app
@@ -584,9 +587,27 @@ const processCloudApp = async (appId, saasInstance, options) => {
 };
 
 /**
+ * Create thumbnails for Qlik Sense Cloud (QSC)
+ * @param {object} options - Object containing options for creating thumbnails
+ * @param {string} options.tenanturl - URL of Qlik Sense Cloud tenant
+ * @param {string} options.apikey - API key for Qlik Sense Cloud tenant
+ * @param {string} options.loglevel - log level for the operation
+ * @param {string} options.logonuserid - user ID for Qlik Sense Cloud tenant
+ * @param {string} options.logonpwd - password for Qlik Sense Cloud tenant
+ * @param {string} options.collectionid - ID of collection in Qlik Sense Cloud tenant
+ * @param {string} options.appid - ID of app in Qlik Sense Cloud tenant
+ * @param {string} options.imagedir - directory where images will be stored
+ * @param {string} options.includesheetpart - optional parameter to include sheet parts in the thumbnails. Values: 1, 2, 4
+ * @param {string} options.schemaversion - version of the QS schema
+ * @param {string} options.appid - ID of app in Qlik Sense Cloud tenant
+ * @param {string} options.browser - name of browser to use for rendering thumbnails
+ * @param {string} options.browserVersion - version of browser to use for rendering thumbnails
+ * @param {string} options.blurSheetStatus - which sheet statuses should be blurred
+ * @param {string} options.blurSheetTag - which sheet tags should be blurred
+ * @param {string} options.blurSheetNumber - number of sheets to blur
+ * @param {string} options.blurFactor - blur factor
  *
- * @param {*} options
- * @returns
+ * @returns {Promise<boolean>} - true if thumbnails were created successfully, false otherwise
  */
 const qscloudCreateThumbnails = async (options) => {
     try {

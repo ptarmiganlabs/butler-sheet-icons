@@ -31,6 +31,13 @@ axios.interceptors.response.use(
         })
 );
 
+/**
+ * Takes a Buffer and returns a Readable Stream
+ *
+ * @param {Buffer} buffer The buffer to stream
+ *
+ * @returns {Readable} A Readable Stream
+ */
 function bufferToStream(buffer) {
     const stream = new Readable();
     stream.push(buffer);
@@ -39,6 +46,14 @@ function bufferToStream(buffer) {
     return stream;
 }
 
+/**
+ * Makes a request to the Qlik Cloud Repository API.
+ *
+ * @param {object} config Axios config object
+ * @param {array} [data=[]] Accumulated data from previous paginated requests
+ *
+ * @returns {Promise<object|array>} The response data
+ */
 async function makeRequest(config, data = []) {
     let returnData = [...data];
 
@@ -82,6 +97,19 @@ async function makeRequest(config, data = []) {
     return returnData;
 }
 
+/**
+ * Makes a request to the Qlik Cloud Repository API.
+ *
+ * @param {object} mainConfig Configuration object for Qlik Cloud
+ * @param {string} path Path to make the request to
+ * @param {string} type HTTP method to use
+ * @param {object|Buffer} data Data to send with the request
+ * @param {string} [contentType=application/json] Content-Type of the request
+ * @param {Buffer} [file] File to send with the request
+ * @param {string} [fileName] Name of the file
+ *
+ * @returns {Promise<object|array>} The response data
+ */
 module.exports = async (
     mainConfig,
     path,

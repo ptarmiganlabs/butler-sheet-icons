@@ -6,9 +6,12 @@ const axios = require('axios');
 const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
 
 /**
- * Maps Puppeteer's platform values to the Chrome version history API platform values
- * @param {string} puppeteerPlatform - Platform value from detectBrowserPlatform()
- * @returns {string} - Platform value for Chrome version history API
+ * Maps Puppeteer's platform values to corresponding Chrome version history API platform values.
+ * Converts 'win' to 'win', 'mac' to 'mac', and 'linux' to 'linux'.
+ * If the platform cannot be mapped, it returns the original Puppeteer platform value.
+ *
+ * @param {string} puppeteerPlatform - Platform value from detectBrowserPlatform().
+ * @returns {string} - Platform value suitable for the Chrome version history API.
  */
 function mapPlatformToChrome(puppeteerPlatform) {
     // Chrome API expects: win, mac, linux
@@ -25,8 +28,20 @@ function mapPlatformToChrome(puppeteerPlatform) {
     return puppeteerPlatform;
 }
 
-// Function to list all available browser versions
-// Returns an array of available browsers
+/**
+ * List all available browser versions.
+ *
+ * @param {object} options - An options object.
+ * @param {string} options.browser - Browser to list available versions for. Can be one of "chrome" or "firefox".
+ * @param {string} options.channel - Which of the browser's release channel versions should be listed?
+ * This option is only used for Chrome. Can be one of "stable", "beta", "dev", or "canary".
+ * @param {string} options.loglevel - The log level. Can be one of "error", "warn", "info", "verbose", "debug", or "silly".
+ *
+ * @returns {Promise<Array<Object>>} - A promise that resolves to an array of available browsers.
+ * Each browser is represented by an object with the following properties:
+ * - version {string}: The browser version, e.g. "115.0.5790.90".
+ * - name {string}: The browser name, e.g. "chrome/platforms/win/channels/stable/versions/115.0.5790.90".
+ */
 async function browserListAvailable(options) {
     try {
         // Set log level
@@ -212,8 +227,14 @@ async function browserListAvailable(options) {
         throw err;
     }
 }
-// Function to find most recent version of Chrome that Puppeteer can download and use
-// Returns the version number
+
+/**
+ * Finds the most recent version of Chrome that Puppeteer can download and use.
+ *
+ * @param {string} channel - The Chrome release channel.
+ * Valid values are "stable", "beta", "dev", "canary".
+ * @returns {Promise<string>} - A promise that resolves to the most recent usable Chrome build ID.
+ */
 async function getMostRecentUsableChromeBuildId(channel) {
     try {
         logger.verbose(`Get most recent usable Chrome build ID: Channel "${channel}"`);

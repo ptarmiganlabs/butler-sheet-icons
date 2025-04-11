@@ -29,7 +29,6 @@ const { getMostRecentUsableChromeBuildId } = require('./browser-list-available')
  * @throws {Error} - If error getting browser cache path
  * @throws {Error} - If error getting browser executable path
  */
-// eslint-disable-next-line no-unused-vars
 const browserInstall = async (options, _command) => {
     try {
         if (!options.browser || !options.browserVersion) {

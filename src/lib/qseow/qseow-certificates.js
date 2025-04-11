@@ -4,10 +4,13 @@ const { promises: Fs } = require('fs');
 const { logger, bsiExecutablePath } = require('../../globals');
 
 /**
+ * Checks if the specified file path exists and is accessible.
  *
- * @param {*} path
- * @returns
+ * @param {string} pathToCheck - The file path to check for existence.
+ *
+ * @returns {Promise<boolean>} - A promise that resolves to `true` if the file exists and is accessible, `false` otherwise.
  */
+
 async function exists(pathToCheck) {
     try {
         await Fs.access(pathToCheck);
@@ -18,9 +21,13 @@ async function exists(pathToCheck) {
 }
 
 /**
+ * Verifies that the specified certificate and key files exist.
  *
- * @param {*} options
- * @returns
+ * @param {object} options - Options object with the following properties:
+ *   - `certfile`: The path to the certificate file.
+ *   - `certkeyfile`: The path to the certificate key file.
+ *
+ * @returns {Promise<boolean>} - A promise that resolves to `true` if both the certificate and key files exist and are accessible, `false` otherwise.
  */
 const qseowVerifyCertificatesExist = async (options) => {
     try {
