@@ -3,15 +3,21 @@
 const enigma = require('enigma.js');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
+const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals.js');
 const QlikSaas = require('./cloud-repo');
 const { qscloudTestConnection } = require('./cloud-test-connection');
 
 /**
+ * Removes all sheet icons from a Qlik Sense Cloud app.
  *
- * @param {*} appId
- * @param {*} saasInstance
- * @param {*} options
+ * @param {string} appId - The ID of the Qlik Sense Cloud app to process.
+ * @param {Object} saasInstance - Instance of the QlikSaas class.
+ * @param {Object} options - Configuration options for processing the app.
+ * @param {string} options.tenanturl - Host address of the Qlik Sense Cloud tenant.
+ * @param {string} options.apikey - API key for the Qlik Sense Cloud tenant.
+ * @param {string} options.loglevel - The level of logging to output. Valid values are 'error', 'warn', 'info', 'verbose', 'debug', 'silly'.
+ *
+ * @returns {Promise<void>}
  */
 const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
     try {
@@ -147,9 +153,16 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
 };
 
 /**
+ * Removes all sheet icons from one or more Qlik Sense Cloud applications.
  *
- * @param {*} options
- * @returns
+ * @param {Object} options - Configuration options for the command.
+ * @param {string} options.tenanturl - URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"
+ * @param {string} options.apikey - API key used to access the Sense APIs
+ * @param {string} options.appid - The ID of the Qlik Sense Cloud application to process.
+ * @param {string} options.collectionid - The ID of the collection containing apps to process.
+ * @param {string} options.loglevel - The level of logging to output. Valid values are 'error', 'warn', 'info', 'verbose', 'debug', 'silly'.
+ *
+ * @returns {Promise<boolean>} - true if thumbnails were removed successfully, false otherwise.
  */
 const qscloudRemoveSheetIcons = async (options) => {
     try {
@@ -161,7 +174,7 @@ const qscloudRemoveSheetIcons = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting removal of sheet icons for Qlik Sense Cloud');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 

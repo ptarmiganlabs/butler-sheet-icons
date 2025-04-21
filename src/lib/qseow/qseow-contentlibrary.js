@@ -4,9 +4,16 @@ const { logger } = require('../../globals');
 const { setupQseowQrsConnection } = require('./qseow-qrs');
 
 /**
+ * Verifies if a specified content library exists in Qlik Sense Enterprise on Windows (QSEoW).
  *
- * @param {*} options
+ * @param {object} options - Configuration options for the verification.
+ * @param {string} options.contentlibrary - Name of the content library to check for existence.
+ *
+ * @returns {Promise<boolean>} - Resolves to true if the content library exists, false otherwise.
+ *
+ * @throws {Error} - Throws an error if there is an issue during the verification process.
  */
+
 const qseowVerifyContentLibraryExists = async (options) => {
     try {
         logger.debug('Checking if QSEoW content library already exists');

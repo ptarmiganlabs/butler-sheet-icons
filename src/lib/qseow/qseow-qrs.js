@@ -2,9 +2,10 @@ const upath = require('upath');
 const { logger, bsiExecutablePath } = require('../../globals');
 
 /**
+ * Set up connection to QSEoW QRS
+ * @param {object} options - QSEoW options
  *
- * @param {*} options
- * @returns
+ * @returns {object} QRS connection object
  */
 const setupQseowQrsConnection = (options) => {
     logger.debug('Setting up connection to QSEoW QRS...');

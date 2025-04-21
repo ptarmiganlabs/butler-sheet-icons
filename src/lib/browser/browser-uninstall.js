@@ -3,9 +3,20 @@ const path = require('path');
 const { homedir } = require('os');
 const fs = require('fs-extra');
 
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
+const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
 
-// Function to delete a specific browser
+/**
+ * Uninstall a browser from the Butler Sheet Icons cache.
+ * @param {object} options - An options object.
+ * @param {string} options.browser - The browser to uninstall.
+ * @param {string} options.browserVersion - The version of the browser to uninstall.
+ * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
+ *
+ * @returns {Promise<boolean>} - A promise that resolves to true if the browser was uninstalled successfully, false otherwise.
+ *
+ * @throws {Error} - If the browser was not found.
+ * @throws {Error} - If there was an error uninstalling the browser.
+ */
 const browserUninstall = async (options) => {
     try {
         // Set log level
@@ -16,7 +27,7 @@ const browserUninstall = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting browser uninstallation');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
@@ -62,7 +73,16 @@ const browserUninstall = async (options) => {
     }
 };
 
-// Function to delete all browsers
+/**
+ * Uninstall all browsers from the Butler Sheet Icons cache.
+ *
+ * @param {object} options - An options object.
+ * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
+ *
+ * @returns {Promise<boolean>} - A promise that resolves to true when all browsers are uninstalled.
+ *
+ * @throws {Error} - If there is an error during the uninstallation process.
+ */
 const browserUninstallAll = async (options) => {
     try {
         // Set log level
@@ -73,7 +93,7 @@ const browserUninstallAll = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting uninstallation of all browsers');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 

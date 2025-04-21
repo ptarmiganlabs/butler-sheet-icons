@@ -8,7 +8,7 @@ const path = require('path');
 const { homedir } = require('os');
 const cliProgress = require('cli-progress');
 
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
+const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
 const { getMostRecentUsableChromeBuildId } = require('./browser-list-available');
 
 /**
@@ -18,6 +18,9 @@ const { getMostRecentUsableChromeBuildId } = require('./browser-list-available')
  * @param {string} options.browser - Browser to install
  * @param {string} options.browserVersion - Browser version to install
  * @returns {boolean} - True if browser installed successfully
+ *
+ * @returns {Promise<Object>} - Browser info if installed successfully
+ *
  * @throws {Error} - If browser not installed successfully
  * @throws {Error} - If browser version not found
  * @throws {Error} - If error installing browser
@@ -26,9 +29,12 @@ const { getMostRecentUsableChromeBuildId } = require('./browser-list-available')
  * @throws {Error} - If error getting browser cache path
  * @throws {Error} - If error getting browser executable path
  */
-// eslint-disable-next-line no-unused-vars
 const browserInstall = async (options, _command) => {
     try {
+        if (!options.browser || !options.browserVersion) {
+            throw new Error('Missing required options: "browser" and "browserVersion"');
+        }
+
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
             // eslint-disable-next-line no-param-reassign
@@ -37,7 +43,7 @@ const browserInstall = async (options, _command) => {
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting browser install');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
@@ -66,6 +72,17 @@ const browserInstall = async (options, _command) => {
             }
         } else if (options.browser === 'firefox') {
             buildId = await resolveBuildId(options.browser, platform, options.browserVersion);
+        }
+
+        // Check if build id is valid
+        if (!buildId) {
+            logger.error(
+                `Invalid build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}"`
+            );
+
+            throw new Error(
+                `Invalid build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}"`
+            );
         }
 
         logger.info(

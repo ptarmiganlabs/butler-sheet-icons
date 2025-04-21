@@ -1,18 +1,21 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable import/extensions */
 const enigma = require('enigma.js');
 const qrsInteract = require('qrs-interact');
 
 const { setupEnigmaConnection } = require('./qseow-enigma.js');
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
+const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals.js');
 const { qseowVerifyCertificatesExist } = require('./qseow-certificates.js');
 const { setupQseowQrsConnection } = require('./qseow-qrs.js');
 
 /**
+ * Removes all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) application.
  *
- * @param {*} appId
- * @param {*} g
- * @param {*} options
+ * @param {string} appId - The ID of the QSEoW application to process.
+ * @param {Object} g - The global object to use with the Enigma.js library.
+ * @param {Object} options - Configuration options for processing the application.
+ * @param {string} options.host - Host address of the Qlik server.
+ * @param {string} options.engineport - Engine port of the Qlik server.
+ * @param {string} options.qrsport - Qlik Sense Repository Service (QRS) port of the Qlik server.
+ * @param {string} options.senseVersion - The version of Qlik Sense being used.
  */
 const removeSheetIconsQSEoWApp = async (appId, g, options) => {
     try {
@@ -119,9 +122,18 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
 };
 
 /**
+ * Removes all sheet icons from one or more Qlik Sense Enterprise on Windows (QSEoW) applications.
  *
- * @param {*} options
- * @returns
+ * @param {Object} options - Configuration options for the command.
+ * @param {string} options.host - Host address of the Qlik server.
+ * @param {string} options.engineport - Engine port of the Qlik server.
+ * @param {string} options.qrsport - Qlik Sense Repository Service (QRS) port of the Qlik server.
+ * @param {string} options.senseVersion - The version of Qlik Sense being used.
+ * @param {string} options.appid - The ID of the Qlik Sense Enterprise on Windows (QSEoW) application to process.
+ * @param {string} options.qliksensetag - The tag for which apps will be processed. If specified, all apps with this tag will be processed.
+ * @param {string} options.loglevel - The level of logging to output. Valid values are 'error', 'warn', 'info', 'verbose', 'debug', 'silly'.
+ *
+ * @returns {Promise<boolean>} - true if thumbnails were created successfully, false otherwise.
  */
 const qseowRemoveSheetIcons = async (options) => {
     try {
@@ -133,7 +145,7 @@ const qseowRemoveSheetIcons = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 

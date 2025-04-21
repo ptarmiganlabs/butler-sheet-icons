@@ -2,9 +2,19 @@
 const { logger } = require('../../globals.js');
 
 /**
+ * Tests connection to Qlik Sense Cloud by getting info about the user associated with the API key.
  *
- * @param {*} saasInstance
- * @returns
+ * @param {object} options - Configuration options for the connection test.
+ * @param {string} options.tenanturl - URL of Qlik Sense Cloud tenant.
+ * @param {string} options.apikey - API key for Qlik Sense Cloud tenant.
+ * @param {string} options.logonuserid - user ID for Qlik Sense Cloud tenant.
+ * @param {string} options.logonpwd - password for Qlik Sense Cloud tenant.
+ * @param {string} options.loglevel - log level for the operation.
+ * @param {QlikSaas} saasInstance - Instance of QlikSaas class.
+ *
+ * @returns {Promise<boolean>} - Resolves to true if connection is successful, false otherwise.
+ *
+ * @throws {Error} - Throws an error if there is an issue during the connection test.
  */
 const qscloudTestConnection = async (options, saasInstance) => {
     // Test connection to QS Cloud by getting info about the user associated with the API key
