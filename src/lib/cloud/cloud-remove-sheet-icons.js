@@ -3,7 +3,7 @@
 const enigma = require('enigma.js');
 
 const { setupEnigmaConnection } = require('./cloud-enigma.js');
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals.js');
+const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals.js');
 const QlikSaas = require('./cloud-repo');
 const { qscloudTestConnection } = require('./cloud-test-connection');
 
@@ -174,7 +174,7 @@ const qscloudRemoveSheetIcons = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting removal of sheet icons for Qlik Sense Cloud');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 

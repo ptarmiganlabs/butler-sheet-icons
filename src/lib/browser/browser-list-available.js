@@ -3,7 +3,7 @@ const path = require('path');
 const { homedir } = require('os');
 const axios = require('axios');
 
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
+const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
 
 /**
  * Maps Puppeteer's platform values to corresponding Chrome version history API platform values.
@@ -52,7 +52,7 @@ async function browserListAvailable(options) {
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting check for available browser versions');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 

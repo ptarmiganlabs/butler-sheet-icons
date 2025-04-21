@@ -1,8 +1,35 @@
 const winston = require('winston');
 const upath = require('upath');
+const sea = require('node:sea');
+const { readFileSync } = require('node:fs');
 
 // Get app version from package.json file
-const appVersion = require('./package.json').version;
+const filenamePackage = `./src/package.json`;
+let a;
+let b;
+let c;
+let appVersion;
+
+// Are we running as a packaged app?
+if (sea.isSea()) {
+    // Get contents of package.json file
+    packageJson = sea.getAsset('package.json', 'utf8');
+    const version = JSON.parse(packageJson).version;
+
+    appVersion = version;
+} else {
+    // Get path to JS file
+    a = __filename;
+
+    // Strip off the filename
+    b = upath.dirname(a);
+
+    // Add path to package.json file
+    c = upath.join(b, '..', filenamePackage);
+
+    const { version } = JSON.parse(readFileSync(c));
+    appVersion = version;
+}
 
 // Set up logger with timestamps and colors, and optional logging to disk file
 const logTransports = [];
@@ -31,7 +58,7 @@ const logger = winston.createLogger({
 });
 
 // Suppported Chromium version: https://pptr.dev/chromium-support
-// Correlate with Correlate with https://chromium.woolyss.com to get revision number to get revision number
+// Correlate with https://chromium.woolyss.com to get revision number
 // const chromiumRevision = '1056772';
 // const chromiumRevisionLinux = '1056772';
 const chromiumRevisionLinux = '1109227';
@@ -67,18 +94,20 @@ const getChromiumRevision = () => {
 const getLoggingLevel = () => logTransports.find((transport) => transport.name === 'console').level;
 
 /**
- *
+ * Set the console logging level
  * @param {*} newLevel
  */
 const setLoggingLevel = (newLevel) => {
     logTransports.find((transport) => transport.name === 'console').level = newLevel;
 };
 
-const isPkg = typeof process.pkg !== 'undefined';
-const bsiExecutablePath = isPkg ? upath.dirname(process.execPath) : __dirname;
+/**
+ * Booleann to indicate if we are running as a standalone app or not
+ */
+const isSea = sea.isSea();
+const bsiExecutablePath = isSea ? upath.dirname(process.execPath) : process.cwd();
 
 function sleep(ms) {
-    // eslint-disable-next-line no-promise-executor-return
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -87,7 +116,7 @@ module.exports = {
     appVersion,
     getLoggingLevel,
     setLoggingLevel,
-    isPkg,
+    isSea,
     bsiExecutablePath,
     getChromiumRevision,
     sleep,

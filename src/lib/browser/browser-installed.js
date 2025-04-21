@@ -2,7 +2,7 @@ const { getInstalledBrowsers } = require('@puppeteer/browsers');
 const path = require('path');
 const { homedir } = require('os');
 
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
+const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
 
 /**
  * List all installed browsers.
@@ -27,7 +27,7 @@ async function browserInstalled(options) {
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting check for installed browser');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 

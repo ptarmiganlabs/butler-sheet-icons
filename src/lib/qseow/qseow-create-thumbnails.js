@@ -1,13 +1,10 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable import/extensions */
 const qrsInteract = require('qrs-interact');
 
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg, sleep } = require('../../globals.js');
-const { qseowVerifyContentLibraryExists } = require('./qseow-contentlibrary.js');
-const { qseowVerifyCertificatesExist } = require('./qseow-certificates.js');
-const { setupQseowQrsConnection } = require('./qseow-qrs.js');
-
-const { qseowProcessApp } = require('./qseow-process-app.js');
+const { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } = require('../../globals');
+const { qseowVerifyContentLibraryExists } = require('./qseow-contentlibrary');
+const { qseowVerifyCertificatesExist } = require('./qseow-certificates');
+const { setupQseowQrsConnection } = require('./qseow-qrs');
+const { qseowProcessApp } = require('./qseow-process-app');
 
 /**
  * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW)
@@ -37,7 +34,7 @@ const qseowCreateThumbnails = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 

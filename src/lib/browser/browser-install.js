@@ -8,7 +8,7 @@ const path = require('path');
 const { homedir } = require('os');
 const cliProgress = require('cli-progress');
 
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
+const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
 const { getMostRecentUsableChromeBuildId } = require('./browser-list-available');
 
 /**
@@ -43,7 +43,7 @@ const browserInstall = async (options, _command) => {
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting browser install');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 

@@ -53,15 +53,5 @@
     "homepage": "https://github.com/ptarmiganlabs/butler-sheet-icons",
     "bugs": {
         "url": "https://github.com/ptarmiganlabs/butler-sheet-icons/issues"
-    },
-    "pkg": {
-        "assets": [
-            "node_modules/vm2/**/*",
-            "node_modules/axios/**/*",
-            "node_modules/sharp/**/*"
-        ],
-        "scripts": [
-            "node_modules/enigma.js/**/*.json"
-        ]
     }
 }

@@ -10,8 +10,8 @@ const QlikSaas = require('./cloud-repo');
  *
  * @param {array} filesToUpload - Array of objects describing the files to be
  *     uploaded, each file represented as an object with properties `fileNameShort`
- *     (short name of the file, without path), and `fileNameFull` (full name of the
- *     file, including path).
+ *     (short name of the file, without path), `fileNameFull` (full name of the
+ *     file, including path), and `fileNameShortBlurred` (short name of the blurred file).
  * @param {string} appId - The ID of the Qlik Sense Cloud app to which the files
  *     will be uploaded.
  * @param {object} options - Object containing options for the upload. Must
@@ -70,7 +70,7 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
                 path.extname(file.fileNameShort) === '.png'
             ) {
                 const apiUrl = `apps/${appId}/media/files/thumbnails/${file.fileNameShort}`;
-                logger.debug(`Thumbnail imague upload URL: ${apiUrl}`);
+                logger.debug(`Thumbnail image upload URL: ${apiUrl}`);
 
                 try {
                     const fileData = fs.readFileSync(fileFullPath);
@@ -83,6 +83,22 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
 
                     logger.debug(`QS Cloud image upload result=${JSON.stringify(result)}`);
                     logger.verbose(`Image upload done.`);
+
+                    if (file.fileNameShortBlurred) {
+                        const blurredFileFullPath = path.join(iconFolderAbsolute, file.fileNameShortBlurred);
+                        const blurredApiUrl = `apps/${appId}/media/files/thumbnails/${file.fileNameShortBlurred}`;
+                        logger.debug(`Blurred thumbnail upload URL: ${blurredApiUrl}`);
+
+                        const blurredFileData = fs.readFileSync(blurredFileFullPath);
+                        const blurredResult = await saasInstance.Put({
+                            path: blurredApiUrl,
+                            data: blurredFileData,
+                            contentType: 'application/octet-stream',
+                        });
+
+                        logger.debug(`QS Cloud blurred image upload result=${JSON.stringify(blurredResult)}`);
+                        logger.verbose(`Blurred image upload done.`);
+                    }
                 } catch (err) {
                     logger.error(`CLOUD UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
                     if (err.message) {

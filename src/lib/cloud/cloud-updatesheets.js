@@ -8,7 +8,9 @@ const { logger } = require('../../globals');
  * Updates sheet thumbnails in a Qlik Sense Cloud app.
  *
  * @param {Array<Object>} createdFiles - Array of objects describing the files
- * that were created during the thumbnail creation step.
+ * that were created during the thumbnail creation step. Each object includes
+ * properties `fileNameShort` (short name of the file), and `fileNameShortBlurred`
+ * (short name of the blurred file).
  * @param {string} appId - The ID of the Qlik Sense Cloud app to process.
  * @param {Object} options - Configuration options for updating the app.
  * @param {string} options.tenanturl - URL of the Qlik Sense Cloud tenant.
@@ -79,12 +81,10 @@ const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
             let iSheetNum = 1;
             // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                // Is this sheet among those that should be updated?
-                // eslint-disable-next-line no-loop-func
-                if (createdFiles.find((element) => element.sheetPos === iSheetNum) === undefined) {
-                    // No thumbnail for this sheet, skip
+                const createdFile = createdFiles.find((element) => element.sheetPos === iSheetNum);
+                if (!createdFile) {
                     logger.info(
-                        `Skipping update of sheet sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                        `Skipping update of sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
                     );
                 } else {
                     // Should blurred sheet thumbnail be used?
@@ -165,24 +165,18 @@ const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
                     const sheetObj = await app.getObject(sheet.qInfo.qId);
                     const sheetProperties = await sheetObj.getProperties();
 
-                    if (blurSheet === true) {
+                    if (blurSheet === true && createdFile.fileNameShortBlurred) {
                         logger.info(
                             `Using blurred thumbnail for sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
                         );
 
-                        // Blur sheet thumbnail
-                        // qUrl has format:
-                        // /api/v1/apps/<app ID>/media/files/thumbnails/thumbnail-<sheet #>-blurred.png"
-                        sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/api/v1/apps/${appId}/media/files/thumbnails/thumbnail-${iSheetNum}-blurred.png`;
+                        sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/api/v1/apps/${appId}/media/files/thumbnails/${createdFile.fileNameShortBlurred}`;
                     } else {
                         logger.info(
                             `Using regular thumbnail for sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
                         );
 
-                        // Blur sheet thumbnail
-                        // qUrl has format:
-                        // /api/v1/apps/<app ID>/media/files/thumbnails/thumbnail-<sheet #>.png"
-                        sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/api/v1/apps/${appId}/media/files/thumbnails/thumbnail-${iSheetNum}.png`;
+                        sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/api/v1/apps/${appId}/media/files/thumbnails/${createdFile.fileNameShort}`;
                     }
 
                     // Set & save new sheet thumbnail

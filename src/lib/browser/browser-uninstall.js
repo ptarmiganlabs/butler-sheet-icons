@@ -3,7 +3,7 @@ const path = require('path');
 const { homedir } = require('os');
 const fs = require('fs-extra');
 
-const { logger, setLoggingLevel, bsiExecutablePath, isPkg } = require('../../globals');
+const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
 
 /**
  * Uninstall a browser from the Butler Sheet Icons cache.
@@ -27,7 +27,7 @@ const browserUninstall = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting browser uninstallation');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 
@@ -93,7 +93,7 @@ const browserUninstallAll = async (options) => {
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting uninstallation of all browsers');
-        logger.verbose(`Running as standalone app: ${isPkg}`);
+        logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
 

@@ -1,8 +1,8 @@
 /* eslint-disable global-require */
-/* eslint-disable import/no-dynamic-require */
 const SenseUtilities = require('enigma.js/sense-utilities');
 const WebSocket = require('ws');
 const { logger } = require('../../globals');
+const { getEnigmaSchema } = require('../util/enigma-util');
 
 /**
  * Sets up an Enigma connection to a Qlik Sense SaaS tenant.
@@ -19,7 +19,9 @@ const { logger } = require('../../globals');
 const setupEnigmaConnection = (appId, options, command) => {
     logger.debug(`Prepping for cloud Enigma connection for app ${appId}`);
 
-    const qixSchema = require(`enigma.js/schemas/${options.schemaversion}`);
+    // Set up enigma.js configuration
+    logger.debug(`Enigma.js schema version: ${options.schemaversion}`);
+    const qixSchema = getEnigmaSchema(options);
 
     return {
         schema: qixSchema,

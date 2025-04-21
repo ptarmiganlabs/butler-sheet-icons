@@ -79,17 +79,24 @@ const program = new Command();
             '--port <port>',
             'Qlik Sense http/https port. 443 is default for https, 80 for http'
         )
-        .requiredOption('--schemaversion <string>', 'Qlik Sense engine schema version', '12.612.0')
-        .requiredOption('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.', '')
+        .addOption(
+            new Option('--schemaversion <version>', 'Qlik Sense engine schema version')
+                .choices([
+                    '12.170.2',
+                    '12.612.0',
+                    '12.936.0',
+                    '12.1306.0',
+                    '12.1477.0',
+                    '12.1657.0',
+                    '12.1823.0',
+                    '12.2015.0',
+                ])
+                .default('12.612.0')
+        )
         .requiredOption(
             '--certfile <file>',
             'Qlik Sense certificate file (exported from QMC)',
             './cert/client.pem'
-        )
-        .option(
-            '--qliksensetag <value>',
-            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
-            ''
         )
         .requiredOption(
             '--certkeyfile <file>',
@@ -101,7 +108,6 @@ const program = new Command();
             'Ignore warnings when Sense certificate does not match the --host paramater',
             false
         )
-        .requiredOption('--prefix <prefix>', 'Qlik Sense virtual proxy prefix', '')
         .requiredOption(
             '--secure <true|false>',
             'Connection to Qlik Sense engine is via https',
@@ -124,6 +130,13 @@ const program = new Command();
             'User ID for user to connect with when logging into web UI'
         )
         .requiredOption('--logonpwd <password>', 'password for user to connect with')
+        .requiredOption('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.', '')
+        .option(
+            '--qliksensetag <value>',
+            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
+            ''
+        )
+        .requiredOption('--prefix <prefix>', 'Qlik Sense virtual proxy prefix', '')
         .requiredOption(
             '--headless <true|false>',
             'Headless (=not visible) browser (true, false)',
@@ -260,7 +273,20 @@ const program = new Command();
             '--port <port>',
             'Qlik Sense http/https port. 443 is default for https, 80 for http'
         )
-        .requiredOption('--schemaversion <string>', 'Qlik Sense engine schema version', '12.612.0')
+        .addOption(
+            new Option('--schemaversion <version>', 'Qlik Sense engine schema version')
+                .choices([
+                    '12.170.2',
+                    '12.612.0',
+                    '12.936.0',
+                    '12.1306.0',
+                    '12.1477.0',
+                    '12.1657.0',
+                    '12.1823.0',
+                    '12.2015.0',
+                ])
+                .default('12.612.0')
+        )
         .requiredOption('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.', '')
         .option(
             '--qliksensetag <value>',
@@ -342,10 +368,19 @@ const program = new Command();
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
-            .requiredOption(
-                '--schemaversion <string>',
-                'Qlik Sense engine schema version',
-                '12.612.0'
+            .addOption(
+                new Option('--schemaversion <version>', 'Qlik Sense engine schema version')
+                    .choices([
+                        '12.170.2',
+                        '12.612.0',
+                        '12.936.0',
+                        '12.1306.0',
+                        '12.1477.0',
+                        '12.1657.0',
+                        '12.1823.0',
+                        '12.2015.0',
+                    ])
+                    .default('12.612.0')
             )
             .requiredOption(
                 '--tenanturl <url>',
@@ -506,10 +541,19 @@ const program = new Command();
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
             )
-            .requiredOption(
-                '--schemaversion <string>',
-                'Qlik Sense engine schema version',
-                '12.612.0'
+            .addOption(
+                new Option('--schemaversion <version>', 'Qlik Sense engine schema version')
+                    .choices([
+                        '12.170.2',
+                        '12.612.0',
+                        '12.936.0',
+                        '12.1306.0',
+                        '12.1477.0',
+                        '12.1657.0',
+                        '12.1823.0',
+                        '12.2015.0',
+                    ])
+                    .default('12.612.0')
             )
             .requiredOption(
                 '--tenanturl <url>',
