@@ -19,8 +19,8 @@
         "screenshot"
     ],
     "dependencies": {
-        "@puppeteer/browsers": "^2.10.0",
-        "axios": "^1.8.4",
+        "@puppeteer/browsers": "^2.10.2",
+        "axios": "^1.9.0",
         "cli-progress": "^3.12.0",
         "commander": "^13.1.0",
         "enigma.js": "^2.14.0",
@@ -28,7 +28,7 @@
         "fs-extra": "^11.3.0",
         "jimp": "^1.6.0",
         "os": "^0.1.2",
-        "puppeteer-core": "^24.6.1",
+        "puppeteer-core": "^24.7.2",
         "qrs-interact": "^6.3.1",
         "table": "^6.9.0",
         "upath": "^2.0.1",
@@ -38,7 +38,7 @@
     "devDependencies": {
         "@eslint/js": "^9.25.1",
         "@jest/globals": "^29.7.0",
-        "esbuild": "^0.25.2",
+        "esbuild": "^0.25.3",
         "eslint": "^9.25.1",
         "eslint-config-prettier": "^10.1.2",
         "eslint-plugin-prettier": "^5.2.6",
