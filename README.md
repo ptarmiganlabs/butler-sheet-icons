@@ -29,7 +29,7 @@ Works on both Qlik Sense Cloud apps and Qlik Sense Enterprise on Windows (QSEoW)
 Butler Sheet Icons ("BSI") can create sheet thumbnail icons for a single app or many - in both Qlik Sense Cloud and client-managed Qlik Sense Enterprise on Windows (QSEoW).  
 It can also remove sheet icons from Sense apps if needed.
 
-Multi-app support is easy: Use the QMC (for QSEoW) to tag the apps that should be updated, or add the apps to a collection (Qlik Sense Cloud).  
+Handling multiple apps is straightforward: Use the QMC (for QSEoW) to tag the apps that should be updated, or add the apps to a collection (Qlik Sense Cloud).  
 Then run Butler Sheet Icons and all apps will get new sheet icons automatically!
 
 ---
