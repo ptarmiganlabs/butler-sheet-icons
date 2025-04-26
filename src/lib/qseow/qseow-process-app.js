@@ -1,21 +1,21 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable import/extensions */
-const enigma = require('enigma.js');
-const puppeteer = require('puppeteer-core');
-const fs = require('fs');
-const qrsInteract = require('qrs-interact');
-const path = require('path');
-const { homedir } = require('os');
-const { computeExecutablePath } = require('@puppeteer/browsers');
-const { Jimp } = require('jimp');
+import enigma from 'enigma.js';
+import puppeteer from 'puppeteer-core';
+import fs from 'fs';
+import qrsInteract from 'qrs-interact';
+import path from 'path';
+import { homedir } from 'os';
+import { computeExecutablePath } from '@puppeteer/browsers';
+import { Jimp } from 'jimp';
 
-const { setupEnigmaConnection } = require('./qseow-enigma.js');
-const { logger, sleep } = require('../../globals.js');
-const { qseowUploadToContentLibrary } = require('./qseow-upload.js');
-const { qseowUpdateSheetThumbnails } = require('./qseow-updatesheets.js');
-const { setupQseowQrsConnection } = require('./qseow-qrs.js');
-const { browserInstall } = require('../browser/browser-install.js');
-const { determineSheetExcludeStatus } = require('./determine-sheet-exclude-status.js');
+import { setupEnigmaConnection } from './qseow-enigma.js';
+import { logger, sleep } from '../../globals.js';
+import { qseowUploadToContentLibrary } from './qseow-upload.js';
+import { qseowUpdateSheetThumbnails } from './qseow-updatesheets.js';
+import { setupQseowQrsConnection } from './qseow-qrs.js';
+import { browserInstall } from '../browser/browser-install.js';
+import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -85,7 +85,7 @@ const xpathLogoutButton2024Nov =
  * @param {boolean|string} options.headless - Whether to run the browser in headless mode.
  * @param {number} options.blurFactor - Factor by which to blur images.
  */
-const qseowProcessApp = async (appId, options) => {
+export const qseowProcessApp = async (appId, options) => {
     // Get correct XPaths to UI elements (user menu, logout button etc) in the Sense web UI
     // As Qlik update their Sense web client these xpaths may/will change.
     let xpathHubUserPageButton = null;
@@ -614,8 +614,4 @@ const qseowProcessApp = async (appId, options) => {
             logger.error(`QSEOW: qseowProcessApp: ${err}`);
         }
     }
-};
-
-module.exports = {
-    qseowProcessApp,
 };

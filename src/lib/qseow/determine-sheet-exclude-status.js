@@ -12,7 +12,7 @@
  *
  * @returns {Promise<Object>} - Returns true if the sheet should be excluded, false otherwise.
  */
-const determineSheetExcludeStatus = async (
+export const determineSheetExcludeStatus = async (
     app,
     sheet,
     options,
@@ -126,5 +126,3 @@ const determineSheetExcludeStatus = async (
 
     return { excludeSheet, sheetIsHidden };
 };
-
-module.exports = { determineSheetExcludeStatus };

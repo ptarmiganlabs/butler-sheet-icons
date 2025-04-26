@@ -1,8 +1,8 @@
 /* eslint-disable no-param-reassign */
-const axios = require('axios');
-const FormData = require('form-data');
-const { Readable } = require('stream');
-const { logger } = require('../../globals');
+import axios from 'axios';
+import FormData from 'form-data';
+import { Readable } from 'stream';
+import { logger } from '../../globals.js';
 
 axios.interceptors.response.use(
     async (response) => {
@@ -110,7 +110,7 @@ async function makeRequest(config, data = []) {
  *
  * @returns {Promise<object|array>} The response data
  */
-module.exports = async (
+const request = async (
     mainConfig,
     path,
     type,
@@ -155,3 +155,5 @@ module.exports = async (
     if (type === 'post') return response.status;
     return response;
 };
+
+export default request;

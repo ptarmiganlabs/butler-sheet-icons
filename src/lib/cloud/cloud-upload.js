@@ -1,9 +1,9 @@
 /* eslint-disable import/extensions */
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
 
-const { logger, setLoggingLevel } = require('../../globals.js');
-const QlikSaas = require('./cloud-repo');
+import { logger, setLoggingLevel } from '../../globals.js';
+import QlikSaas from './cloud-repo.js';
 
 /**
  * Uploads image files to a Qlik Sense Cloud app.
@@ -25,7 +25,7 @@ const QlikSaas = require('./cloud-repo');
  * @returns {Promise<void>} A promise that resolves when the files have been
  *     successfully uploaded to the Qlik Sense Cloud app.
  */
-const qscloudUploadToApp = async (filesToUpload, appId, options) => {
+export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -85,7 +85,10 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
                     logger.verbose(`Image upload done.`);
 
                     if (file.fileNameShortBlurred) {
-                        const blurredFileFullPath = path.join(iconFolderAbsolute, file.fileNameShortBlurred);
+                        const blurredFileFullPath = path.join(
+                            iconFolderAbsolute,
+                            file.fileNameShortBlurred
+                        );
                         const blurredApiUrl = `apps/${appId}/media/files/thumbnails/${file.fileNameShortBlurred}`;
                         logger.debug(`Blurred thumbnail upload URL: ${blurredApiUrl}`);
 
@@ -96,7 +99,9 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
                             contentType: 'application/octet-stream',
                         });
 
-                        logger.debug(`QS Cloud blurred image upload result=${JSON.stringify(blurredResult)}`);
+                        logger.debug(
+                            `QS Cloud blurred image upload result=${JSON.stringify(blurredResult)}`
+                        );
                         logger.verbose(`Blurred image upload done.`);
                     }
                 } catch (err) {
@@ -121,8 +126,4 @@ const qscloudUploadToApp = async (filesToUpload, appId, options) => {
             logger.error(`CLOUD UPLOAD 2: ${JSON.stringify(err, null, 2)}`);
         }
     }
-};
-
-module.exports = {
-    qscloudUploadToApp,
 };

@@ -1,9 +1,9 @@
-const { detectBrowserPlatform, canDownload } = require('@puppeteer/browsers');
-const path = require('path');
-const { homedir } = require('os');
-const axios = require('axios');
+import { detectBrowserPlatform, canDownload } from '@puppeteer/browsers';
+import path from 'path';
+import { homedir } from 'os';
+import axios from 'axios';
 
-const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
+import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 
 /**
  * Maps Puppeteer's platform values to corresponding Chrome version history API platform values.
@@ -42,7 +42,7 @@ function mapPlatformToChrome(puppeteerPlatform) {
  * - version {string}: The browser version, e.g. "115.0.5790.90".
  * - name {string}: The browser name, e.g. "chrome/platforms/win/channels/stable/versions/115.0.5790.90".
  */
-async function browserListAvailable(options) {
+export async function browserListAvailable(options) {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -235,7 +235,7 @@ async function browserListAvailable(options) {
  * Valid values are "stable", "beta", "dev", "canary".
  * @returns {Promise<string>} - A promise that resolves to the most recent usable Chrome build ID.
  */
-async function getMostRecentUsableChromeBuildId(channel) {
+export async function getMostRecentUsableChromeBuildId(channel) {
     try {
         logger.verbose(`Get most recent usable Chrome build ID: Channel "${channel}"`);
 
@@ -308,5 +308,3 @@ async function getMostRecentUsableChromeBuildId(channel) {
         throw err;
     }
 }
-
-module.exports = { browserListAvailable, getMostRecentUsableChromeBuildId };

@@ -1,5 +1,5 @@
 /* eslint-disable import/extensions */
-const { logger } = require('../../globals.js');
+import { logger } from '../../globals.js';
 
 /**
  * Tests connection to Qlik Sense Cloud by getting info about the user associated with the API key.
@@ -16,7 +16,7 @@ const { logger } = require('../../globals.js');
  *
  * @throws {Error} - Throws an error if there is an issue during the connection test.
  */
-const qscloudTestConnection = async (options, saasInstance) => {
+export const qscloudTestConnection = async (options, saasInstance) => {
     // Test connection to QS Cloud by getting info about the user associated with the API key
     try {
         logger.info(`Testing connection to Qlik Sense Cloud...`);
@@ -31,8 +31,4 @@ const qscloudTestConnection = async (options, saasInstance) => {
         return Promise.reject(err);
     }
     return true;
-};
-
-module.exports = {
-    qscloudTestConnection,
 };

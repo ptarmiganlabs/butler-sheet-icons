@@ -1,6 +1,6 @@
-const path = require('path');
+import path from 'path';
 
-const { bsiExecutablePath } = require('../../globals');
+import { bsiExecutablePath } from '../../globals.js';
 
 /**
  * Resolves the paths to the certificate files (client and key) and the root
@@ -14,7 +14,7 @@ const { bsiExecutablePath } = require('../../globals');
  * @returns {Object} An object with the resolved paths to the certificate files
  * and the root certificate file.
  */
-const getCertFilePaths = (options) => {
+export const getCertFilePaths = (options) => {
     let fileCert;
     let fileCertKey;
     // let fileCertCA;
@@ -31,5 +31,3 @@ const getCertFilePaths = (options) => {
     // return { fileCert, fileCertKey, fileCertCA };
     return { fileCert, fileCertKey };
 };
-
-module.exports = { getCertFilePaths };

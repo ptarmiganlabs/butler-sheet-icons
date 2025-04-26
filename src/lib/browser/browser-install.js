@@ -1,15 +1,10 @@
-const {
-    install,
-    resolveBuildId,
-    detectBrowserPlatform,
-    canDownload,
-} = require('@puppeteer/browsers');
-const path = require('path');
-const { homedir } = require('os');
-const cliProgress = require('cli-progress');
+import { install, resolveBuildId, detectBrowserPlatform, canDownload } from '@puppeteer/browsers';
+import path from 'path';
+import { homedir } from 'os';
+import cliProgress from 'cli-progress';
 
-const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
-const { getMostRecentUsableChromeBuildId } = require('./browser-list-available');
+import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { getMostRecentUsableChromeBuildId } from './browser-list-available.js';
 
 /**
  * Install browser
@@ -29,7 +24,7 @@ const { getMostRecentUsableChromeBuildId } = require('./browser-list-available')
  * @throws {Error} - If error getting browser cache path
  * @throws {Error} - If error getting browser executable path
  */
-const browserInstall = async (options, _command) => {
+export const browserInstall = async (options, _command) => {
     try {
         if (!options.browser || !options.browserVersion) {
             throw new Error('Missing required options: "browser" and "browserVersion"');
@@ -141,5 +136,3 @@ const browserInstall = async (options, _command) => {
         throw err;
     }
 };
-
-module.exports = { browserInstall };

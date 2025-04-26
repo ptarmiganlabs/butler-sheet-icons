@@ -1,8 +1,8 @@
-const { getInstalledBrowsers } = require('@puppeteer/browsers');
-const path = require('path');
-const { homedir } = require('os');
+import { getInstalledBrowsers } from '@puppeteer/browsers';
+import path from 'path';
+import { homedir } from 'os';
 
-const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
+import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 
 /**
  * List all installed browsers.
@@ -17,7 +17,7 @@ const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../glo
  * - platform {string}: The platform, e.g. "win64" or "linux".
  * - path {string}: The path to the browser executable.
  */
-async function browserInstalled(options) {
+export async function browserInstalled(options) {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -56,5 +56,3 @@ async function browserInstalled(options) {
         throw err;
     }
 }
-
-module.exports = { browserInstalled };

@@ -1,7 +1,9 @@
-const winston = require('winston');
-const upath = require('upath');
-const sea = require('node:sea');
-const { readFileSync } = require('node:fs');
+import winston from 'winston';
+import upath from 'upath';
+import * as sea from 'node:sea';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 // Get app version from package.json file
 const filenamePackage = `./src/package.json`;
@@ -19,13 +21,13 @@ if (sea.isSea()) {
     appVersion = version;
 } else {
     // Get path to JS file
-    a = __filename;
+    const __filename = fileURLToPath(import.meta.url);
 
     // Strip off the filename
-    b = upath.dirname(a);
+    b = path.dirname(__filename);
 
     // Add path to package.json file
-    c = upath.join(b, '..', filenamePackage);
+    c = path.join(b, '..', filenamePackage);
 
     const { version } = JSON.parse(readFileSync(c));
     appVersion = version;
@@ -59,15 +61,9 @@ const logger = winston.createLogger({
 
 // Suppported Chromium version: https://pptr.dev/chromium-support
 // Correlate with https://chromium.woolyss.com to get revision number
-// const chromiumRevision = '1056772';
-// const chromiumRevisionLinux = '1056772';
 const chromiumRevisionLinux = '1109227';
 const chromiumRevisionWin = '1097664';
 const chromiumRevisionMac = '1097624';
-// const chromiumRevisionMac = '1056772';
-
-// const cdnUrl = 'https://storage.googleapis.com/chromium-browser-snapshots';
-// const cdnUrl = 'https://www.googleapis.com/download/storage/v1/b/chromium-browser-snapshots/o/';
 
 // Inspiration: https://github.com/dtolstyi/node-chromium/blob/master/utils.js
 const getChromiumRevision = () => {
@@ -102,16 +98,17 @@ const setLoggingLevel = (newLevel) => {
 };
 
 /**
- * Booleann to indicate if we are running as a standalone app or not
+ * Boolean to indicate if we are running as a standalone app or not
  */
 const isSea = sea.isSea();
-const bsiExecutablePath = isSea ? upath.dirname(process.execPath) : process.cwd();
+const bsiExecutablePath = isSea ? path.dirname(process.execPath) : process.cwd();
 
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-module.exports = {
+// Export all the variables and functions
+export {
     logger,
     appVersion,
     getLoggingLevel,

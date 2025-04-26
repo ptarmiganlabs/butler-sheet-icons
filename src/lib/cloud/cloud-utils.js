@@ -1,4 +1,4 @@
-const shouldProcessSheet = (sheet, iSheetNum, options, appIsPublished, logger) => {
+export const shouldProcessSheet = (sheet, iSheetNum, options, appIsPublished, logger) => {
     let excludeSheet = false;
 
     // Get published and approved status of sheet
@@ -50,5 +50,3 @@ const shouldProcessSheet = (sheet, iSheetNum, options, appIsPublished, logger) =
 
     return !excludeSheet;
 };
-
-module.exports = { shouldProcessSheet };

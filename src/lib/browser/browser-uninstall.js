@@ -1,9 +1,9 @@
-const { getInstalledBrowsers, uninstall } = require('@puppeteer/browsers');
-const path = require('path');
-const { homedir } = require('os');
-const fs = require('fs-extra');
+import { getInstalledBrowsers, uninstall } from '@puppeteer/browsers';
+import path from 'path';
+import { homedir } from 'os';
+import fs from 'fs-extra';
 
-const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
+import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 
 /**
  * Uninstall a browser from the Butler Sheet Icons cache.
@@ -17,7 +17,7 @@ const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../glo
  * @throws {Error} - If the browser was not found.
  * @throws {Error} - If there was an error uninstalling the browser.
  */
-const browserUninstall = async (options) => {
+export const browserUninstall = async (options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -83,7 +83,7 @@ const browserUninstall = async (options) => {
  *
  * @throws {Error} - If there is an error during the uninstallation process.
  */
-const browserUninstallAll = async (options) => {
+export const browserUninstallAll = async (options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -140,5 +140,3 @@ const browserUninstallAll = async (options) => {
         throw err;
     }
 };
-
-module.exports = { browserUninstall, browserUninstallAll };

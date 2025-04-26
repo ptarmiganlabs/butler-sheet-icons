@@ -1,15 +1,15 @@
-const { Command, Option } = require('commander');
-const { logger, appVersion } = require('./globals');
+import { Command, Option } from 'commander';
+import { logger, appVersion } from './globals.js';
 
-const { qseowCreateThumbnails } = require('./lib/qseow/qseow-create-thumbnails');
-const { qseowRemoveSheetIcons } = require('./lib/qseow/qseow-remove-sheet-icons');
-const { qscloudCreateThumbnails } = require('./lib/cloud/cloud-create-thumbnails');
-const { qscloudListCollections } = require('./lib/cloud/cloud-collections');
-const { qscloudRemoveSheetIcons } = require('./lib/cloud/cloud-remove-sheet-icons');
-const { browserInstalled } = require('./lib/browser/browser-installed');
-const { browserInstall } = require('./lib/browser/browser-install');
-const { browserUninstall, browserUninstallAll } = require('./lib/browser/browser-uninstall');
-const { browserListAvailable } = require('./lib/browser/browser-list-available');
+import { qseowCreateThumbnails } from './lib/qseow/qseow-create-thumbnails.js';
+import { qseowRemoveSheetIcons } from './lib/qseow/qseow-remove-sheet-icons.js';
+import { qscloudCreateThumbnails } from './lib/cloud/cloud-create-thumbnails.js';
+import { qscloudListCollections } from './lib/cloud/cloud-collections.js';
+import { qscloudRemoveSheetIcons } from './lib/cloud/cloud-remove-sheet-icons.js';
+import { browserInstalled } from './lib/browser/browser-installed.js';
+import { browserInstall } from './lib/browser/browser-install.js';
+import { browserUninstall, browserUninstallAll } from './lib/browser/browser-uninstall.js';
+import { browserListAvailable } from './lib/browser/browser-list-available.js';
 
 const program = new Command();
 
@@ -694,20 +694,7 @@ const program = new Command();
                             // eslint-disable-next-line no-param-reassign
                             options.browserVersion = 'latest';
                         }
-                    } else if (
-                        options.browser === 'firefox' &&
-                        options.browserVersion !== 'latest'
-                    ) {
-                        // Only "latest" is supported for Firefox.
-                        // In the future we might support other/specifc versions, but for now we'll just use latest.
-                        logger.error(
-                            `Firefox support is still experimental, so only "latest" is supported for browser version. You specified a different version: ${options.browserVersion}.`
-                        );
-                        process.exit(1);
                     }
-
-                    const res = await browserInstall(options, command);
-                    logger.debug(`Call to browserInstall succeeded: ${res}`);
                 } catch (err) {
                     if (err.stack) {
                         logger.error(`BROWSER MAIN 9 (stack): ${err.stack}`);

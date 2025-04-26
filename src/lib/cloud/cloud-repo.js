@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /* eslint-disable no-param-reassign */
-const request = require('./cloud-repo-request');
+import request from './cloud-repo-request.js';
 
 /**
  * Initializes a QlikSaas instance for interacting with a Qlik SaaS environment.
@@ -75,4 +75,4 @@ const qlikSaas = function QlikSaas(config) {
     };
 };
 
-module.exports = qlikSaas;
+export default qlikSaas;

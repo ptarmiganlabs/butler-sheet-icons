@@ -1,10 +1,10 @@
 /* eslint-disable import/extensions */
-const fs = require('fs');
-const path = require('path');
-const qrsInteract = require('qrs-interact');
+import fs from 'fs';
+import path from 'path';
+import qrsInteract from 'qrs-interact';
 
-const { logger, setLoggingLevel } = require('../../globals.js');
-const { setupQseowQrsConnection } = require('./qseow-qrs.js');
+import { logger, setLoggingLevel } from '../../globals.js';
+import { setupQseowQrsConnection } from './qseow-qrs.js';
 
 /**
  * Upload files to a Qlik Sense Enterprise on Windows (QSEoW) content library.
@@ -27,7 +27,7 @@ const { setupQseowQrsConnection } = require('./qseow-qrs.js');
  * @returns {Promise<boolean>} - true if the files were uploaded successfully,
  *     false otherwise.
  */
-const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
+export const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -107,8 +107,4 @@ const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
             logger.error(`QSEOW UPLOAD 2: ${JSON.stringify(err, null, 2)}`);
         }
     }
-};
-
-module.exports = {
-    qseowUploadToContentLibrary,
 };

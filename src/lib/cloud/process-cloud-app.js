@@ -1,16 +1,16 @@
-const enigma = require('enigma.js');
-const puppeteer = require('puppeteer-core');
-const fs = require('fs');
-const path = require('path');
-const { homedir } = require('os');
-const { computeExecutablePath } = require('@puppeteer/browsers');
-const { setupEnigmaConnection } = require('./cloud-enigma.js');
-const { logger, sleep } = require('../../globals.js');
-const { qscloudUploadToApp } = require('./cloud-upload.js');
-const { qscloudUpdateSheetThumbnails } = require('./cloud-updatesheets.js');
-const { browserInstall } = require('../browser/browser-install.js');
-const { deleteCloudAppThumbnail } = require('./cloud-delete-thumbnails.js');
-const { takeSheetScreenshot } = require('./sheet-screenshot.js');
+import enigma from 'enigma.js';
+import puppeteer from 'puppeteer-core';
+import fs from 'fs';
+import path from 'path';
+import { homedir } from 'os';
+import { computeExecutablePath } from '@puppeteer/browsers';
+import { setupEnigmaConnection } from './cloud-enigma.js';
+import { logger, sleep } from '../../globals.js';
+import { qscloudUploadToApp } from './cloud-upload.js';
+import { qscloudUpdateSheetThumbnails } from './cloud-updatesheets.js';
+import { browserInstall } from '../browser/browser-install.js';
+import { deleteCloudAppThumbnail } from './cloud-delete-thumbnails.js';
+import { takeSheetScreenshot } from './sheet-screenshot.js';
 
 // Selector paths to elements on login page
 const selectorLoginPageUserName = '[id="\u0031-email"]';
@@ -26,7 +26,7 @@ const selectorLoginPageLoginButton = '[id="\u0031-submit"]';
  *
  * @returns {Promise<void>}
  */
-const processCloudApp = async (appId, saasInstance, options) => {
+export const processCloudApp = async (appId, saasInstance, options) => {
     // Create image directory on disk for this app
     try {
         fs.mkdirSync(`${options.imagedir}/cloud/${appId}`, { recursive: true });
@@ -445,5 +445,3 @@ const processCloudApp = async (appId, saasInstance, options) => {
         }
     }
 };
-
-module.exports = { processCloudApp };

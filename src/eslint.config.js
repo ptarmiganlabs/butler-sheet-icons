@@ -13,7 +13,6 @@ const compat = new FlatCompat({
     allConfig: js.configs.all,
 });
 
-// export default [...compat.extends("airbnb-base", "prettier"), {
 export default [
     ...compat.extends('prettier'),
     {

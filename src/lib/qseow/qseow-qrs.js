@@ -1,5 +1,5 @@
-const upath = require('upath');
-const { logger, bsiExecutablePath } = require('../../globals');
+import upath from 'upath';
+import { logger, bsiExecutablePath } from '../../globals.js';
 
 /**
  * Set up connection to QSEoW QRS
@@ -7,7 +7,7 @@ const { logger, bsiExecutablePath } = require('../../globals');
  *
  * @returns {object} QRS connection object
  */
-const setupQseowQrsConnection = (options) => {
+export const setupQseowQrsConnection = (options) => {
     logger.debug('Setting up connection to QSEoW QRS...');
 
     const certFile = upath.isAbsolute(options.certfile)
@@ -32,8 +32,4 @@ const setupQseowQrsConnection = (options) => {
             'X-Qlik-User': `UserDirectory=${options.apiuserdir};UserId=${options.apiuserid}`,
         },
     };
-};
-
-module.exports = {
-    setupQseowQrsConnection,
 };
