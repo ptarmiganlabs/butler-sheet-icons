@@ -1,13 +1,12 @@
 import winston from 'winston';
-import upath from 'upath';
 import * as sea from 'node:sea';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import 'dotenv/config';
 
 // Get app version from package.json file
 const filenamePackage = `./src/package.json`;
-let a;
 let b;
 let c;
 let appVersion;
