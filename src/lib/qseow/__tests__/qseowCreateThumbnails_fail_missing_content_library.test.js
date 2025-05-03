@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
-const { test, expect, describe } = require('@jest/globals');
+import { test, expect, describe } from '@jest/globals';
 
-const { qseowCreateThumbnails } = require('../qseow-create-thumbnails');
+import { qseowCreateThumbnails } from '../qseow-create-thumbnails.js';
 
 const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1200000; // 20 minute default timeout
 

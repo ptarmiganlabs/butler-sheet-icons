@@ -1,8 +1,8 @@
 /* eslint-disable no-await-in-loop */
-const enigma = require('enigma.js');
+import enigma from 'enigma.js';
 
-const { setupEnigmaConnection } = require('./qseow-enigma');
-const { logger } = require('../../globals');
+import { setupEnigmaConnection } from './qseow-enigma.js';
+import { logger } from '../../globals.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Enterprise on Windows (QSEoW) app.
@@ -15,7 +15,7 @@ const { logger } = require('../../globals');
  * @returns {Promise<void>} A promise that resolves when the sheet thumbnails have
  * been updated in the QSEoW app.
  */
-const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
+export const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
     try {
         logger.verbose(`Starting update of sheet icons for app ${appId}`);
 
@@ -201,8 +201,4 @@ const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
 
         process.exit(1);
     }
-};
-
-module.exports = {
-    qseowUpdateSheetThumbnails,
 };

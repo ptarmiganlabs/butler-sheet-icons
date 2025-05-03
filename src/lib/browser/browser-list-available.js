@@ -1,9 +1,9 @@
-const { detectBrowserPlatform, canDownload } = require('@puppeteer/browsers');
-const path = require('path');
-const { homedir } = require('os');
-const axios = require('axios');
+import { detectBrowserPlatform, canDownload } from '@puppeteer/browsers';
+import path from 'path';
+import { homedir } from 'os';
+import axios from 'axios';
 
-const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals');
+import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 
 /**
  * Maps Puppeteer's platform values to corresponding Chrome version history API platform values.
@@ -42,7 +42,7 @@ function mapPlatformToChrome(puppeteerPlatform) {
  * - version {string}: The browser version, e.g. "115.0.5790.90".
  * - name {string}: The browser name, e.g. "chrome/platforms/win/channels/stable/versions/115.0.5790.90".
  */
-async function browserListAvailable(options) {
+export async function browserListAvailable(options) {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -182,44 +182,6 @@ async function browserListAvailable(options) {
             //         }
             //     ]
             // }
-
-            //     const axiosConfig = {
-            //         method: 'get',
-            //         responseType: 'json',
-            //         url: 'https://product-details.mozilla.org/1.0/firefox.json',
-            //     };
-
-            //     const response = await axios(axiosConfig);
-            //     const firefoxVersions = response.data.releases;
-
-            //     // Only include versions from past 12 months
-            //     const today = new Date();
-            //     const oneYearAgo = new Date();
-            //     oneYearAgo.setFullYear(today.getFullYear() - 1);
-            //     logger.debug(`Today: ${today}`);
-            //     logger.debug(`One year ago: ${oneYearAgo}`);
-
-            //     browsersAvailable = Object.keys(firefoxVersions)
-            //         .filter((version) => {
-            //             const versionDate = new Date(firefoxVersions[version].date);
-            //             return versionDate > oneYearAgo;
-            //         })
-            //         .map((version) => ({
-            //             date: firefoxVersions[version].date,
-            //             category: firefoxVersions[version].category,
-            //             version: firefoxVersions[version].version,
-            //         }))
-            //         .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            //     // Output Firefox versions and names to info log
-            //     if (browsersAvailable.length > 0) {
-            //         logger.info(`Firefox versions from past 12 months:`);
-            //         browsersAvailable.forEach((version) => {
-            //             logger.info(`    ${version.date}, "${version.category}", "${version.version}"`);
-            //         });
-            //     } else {
-            //         logger.info('No Firefox versions available');
-            //     }
         }
         return browsersAvailable;
     } catch (err) {
@@ -235,7 +197,7 @@ async function browserListAvailable(options) {
  * Valid values are "stable", "beta", "dev", "canary".
  * @returns {Promise<string>} - A promise that resolves to the most recent usable Chrome build ID.
  */
-async function getMostRecentUsableChromeBuildId(channel) {
+export async function getMostRecentUsableChromeBuildId(channel) {
     try {
         logger.verbose(`Get most recent usable Chrome build ID: Channel "${channel}"`);
 
@@ -308,5 +270,3 @@ async function getMostRecentUsableChromeBuildId(channel) {
         throw err;
     }
 }
-
-module.exports = { browserListAvailable, getMostRecentUsableChromeBuildId };

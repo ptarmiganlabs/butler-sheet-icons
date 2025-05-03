@@ -1,10 +1,10 @@
-const qrsInteract = require('qrs-interact');
+import qrsInteract from 'qrs-interact';
 
-const { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } = require('../../globals');
-const { qseowVerifyContentLibraryExists } = require('./qseow-contentlibrary');
-const { qseowVerifyCertificatesExist } = require('./qseow-certificates');
-const { setupQseowQrsConnection } = require('./qseow-qrs');
-const { qseowProcessApp } = require('./qseow-process-app');
+import { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } from '../../globals.js';
+import { qseowVerifyContentLibraryExists } from './qseow-contentlibrary.js';
+import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
+import { setupQseowQrsConnection } from './qseow-qrs.js';
+import { qseowProcessApp } from './qseow-process-app.js';
 
 /**
  * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW)
@@ -24,7 +24,7 @@ const { qseowProcessApp } = require('./qseow-process-app');
  *
  * @returns {Promise.<boolean>} - true if thumbnails were created successfully, false otherwise
  */
-const qseowCreateThumbnails = async (options) => {
+export const qseowCreateThumbnails = async (options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -144,8 +144,4 @@ const qseowCreateThumbnails = async (options) => {
 
         return false;
     }
-};
-
-module.exports = {
-    qseowCreateThumbnails,
 };

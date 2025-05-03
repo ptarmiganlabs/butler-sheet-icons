@@ -1,10 +1,10 @@
-const enigma = require('enigma.js');
-const qrsInteract = require('qrs-interact');
+import enigma from 'enigma.js';
+import qrsInteract from 'qrs-interact';
 
-const { setupEnigmaConnection } = require('./qseow-enigma.js');
-const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals.js');
-const { qseowVerifyCertificatesExist } = require('./qseow-certificates.js');
-const { setupQseowQrsConnection } = require('./qseow-qrs.js');
+import { setupEnigmaConnection } from './qseow-enigma.js';
+import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
+import { setupQseowQrsConnection } from './qseow-qrs.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) application.
@@ -135,7 +135,7 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
  *
  * @returns {Promise<boolean>} - true if thumbnails were created successfully, false otherwise.
  */
-const qseowRemoveSheetIcons = async (options) => {
+export const qseowRemoveSheetIcons = async (options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -229,8 +229,4 @@ const qseowRemoveSheetIcons = async (options) => {
 
         return false;
     }
-};
-
-module.exports = {
-    qseowRemoveSheetIcons,
 };

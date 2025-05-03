@@ -1,17 +1,21 @@
-/* eslint-disable no-console */
+import { jest, test, expect, describe } from '@jest/globals';
+import 'dotenv/config';
+
 // Mock the browser-install module
-jest.mock('../browser-install', () => ({
-    browserInstall: jest.fn(),
+const browserInstallMock = jest.fn();
+jest.unstable_mockModule('../browser-install', () => ({
+    browserInstall: browserInstallMock,
 }));
 
 // Also mock the browser-installed module
-jest.mock('../browser-installed', () => ({
-    browserInstalled: jest.fn().mockResolvedValue([]),
+const browserInstalledMock = jest.fn();
+jest.unstable_mockModule('../browser-installed', () => ({
+    browserInstalled: browserInstalledMock,
 }));
 
-const { test, expect, describe } = require('@jest/globals');
+// Import the function under test
+import { browserInstalled } from '../browser-installed.js';
 
-const { browserInstalled } = require('../browser-installed.js');
 const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1800000; // 20 minute default timeout
 
 console.log(`Jest timeout: ${defaultTestTimeout}`);

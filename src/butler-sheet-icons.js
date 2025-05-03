@@ -1,15 +1,13 @@
-const { Command, Option } = require('commander');
-const { logger, appVersion } = require('./globals');
+import { Command, Option } from 'commander';
+import { logger, appVersion } from './globals.js';
 
-const { qseowCreateThumbnails } = require('./lib/qseow/qseow-create-thumbnails');
-const { qseowRemoveSheetIcons } = require('./lib/qseow/qseow-remove-sheet-icons');
-const { qscloudCreateThumbnails } = require('./lib/cloud/cloud-create-thumbnails');
-const { qscloudListCollections } = require('./lib/cloud/cloud-collections');
-const { qscloudRemoveSheetIcons } = require('./lib/cloud/cloud-remove-sheet-icons');
-const { browserInstalled } = require('./lib/browser/browser-installed');
-const { browserInstall } = require('./lib/browser/browser-install');
-const { browserUninstall, browserUninstallAll } = require('./lib/browser/browser-uninstall');
-const { browserListAvailable } = require('./lib/browser/browser-list-available');
+import { qseowCreateThumbnails } from './lib/qseow/qseow-create-thumbnails.js';
+import { qscloudCreateThumbnails } from './lib/cloud/cloud-create-thumbnails.js';
+import { qscloudListCollections } from './lib/cloud/cloud-collections.js';
+import { qscloudRemoveSheetIcons } from './lib/cloud/cloud-remove-sheet-icons.js';
+import { browserInstalled } from './lib/browser/browser-installed.js';
+import { browserUninstall, browserUninstallAll } from './lib/browser/browser-uninstall.js';
+import { browserListAvailable } from './lib/browser/browser-list-available.js';
 
 const program = new Command();
 
@@ -67,17 +65,30 @@ const program = new Command();
             new Option('--loglevel, --log-level <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
+                .env('BSI_LOG_LEVEL')
         )
-        .requiredOption('--host <host>', 'Qlik Sense server IP/FQDN')
-        .requiredOption('--engineport <port>', 'Qlik Sense server engine port', '4747')
-        .requiredOption(
-            '--qrsport <port>',
-            'Qlik Sense server repository service (QRS) port',
-            '4242'
+        .addOption(
+            new Option('--host <host>', 'Qlik Sense server IP/FQDN')
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_HOST')
         )
-        .option(
-            '--port <port>',
-            'Qlik Sense http/https port. 443 is default for https, 80 for http'
+        .addOption(
+            new Option('--engineport <port>', 'Qlik Sense server engine port')
+                .default('4747')
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_ENGINE_PORT')
+        )
+        .addOption(
+            new Option('--qrsport <port>', 'Qlik Sense server repository service (QRS) port')
+                .default('4242')
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_QRS_PORT')
+        )
+        .addOption(
+            new Option(
+                '--port <port>',
+                'Qlik Sense http/https port. 443 is default for https, 80 for http'
+            ).env('BSI_QSEOW_CST_PORT')
         )
         .addOption(
             new Option('--schemaversion <version>', 'Qlik Sense engine schema version')
@@ -92,75 +103,135 @@ const program = new Command();
                     '12.2015.0',
                 ])
                 .default('12.612.0')
+                .env('BSI_QSEOW_CST_SCHEMA_VERSION')
         )
-        .requiredOption(
-            '--certfile <file>',
-            'Qlik Sense certificate file (exported from QMC)',
-            './cert/client.pem'
+        .addOption(
+            new Option('--certfile <file>', 'Qlik Sense certificate file (exported from QMC)')
+                .default('./cert/client.pem')
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_CERT_FILE')
         )
-        .requiredOption(
-            '--certkeyfile <file>',
-            'Qlik Sense certificate key file (exported from QMC)',
-            './cert/client_key.pem'
+        .addOption(
+            new Option(
+                '--certkeyfile <file>',
+                'Qlik Sense certificate key file (exported from QMC)'
+            )
+                .default('./cert/client_key.pem')
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_CERTKEY_FILE')
         )
-        .requiredOption(
-            '--rejectUnauthorized <true|false>',
-            'Ignore warnings when Sense certificate does not match the --host paramater',
-            false
+        .addOption(
+            new Option(
+                '--rejectUnauthorized <true|false>',
+                'Ignore warnings when Sense certificate does not match the --host paramater'
+            )
+                .default(false)
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_REJECT_UNAUTHORIZED')
         )
-        .requiredOption(
-            '--secure <true|false>',
-            'Connection to Qlik Sense engine is via https',
-            true
+        .addOption(
+            new Option('--secure <true|false>', 'Connection to Qlik Sense engine is via https')
+                .default(true)
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_SECURE')
         )
-        .requiredOption(
-            '--apiuserdir <directory>',
-            'User directory for user to connect with when using Sense APIs'
+        .addOption(
+            new Option(
+                '--apiuserdir <directory>',
+                'User directory for user to connect with when using Sense APIs'
+            )
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_API_USER_DIR')
         )
-        .requiredOption(
-            '--apiuserid <userid>',
-            'User ID for user to connect with when using Sense APIs'
+        .addOption(
+            new Option(
+                '--apiuserid <userid>',
+                'User ID for user to connect with when using Sense APIs'
+            )
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_API_USER_ID')
         )
-        .requiredOption(
-            '--logonuserdir <directory>',
-            'User directory for user to connect with when logging into web UI'
+        .addOption(
+            new Option(
+                '--logonuserdir <directory>',
+                'User directory for user to connect with when logging into web UI'
+            )
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_LOGON_USER_DIR')
         )
-        .requiredOption(
-            '--logonuserid <userid>',
-            'User ID for user to connect with when logging into web UI'
+        .addOption(
+            new Option(
+                '--logonuserid <userid>',
+                'User ID for user to connect with when logging into web UI'
+            )
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_LOGON_USER_ID')
         )
-        .requiredOption('--logonpwd <password>', 'password for user to connect with')
-        .requiredOption('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.', '')
-        .option(
-            '--qliksensetag <value>',
-            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
-            ''
+        .addOption(
+            new Option('--logonpwd <password>', 'password for user to connect with')
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_LOGON_PWD')
         )
-        .requiredOption('--prefix <prefix>', 'Qlik Sense virtual proxy prefix', '')
-        .requiredOption(
-            '--headless <true|false>',
-            'Headless (=not visible) browser (true, false)',
-            true
+        .addOption(
+            new Option('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.').env(
+                'BSI_QSEOW_CST_APP_ID'
+            )
         )
-        .requiredOption(
-            '--pagewait <seconds>',
-            'Number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly',
-            5
+        .addOption(
+            new Option(
+                '--qliksensetag <value>',
+                'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.'
+            )
+                .default('')
+                .env('BSI_QSEOW_CST_QLIKSENSE_TAG')
         )
-        .requiredOption(
-            '--imagedir <directory>',
-            'Directory in which thumbnail images will be stored. Relative or absolute path',
-            './img'
+        .addOption(
+            new Option('--prefix <prefix>', 'Qlik Sense virtual proxy prefix')
+                .default('')
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_PREFIX')
         )
-        .requiredOption(
-            '--contentlibrary <library-name>',
-            'Qlik Sense content library to which thumbnails will be uploaded',
-            'Butler sheet thumbnails'
+        .addOption(
+            new Option('--headless <true|false>', 'Headless (=not visible) browser (true, false)')
+                .default(true)
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_HEADLESS')
         )
-        .requiredOption(
-            '--includesheetpart <value>',
-            'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar',
-            '1'
+        .addOption(
+            new Option(
+                '--pagewait <seconds>',
+                'Number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly'
+            )
+                .default(5)
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_PAGE_WAIT')
+        )
+        .addOption(
+            new Option(
+                '--imagedir <directory>',
+                'Directory in which thumbnail images will be stored. Relative or absolute path'
+            )
+                .default('./img')
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_IMAGE_DIR')
+        )
+        .addOption(
+            new Option(
+                '--contentlibrary <library-name>',
+                'Qlik Sense content library to which thumbnails will be uploaded'
+            )
+                .default('Butler sheet thumbnails')
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_CONTENT_LIBRARY')
+        )
+        .addOption(
+            new Option(
+                '--includesheetpart <value>',
+                'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar'
+            )
+                .default('1')
+                .makeOptionMandatory()
+                .env('BSI_QSEOW_CST_INCLUDE_SHEET_PART')
         )
         .addOption(
             new Option(
@@ -169,18 +240,25 @@ const program = new Command();
             )
                 .choices(['private', 'published', 'public'])
                 .default([])
+                .env('BSI_QSEOW_CST_EXCLUDE_SHEET_STATUS')
         )
-        .option(
-            '--exclude-sheet-tag <value...>',
-            'Sheets with one or more of these tags set will be excluded from sheet icon update.'
+        .addOption(
+            new Option(
+                '--exclude-sheet-tag <value...>',
+                'Sheets with one or more of these tags set will be excluded from sheet icon update.'
+            ).env('BSI_QSEOW_CST_EXCLUDE_SHEET_TAG')
         )
-        .option(
-            '--exclude-sheet-number <number...>',
-            'Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.'
+        .addOption(
+            new Option(
+                '--exclude-sheet-number <number...>',
+                'Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.'
+            ).env('BSI_QSEOW_CST_EXCLUDE_SHEET_NUMBER')
         )
-        .option(
-            '--exclude-sheet-title <title...>',
-            'Use sheet titles to control which sheets that will be excluded from sheet icon update.'
+        .addOption(
+            new Option(
+                '--exclude-sheet-title <title...>',
+                'Use sheet titles to control which sheets that will be excluded from sheet icon update.'
+            ).env('BSI_QSEOW_CST_EXCLUDE_SHEET_TITLE')
         )
         .addOption(
             new Option(
@@ -189,23 +267,33 @@ const program = new Command();
             )
                 .choices(['published', 'public'])
                 .default([])
+                .env('BSI_QSEOW_CST_BLUR_SHEET_STATUS')
         )
-        .option(
-            '--blur-sheet-tag <value>',
-            'Sheets with one or more of these tags set will be blurred in the sheet icon update.'
+        .addOption(
+            new Option(
+                '--blur-sheet-tag <value>',
+                'Sheets with one or more of these tags set will be blurred in the sheet icon update.'
+            ).env('BSI_QSEOW_CST_BLUR_SHEET_TAG')
         )
-        .option(
-            '--blur-sheet-number <number...>',
-            'Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.'
+        .addOption(
+            new Option(
+                '--blur-sheet-number <number...>',
+                'Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.'
+            ).env('BSI_QSEOW_CST_BLUR_SHEET_NUMBER')
         )
-        .option(
-            '--blur-sheet-title <title...>',
-            'Sheets with this title will be blurred in the sheet icon update.'
+        .addOption(
+            new Option(
+                '--blur-sheet-title <title...>',
+                'Sheets with this title will be blurred in the sheet icon update.'
+            ).env('BSI_QSEOW_CST_BLUR_SHEET_TITLE')
         )
-        .option(
-            '--blur-factor <factor>',
-            'Factor to blur the sheets with. 0 = no blur, 1000 = full blur.',
-            '10'
+        .addOption(
+            new Option(
+                '--blur-factor <factor>',
+                'Factor to blur the sheets with. 0 = no blur, 100 = full blur.'
+            )
+                .default('5')
+                .env('BSI_QSEOW_CST_BLUR_FACTOR')
         )
         .addOption(
             new Option('--sense-version <version>', 'Version of the QSEoW server to connect to')
@@ -221,6 +309,7 @@ const program = new Command();
                     '2024-Nov',
                 ])
                 .default('2024-Nov')
+                .env('BSI_QSEOW_CST_SENSE_VERSION')
         )
         .addOption(
             new Option(
@@ -229,101 +318,18 @@ const program = new Command();
             )
                 .choices(['chrome', 'firefox'])
                 .default('chrome')
+                .env('BSI_QSEOW_CST_BROWSER')
         )
-        .option(
-            '--browser-version <version>',
-            'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. Leave empty or set to "latest" to get latest available version.'
+        .addOption(
+            new Option(
+                '--browser-version <version>',
+                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+            )
+                .default('latest')
+                .env('BSI_QSEOW_CST_BROWSER_VERSION')
         );
 
     // ---------
-    qseow
-        .command('remove-sheet-icons')
-        .alias('remove-sheet-thumbnails')
-        .description('Remove all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) app.')
-        .action(async (options, command) => {
-            // Show app version
-            logger.info(`App version: ${appVersion}`);
-
-            try {
-                const res = await qseowRemoveSheetIcons(options, command);
-                logger.debug(`Call to qseowRemoveSheetIcons succeeded: ${res}`);
-            } catch (err) {
-                logger.error(`QSEOW MAIN 2: ${err}`);
-                if (err.message) {
-                    logger.error(`QSEOW MAIN 2 (message): ${err.message}`);
-                }
-                if (err.stack) {
-                    logger.error(`QSEOW MAIN 2 (stack): ${err.stack}`);
-                }
-            }
-        })
-        .addOption(
-            new Option('--loglevel, --log-level <level>', 'Log level')
-                .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
-                .default('info')
-        )
-        .requiredOption('--host <host>', 'Qlik Sense server IP/FQDN')
-        .requiredOption('--engineport <port>', 'Qlik Sense server engine port', '4747')
-        .requiredOption(
-            '--qrsport <port>',
-            'Qlik Sense server repository service (QRS) port',
-            '4242'
-        )
-        .option(
-            '--port <port>',
-            'Qlik Sense http/https port. 443 is default for https, 80 for http'
-        )
-        .addOption(
-            new Option('--schemaversion <version>', 'Qlik Sense engine schema version')
-                .choices([
-                    '12.170.2',
-                    '12.612.0',
-                    '12.936.0',
-                    '12.1306.0',
-                    '12.1477.0',
-                    '12.1657.0',
-                    '12.1823.0',
-                    '12.2015.0',
-                ])
-                .default('12.612.0')
-        )
-        .requiredOption('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.', '')
-        .option(
-            '--qliksensetag <value>',
-            'Used to control which Sense apps should have their sheets updated with new icons. All apps with this tag will be updated.',
-            ''
-        )
-        .requiredOption(
-            '--certfile <file>',
-            'Qlik Sense certificate file (exported from QMC)',
-            './cert/client.pem'
-        )
-        .requiredOption(
-            '--certkeyfile <file>',
-            'Qlik Sense certificate key file (exported from QMC)',
-            './cert/client_key.pem'
-        )
-        .requiredOption(
-            '--rejectUnauthorized <true|false>',
-            'Ignore warnings when Sense certificate does not match the --host paramater',
-            false
-        )
-        .requiredOption('--prefix <prefix>', 'Qlik Sense virtual proxy prefix', '')
-        .requiredOption(
-            '--secure <true|false>',
-            'Connection to Qlik Sense engine is via https',
-            true
-        )
-        .requiredOption(
-            '--apiuserdir <directory>',
-            'User directory for user to connect with when using Sense APIs'
-        )
-        .requiredOption(
-            '--apiuserid <userid>',
-            'User ID for user to connect with when using Sense APIs'
-        );
-
-    // ------------------
     // cloud commands
     function makeCloudCommand() {
         const cloud = new Command('qscloud');
@@ -367,6 +373,7 @@ const program = new Command();
                 new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
+                    .env('BSI_QSCLOUD_CST_LOG_LEVEL')
             )
             .addOption(
                 new Option('--schemaversion <version>', 'Qlik Sense engine schema version')
@@ -381,36 +388,69 @@ const program = new Command();
                         '12.2015.0',
                     ])
                     .default('12.612.0')
+                    .env('BSI_QSCLOUD_CST_SCHEMAVERSION')
             )
-            .requiredOption(
-                '--tenanturl <url>',
-                'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
+            .addOption(
+                new Option(
+                    '--tenanturl <url>',
+                    'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
+                )
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_CST_TENANTURL')
             )
-            .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
-            .requiredOption(
-                '--skip-login',
-                'Skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense',
-                false
+            .addOption(
+                new Option('--apikey <key>', 'API key used to access the Sense APIs')
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_CST_APIKEY')
             )
-            .requiredOption(
-                '--logonuserid <userid>',
-                'User ID for user to connect with when logging into web UI'
+            .addOption(
+                new Option(
+                    '--skip-login',
+                    'Skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense'
+                )
+                    .default(false)
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_CST_SKIP_LOGIN')
             )
-            .requiredOption('--logonpwd <password>', 'password for user to connect with')
-            .requiredOption(
-                '--headless <true|false>',
-                'Headless (=not visible) browser (true, false)',
-                true
+            .addOption(
+                new Option(
+                    '--logonuserid <userid>',
+                    'User ID for user to connect with when logging into web UI'
+                )
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_CST_LOGON_USER_ID')
             )
-            .requiredOption(
-                '--pagewait <seconds>',
-                'Number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly',
-                5
+            .addOption(
+                new Option('--logonpwd <password>', 'password for user to connect with')
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_CST_LOGON_PWD')
             )
-            .requiredOption(
-                '--imagedir <directory>',
-                'Directory in which thumbnail images will be stored. Relative or absolute path',
-                './img'
+            .addOption(
+                new Option(
+                    '--headless <true|false>',
+                    'Headless (=not visible) browser (true, false)'
+                )
+                    .default(true)
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_CST_HEADLESS')
+            )
+            .addOption(
+                new Option(
+                    '--pagewait <seconds>',
+                    'Number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly'
+                )
+                    .default(5)
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_CST_PAGE_WAIT')
+            )
+            .addOption(
+                new Option(
+                    '--imagedir <directory>',
+                    'Directory in which thumbnail images will be stored. Relative or absolute path'
+                )
+                    .default('./img')
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_CST_IMAGE_DIR')
             )
             .addOption(
                 new Option(
@@ -419,12 +459,22 @@ const program = new Command();
                 )
                     .choices(['1', '2', '4'])
                     .default('1')
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_CST_INCLUDE_SHEET_PART')
             )
-            .option('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.')
-            .option(
-                '--collectionid <id>',
-                'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated',
-                ''
+            .addOption(
+                new Option(
+                    '--appid <id>',
+                    'Qlik Sense app whose sheet icons should be modified.'
+                ).env('BSI_QSCLOUD_CST_APP_ID')
+            )
+            .addOption(
+                new Option(
+                    '--collectionid <id>',
+                    'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated'
+                )
+                    .default('')
+                    .env('BSI_QSCLOUD_CST_COLLECTION_ID')
             )
             .addOption(
                 new Option(
@@ -433,14 +483,25 @@ const program = new Command();
                 )
                     .choices(['private', 'published', 'public'])
                     .default([])
+                    .env('BSI_QSCLOUD_CST_EXCLUDE_SHEET_STATUS')
             )
-            .option(
-                '--exclude-sheet-number <number...>',
-                'Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.'
+            .addOption(
+                new Option(
+                    '--exclude-sheet-tag <value...>',
+                    'Sheets with one or more of these tags set will be excluded from sheet icon update.'
+                ).env('BSI_QSCLOUD_CST_EXCLUDE_SHEET_TAG')
             )
-            .option(
-                '--exclude-sheet-title <title...>',
-                'Use sheet titles to control which sheets that will be excluded from sheet icon update.'
+            .addOption(
+                new Option(
+                    '--exclude-sheet-number <number...>',
+                    'Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.'
+                ).env('BSI_QSCLOUD_CST_EXCLUDE_SHEET_NUMBER')
+            )
+            .addOption(
+                new Option(
+                    '--exclude-sheet-title <title...>',
+                    'Use sheet titles to control which sheets that will be excluded from sheet icon update.'
+                ).env('BSI_QSCLOUD_CST_EXCLUDE_SHEET_TITLE')
             )
             .addOption(
                 new Option(
@@ -449,19 +510,49 @@ const program = new Command();
                 )
                     .choices(['published', 'public'])
                     .default([])
+                    .env('BSI_QSCLOUD_CST_BLUR_SHEET_STATUS')
             )
-            .option(
-                '--blur-sheet-number <number...>',
-                'Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.'
+            .addOption(
+                new Option(
+                    '--blur-sheet-tag <value>',
+                    'Sheets with one or more of these tags set will be blurred in the sheet icon update.'
+                ).env('BSI_QSCLOUD_CST_BLUR_SHEET_TAG')
             )
-            .option(
-                '--blur-sheet-title <title...>',
-                'Sheets with this title will be blurred in the sheet icon update.'
+            .addOption(
+                new Option(
+                    '--blur-sheet-number <number...>',
+                    'Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.'
+                ).env('BSI_QSCLOUD_CST_BLUR_SHEET_NUMBER')
             )
-            .option(
-                '--blur-factor <factor>',
-                'Factor to blur the sheets with. 0 = no blur, 100 = full blur.',
-                '5'
+            .addOption(
+                new Option(
+                    '--blur-sheet-title <title...>',
+                    'Sheets with this title will be blurred in the sheet icon update.'
+                ).env('BSI_QSCLOUD_CST_BLUR_SHEET_TITLE')
+            )
+            .addOption(
+                new Option(
+                    '--blur-factor <factor>',
+                    'Factor to blur the sheets with. 0 = no blur, 100 = full blur.'
+                )
+                    .default('5')
+                    .env('BSI_QSCLOUD_CST_BLUR_FACTOR')
+            )
+            .addOption(
+                new Option('--sense-version <version>', 'Version of the QSEoW server to connect to')
+                    .choices([
+                        'pre-2022-Nov',
+                        '2022-Nov',
+                        '2023-Feb',
+                        '2023-May',
+                        '2023-Aug',
+                        '2023-Nov',
+                        '2024-Feb',
+                        '2024-May',
+                        '2024-Nov',
+                    ])
+                    .default('2024-Nov')
+                    .env('BSI_QSCLOUD_CST_SENSE_VERSION')
             )
             .addOption(
                 new Option(
@@ -470,10 +561,15 @@ const program = new Command();
                 )
                     .choices(['chrome', 'firefox'])
                     .default('chrome')
+                    .env('BSI_QSCLOUD_CST_BROWSER')
             )
-            .option(
-                '--browser-version <version>',
-                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. Leave empty or set to "latest" to get latest available version.'
+            .addOption(
+                new Option(
+                    '--browser-version <version>',
+                    'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+                )
+                    .default('latest')
+                    .env('BSI_QSCLOUD_CST_BROWSER_VERSION')
             );
 
         // ---------
@@ -502,16 +598,26 @@ const program = new Command();
                 new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
+                    .env('BSI_QSCLOUD_LC_LOG_LEVEL')
             )
-            .requiredOption(
-                '--tenanturl <url>',
-                'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
+            .addOption(
+                new Option(
+                    '--tenanturl <url>',
+                    'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
+                )
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_LC_TENANTURL')
             )
-            .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
+            .addOption(
+                new Option('--apikey <key>', 'API key used to access the Sense APIs')
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_LC_APIKEY')
+            )
             .addOption(
                 new Option('--outputformat <table|json>', 'Output format')
                     .choices(['table', 'json'])
                     .default('table')
+                    .env('BSI_QSCLOUD_LC_OUTPUTFORMAT')
             );
 
         // ---------
@@ -540,6 +646,7 @@ const program = new Command();
                 new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
+                    .env('BSI_QSCLOUD_RSI_LOG_LEVEL')
             )
             .addOption(
                 new Option('--schemaversion <version>', 'Qlik Sense engine schema version')
@@ -554,17 +661,34 @@ const program = new Command();
                         '12.2015.0',
                     ])
                     .default('12.612.0')
+                    .env('BSI_QSCLOUD_RSI_SCHEMAVERSION')
             )
-            .requiredOption(
-                '--tenanturl <url>',
-                'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
+            .addOption(
+                new Option(
+                    '--tenanturl <url>',
+                    'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
+                )
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_RSI_TENANTURL')
             )
-            .requiredOption('--apikey <key>', 'API key used to access the Sense APIs')
-            .option('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.')
-            .option(
-                '--collectionid <id>',
-                'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated',
-                ''
+            .addOption(
+                new Option('--apikey <key>', 'API key used to access the Sense APIs')
+                    .makeOptionMandatory()
+                    .env('BSI_QSCLOUD_RSI_APIKEY')
+            )
+            .addOption(
+                new Option(
+                    '--appid <id>',
+                    'Qlik Sense app whose sheet icons should be modified.'
+                ).env('BSI_QSCLOUD_RSI_APPID')
+            )
+            .addOption(
+                new Option(
+                    '--collectionid <id>',
+                    'Used to control which Sense apps should have their sheets updated with new icons. All apps in this collection will be updated'
+                )
+                    .default('')
+                    .env('BSI_QSCLOUD_RSI_COLLECTIONID')
             );
 
         return cloud;
@@ -603,6 +727,7 @@ const program = new Command();
                 new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
+                    .env('BSI_BROWSER_LI_LOG_LEVEL')
             );
 
         // uninstall sub-command
@@ -632,15 +757,24 @@ const program = new Command();
                 new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
+                    .env('BSI_BROWSER_UI_LOG_LEVEL')
             )
-            .requiredOption(
-                '--browser <browser>',
-                'Browser to uninstall (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.',
-                'chrome'
+            .addOption(
+                new Option(
+                    '--browser <browser>',
+                    'Browser to uninstall (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+                )
+                    .default('chrome')
+                    .makeOptionMandatory()
+                    .env('BSI_BROWSER_UI_BROWSER')
             )
-            .requiredOption(
-                '--browser-version <version>',
-                'Version (=build id) of the browser to uninstall. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+            .addOption(
+                new Option(
+                    '--browser-version <version>',
+                    'Version (=build id) of the browser to uninstall. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+                )
+                    .makeOptionMandatory()
+                    .env('BSI_BROWSER_UI_BROWSER_VERSION')
             );
 
         // uninstall-all sub-command
@@ -670,6 +804,7 @@ const program = new Command();
                 new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
+                    .env('BS_BROWSER_UIA_LOG_LEVEL')
             );
 
         // install sub-command
@@ -694,20 +829,7 @@ const program = new Command();
                             // eslint-disable-next-line no-param-reassign
                             options.browserVersion = 'latest';
                         }
-                    } else if (
-                        options.browser === 'firefox' &&
-                        options.browserVersion !== 'latest'
-                    ) {
-                        // Only "latest" is supported for Firefox.
-                        // In the future we might support other/specifc versions, but for now we'll just use latest.
-                        logger.error(
-                            `Firefox support is still experimental, so only "latest" is supported for browser version. You specified a different version: ${options.browserVersion}.`
-                        );
-                        process.exit(1);
                     }
-
-                    const res = await browserInstall(options, command);
-                    logger.debug(`Call to browserInstall succeeded: ${res}`);
                 } catch (err) {
                     if (err.stack) {
                         logger.error(`BROWSER MAIN 9 (stack): ${err.stack}`);
@@ -722,6 +844,7 @@ const program = new Command();
                 new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
+                    .env('BSI_BROWSER_I_LOG_LEVEL')
             )
             .addOption(
                 new Option(
@@ -730,11 +853,15 @@ const program = new Command();
                 )
                     .choices(['chrome', 'firefox'])
                     .default('chrome')
+                    .env('BSI_BROWSER_I_BROWSER')
             )
-            .option(
-                '--browser-version <version>',
-                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.',
-                'latest'
+            .addOption(
+                new Option(
+                    '--browser-version <version>',
+                    'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+                )
+                    .default('latest')
+                    .env('BSI_BROWSER_I_BROWSER_VERSION')
             );
 
         // available sub-command
@@ -767,6 +894,7 @@ const program = new Command();
                 new Option('--loglevel, --log-level <level>', 'Log level')
                     .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                     .default('info')
+                    .env('BSI_BROWSER_LA_LOG_LEVEL')
             )
             .addOption(
                 new Option(
@@ -775,6 +903,7 @@ const program = new Command();
                 )
                     .choices(['chrome', 'firefox'])
                     .default('chrome')
+                    .env('BSI_BROWSER_LA_BROWSER')
             )
             .addOption(
                 new Option(
@@ -783,6 +912,7 @@ const program = new Command();
                 )
                     .choices(['stable', 'beta', 'dev', 'canary'])
                     .default('stable')
+                    .env('BSI_BROWSER_LA_CHANNEL')
             );
         return browser;
     }

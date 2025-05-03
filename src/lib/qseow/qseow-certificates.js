@@ -1,7 +1,7 @@
-const upath = require('upath');
-const { promises: Fs } = require('fs');
+import upath from 'upath';
+import { promises as Fs } from 'fs';
 
-const { logger, bsiExecutablePath } = require('../../globals');
+import { logger, bsiExecutablePath } from '../../globals.js';
 
 /**
  * Checks if the specified file path exists and is accessible.
@@ -29,7 +29,7 @@ async function exists(pathToCheck) {
  *
  * @returns {Promise<boolean>} - A promise that resolves to `true` if both the certificate and key files exist and are accessible, `false` otherwise.
  */
-const qseowVerifyCertificatesExist = async (options) => {
+export const qseowVerifyCertificatesExist = async (options) => {
     try {
         logger.debug('Checking if QSEoW certificates exists');
 
@@ -72,8 +72,4 @@ const qseowVerifyCertificatesExist = async (options) => {
 
         return false;
     }
-};
-
-module.exports = {
-    qseowVerifyCertificatesExist,
 };

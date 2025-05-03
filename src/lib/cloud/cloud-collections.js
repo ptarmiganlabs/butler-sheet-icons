@@ -1,10 +1,7 @@
-/* eslint-disable import/extensions */
-/* eslint-disable no-await-in-loop */
-
-const { table } = require('table');
-const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals.js');
-const QlikSaas = require('./cloud-repo');
-const { qscloudTestConnection } = require('./cloud-test-connection');
+import { table } from 'table';
+import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import QlikSaas from './cloud-repo.js';
+import { qscloudTestConnection } from './cloud-test-connection.js';
 
 /**
  * Lists all available collections in the Qlik Sense Cloud tenant.
@@ -20,7 +17,7 @@ const { qscloudTestConnection } = require('./cloud-test-connection');
  * @throws {Error} - Throws an error if there is an issue during the listing process.
  */
 
-const qscloudListCollections = async (options) => {
+export const qscloudListCollections = async (options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -156,7 +153,7 @@ const qscloudListCollections = async (options) => {
  *
  * @throws {Error} - Throws an error if there is an issue during the verification process.
  */
-const qscloudVerifyCollectionExists = async (options) => {
+export const qscloudVerifyCollectionExists = async (options) => {
     try {
         logger.debug('Checking if QS Cloud collection already exists');
 
@@ -193,9 +190,4 @@ const qscloudVerifyCollectionExists = async (options) => {
 
         throw new Error(`COLLECTION EXISTS 1: ${err}`);
     }
-};
-
-module.exports = {
-    qscloudListCollections,
-    qscloudVerifyCollectionExists,
 };

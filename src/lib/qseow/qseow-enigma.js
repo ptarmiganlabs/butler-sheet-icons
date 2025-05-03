@@ -1,10 +1,10 @@
-const WebSocket = require('ws');
-const fs = require('fs-extra');
-const SenseUtilities = require('enigma.js/sense-utilities');
+import SenseUtilities from 'enigma.js/sense-utilities.js';
+import WebSocket from 'ws';
+import fs from 'fs-extra';
 
-const { logger, bsiExecutablePath } = require('../../globals');
-const { getEnigmaSchema } = require('../util/enigma-util');
-const { getCertFilePaths } = require('../util/cert');
+import { logger, bsiExecutablePath } from '../../globals.js';
+import { getEnigmaSchema } from '../util/enigma-util.js';
+import { getCertFilePaths } from '../util/cert.js';
 
 /**
  *
@@ -32,7 +32,7 @@ const readCert = (filename) => fs.readFileSync(filename);
  *
  * @returns {Object} An object with properties `schema` and `url` to be used when creating an Enigma session.
  */
-const setupEnigmaConnection = (appId, options, command) => {
+export const setupEnigmaConnection = (appId, options, command) => {
     logger.debug(`Prepping for QSEoW Enigma connection for app ${appId}`);
 
     // Set up enigma.js configuration
@@ -79,8 +79,4 @@ const setupEnigmaConnection = (appId, options, command) => {
                     options.rejectUnauthorized === 'true' || options.rejectUnauthorized === true,
             }),
     };
-};
-
-module.exports = {
-    setupEnigmaConnection,
 };

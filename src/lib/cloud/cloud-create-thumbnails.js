@@ -1,9 +1,7 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable import/extensions */
-const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals.js');
-const QlikSaas = require('./cloud-repo');
-const { qscloudTestConnection } = require('./cloud-test-connection');
-const { processCloudApp } = require('./process-cloud-app.js');
+import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import QlikSaas from './cloud-repo.js';
+import { qscloudTestConnection } from './cloud-test-connection.js';
+import { processCloudApp } from './process-cloud-app.js';
 
 /**
  * Create thumbnails for Qlik Sense Cloud (QSC)
@@ -28,11 +26,10 @@ const { processCloudApp } = require('./process-cloud-app.js');
  *
  * @returns {Promise<boolean>} - true if thumbnails were created successfully, false otherwise
  */
-const qscloudCreateThumbnails = async (options) => {
+export const qscloudCreateThumbnails = async (options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
-            // eslint-disable-next-line no-param-reassign
             options.loglevel = options.logLevel;
         }
         setLoggingLevel(options.loglevel);
@@ -142,7 +139,6 @@ const qscloudCreateThumbnails = async (options) => {
         });
 
         // Process all apps
-        // eslint-disable-next-line no-restricted-syntax
         for (const appId of uniqueAppIds) {
             try {
                 logger.info(`--------------------------------------------------`);
@@ -174,8 +170,4 @@ const qscloudCreateThumbnails = async (options) => {
 
         return false;
     }
-};
-
-module.exports = {
-    qscloudCreateThumbnails,
 };

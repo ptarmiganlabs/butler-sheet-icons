@@ -1,11 +1,11 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable import/extensions */
-const enigma = require('enigma.js');
+import enigma from 'enigma.js';
 
-const { setupEnigmaConnection } = require('./cloud-enigma.js');
-const { logger, setLoggingLevel, bsiExecutablePath, isSea } = require('../../globals.js');
-const QlikSaas = require('./cloud-repo');
-const { qscloudTestConnection } = require('./cloud-test-connection');
+import { setupEnigmaConnection } from './cloud-enigma.js';
+import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import QlikSaas from './cloud-repo.js';
+import { qscloudTestConnection } from './cloud-test-connection.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Cloud app.
@@ -164,7 +164,7 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
  *
  * @returns {Promise<boolean>} - true if thumbnails were removed successfully, false otherwise.
  */
-const qscloudRemoveSheetIcons = async (options) => {
+export const qscloudRemoveSheetIcons = async (options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -291,8 +291,4 @@ const qscloudRemoveSheetIcons = async (options) => {
 
         return false;
     }
-};
-
-module.exports = {
-    qscloudRemoveSheetIcons,
 };

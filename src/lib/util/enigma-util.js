@@ -1,9 +1,10 @@
-const sea = require('node:sea');
-const { getAsset } = require('node:sea');
-const fs = require('node:fs');
-const path = require('node:path');
+import * as sea from 'node:sea';
+import { getAsset } from 'node:sea';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const { logger, isSea } = require('../../globals');
+import { logger, isSea } from '../../globals.js';
 
 /**
  * Retrieves the Enigma.js schema JSON based on the provided options.
@@ -15,7 +16,7 @@ const { logger, isSea } = require('../../globals');
  *
  * @throws Will terminate the process with an error message if the schema version is unsupported or if an error occurs during file retrieval.
  */
-const getEnigmaSchema = (options) => {
+export const getEnigmaSchema = (options) => {
     // Array of supported schema versions
     const supportedSchemaVersions = [
         '12.170.2',
@@ -47,9 +48,12 @@ const getEnigmaSchema = (options) => {
             qixSchemaJson = getAsset(`enigma_schema_${options.schemaversion}.json`, 'utf8');
         } else {
             // No, we are running as native Node.js
+            const __filename = fileURLToPath(import.meta.url);
+            const __dirname = path.dirname(__filename);
+
             const schemaFile = path.join(
                 __dirname,
-                `../../node_modules/enigma.js/schemas/${options.schemaversion}.json`
+                `../../../node_modules/enigma.js/schemas/${options.schemaversion}.json`
             );
             const schemaFilePath = path.resolve(schemaFile);
             logger.debug(`Enigma.js schema file: ${schemaFilePath}`);
@@ -66,5 +70,3 @@ const getEnigmaSchema = (options) => {
 
     return qixSchema;
 };
-
-module.exports = { getEnigmaSchema };

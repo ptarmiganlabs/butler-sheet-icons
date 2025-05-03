@@ -1,8 +1,8 @@
 /* eslint-disable no-await-in-loop */
-const enigma = require('enigma.js');
+import enigma from 'enigma.js';
 
-const { setupEnigmaConnection } = require('./cloud-enigma');
-const { logger } = require('../../globals');
+import { setupEnigmaConnection } from './cloud-enigma.js';
+import { logger } from '../../globals.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Cloud app.
@@ -24,7 +24,7 @@ const { logger } = require('../../globals');
  * have been successfully updated in the Qlik Sense Cloud app.
  */
 
-const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
+export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
     try {
         logger.verbose(`Starting update of sheet icons for app ${appId}`);
 
@@ -206,8 +206,4 @@ const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
 
         process.exit(1);
     }
-};
-
-module.exports = {
-    qscloudUpdateSheetThumbnails,
 };

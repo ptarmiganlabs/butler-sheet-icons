@@ -8,7 +8,7 @@
  *
  * @returns {Promise<void>}
  */
-async function deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance, logger) {
+export async function deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance, logger) {
     try {
         logger.verbose(
             `Deleting existing thumbnail "${thumbnailImg.name}" for app ${appId}, media path is "apps/${appId}/media/files/thumbnails/${thumbnailImg.name}"`
@@ -30,5 +30,3 @@ async function deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance, logger
         throw Error('Error deleting existing thumbnail');
     }
 }
-
-module.exports = { deleteCloudAppThumbnail };

@@ -1,6 +1,6 @@
-const { Jimp } = require('jimp');
+import { Jimp } from 'jimp';
 
-const { sleep } = require('../../globals.js');
+import { sleep } from '../../globals.js';
 
 /**
  * Takes a screenshot of a sheet and creates a blurred version.
@@ -15,7 +15,16 @@ const { sleep } = require('../../globals.js');
  * @param {Object} logger Logger instance.
  * @returns {Promise<Object>} Created file information.
  */
-async function takeSheetScreenshot(page, appUrl, imgDir, appId, sheet, iSheetNum, options, logger) {
+export async function takeSheetScreenshot(
+    page,
+    appUrl,
+    imgDir,
+    appId,
+    sheet,
+    iSheetNum,
+    options,
+    logger
+) {
     const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}/state/analysis`;
     logger.debug(`Sheet URL: ${sheetUrl}`);
 
@@ -75,5 +84,3 @@ async function takeSheetScreenshot(page, appUrl, imgDir, appId, sheet, iSheetNum
         throw err;
     }
 }
-
-module.exports = { takeSheetScreenshot };

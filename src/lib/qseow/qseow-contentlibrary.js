@@ -1,7 +1,7 @@
-const qrsInteract = require('qrs-interact');
+import qrsInteract from 'qrs-interact';
 
-const { logger } = require('../../globals');
-const { setupQseowQrsConnection } = require('./qseow-qrs');
+import { logger } from '../../globals.js';
+import { setupQseowQrsConnection } from './qseow-qrs.js';
 
 /**
  * Verifies if a specified content library exists in Qlik Sense Enterprise on Windows (QSEoW).
@@ -14,7 +14,7 @@ const { setupQseowQrsConnection } = require('./qseow-qrs');
  * @throws {Error} - Throws an error if there is an issue during the verification process.
  */
 
-const qseowVerifyContentLibraryExists = async (options) => {
+export const qseowVerifyContentLibraryExists = async (options) => {
     try {
         logger.debug('Checking if QSEoW content library already exists');
 
@@ -50,8 +50,4 @@ const qseowVerifyContentLibraryExists = async (options) => {
 
         throw new Error(`CONTENT LIBRARY 1: ${err}`);
     }
-};
-
-module.exports = {
-    qseowVerifyContentLibraryExists,
 };
