@@ -44,7 +44,7 @@ jobs:
 
       - name: Run browser tests
         run: |
-          dir
+          ls -la
           npm run test browser -- -i
         working-directory: .
         env:
@@ -70,7 +70,7 @@ jobs:
 
       - name: Run QS cloud tests
         run: |
-          dir
+          ls -la
           npm run test cloud -- -i
         working-directory: .
         env:
@@ -96,7 +96,7 @@ jobs:
 
       - name: Run QSEoW tests
         run: |
-          dir
+          ls -la
           npm run test qseow -- -i
         working-directory: .
         env:
