@@ -1,6 +1,34 @@
 # Changelog
 
 
+## [3.8.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.7.1...butler-sheet-icons-v3.8.0) (2025-05-03)
+
+
+### Features
+
+* add dotenv for environment variable management ([85f3978](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/85f39785f9a62d735273fd9bd21507172bb523a1))
+* add environment variable support for command line options ([ef8ee0d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ef8ee0d0c73fa09975dcc5ef61238fc6319d92b6))
+* add support for 2024-Nov Sense version in QSEoW thumbnail creation ([fcce0fe](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fcce0fe9fcdce2c07d0506e8d1d9e510de0b6e7e))
+
+
+### Bug Fixes
+
+* improve error logging for browser installation and version retrieval ([2044495](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2044495a4cb4c9d570a5b9b0206590a2347990bb))
+
+
+### Miscellaneous
+
+* Add new browser test cases ([347b3ab](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/347b3abd6f3ccc6994878c880a34a12d7c9c6d5b))
+* Add tests to improve test coverage ([4464897](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4464897fee2639835aa0e6999af911cf6c6ac5c4))
+* **deps:** update puppeteer dependencies to latest versions ([22113e2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/22113e21333ebb21658648ab414c1dd945bda7be))
+* update commander, esbuild, and eslint-config-prettier to latest versions ([c0f1ffb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c0f1ffbb27440618388ad29de160d8d420f14cb7))
+* update dependencies to latest versions ([a543d47](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a543d47cf68c13e1863342ac6f747036da9b995c))
+* update dependencies to latest versions ([90a6204](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/90a6204108cd8ec077a4aeb5c8feb8d0a1e00c54))
+* update dependencies to latest versions in package.json and package-lock.json ([5411953](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/54119536e9958d45a969e5d6ea463af6e467e7ce))
+* update dependencies to latest versions in package.json and package-lock.json ([ea7145e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ea7145e6b4b10968717864362a0441c4e6970b9f))
+* update puppeteer-core to version 24.4.0 and add sharp to pkg assets ([601540f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/601540fcc1acbe0eda87737bf3705da444c930b6))
+* update test scripts for improved execution and coverage ([f5faeb7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f5faeb732e9bfb55bc5de7ba2d247a3ac5f68ea2))
+
 ## [3.7.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.7.0...butler-sheet-icons-v3.7.1) (2024-11-10)
 
 
