@@ -1,6 +1,3 @@
-/* eslint-disable import/extensions */
-/* eslint-disable no-await-in-loop */
-
 import { table } from 'table';
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import QlikSaas from './cloud-repo.js';
