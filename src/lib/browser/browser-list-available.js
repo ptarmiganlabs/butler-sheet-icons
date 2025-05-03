@@ -182,44 +182,6 @@ export async function browserListAvailable(options) {
             //         }
             //     ]
             // }
-
-            //     const axiosConfig = {
-            //         method: 'get',
-            //         responseType: 'json',
-            //         url: 'https://product-details.mozilla.org/1.0/firefox.json',
-            //     };
-
-            //     const response = await axios(axiosConfig);
-            //     const firefoxVersions = response.data.releases;
-
-            //     // Only include versions from past 12 months
-            //     const today = new Date();
-            //     const oneYearAgo = new Date();
-            //     oneYearAgo.setFullYear(today.getFullYear() - 1);
-            //     logger.debug(`Today: ${today}`);
-            //     logger.debug(`One year ago: ${oneYearAgo}`);
-
-            //     browsersAvailable = Object.keys(firefoxVersions)
-            //         .filter((version) => {
-            //             const versionDate = new Date(firefoxVersions[version].date);
-            //             return versionDate > oneYearAgo;
-            //         })
-            //         .map((version) => ({
-            //             date: firefoxVersions[version].date,
-            //             category: firefoxVersions[version].category,
-            //             version: firefoxVersions[version].version,
-            //         }))
-            //         .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            //     // Output Firefox versions and names to info log
-            //     if (browsersAvailable.length > 0) {
-            //         logger.info(`Firefox versions from past 12 months:`);
-            //         browsersAvailable.forEach((version) => {
-            //             logger.info(`    ${version.date}, "${version.category}", "${version.version}"`);
-            //         });
-            //     } else {
-            //         logger.info('No Firefox versions available');
-            //     }
         }
         return browsersAvailable;
     } catch (err) {
