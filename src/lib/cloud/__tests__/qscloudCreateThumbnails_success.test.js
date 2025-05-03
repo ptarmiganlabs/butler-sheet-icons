@@ -1,12 +1,11 @@
 /* eslint-disable no-console */
-const { test, expect, describe } = require('@jest/globals');
+import { test, expect } from '@jest/globals';
 
-const { qscloudCreateThumbnails } = require('../cloud-create-thumbnails');
-const { browserInstalled } = require('../../browser/browser-installed.js');
-const { browserUninstallAll } = require('../../browser/browser-uninstall.js');
+import { qscloudCreateThumbnails } from '../cloud-create-thumbnails.js';
+import { browserInstalled } from '../../browser/browser-installed.js';
+import { browserUninstallAll } from '../../browser/browser-uninstall.js';
 
 const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1200000; // 20 minute default timeout
-
 console.log(`Jest timeout: ${defaultTestTimeout}`);
 
 const options = {

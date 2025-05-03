@@ -1,20 +1,10 @@
-const { test, expect, describe } = require('@jest/globals');
+import { test, expect, describe } from '@jest/globals';
 
-// Mock the browser-install module
-// jest.mock('../browser-install', () => ({
-//     browserInstall: jest.fn(),
-// }));
+import { browserInstalled } from '../browser-installed.js';
+import { browserInstall } from '../browser-install.js';
+import { browserUninstallAll } from '../browser-uninstall.js';
 
-// Also mock the browser-installed module
-// jest.mock('../browser-installed', () => ({
-//     browserInstalled: jest.fn().mockResolvedValue([]),
-// }));
-
-const { browserInstalled } = require('../browser-installed.js');
-const { browserInstall } = require('../browser-install.js');
-const { browserUninstallAll } = require('../browser-uninstall.js');
 const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1800000; // 20 minute default timeout
-
 console.log(`Jest timeout: ${defaultTestTimeout}`);
 
 const options = {
