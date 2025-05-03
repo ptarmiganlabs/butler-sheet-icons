@@ -1,5 +1,5 @@
-/* eslint-disable no-console */
 import { test, expect, describe } from '@jest/globals';
+import 'dotenv/config';
 
 import { qseowCreateThumbnails } from '../qseow-create-thumbnails.js';
 

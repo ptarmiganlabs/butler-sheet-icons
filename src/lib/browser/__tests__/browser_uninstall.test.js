@@ -1,9 +1,6 @@
 import { jest, test, expect, describe } from '@jest/globals';
 import fs from 'fs-extra';
-// import { getInstalledBrowsers, uninstall } from '@puppeteer/browsers';
-
-// Mocking external dependencies
-// jest.mock('fs-extra');
+import 'dotenv/config';
 
 jest.unstable_mockModule('@puppeteer/browsers', () => ({
     getInstalledBrowsers: jest.fn(),

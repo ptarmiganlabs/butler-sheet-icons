@@ -1,4 +1,5 @@
 import { jest, test, expect, describe } from '@jest/globals';
+import 'dotenv/config';
 
 // Mock the browser-install module
 const browserInstallMock = jest.fn();

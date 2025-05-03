@@ -1,5 +1,5 @@
-/* eslint-disable no-console */
 import { test, expect } from '@jest/globals';
+import 'dotenv/config';
 
 import { qscloudCreateThumbnails } from '../cloud-create-thumbnails.js';
 import { browserInstalled } from '../../browser/browser-installed.js';
