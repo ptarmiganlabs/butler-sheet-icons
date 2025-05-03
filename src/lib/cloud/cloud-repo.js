@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-/* eslint-disable no-param-reassign */
 import request from './cloud-repo-request.js';
 
 /**

@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable import/extensions */
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
@@ -32,7 +30,6 @@ export const qscloudCreateThumbnails = async (options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
-            // eslint-disable-next-line no-param-reassign
             options.loglevel = options.logLevel;
         }
         setLoggingLevel(options.loglevel);
@@ -142,7 +139,6 @@ export const qscloudCreateThumbnails = async (options) => {
         });
 
         // Process all apps
-        // eslint-disable-next-line no-restricted-syntax
         for (const appId of uniqueAppIds) {
             try {
                 logger.info(`--------------------------------------------------`);
