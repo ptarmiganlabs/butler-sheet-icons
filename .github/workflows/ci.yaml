@@ -22,7 +22,7 @@ jobs:
 
       - name: Debugging 1
         run: pwd && ls -la
-        working-directory: src
+        working-directory: .
 
       - name: Setup node
         uses: actions/setup-node@v4
@@ -32,7 +32,6 @@ jobs:
       - name: Install dependencies
         run: |
           pwd 
-          cd src
           npm ci --include=dev --include=prod
 
       - name: Debugging 2
@@ -41,11 +40,13 @@ jobs:
           ls -la
           node --version
           git version
-        working-directory: src
+        working-directory: .
 
       - name: Run browser tests
-        run: npm run test browser -- -i
-        working-directory: src
+        run: |
+          dir
+          npm run test browser -- -i
+        working-directory: .
         env:
           BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
@@ -68,8 +69,10 @@ jobs:
           BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       - name: Run QS cloud tests
-        run: npm run test cloud -- -i
-        working-directory: src
+        run: |
+          dir
+          npm run test cloud -- -i
+        working-directory: .
         env:
           BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
@@ -92,8 +95,10 @@ jobs:
           BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       - name: Run QSEoW tests
-        run: npm run test qseow -- -i
-        working-directory: src
+        run: |
+          dir
+          npm run test qseow -- -i
+        working-directory: .
         env:
           BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
@@ -153,7 +158,7 @@ jobs:
 
       - name: Debugging 1
         run: dir
-        working-directory: src
+        working-directory: .
 
       - name: Setup node
         uses: actions/setup-node@v4
@@ -163,7 +168,6 @@ jobs:
       - name: Install dependencies
         run: |
           dir
-          cd src
           npm ci --include=dev --include=prod
 
       - name: Debugging 2
@@ -171,13 +175,13 @@ jobs:
           dir 
           node --version
           git version
-        working-directory: src
+        working-directory: .
 
       - name: Run browser tests
         run: |
           dir
-          cd src
           npm run test browser -- -i
+        working-directory: .
         env:
           BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
@@ -202,8 +206,8 @@ jobs:
       - name: Run QS cloud tests
         run: |
           dir
-          cd src
           npm run test cloud -- -i
+        working-directory: .
         env:
           BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
@@ -228,8 +232,8 @@ jobs:
       - name: Run QSEoW tests
         run: |
           dir
-          cd src
           npm run test qseow -- -i
+        working-directory: .
         env:
           BSI_LOG_LEVEL: "info"
           BSI_CONTENT_LIBRARY: "abc 123"
@@ -269,8 +273,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
-      release_tag_name: ${{ steps.release.outputs['src--tag_name'] }}
-      release_upload_url: ${{ steps.release.outputs['src--upload_url'] }}
+      release_tag_name: ${{ steps.release.outputs['tag_name'] }}
+      release_upload_url: ${{ steps.release.outputs['upload_url'] }}
     env:
       GITHUB_REF: ${{ github.ref }}
       GITHUB_TOKEN: ${{ secrets.PAT }}
@@ -304,16 +308,16 @@ jobs:
         run: |
           echo "releases_created: ${{ steps.release.outputs.releases_created }}"
           echo "release_created : ${{ steps.release.outputs.release_created }}"
-          echo "draft           : ${{ steps.release.outputs['src--draft'] }}"
-          echo "path            : ${{ steps.release.outputs['src--path'] }}"
-          echo "upload_url      : ${{ steps.release.outputs['src--upload_url'] }}"
-          echo "html_url        : ${{ steps.release.outputs['src--html_url'] }}"
-          echo "tag_name        : ${{ steps.release.outputs['src--tag_name'] }}"
-          echo "version         : ${{ steps.release.outputs['src--version'] }}"
-          echo "major           : ${{ steps.release.outputs['src--major'] }}"
-          echo "minor           : ${{ steps.release.outputs['src--minor'] }}"
-          echo "patch           : ${{ steps.release.outputs['src--patch'] }}"
-          echo "sha             : ${{ steps.release.outputs['src--sha'] }}"
+          echo "draft           : ${{ steps.release.outputs['draft'] }}"
+          echo "path            : ${{ steps.release.outputs['path'] }}"
+          echo "upload_url      : ${{ steps.release.outputs['upload_url'] }}"
+          echo "html_url        : ${{ steps.release.outputs['html_url'] }}"
+          echo "tag_name        : ${{ steps.release.outputs['tag_name'] }}"
+          echo "version         : ${{ steps.release.outputs['version'] }}"
+          echo "major           : ${{ steps.release.outputs['major'] }}"
+          echo "minor           : ${{ steps.release.outputs['minor'] }}"
+          echo "patch           : ${{ steps.release.outputs['patch'] }}"
+          echo "sha             : ${{ steps.release.outputs['sha'] }}"
 
   release-macos:
     needs: release-please
@@ -352,18 +356,15 @@ jobs:
       - name: Install dependencies
         run: |
           pwd 
-          cd src
           npm ci --include=prod
 
       - name: Build binaries
         run: |
-          cd src
-
           # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23
+          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
-          node --experimental-sea-config sea-config.json
+          node --experimental-sea-config src/sea-config.json
 
           # Get a copy of the Node executable
           cp $(command -v node) ${DIST_FILE_NAME}
@@ -471,18 +472,15 @@ jobs:
       - name: Install dependencies
         run: |
           pwd 
-          cd src
           npm ci --include=prod
 
       - name: Build binaries
         run: |
-          cd src
-
           # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild "${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23
+          ./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
-          node --experimental-sea-config sea-config.json
+          node --experimental-sea-config src/sea-config.json
 
           # Get a copy of the Node executable
           node -e "require('fs').copyFileSync(process.execPath, '${env:DIST_FILE_NAME}.exe')" 
@@ -584,18 +582,15 @@ jobs:
       - name: Install dependencies
         run: |
           pwd 
-          cd src
           npm ci --include=prod
 
       - name: Build binaries
         run: |
-          cd src
-
           # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild ${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23
+          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
-          node --experimental-sea-config sea-config.json
+          node --experimental-sea-config src/sea-config.json
 
           # Get a copy of the Node executable
           cp $(command -v node) ${DIST_FILE_NAME}

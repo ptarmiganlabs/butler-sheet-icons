@@ -53,7 +53,7 @@ export const getEnigmaSchema = (options) => {
 
             const schemaFile = path.join(
                 __dirname,
-                `../../node_modules/enigma.js/schemas/${options.schemaversion}.json`
+                `../../../node_modules/enigma.js/schemas/${options.schemaversion}.json`
             );
             const schemaFilePath = path.resolve(schemaFile);
             logger.debug(`Enigma.js schema file: ${schemaFilePath}`);

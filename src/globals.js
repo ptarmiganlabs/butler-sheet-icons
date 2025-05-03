@@ -6,7 +6,7 @@ import path from 'node:path';
 import 'dotenv/config';
 
 // Get app version from package.json file
-const filenamePackage = `./src/package.json`;
+const filenamePackage = `./package.json`;
 let b;
 let c;
 let appVersion;
