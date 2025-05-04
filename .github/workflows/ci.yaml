@@ -274,6 +274,7 @@ jobs:
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       release_tag_name: ${{ steps.release.outputs['tag_name'] }}
+      release_version: ${{ steps.release.outputs['version'] }}
       release_upload_url: ${{ steps.release.outputs['upload_url'] }}
     env:
       GITHUB_REF: ${{ github.ref }}
@@ -285,7 +286,8 @@ jobs:
 
       - uses: googleapis/release-please-action@v4
         id: release
-        if: github.repository_owner == 'ptarmiganlabs'
+        if: |
+          github.repository_owner == 'ptarmiganlabs'
         with:
           # this assumes that you have created a personal access token
           # (PAT) and configured it as a GitHub action secret named
