@@ -82,7 +82,7 @@ jobs:
               dir
             artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
 
-          - os: mac-build1
+          - os: tachyon2-build1
             build: |
               # Inject git SHA into package.json
               GIT_SHA=$(git rev-parse --short HEAD)
@@ -234,6 +234,11 @@ jobs:
         run: |
           pwd
           ${{ matrix.build }}
+
+      - name: Post build debug
+        run: |
+          pwd 
+          ls -la
 
       - name: Upload insider build artifacts to GitHub
         uses: actions/upload-artifact@v4
