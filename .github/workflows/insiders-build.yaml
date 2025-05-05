@@ -76,10 +76,6 @@ jobs:
               Compress-Archive @compress
 
               # -------------------
-              # Move the zip file to the root directory
-              Move-Item "${env:DIST_FILE_NAME}--win-x64--${{ github.sha }}.zip" ..
-
-              # -------------------
               # Clean up
               Remove-Item -Force build.cjs
 
@@ -154,10 +150,6 @@ jobs:
               xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
 
               # -------------------
-              # Move the zip file to the root directory
-              mv "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" ..
-
-              # -------------------
               # Clean up
               # Delete build keychain
               security delete-keychain build.keychain
@@ -183,10 +175,6 @@ jobs:
               # Compress insider's build
               tar -czf "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" "${DIST_FILE_NAME}"
               ls -la
-
-              # -------------------
-              # Move the zip file to the root directory
-              mv "${DIST_FILE_NAME}--linux-x64--${{ github.sha }}.tgz" ..
 
               # -------------------
               # Clean up

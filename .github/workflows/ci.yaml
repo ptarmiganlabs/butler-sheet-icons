@@ -414,10 +414,6 @@ jobs:
           xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos.zip" --keychain-profile "notarytool-profile" --wait
 
           # -------------------
-          # Move the zip file to the root directory
-          mv "./${{ needs.release-please.outputs.release_tag_name }}-macos.zip" ..
-
-          # -------------------
           # Clean up
           # Delete build keychain
           security delete-keychain build.keychain
@@ -533,10 +529,6 @@ jobs:
           Compress-Archive @compress
 
           # -------------------
-          # Move the zip file to the root directory
-          Move-Item -Path "${{ needs.release-please.outputs.release_tag_name }}-win.zip" -Destination ..
-
-          # -------------------
           # Clean up
           Remove-Item -Force build.cjs
 
@@ -597,10 +589,6 @@ jobs:
           # Get a copy of the Node executable
           cp $(command -v node) ${DIST_FILE_NAME}
           npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
-
-          # -------------------
-          # Move the binary file to the root directory
-          mv ${DIST_FILE_NAME} ..
 
           # -------------------
           # Clean up
