@@ -10,7 +10,7 @@ jobs:
   insiders-build:
     strategy:
       matrix:
-        os: [win-code-sign, mac-build1, ubuntu-latest]
+        os: [win-code-sign, tachyon2-build1, ubuntu-latest]
         include:
           - os: win-code-sign
             build: |
@@ -147,7 +147,8 @@ jobs:
               # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
               # you're curious
               echo "Notarize insider app"
-              xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
+              #xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
+              xcrun notarytool submit "./${DIST_FILE_NAME}--macos-arm64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
 
               # -------------------
               # Clean up
@@ -157,7 +158,7 @@ jobs:
 
               ls -la
 
-            artifact_insider: butler-sheet-icons--macos-x64--${{ github.sha }}.zip
+            artifact_insider: butler-sheet-icons--macos-arm64--${{ github.sha }}.zip
 
           - os: ubuntu-latest
             build: |
