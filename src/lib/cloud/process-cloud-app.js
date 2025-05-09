@@ -27,6 +27,12 @@ const selectorLoginPageLoginButton = '[id="\u0031-submit"]';
  * @returns {Promise<void>}
  */
 export const processCloudApp = async (appId, saasInstance, options) => {
+    // Get page timeout from options
+    let pageTimeout = 90000; // 90 seconds
+    if (options.browserPageTimeout && options.browserPageTimeout > 0) {
+        pageTimeout = options.browserPageTimeout * 1000; // Convert to milliseconds
+    }
+
     // Create image directory on disk for this app
     try {
         fs.mkdirSync(`${options.imagedir}/cloud/${appId}`, { recursive: true });
@@ -154,6 +160,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 logger.error(`CLOUD: Error installing browser. Exiting.`);
                 process.exit(1);
             }
+
             logger.info(`Browser setup complete. Launching browser...`);
             const executablePath = computeExecutablePath({
                 browser: browserInstallResult.browser,
@@ -161,6 +168,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 cacheDir: browserPath,
             });
             logger.verbose(`Using browser at ${executablePath}`);
+
             // Parse --headless option
             let headless = true;
             if (options.headless === 'true' || options.headless === true) {
@@ -212,12 +220,15 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 deviceScaleFactor: 1,
             });
             // Set default timeout for all page operations to 90 seconds
-            await page.setDefaultTimeout(90000);
+            await page.setDefaultTimeout(pageTimeout);
+
             // Qlik Sense cloud URL format:
             // https://<tenant FQDN>/sense/app/<app ID>>
             const appUrl = `https://${options.tenanturl}/sense/app/${appId}`;
             logger.debug(`App URL: ${appUrl}`);
-            await Promise.all([page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 90000 })]);
+            await Promise.all([
+                page.goto(appUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
+            ]);
             await sleep(options.pagewait * 1000);
             await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-1.png` });
             // Should login be skipped?
@@ -248,7 +259,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                         clickCount: 1,
                         delay: 10,
                     }),
-                    page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 90000 }),
+                    page.waitForNavigation({ waitUntil: 'networkidle2', timeout: pageTimeout }),
                 ]);
                 await sleep(options.pagewait * 1000);
             }

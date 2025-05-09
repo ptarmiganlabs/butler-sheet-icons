@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable import/extensions */
 import enigma from 'enigma.js';
 import puppeteer from 'puppeteer-core';
 import fs from 'fs';
@@ -86,6 +84,12 @@ const xpathLogoutButton2024Nov =
  * @param {number} options.blurFactor - Factor by which to blur images.
  */
 export const qseowProcessApp = async (appId, options) => {
+    // Get page timeout from options
+    let pageTimeout = 90000; // 90 seconds
+    if (options.browserPageTimeout && options.browserPageTimeout > 0) {
+        pageTimeout = options.browserPageTimeout * 1000; // Convert to milliseconds
+    }
+
     // Get correct XPaths to UI elements (user menu, logout button etc) in the Sense web UI
     // As Qlik update their Sense web client these xpaths may/will change.
     let xpathHubUserPageButton = null;
@@ -314,7 +318,7 @@ export const qseowProcessApp = async (appId, options) => {
 
             // Set default timeout for all page operations to 90 seconds
             // https://stackoverflow.com/questions/52163547/node-js-puppeteer-how-to-set-navigation-timeout
-            await page.setDefaultTimeout(90000);
+            await page.setDefaultTimeout(pageTimeout);
 
             let appUrl = '';
             let hubUrl = '';
@@ -337,7 +341,9 @@ export const qseowProcessApp = async (appId, options) => {
             logger.debug(`App URL: ${appUrl}`);
             logger.debug(`Hub URL: ${hubUrl}`);
 
-            await Promise.all([page.goto(appUrl, { waitUntil: 'networkidle2', timeout: 90000 })]);
+            await Promise.all([
+                page.goto(appUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
+            ]);
 
             await sleep(options.pagewait * 1000);
             await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-1.png` });
@@ -425,7 +431,7 @@ export const qseowProcessApp = async (appId, options) => {
 
                     // Open sheet in browser, then take screen shot
                     await Promise.all([
-                        page.goto(sheetUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
+                        page.goto(sheetUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
                     ]);
 
                     await sleep(options.pagewait * 1000);
@@ -503,7 +509,7 @@ export const qseowProcessApp = async (appId, options) => {
             try {
                 // Log out
                 await Promise.all([
-                    page.goto(hubUrl, { waitUntil: 'networkidle2', timeout: 90000 }),
+                    page.goto(hubUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
                 ]);
             } catch (err) {
                 if (err.stack) {

@@ -32,7 +32,6 @@ export const browserInstall = async (options, _command) => {
 
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
-            // eslint-disable-next-line no-param-reassign
             options.loglevel = options.logLevel;
         }
         setLoggingLevel(options.loglevel);
@@ -55,7 +54,7 @@ export const browserInstall = async (options, _command) => {
         logger.debug(`Browser cache path: ${browserPath}`);
 
         const platform = await detectBrowserPlatform();
-        logger.debug(`Detected browser platform: ${platform}`);
+        logger.verbose(`Detected browser platform: ${platform}`);
 
         let buildId;
         if (options.browser === 'chrome') {

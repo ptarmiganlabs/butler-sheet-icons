@@ -115,7 +115,6 @@ export const qscloudCreateThumbnails = async (options) => {
                 );
 
                 // Process all apps in this collection
-                // eslint-disable-next-line no-restricted-syntax
                 for (const item of collectionItems) {
                     // Is item an app?
                     if (item.resourceType === 'app') {

@@ -327,6 +327,14 @@ const program = new Command();
             )
                 .default('latest')
                 .env('BSI_QSEOW_CST_BROWSER_VERSION')
+        )
+        .addOption(
+            new Option(
+                '--browser-page-timeout <version>',
+                'Timeout (seconds) for the browser to load a page. Default is 90 seconds. This is the time that the browser will wait for a page to load before giving up.'
+            )
+                .default('latest')
+                .env('BSI_BROWSER_PAGE_TIMEOUT')
         );
 
     // ---------
@@ -570,6 +578,14 @@ const program = new Command();
                 )
                     .default('latest')
                     .env('BSI_QSCLOUD_CST_BROWSER_VERSION')
+            )
+            .addOption(
+                new Option(
+                    '--browser-page-timeout <version>',
+                    'Timeout (seconds) for the browser to load a page. Default is 90 seconds. This is the time that the browser will wait for a page to load before giving up.'
+                )
+                    .default('latest')
+                    .env('BSI_BROWSER_PAGE_TIMEOUT')
             );
 
         // ---------

@@ -105,10 +105,18 @@ butler-sheet-icons.exe qscloud remove-sheet-icons `
     - [Excluding Sheets](#excluding-sheets)
     - [Excluding Sheets Based on the Sheet's Status](#excluding-sheets-based-on-the-sheets-status)
     - [Blurring Sheet Icons](#blurring-sheet-icons)
+      - [When to use Blurring](#when-to-use-blurring)
+      - [What Sheets to blur](#what-sheets-to-blur)
+      - [Blur Factor](#blur-factor)
+      - [Example of Blurring Effect](#example-of-blurring-effect)
+      - [Example commands](#example-commands)
     - [Screenshots Taken by Butler Sheet Icons](#screenshots-taken-by-butler-sheet-icons)
     - [Headless Browser](#headless-browser)
     - [Downloading a Browser](#downloading-a-browser)
     - [Using BSI with a Proxy Server](#using-bsi-with-a-proxy-server)
+    - [Using Environment Variables](#using-environment-variables)
+      - [Example: QSEoW Environment Variables (PowerShell)](#example-qseow-environment-variables-powershell)
+      - [Example: QS Cloud Environment Variables (PowerShell)](#example-qs-cloud-environment-variables-powershell)
   - [Concepts Specific to QS Cloud](#concepts-specific-to-qs-cloud)
     - [Logging into QS Cloud](#logging-into-qs-cloud)
     - [Skipping the Login Page](#skipping-the-login-page)
@@ -506,6 +514,83 @@ Sheet blurring is available both for QS Cloud and client-managed QSEoW.
 Note that blurred images are created for all sheets and stored on disk just as the regular sheet thumbnail images.  
 If an app sheet matches the filter criteria specified via `--blur-sheet-....` command line options, the blurred image will be used as the sheet icon.
 
+#### When to use Blurring
+
+Consider using blurring when:
+
+1. Sheets contain sensitive data (financial information, personal details, etc.)
+2. You want to visually differentiate between public/published sheets and development/private sheets
+3. You need to obscure specific information while still showing the general layout
+
+#### What Sheets to blur
+
+The available blur options are:
+
+- `--blur-sheet-number <numbers...>`: Specify sheet numbers that should be blurred. For example `--blur-sheet-number 1 3 5` will blur the first, third, and fifth sheets in the app.
+- `--blur-sheet-title <titles...>`: Specify sheet titles that should be blurred. For example `--blur-sheet-title "Sales Overview" "Financial Data"` will blur sheets with those exact titles.
+- `--blur-sheet-status <status...>`: Specify sheet status that should be blurred. Valid options are `published` and `public`. For example `--blur-sheet-status published` will blur all published sheets.
+- `--blur-sheet-tag <value>` (QSEoW only): Specify a tag that, when present on a sheet, indicates the sheet should be blurred. For example `--blur-sheet-tag "🔒 Contains sensitive data"`.
+
+#### Blur Factor
+
+The `--blur-factor <factor>` option controls the intensity of the blur effect.
+
+- Values range from 0 (no blur) to 1000 (full blur).
+- Default value is 5, which provides a moderate blur that obscures content while maintaining some visual context.
+- For complete obfuscation of sensitive data, consider using higher values.
+
+#### Example of Blurring Effect
+
+The `--blur-factor` option lets you control how blurry the sheet icons will be. Valid values range from 0 (no blur) to 100 (full blur).
+Here are examples of different blur levels:
+
+| Blur Factor      | Result                                                                        |
+| ---------------- | ----------------------------------------------------------------------------- |
+| 0 (No blur)      | ![No blur example](./docs/img/thumbnail-blur-factor-0.png "No blur")          |
+| 5 (Default)      | ![Light blur example](./docs/img/thumbnail-blur-factor-5.png "Light blur")    |
+| 10 (Medium blur) | ![Medium blur example](./docs/img/thumbnail-blur-factor-10.png "Medium blur") |
+
+Higher blur factors provide more privacy but make the content less recognizable. Choose a value that balances privacy needs with usability.
+
+When used in combination with selective sheet exclusion, blurring gives you fine-grained control over how sensitive information appears in sheet thumbnails.
+
+#### Example commands
+
+Here's an example command that includes blurring specific sheets, with environment variables used to store most parameter values:
+
+```powershell
+.\butler-sheet-icons.exe qseow create-sheet-thumbnails `
+  --host $env:BSI_HOST `
+  --appid $env:BSI_APP_ID `
+  --apiuserdir 'Internal' `
+  --apiuserid sa_api `
+  --logonuserdir $env:BSI_LOGON_USER_DIR `
+  --logonuserid $env:BSI_LOGON_USER_ID `
+  --logonpwd $env:BSI_LOGON_PWD `
+  --prefix form `
+  --blur-sheet-number 2 4 `
+  --blur-sheet-title "Financial Dashboard" `
+  --blur-factor 5 `
+  --sense-version 2024-May
+```
+
+The `--prefix form` option is used to specify that the Qlik Sense virtual proxy uses form-based authentication. In practice, this means that the user will be presented with a web page where they can enter their user ID and password.
+This is needed when running Butler Sheet Icons on Windows, as the default authentication method is Windows authentication, and this does not work when using an embedded browser (which is the case here).
+
+For QS Cloud, a similar command would be:
+
+```powershell
+.\butler-sheet-icons.exe qscloud create-sheet-thumbnails `
+  --tenanturl $env:BSI_TENANT_URL `
+  --apikey $env:BSI_API_KEY `
+  --logonuserid $env:BSI_LOGON_USER_ID `
+  --logonpwd $env:BSI_LOGON_PWD `
+  --appid $env:BSI_APP_ID `
+  --blur-sheet-status published `
+  --blur-sheet-number 1 `
+  --blur-factor 5
+```
+
 ### Screenshots Taken by Butler Sheet Icons
 
 Image files are created (=screenshots are taken):
@@ -588,6 +673,71 @@ Example (on Linux/macOS):
 export http_proxy='http://username:password@proxy.example.com:port'
 export https_proxy='http://username:password@proxy.example.com:port'
 ```
+
+### Using Environment Variables
+
+Butler Sheet Icons supports using environment variables for all command line parameters. This can be particularly useful for storing sensitive information like passwords and API keys, creating reusable scripts, and simplifying complex commands.
+
+Each command line parameter has a corresponding environment variable, following this naming pattern:
+
+`BSI_<command>_<subcommand abbreviation>_<parameter name>`
+
+Commands are:
+
+- `QSEOW` for Qlik Sense Enterprise on Windows (client-managed Qlik Sense)
+- `QSCLOUD` for Qlik Sense Cloud
+- `BROWSER`for options related to the embedded web browser that BSI uses to log into Qlik Sense.
+
+Subcommand abbreviations:
+
+| Used for commands | Subcommand Name         | Abbreviation |
+| ----------------- | ----------------------- | ------------ |
+| qseow, qscloud    | create-sheet-thumbnails | CST          |
+| qscloud           | remove-sheet-icons      | RSI          |
+| qscloud           | list-collections        | LC           |
+| browser           | list-installed          | LI           |
+| browser           | list-available          | LA           |
+| browser           | install                 | I            |
+| browser           | uninstall               | UI           |
+| browser           | uninstall-all           | UIA          |
+
+Finally, the command line parameter name is converted to uppercase and added to the end of the environment variable name.
+
+#### Example: QSEoW Environment Variables (PowerShell)
+
+```powershell
+# Set environment variables for QSEoW
+$env:BSI_QSEOW_CST_HOST = 'qlikserver.example.com'
+$env:BSI_QSEOW_CST_APP_ID = '12345678-1234-1234-1234-123456789012'
+$env:BSI_QSEOW_CST_API_USER_DIR = 'INTERNAL'
+$env:BSI_QSEOW_CST_API_USER_ID = 'sa_api'
+$env:BSI_QSEOW_CST_LOGON_USER_DIR = 'INTERNAL'
+$env:BSI_QSEOW_CST_LOGON_USER_ID = 'userID'
+$env:BSI_QSEOW_CST_LOGON_PWD = 'password'
+$env:BSI_QSEOW_CST_PREFIX = 'form'
+$env:BSI_QSEOW_CST_CONTENT_LIBRARY = 'Butler sheet thumbnails'
+
+# Run BSI with minimal command line parameters
+butler-sheet-icons qseow create-sheet-thumbnails
+```
+
+#### Example: QS Cloud Environment Variables (PowerShell)
+
+```powershell
+# Set environment variables for QS Cloud
+$env:BSI_QSCLOUD_CST_TENANTURL = 'tenant.eu.qlikcloud.com'
+$env:BSI_QSCLOUD_CST_APIKEY = 'eyJhbGciOiJFUzM4NCIsImtpZCI6IjM...'
+$env:BSI_QSCLOUD_CST_LOGON_USER_ID = 'user@example.com'
+$env:BSI_QSCLOUD_CST_LOGON_PWD = 'password'
+$env:BSI_QSCLOUD_CST_APP_ID = '12345678-1234-1234-1234-123456789012'
+
+# Run BSI with minimal command line parameters
+butler-sheet-icons qscloud create-sheet-thumbnails
+```
+
+With environment variables set, you can run BSI with minimal parameters. Command line parameters will override environment variables if both are provided.
+
+For security, be cautious with system-wide environment variables on shared systems and consider using secrets management in production environments.
 
 ## Concepts Specific to QS Cloud
 
@@ -748,7 +898,7 @@ Options:
   --apiuserid <userid>                user ID for user to connect with when using Sense APIs
   --logonuserdir <directory>          user directory for user to connect with when logging into web UI
   --logonuserid <userid>              user ID for user to connect with when logging into web UI
-  --logonpwd <password>               password for user to connect with
+  --logonpwd <password>               password for user to connect with when logging into web UI
   --headless <true|false>             headless (=not visible) browser (true, false) (default: true)
   --pagewait <seconds>                number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly (default: 5)
   --imagedir <directory>              directory in which thumbnail images will be stored. Relative or absolute path (default: "./img")
@@ -831,18 +981,6 @@ Commands:
 ```
 
 ```powershell
-Usage: butler-sheet-icons qscloud [options] [command]
-
-Options:
-  -h, --help                                            display help for command
-
-Commands:
-  create-sheet-thumbnails|create-sheet-icons [options]  Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.
-                                                        Multiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.
-  list-collections [options]                            List available collections.
-  remove-sheet-icons|remove-sheet-thumbnails [options]  Remove all sheet icons from a Qlik Sense Cloud app.
-  help [command]                                        display help for command
-PS /Users/goran/code/butler-sheet-icons/src> node ./butler-sheet-icons.js qscloud create-sheet-thumbnails --help
 Usage: butler-sheet-icons qscloud create-sheet-thumbnails|create-sheet-icons [options]
 
 Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.
@@ -1200,7 +1338,7 @@ Note: The command above assumes the certificates exported from QSEoW are availab
 List what browsers are currently installed and available for use by Butler Sheet Icons.
 
 Note that this command only lists browsers that have been installed by Butler Sheet Icons - not browsers installed by other means.  
-In other words: Butler Sheet Icons uses its own cache of browsers, it does not use browsers installed on the computer in any other way.
+ In other words: Butler Sheet Icons uses its own cache of browsers, it does not use browsers installed on the computer in any other way.
 
 On Windows this would be `butler-sheet-icons.exe browser list-installed`.
 
@@ -1354,6 +1492,7 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Version          | BSI version | Tested date  | Comment                            |
 | ---------------- | ----------- | ------------ | ---------------------------------- |
+| 2024-Nov IR      | 3.8.0       | 2025-May-6   | Use `--sense-version 2024-Nov`     |
 | 2024-May IR      | 3.6.4       | 2024-Nov-6   | Use `--sense-version 2024-May`     |
 | 2024-May IR      | 3.6.3       | 2024-Aug-23  | Use `--sense-version 2024-May`     |
 | 2024-May IR      | 3.6.2       | 2024-Jun-3   | Use `--sense-version 2024-May`     |
@@ -1370,6 +1509,7 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Tested date  | BSI version | Comment                               |
 | ------------ | ----------- | ------------------------------------- |
+| 2025-May-6   | 3.8.0       | Works without issues                  |
 | 2024-Nov-6   | 3.6.4       | Works without issues                  |
 | 2024-Aug-23  | 3.6.3       | Works without issues                  |
 | 2024-Jun-3   | 3.6.2       | Works without issues                  |
