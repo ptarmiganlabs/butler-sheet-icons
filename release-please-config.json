@@ -1,6 +1,4 @@
 {
-  "last-release-sha": "57b10261970f45ed1ba6120b83b5ba943e678f12",
-  "release-as": "3.8.0",
   "release-type": "node",
   "prerelease": false,
   "draft": true,
