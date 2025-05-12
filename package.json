@@ -30,7 +30,7 @@
         "fs-extra": "^11.3.0",
         "jimp": "^1.6.0",
         "os": "^0.1.2",
-        "puppeteer-core": "^24.8.1",
+        "puppeteer-core": "^24.8.2",
         "qrs-interact": "^6.3.1",
         "table": "^6.9.0",
         "upath": "^2.0.1",
