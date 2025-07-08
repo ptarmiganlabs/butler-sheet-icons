@@ -333,7 +333,7 @@ const program = new Command();
                 '--browser-page-timeout <version>',
                 'Timeout (seconds) for the browser to load a page. Default is 90 seconds. This is the time that the browser will wait for a page to load before giving up.'
             )
-                .default('latest')
+                .default(90)
                 .env('BSI_BROWSER_PAGE_TIMEOUT')
         );
 
