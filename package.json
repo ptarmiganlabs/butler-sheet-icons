@@ -26,7 +26,7 @@
         "commander": "^13.1.0",
         "dotenv": "^16.5.0",
         "enigma.js": "^2.14.0",
-        "form-data": "^4.0.2",
+        "form-data": "^4.0.4",
         "fs-extra": "^11.3.0",
         "jimp": "^1.6.0",
         "os": "^0.1.2",
