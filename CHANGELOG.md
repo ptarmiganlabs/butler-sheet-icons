@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.9.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.8.0...butler-sheet-icons-v3.9.0) (2025-08-26)
+
+
+### Features
+
+* add browser page timeout option with default value of 90 seconds ([fd75a9f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fd75a9f423240e3fe8627117b222422d5c7c3a17))
+
+
+### Miscellaneous
+
+* **deps:** update dependencies and add browser page timeout option ([851ed0c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/851ed0c588b68c6d61f27f18054aa974a6c85f8c))
+* Disable macOS Arm64 builds for now, will be reintroduced later. ([92b3c45](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/92b3c45a917b618e0f490ec333c0fc5434209faf))
+
+
+### Documentation
+
+* Describe how env variables can be used instead of command line parameters, refine blurring docs ([ec7fba3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ec7fba37241039193a5d9a7514bc53ab64ed4048))
+
 ## [3.8.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.8.0...butler-sheet-icons-v3.8.0) (2025-05-06)
 
 
