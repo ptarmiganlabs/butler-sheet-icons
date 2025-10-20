@@ -38,7 +38,7 @@
         "ws": "^8.18.1"
     },
     "devDependencies": {
-        "@eslint/js": "^9.25.1",
+        "@eslint/js": "^9.38.0",
         "@jest/globals": "^29.7.0",
         "esbuild": "^0.25.4",
         "eslint": "^9.25.1",
