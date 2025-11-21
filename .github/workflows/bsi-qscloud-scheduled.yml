@@ -1,0 +1,196 @@
+# Runs BSI release binaries on self-hosted Windows/macOS to validate QS Cloud end-to-end
+name: BSI QS Cloud scheduled E2E (release binaries)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly, Mondays 03:00 UTC
+    - cron: '0 3 * * MON'
+    # Monthly, 1st of month 03:00 UTC
+    - cron: '0 3 1 * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bsi-qscloud-${{ github.ref }}-${{ github.workflow }}-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  e2e:
+    name: e2e-${{ matrix.os }} (release)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Update runnerLabel values to match your self-hosted runner labels
+          - os: windows
+            runnerLabel: windows
+            appIdSecret: BSI_CLOUD_APP_ID_WINDOWS
+            assetRegex: '(win|windows).*\.exe$'
+            binName: 'butler-sheet-icons.exe'
+          - os: macos
+            runnerLabel: macos-arm64
+            appIdSecret: BSI_CLOUD_APP_ID_MAC
+            assetRegex: '(macos|darwin).*(arm64|aarch64)$'
+            binName: 'butler-sheet-icons'
+    runs-on:
+      - self-hosted
+      - '${{ matrix.runnerLabel }}'
+
+    timeout-minutes: 60
+
+    env:
+      # QS Cloud auth/config
+      BSI_QSCLOUD_CST_TENANTURL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+      BSI_QSCLOUD_CST_APIKEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+      BSI_QSCLOUD_CST_LOGON_USER_ID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+      BSI_QSCLOUD_CST_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+      # Repository whose releases to use. Defaults to current repo; override with a repo-level variable if needed.
+      BSI_RELEASE_REPO: ${{ vars.BSI_RELEASE_REPO || github.repository }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+        # Node is used for tiny helper scripts (release download + output verification)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Node dependencies (for helper scripts)
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+
+      - name: Determine APP_ID for matrix
+        id: appid
+        shell: bash
+        run: |
+          case "${{ matrix.appIdSecret }}" in
+            BSI_CLOUD_APP_ID_WINDOWS) echo "APP_ID=${{ secrets.BSI_CLOUD_APP_ID_WINDOWS }}" >> "$GITHUB_ENV" ;;
+            BSI_CLOUD_APP_ID_MAC) echo "APP_ID=${{ secrets.BSI_CLOUD_APP_ID_MAC }}" >> "$GITHUB_ENV" ;;
+            *) echo "Unknown appIdSecret"; exit 1;;
+          esac
+          echo "Using APP_ID=$APP_ID"
+          echo "app_id=$APP_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare dirs
+        shell: bash
+        run: |
+          mkdir -p bsi/bin
+          mkdir -p img
+
+      - name: Download latest release binary for ${{ matrix.os }}
+        id: dl
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASSET_REGEX: ${{ matrix.assetRegex }}
+        run: |
+          node script/fetch-release-asset.js \
+            --repo "$BSI_RELEASE_REPO" \
+            --assetRegex "$ASSET_REGEX" \
+            --outDir "bsi/bin" \
+            --binName "${{ matrix.binName }}"
+          echo "BIN_PATH=$(pwd)/bsi/bin/${{ matrix.binName }}" >> "$GITHUB_ENV"
+          chmod +x "$(pwd)/bsi/bin/${{ matrix.binName }}" || true
+
+      - name: Browser - uninstall all (fresh cache)
+        shell: bash
+        run: |
+          "$BIN_PATH" browser uninstall-all || true
+
+      - name: Baseline cleanup - remove all sheet icons
+        shell: bash
+        run: |
+          set -e
+          "$BIN_PATH" qscloud remove-sheet-icons \
+            --appid "$APP_ID" \
+            --loglevel info
+
+      - name: Snapshot app overview BEFORE (post-cleanup)
+        shell: bash
+        run: |
+          node script/qscloud-overview-snapshot.js \
+            --tenantUrl "$BSI_QSCLOUD_CST_TENANTURL" \
+            --appId "$APP_ID" \
+            --user "$BSI_QSCLOUD_CST_LOGON_USER_ID" \
+            --pwd "$BSI_QSCLOUD_CST_LOGON_PWD" \
+            --outfile "img/cloud/$APP_ID/overview-before-verify.png" \
+            --headless true
+
+      - name: Create sheet thumbnails (unpublished app)
+        shell: bash
+        run: |
+          set -e
+          "$BIN_PATH" qscloud create-sheet-thumbnails \
+            --appid "$APP_ID" \
+            --headless true \
+            --pagewait 5 \
+            --loglevel info
+
+      - name: Snapshot app overview AFTER (post-update)
+        shell: bash
+        run: |
+          node script/qscloud-overview-snapshot.js \
+            --tenantUrl "$BSI_QSCLOUD_CST_TENANTURL" \
+            --appId "$APP_ID" \
+            --user "$BSI_QSCLOUD_CST_LOGON_USER_ID" \
+            --pwd "$BSI_QSCLOUD_CST_LOGON_PWD" \
+            --outfile "img/cloud/$APP_ID/overview-after-verify.png" \
+            --headless true
+
+      - name: Verify outputs exist and look sane
+        id: verify
+        shell: bash
+        run: |
+          node script/verify-bsi-output.js --appId "$APP_ID" --baseDir "img/cloud"
+
+      - name: Email overview screenshots to reviewer
+        if: ${{ vars.BSI_NOTIFY_EMAIL && secrets.SMTP_HOST && secrets.SMTP_PORT && secrets.SMTP_USERNAME && secrets.SMTP_PASSWORD && secrets.SMTP_FROM }}
+        # Requirements to enable this step:
+        # - Repository variable:
+        #     BSI_NOTIFY_EMAIL = recipient@example.com
+        # - Repository secrets (SMTP):
+        #     SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM
+        #   Recommendation: Use port 465 with secure TLS (secure: true below). If using 587 (STARTTLS), keep secure: true (the action will negotiate STARTTLS) or switch to connection_url form.
+        uses: dawidd6/action-send-mail@v6
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          secure: true
+          subject: 'BSI QS Cloud E2E (${{ matrix.os }}) • App ${{ steps.appid.outputs.app_id }} • Run #${{ github.run_number }}'
+          from: ${{ secrets.SMTP_FROM }}
+          to: ${{ vars.BSI_NOTIFY_EMAIL }}
+          html_body: |
+            <h2>BSI QS Cloud visual check – ${{ matrix.os }}</h2>
+            <p>
+              App ID: <code>${{ steps.appid.outputs.app_id }}</code><br/>
+              Tenant: <code>${{ env.BSI_QSCLOUD_CST_TENANTURL }}</code><br/>
+              Workflow: <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">run #${{ github.run_number }}</a><br/>
+              App overview: <a href="${{ env.BSI_QSCLOUD_CST_TENANTURL }}/sense/app/${{ steps.appid.outputs.app_id }}/overview">open in browser</a>
+            </p>
+            <p>
+              The BEFORE and AFTER screenshots are attached for a quick visual sanity check.<br/>
+              Also attached: <code>bsi-summary.json</code> with verifier results.
+            </p>
+            <ul>
+              <li><strong>overview-before-verify.png</strong> – post-cleanup, before thumbnail creation</li>
+              <li><strong>overview-after-verify.png</strong> – after thumbnail creation</li>
+            </ul>
+            <p style="color:#666; font-size: 12px;">This email was sent automatically by GitHub Actions.</p>
+          attachments: img/cloud/${{ steps.appid.outputs.app_id }}/overview-before-verify.png,img/cloud/${{ steps.appid.outputs.app_id }}/overview-after-verify.png,bsi-summary.json
+
+      - name: Upload artifacts (screens + summary)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsi-qsc-${{ matrix.os }}-${{ github.run_id }}
+          path: |
+            img/cloud/${{ steps.appid.outputs.app_id }}
+            bsi-summary.json
+          if-no-files-found: warn
+          retention-days: 14
