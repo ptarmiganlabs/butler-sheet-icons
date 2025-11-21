@@ -44,11 +44,11 @@ Copy-Item -Path C:\path\to\client_key.pem -Destination "$env:USERPROFILE\bsi-bsi
 
 These commands rely on two shared patterns:
 
-| Host Path (macOS) | Host Path (Windows) | Container Path | Purpose |
-| --- | --- | --- | --- |
-| `$HOME/bsi-bsi/img` | `$(Resolve-Path $HOME\bsi-bsi\img)` | `/nodeapp/img` | Screenshot output |
-| `$HOME/bsi-bsi/cert` | `$(Resolve-Path $HOME\bsi-bsi\cert)` | `/nodeapp/cert` | QSEoW TLS material |
-| `$HOME/bsi-browser-cache` | `$(Resolve-Path $HOME\bsi-browser-cache)` | `/home/nodejs/.cache/puppeteer` | Browser cache |
+| Host Path (macOS)         | Host Path (Windows)                       | Container Path                  | Purpose            |
+| ------------------------- | ----------------------------------------- | ------------------------------- | ------------------ |
+| `$HOME/bsi-bsi/img`       | `$(Resolve-Path $HOME\bsi-bsi\img)`       | `/nodeapp/img`                  | Screenshot output  |
+| `$HOME/bsi-bsi/cert`      | `$(Resolve-Path $HOME\bsi-bsi\cert)`      | `/nodeapp/cert`                 | QSEoW TLS material |
+| `$HOME/bsi-browser-cache` | `$(Resolve-Path $HOME\bsi-browser-cache)` | `/home/nodejs/.cache/puppeteer` | Browser cache      |
 
 Feel free to change the host paths—just update the mount arguments accordingly.
 
@@ -95,6 +95,7 @@ docker run -it --rm \
 ### List Collections
 
 macOS bash:
+
 ```bash
 docker run -it --rm \
   ptarmiganlabs/butler-sheet-icons:latest \
@@ -105,6 +106,7 @@ docker run -it --rm \
 ```
 
 Windows PowerShell:
+
 ```powershell
 docker run -it --rm \
   ptarmiganlabs/butler-sheet-icons:latest \
@@ -117,6 +119,7 @@ docker run -it --rm \
 ### Create Sheet Thumbnails
 
 macOS bash:
+
 ```bash
 docker run -it --rm \
   -v "$HOME/bsi-bsi/img:/nodeapp/img" \
@@ -132,6 +135,7 @@ docker run -it --rm \
 ```
 
 Windows PowerShell:
+
 ```powershell
 docker run -it --rm \
   -v "$(Resolve-Path $env:USERPROFILE\bsi-bsi\img):/nodeapp/img" \

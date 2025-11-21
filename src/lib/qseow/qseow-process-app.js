@@ -13,6 +13,7 @@ import { qseowUploadToContentLibrary } from './qseow-upload.js';
 import { qseowUpdateSheetThumbnails } from './qseow-updatesheets.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { browserInstall } from '../browser/browser-install.js';
+import { detectAvailableBrowser } from '../browser/browser-detect.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
 
 const selectorLoginPageUserName = '#username-input';
@@ -243,24 +244,37 @@ export const qseowProcessApp = async (appId, options) => {
             const browserPath = path.join(homedir(), '.cache/puppeteer');
             logger.debug(`Browser cache path: ${browserPath}`);
 
-            logger.info(`Downloading and installing browser...`);
+            // Detect available browser (system, cached, or download)
+            logger.info(`Checking for available browsers...`);
+            let executablePath;
+            let browserInfo = await detectAvailableBrowser(options);
 
-            // Install browser
-            // Returns true if browser installed successfully
-            const browserInstallResult = await browserInstall(options);
-            if (browserInstallResult === false) {
-                logger.error(`QSEoW APP: Error installing browser. Exiting.`);
-                process.exit(1);
+            if (browserInfo) {
+                // Found system or cached browser
+                executablePath = browserInfo.executablePath;
+                logger.info(
+                    `Browser ready from ${browserInfo.source}: ${browserInfo.browser} ${browserInfo.buildId}`
+                );
+            } else {
+                // No browser found - download required
+                logger.info(`No local browser found. Downloading and installing browser...`);
+
+                const browserInstallResult = await browserInstall(options);
+                if (browserInstallResult === false) {
+                    logger.error(`QSEoW APP: Error installing browser. Exiting.`);
+                    process.exit(1);
+                }
+
+                executablePath = computeExecutablePath({
+                    browser: browserInstallResult.browser,
+                    buildId: browserInstallResult.buildId,
+                    cacheDir: browserPath,
+                });
+
+                logger.info(`Browser downloaded successfully`);
             }
 
             logger.info(`Browser setup complete. Launching browser...`);
-
-            const executablePath = computeExecutablePath({
-                browser: browserInstallResult.browser,
-                buildId: browserInstallResult.buildId,
-                cacheDir: browserPath,
-            });
-
             logger.verbose(`Using browser at ${executablePath}`);
 
             // Parse --headless option
@@ -283,8 +297,29 @@ export const qseowProcessApp = async (appId, options) => {
                 '--ignore-certificate-errors-spki-list',
                 '--enable-features=NetworkService',
             ];
-            if (process.platform !== 'win32') {
+
+            // Detect if running in Docker/Alpine (where --single-process crashes Chromium)
+            const isDocker = await (async () => {
+                try {
+                    const fs = await import('fs');
+                    // Check for .dockerenv file (common Docker indicator)
+                    if (fs.existsSync('/.dockerenv')) return true;
+                    // Check if running as PID 1 with tini/node (Docker entrypoint pattern)
+                    if (process.pid === 1) return true;
+                    // Check for Alpine Linux
+                    if (fs.existsSync('/etc/alpine-release')) return true;
+                    return false;
+                } catch {
+                    return false;
+                }
+            })();
+
+            // --single-process is needed on Windows to avoid crashes, but causes crashes in Docker
+            if (process.platform !== 'win32' && !isDocker) {
                 browserArgs.push('--single-process');
+                logger.debug('Added --single-process flag for non-Windows native environment');
+            } else if (isDocker) {
+                logger.debug('Skipping --single-process flag in Docker/containerized environment');
             } else {
                 logger.debug('Skipping --single-process flag on Windows to keep Chromium stable');
             }

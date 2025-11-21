@@ -1,4 +1,21 @@
 # Build Docker image (multi-arch capable)
+# Stage 1: Install dependencies
+FROM node:22-alpine AS deps
+
+WORKDIR /build
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --omit=dev --ignore-scripts && \
+    npm cache clean --force && \
+    # Remove documentation and unnecessary files from node_modules
+    find /build/node_modules -type f \( -name '*.md' -o -name 'LICENSE*' -o -name 'CHANGELOG*' -o -name '*.ts' -o -name '*.map' \) -delete && \
+    # Remove test directories
+    find /build/node_modules -type d \( -name test -o -name tests -o -name __tests__ -o -name '.github' \) -exec rm -rf {} + 2>/dev/null || true
+
+# Stage 2: Production image
 FROM node:22-alpine
 
 # Add metadata about the image
@@ -12,8 +29,7 @@ RUN apk add --no-cache \
     freetype \
     harfbuzz \
     ca-certificates \
-    ttf-freefont \
-    font-noto-emoji \
+    font-dejavu \
     tini
 
 # Create and use non-root user (Alpine syntax) BEFORE copying files
@@ -24,17 +40,17 @@ WORKDIR /nodeapp
 
 # Tell Puppeteer to skip installing Chrome, we'll use installed Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+    NODE_ENV=production
 
-# Install app dependencies separately (creating a separate layer for node_modules, effectively caching them between image rebuilds)
-COPY --chown=nodejs:nodejs package.json .
-RUN npm install
+# Copy node_modules from deps stage
+COPY --from=deps --chown=nodejs:nodejs /build/node_modules ./node_modules
 
-# Copy app's source files
-COPY --chown=nodejs:nodejs . .
-
-# Set proper permissions
-RUN chmod 755 /nodeapp
+# Copy only necessary application files
+COPY --chown=nodejs:nodejs src/butler-sheet-icons.js ./src/
+COPY --chown=nodejs:nodejs src/globals.js ./src/
+COPY --chown=nodejs:nodejs src/lib/ ./src/lib/
+COPY --chown=nodejs:nodejs package.json ./
 
 USER nodejs
 
