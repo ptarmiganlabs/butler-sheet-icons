@@ -18,14 +18,14 @@ jobs:
       - x64
       - macos
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Debugging 1
         run: pwd && ls -la
         working-directory: .
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 23
 
@@ -48,11 +48,11 @@ jobs:
           npm run test browser -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -74,11 +74,11 @@ jobs:
           npm run test cloud -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -100,11 +100,11 @@ jobs:
           npm run test qseow -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -154,14 +154,14 @@ jobs:
       #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
       #     connectTimeout: 30000
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Debugging 1
         run: dir
         working-directory: .
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 23
 
@@ -183,11 +183,11 @@ jobs:
           npm run test browser -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -209,11 +209,11 @@ jobs:
           npm run test cloud -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -235,11 +235,11 @@ jobs:
           npm run test qseow -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -284,7 +284,7 @@ jobs:
       - name: Show github.ref
         run: echo "$GITHUB_REF"
 
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
         id: release
         if: |
           github.repository_owner == 'ptarmiganlabs'
@@ -348,10 +348,10 @@ jobs:
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 23
 
@@ -422,7 +422,7 @@ jobs:
           ls -la
 
       - name: Upload to existing release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
         with:
           allowUpdates: true
           omitBodyDuringUpdate: true
@@ -577,10 +577,10 @@ jobs:
           Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 23
 
@@ -652,7 +652,7 @@ jobs:
           dir
 
       - name: Upload to existing release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
         with:
           allowUpdates: true
           omitBodyDuringUpdate: true
@@ -683,10 +683,10 @@ jobs:
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 23
 
@@ -722,7 +722,7 @@ jobs:
           ls -la
 
       - name: Upload to existing release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
         with:
           allowUpdates: true
           omitBodyDuringUpdate: true

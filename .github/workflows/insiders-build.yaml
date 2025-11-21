@@ -265,10 +265,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 23
 
@@ -281,7 +281,7 @@ jobs:
         if: |
           github.repository_owner == 'ptarmiganlabs' &&
           matrix.os == 'ubuntu-latest'
-        uses: snyk/actions/node@master
+        uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -293,7 +293,7 @@ jobs:
         if: |
           github.repository_owner == 'ptarmiganlabs' &&
           matrix.os == 'ubuntu-latest'
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@c3d42c5d08633d8b33635fbd94b000a0e2585b3c # v3
         with:
           sarif_file: snyk.sarif
 
@@ -314,7 +314,7 @@ jobs:
           ${{ matrix.build }}
 
       - name: Upload insider build artifacts to GitHub
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ${{ matrix.artifact_insider }}
           path: ${{ matrix.artifact_insider }}
