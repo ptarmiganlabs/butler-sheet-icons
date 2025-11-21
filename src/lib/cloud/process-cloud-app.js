@@ -177,6 +177,26 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 headless = false;
             }
             // Make sure browser is launched ok
+            const browserArgs = [
+                '--proxy-bypass-list=*',
+                '--disable-gpu',
+                '--disable-dev-shm-usage',
+                '--disable-setuid-sandbox',
+                '--no-first-run',
+                '--no-sandbox',
+                '--no-zygote',
+                '--ignore-certificate-errors',
+                '--ignore-certificate-errors-spki-list',
+                '--enable-features=NetworkService',
+            ];
+
+            // Chromium crashes on Windows when forcing single-process mode during certificate setup
+            if (process.platform !== 'win32') {
+                browserArgs.push('--single-process');
+            } else {
+                logger.debug('Skipping --single-process flag on Windows to keep Chromium stable');
+            }
+
             let browser;
             try {
                 browser = await puppeteer.launch({
@@ -184,19 +204,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                     headless,
                     ignoreHTTPSErrors: true,
                     acceptInsecureCerts: true,
-                    args: [
-                        '--proxy-bypass-list=*',
-                        '--disable-gpu',
-                        '--disable-dev-shm-usage',
-                        '--disable-setuid-sandbox',
-                        '--no-first-run',
-                        '--no-sandbox',
-                        '--no-zygote',
-                        '--single-process',
-                        '--ignore-certificate-errors',
-                        '--ignore-certificate-errors-spki-list',
-                        '--enable-features=NetworkService',
-                    ],
+                    args: browserArgs,
                 });
             } catch (err) {
                 if (err.stack) {
