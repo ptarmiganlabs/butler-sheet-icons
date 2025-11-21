@@ -12,60 +12,36 @@ on:
       - published
 
 jobs:
-  build:
+  build-amd64:
+    name: Build & Push (amd64)
+    if: ${{ github.event_name != 'pull_request' && github.repository_owner == 'ptarmiganlabs' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
 
     steps:
-      # - name: Send job status to MQTT (starting job)
-      #   uses: potaesm/github-actions-mqtt-request@1.0.0
-      #   if: always()
-      #   env:
-      #     JOB_CONCLUSION: ${{ job.status }}
-      #     NODE_VERSION: ${{ matrix.node }}
-      #   with:
-      #     url: ${{ secrets.PUBLIC_MQTT_BROKER_URL }}
-      #     topic: control/github_actions_action_runner
-      #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
-      #     username: ${{ secrets.PUBLIC_MQTT_BROKER_USER }}
-      #     connectTimeout: 30000
-
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        if: |
-          github.event_name != 'pull_request' &&
-          github.repository_owner == 'ptarmiganlabs'
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
-        if: |
-          github.event_name != 'pull_request' &&
-          github.repository_owner == 'ptarmiganlabs'
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
-        if: |
-          github.event_name != 'pull_request' &&
-          github.repository_owner == 'ptarmiganlabs'
 
-      # Login against a Docker registry except on PR
       # https://github.com/marketplace/actions/docker-login
       # https://docs.github.com/en/actions/reference/context-and-expression-syntax-for-github-actions#github-context
       - name: Login to Docker Hub
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
-        if: |
-          github.event_name != 'pull_request' &&
-          github.repository_owner == 'ptarmiganlabs'
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Create clean tag for Docker
+        id: clean_tag
+        env:
+          REF: ${{ github.ref }}
         run: |
-          export TAGTMP1=${{ github.ref }}
-          echo "TAG=$(echo "${TAGTMP1##*-}")" >> $GITHUB_ENV
+          TAGTMP1="${REF}"
+          echo "tag=${TAGTMP1##*-}" >> "$GITHUB_OUTPUT"
 
       - name: Dump GitHub context
         if: always()
@@ -87,69 +63,185 @@ jobs:
         env:
           RUNNER_CONTEXT: ${{ toJSON(runner) }}
         run: echo "$RUNNER_CONTEXT"
-      - name: Dump strategy context
+      - name: Extract Docker metadata (amd64)
+        id: meta
+        uses: docker/metadata-action@318604b99e75e41977312d83839a89be02ca4893 # v5
+        with:
+          images: ${{ github.repository }}
+          flavor: |
+            suffix=-amd64
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}},value=${{ steps.clean_tag.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.clean_tag.outputs.tag }}
+            type=semver,pattern={{major}},value=${{ steps.clean_tag.outputs.tag }}
+
+      - name: Show Docker tags that will be used
+        run: echo '${{ steps.meta.outputs.tags }}'
+
+      - name: Show Docker labels that will be used
+        run: echo '${{ steps.meta.outputs.labels }}'
+
+      - name: Build and push (amd64)
+        id: docker_build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          context: .
+          file: src/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
+
+  build-arm64:
+    name: Build & Push (arm64)
+    if: ${{ github.event_name != 'pull_request' && github.repository_owner == 'ptarmiganlabs' }}
+    runs-on: [self-hosted, macOS, ARM64] # Update labels if your runner differs
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Create clean tag for Docker
+        id: clean_tag
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          TAGTMP1="${REF}"
+          echo "tag=${TAGTMP1##*-}" >> "$GITHUB_OUTPUT"
+
+      - name: Dump GitHub context
         if: always()
         env:
-          STRATEGY_CONTEXT: ${{ toJSON(strategy) }}
-        run: echo "$STRATEGY_CONTEXT"
-
-      # Extract metadata (tags, labels) for Docker
-      # https://github.com/marketplace/actions/docker-metadata-action
-      - name: Extract Docker metadata
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
+        run: echo "$GITHUB_CONTEXT"
+      - name: Dump job context
+        if: always()
+        env:
+          JOB_CONTEXT: ${{ toJSON(job) }}
+        run: echo "$JOB_CONTEXT"
+      - name: Dump steps context
+        if: always()
+        env:
+          STEPS_CONTEXT: ${{ toJSON(steps) }}
+        run: echo "$STEPS_CONTEXT"
+      - name: Dump runner context
+        if: always()
+        env:
+          RUNNER_CONTEXT: ${{ toJSON(runner) }}
+        run: echo "$RUNNER_CONTEXT"
+      - name: Extract Docker metadata (arm64)
         id: meta
-        if: |
-          github.event_name != 'pull_request' &&
-          github.repository_owner == 'ptarmiganlabs'
+        uses: docker/metadata-action@318604b99e75e41977312d83839a89be02ca4893 # v5
+        with:
+          images: ${{ github.repository }}
+          flavor: |
+            suffix=-arm64
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}},value=${{ steps.clean_tag.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.clean_tag.outputs.tag }}
+            type=semver,pattern={{major}},value=${{ steps.clean_tag.outputs.tag }}
+
+      - name: Show Docker tags that will be used
+        run: echo '${{ steps.meta.outputs.tags }}'
+
+      - name: Show Docker labels that will be used
+        run: echo '${{ steps.meta.outputs.labels }}'
+
+      - name: Build and push (arm64)
+        id: docker_build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          context: .
+          file: src/Dockerfile
+          platforms: linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
+
+  publish-manifest:
+    name: Publish Multi-arch Manifest
+    if: ${{ github.event_name != 'pull_request' && github.repository_owner == 'ptarmiganlabs' }}
+    runs-on: ubuntu-latest
+    needs:
+      - build-amd64
+      - build-arm64
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Create clean tag for Docker
+        id: clean_tag
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          TAGTMP1="${REF}"
+          echo "tag=${TAGTMP1##*-}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract Docker metadata (multi-arch)
+        id: meta
         uses: docker/metadata-action@318604b99e75e41977312d83839a89be02ca4893 # v5
         with:
           images: ${{ github.repository }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
-            type=semver,pattern={{version}},value=${{ env.TAG }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG }}
-            type=semver,pattern={{major}},value=${{ env.TAG }}
+            type=semver,pattern={{version}},value=${{ steps.clean_tag.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.clean_tag.outputs.tag }}
+            type=semver,pattern={{major}},value=${{ steps.clean_tag.outputs.tag }}
 
-      - name: Show Docker tags that will be used
-        if: |
-          github.event_name != 'pull_request' &&
-          github.repository_owner == 'ptarmiganlabs'
+      - name: Show multi-arch tags
         run: echo '${{ steps.meta.outputs.tags }}'
 
-      - name: Show Docker labels that will be used
-        if: |
-          github.event_name != 'pull_request' &&
-          github.repository_owner == 'ptarmiganlabs'
-        run: echo '${{ steps.meta.outputs.labels }}'
-
-      - name: Build and push
-        id: docker_build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
-        if: |
-          github.event_name != 'pull_request' &&
-          github.repository_owner == 'ptarmiganlabs'
-        with:
-          context: .
-          platforms: |
-            linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-
-      - name: Image digest
-        if: |
-          github.event_name != 'pull_request' &&
-          github.repository_owner == 'ptarmiganlabs'
-        run: echo ${{ steps.docker_build.outputs.digest }}
-
-      # - name: Send job status to MQTT when done
-      #   uses: potaesm/github-actions-mqtt-request@1.0.0
-      #   if: always()
-      #   env:
-      #     JOB_STATUS: ${{ job.status }}
-      #   with:
-      #     url: ${{ secrets.PUBLIC_MQTT_BROKER_URL }}
-      #     topic: control/github_actions_action_runner
-      #     payload: '{ "type":"docker-build", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}","status": "completed","conclusion":"${{ env.JOB_STATUS }}" }'
-      #     username: ${{ secrets.PUBLIC_MQTT_BROKER_USER }}
-      #     connectTimeout: 30000
+      - name: Publish manifest list
+        env:
+          BASE_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          if [ -z "$BASE_TAGS" ]; then
+            echo "No tags found; skipping manifest publish."
+            exit 0
+          fi
+          echo "Publishing multi-arch manifests for:"
+            printf '%s\n' "$BASE_TAGS"
+          while IFS= read -r tag; do
+            if [ -z "$tag" ]; then
+              continue
+            fi
+            echo "Creating manifest for $tag"
+            docker buildx imagetools create \
+              -t "$tag" \
+              "${tag}-amd64" \
+              "${tag}-arm64"
+          done <<< "$BASE_TAGS"

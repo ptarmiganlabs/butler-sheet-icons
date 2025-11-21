@@ -321,6 +321,8 @@ The Docker image of BSI is intended to be used on Linux, macOS, or in a Kubernet
 
 It may be possible to use the image also on Windows, at least when using the Linux subsystem that's available these days. This has however not been tested - your mileage may vary.
 
+Looking for ready-to-run Docker test commands (PowerShell + bash) that mirror the native CLI flows? Check out `docs/docker-testing-commands.md` for one-liners and mount/env setup tips.
+
 ## Least Common Scenario: Node.js Application
 
 While you don't _have_ to install Butler Sheet Icons (BSI), it is in fact possible if there is a need to. For example, if you want to develop the tool further or in other ways change it, you will need to do a proper Node.js installation.
