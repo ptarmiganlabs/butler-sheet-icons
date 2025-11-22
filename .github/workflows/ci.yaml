@@ -14,121 +14,6 @@ jobs:
   test-macos:
     runs-on:
       - self-hosted
-      # - arm64
-      - x64
-      - macos
-    steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Debugging 1
-        run: pwd && ls -la
-        working-directory: .
-
-      - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 23
-
-      - name: Install dependencies
-        run: |
-          pwd 
-          npm ci --include=dev --include=prod
-
-      - name: Debugging 2
-        run: |
-          pwd
-          ls -la
-          node --version
-          git version
-        working-directory: .
-
-      - name: Run browser tests
-        run: |
-          ls -la
-          npm run test browser -- -i
-        working-directory: .
-        env:
-          BSI_LOG_LEVEL: 'info'
-          BSI_CONTENT_LIBRARY: 'abc 123'
-          BSI_HOST: ${{ secrets.BSI_HOST }}
-          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
-
-      - name: Run QS cloud tests
-        run: |
-          ls -la
-          npm run test cloud -- -i
-        working-directory: .
-        env:
-          BSI_LOG_LEVEL: 'info'
-          BSI_CONTENT_LIBRARY: 'abc 123'
-          BSI_HOST: ${{ secrets.BSI_HOST }}
-          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
-
-      - name: Run QSEoW tests
-        run: |
-          ls -la
-          npm run test qseow -- -i
-        working-directory: .
-        env:
-          BSI_LOG_LEVEL: 'info'
-          BSI_CONTENT_LIBRARY: 'abc 123'
-          BSI_HOST: ${{ secrets.BSI_HOST }}
-          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
-
-      # - name: Send job status to MQTT (starting job)
-      #   uses: potaesm/github-actions-mqtt-request@1.0.0
-      #   if: always()
-      #   env:
-      #     JOB_CONCLUSION: ${{ job.status }}
-      #     NODE_VERSION: ${{ matrix.node }}
-      #   with:
-      #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
-      #     topic: control/sp53/mac-build1/action-runner
       #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
       #     connectTimeout: 30000
 
@@ -163,7 +48,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 23
+          node-version: 24
 
       - name: Install dependencies
         run: |
@@ -321,11 +206,57 @@ jobs:
           echo "patch           : ${{ steps.release.outputs['patch'] }}"
           echo "sha             : ${{ steps.release.outputs['sha'] }}"
 
-  release-macos-x64:
+  sbom-build:
+    needs: release-please
+    runs-on: ubuntu-latest
+
+    if: needs.release-please.outputs.releases_created == 'true'
+    env:
+      DIST_FILE_NAME: butler-sheet-icons
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: |
+          npm ci --include=prod
+
+      - name: Generate SBOM
+        run: |
+          curl -Lo $RUNNER_TEMP/sbom-tool https://github.com/microsoft/sbom-tool/releases/latest/download/sbom-tool-linux-x64
+          chmod +x $RUNNER_TEMP/sbom-tool
+          mkdir -p ./build/sbom
+
+          $RUNNER_TEMP/sbom-tool generate -b ./build/sbom -bc . -pn ${DIST_FILE_NAME} -pv ${{ needs.release-please.outputs.release_version }} -ps "Ptarmigan Labs" -nsb https://sbom.ptarmiganlabs.com -V verbose
+
+      - name: Upload SBOM to Release
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
+        with:
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          draft: true
+          tag: ${{ needs.release-please.outputs.release_tag_name }}
+          artifacts: './build/sbom/**/*.spdx.json'
+          token: ${{ github.token }}
+
+      - name: Upload SBOM as Workflow Artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ needs.release-please.outputs.release_version }}
+          path: ./build/sbom/
+          retention-days: 3
+
+  release-macos-arm64:
     needs: release-please
     runs-on:
       - self-hosted
-      - x64
+      - arm64
       - macos
       - sp53
     # timeout-minutes: 15
@@ -353,7 +284,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 23
+          node-version: 24
 
       - name: Install dependencies
         run: |
@@ -363,7 +294,7 @@ jobs:
       - name: Build binaries
         run: |
           # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
           node --experimental-sea-config src/sea-config.json
@@ -403,7 +334,7 @@ jobs:
           # notarization service
           # Notarize release binary
           echo "Creating temp notarization archive for release binary"
-          ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${{ needs.release-please.outputs.release_tag_name }}-macos-x64.zip"
+          ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip"
 
           # -------------------
           # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
@@ -411,7 +342,7 @@ jobs:
           # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
           # you're curious
           echo "Notarize release app"
-          xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos-x64.zip" --keychain-profile "notarytool-profile" --wait
+          xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip" --keychain-profile "notarytool-profile" --wait
 
           # -------------------
           # Clean up
@@ -431,130 +362,13 @@ jobs:
           # artifactContentType: application/zip
           draft: true
           tag: ${{ needs.release-please.outputs.release_tag_name }}
-          artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-macos-x64.zip
+          artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip
           token: ${{ github.token }}
 
       - name: Tidy up before exiting
         run: |
           pwd
           ls -la
-
-  # release-macos-arm64:
-  #   needs: release-please
-  #   runs-on:
-  #     - self-hosted
-  #     - arm64
-  #     - macos
-  #   # timeout-minutes: 15
-
-  #   if: needs.release-please.outputs.releases_created == 'true'
-  #   env:
-  #     DIST_FILE_NAME: butler-sheet-icons
-  #     GITHUB_TOKEN: ${{ secrets.PAT }}
-  #     MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
-  #     MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
-  #     MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
-  #     MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
-  #     PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
-  #     PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
-  #     PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
-  #   steps:
-  #     - name: Release tag and upload url from previous job
-  #       run: |
-  #         echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
-  #         echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
-
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
-
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: 23
-
-  #     - name: Install dependencies
-  #       run: |
-  #         pwd
-  #         npm ci --include=prod
-
-  #     - name: Build binaries
-  #       run: |
-  #         # Create a single JS file using esbuild
-  #         ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
-
-  #         # Generate blob to be injected into the binary
-  #         node --experimental-sea-config src/sea-config.json
-
-  #         # Get a copy of the Node executable
-  #         cp $(command -v node) ${DIST_FILE_NAME}
-
-  #         # Remove the signature from the Node executable
-  #         codesign --remove-signature ${DIST_FILE_NAME}
-
-  #         # Inject the blob
-  #         npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
-
-  #         # Start signing of the binary
-  #         security delete-keychain build.keychain || true
-
-  #         # -------------------
-  #         # Turn our base64-encoded certificate back to a regular .p12 file
-  #         echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-
-  #         # -------------------
-  #         # We need to create a new keychain, otherwise using the certificate will prompt
-  #         # with a UI dialog asking for the certificate password, which we can't
-  #         # use in a headless CI environment
-  #         security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-  #         security list-keychains -d user -s build.keychain
-  #         security default-keychain -d user -s build.keychain
-  #         security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-  #         security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-  #         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-
-  #         codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
-
-  #         # -------------------
-  #         # We can't notarize an app bundle directly, but we need to compress it as an archive.
-  #         # Therefore, we create a zip file containing our app bundle, so that we can send it to the
-  #         # notarization service
-  #         # Notarize release binary
-  #         echo "Creating temp notarization archive for release binary"
-  #         ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip"
-
-  #         # -------------------
-  #         # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
-  #         # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
-  #         # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
-  #         # you're curious
-  #         echo "Notarize release app"
-  #         xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip" --keychain-profile "notarytool-profile" --wait
-
-  #         # -------------------
-  #         # Clean up
-  #         # Delete build keychain
-  #         security delete-keychain build.keychain
-  #         rm build.cjs
-
-  #         ls -la
-
-  #     - name: Upload to existing release
-  #       uses: ncipollo/release-action@v1
-  #       with:
-  #         allowUpdates: true
-  #         omitBodyDuringUpdate: true
-  #         omitNameDuringUpdate: true
-  #         artifactContentType: raw
-  #         # artifactContentType: application/zip
-  #         draft: true
-  #         tag: ${{ needs.release-please.outputs.release_tag_name }}
-  #         artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip
-  #         token: ${{ github.token }}
-
-  #     - name: Tidy up before existing
-  #       run: |
-  #         pwd
-  #         ls -la
 
   release-win64:
     needs: release-please
@@ -582,7 +396,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 23
+          node-version: 24
 
       - name: Install dependencies
         run: |
@@ -592,7 +406,7 @@ jobs:
       - name: Build binaries
         run: |
           # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+          ./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
           node --experimental-sea-config src/sea-config.json
@@ -688,7 +502,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 23
+          node-version: 24
 
       - name: Install dependencies
         run: |
@@ -698,7 +512,7 @@ jobs:
       - name: Build binaries
         run: |
           # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
           node --experimental-sea-config src/sea-config.json
