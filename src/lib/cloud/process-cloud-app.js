@@ -9,6 +9,7 @@ import { logger, sleep } from '../../globals.js';
 import { qscloudUploadToApp } from './cloud-upload.js';
 import { qscloudUpdateSheetThumbnails } from './cloud-updatesheets.js';
 import { browserInstall } from '../browser/browser-install.js';
+import { detectAvailableBrowser } from '../browser/browser-detect.js';
 import { deleteCloudAppThumbnail } from './cloud-delete-thumbnails.js';
 import { takeSheetScreenshot } from './sheet-screenshot.js';
 
@@ -151,22 +152,38 @@ export const processCloudApp = async (appId, saasInstance, options) => {
             // Get browser cache path
             const browserPath = path.join(homedir(), '.cache/puppeteer');
             logger.debug(`Browser cache path: ${browserPath}`);
-            logger.info(`Downloading and installing browser...`);
 
-            // Install browser
-            // Returns true if browser installed successfully
-            const browserInstallResult = await browserInstall(options);
-            if (browserInstallResult === false) {
-                logger.error(`CLOUD: Error installing browser. Exiting.`);
-                process.exit(1);
+            // Detect available browser (system, cached, or download)
+            logger.info(`Checking for available browsers...`);
+            let executablePath;
+            let browserInfo = await detectAvailableBrowser(options);
+
+            if (browserInfo) {
+                // Found system or cached browser
+                executablePath = browserInfo.executablePath;
+                logger.info(
+                    `Browser ready from ${browserInfo.source}: ${browserInfo.browser} ${browserInfo.buildId}`
+                );
+            } else {
+                // No browser found - download required
+                logger.info(`No local browser found. Downloading and installing browser...`);
+
+                const browserInstallResult = await browserInstall(options);
+                if (browserInstallResult === false) {
+                    logger.error(`CLOUD: Error installing browser. Exiting.`);
+                    process.exit(1);
+                }
+
+                executablePath = computeExecutablePath({
+                    browser: browserInstallResult.browser,
+                    buildId: browserInstallResult.buildId,
+                    cacheDir: browserPath,
+                });
+
+                logger.info(`Browser downloaded successfully`);
             }
 
             logger.info(`Browser setup complete. Launching browser...`);
-            const executablePath = computeExecutablePath({
-                browser: browserInstallResult.browser,
-                buildId: browserInstallResult.buildId,
-                cacheDir: browserPath,
-            });
             logger.verbose(`Using browser at ${executablePath}`);
 
             // Parse --headless option
@@ -177,6 +194,45 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 headless = false;
             }
             // Make sure browser is launched ok
+            const browserArgs = [
+                '--proxy-bypass-list=*',
+                '--disable-gpu',
+                '--disable-dev-shm-usage',
+                '--disable-setuid-sandbox',
+                '--no-first-run',
+                '--no-sandbox',
+                '--no-zygote',
+                '--ignore-certificate-errors',
+                '--ignore-certificate-errors-spki-list',
+                '--enable-features=NetworkService',
+            ];
+
+            // Detect if running in Docker/Alpine (where --single-process crashes Chromium)
+            const isDocker = await (async () => {
+                try {
+                    const fs = await import('fs');
+                    // Check for .dockerenv file (common Docker indicator)
+                    if (fs.existsSync('/.dockerenv')) return true;
+                    // Check if running as PID 1 with tini/node (Docker entrypoint pattern)
+                    if (process.pid === 1) return true;
+                    // Check for Alpine Linux
+                    if (fs.existsSync('/etc/alpine-release')) return true;
+                    return false;
+                } catch {
+                    return false;
+                }
+            })();
+
+            // --single-process is needed on Windows to avoid crashes, but causes crashes in Docker
+            if (process.platform !== 'win32' && !isDocker) {
+                browserArgs.push('--single-process');
+                logger.debug('Added --single-process flag for non-Windows native environment');
+            } else if (isDocker) {
+                logger.debug('Skipping --single-process flag in Docker/containerized environment');
+            } else {
+                logger.debug('Skipping --single-process flag on Windows to keep Chromium stable');
+            }
+
             let browser;
             try {
                 browser = await puppeteer.launch({
@@ -184,19 +240,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                     headless,
                     ignoreHTTPSErrors: true,
                     acceptInsecureCerts: true,
-                    args: [
-                        '--proxy-bypass-list=*',
-                        '--disable-gpu',
-                        '--disable-dev-shm-usage',
-                        '--disable-setuid-sandbox',
-                        '--no-first-run',
-                        '--no-sandbox',
-                        '--no-zygote',
-                        '--single-process',
-                        '--ignore-certificate-errors',
-                        '--ignore-certificate-errors-spki-list',
-                        '--enable-features=NetworkService',
-                    ],
+                    args: browserArgs,
                 });
             } catch (err) {
                 if (err.stack) {

@@ -12,22 +12,26 @@ permissions:
 
 jobs:
   test-macos:
+    concurrency:
+      group: qs-tests-${{ github.repository }}
+      cancel-in-progress: false
     runs-on:
       - self-hosted
-      # - arm64
-      - x64
       - macos
+      - arm64
+      - mac-build2
+      - sp53
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Debugging 1
         run: pwd && ls -la
         working-directory: .
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 23
+          node-version: 24
 
       - name: Install dependencies
         run: |
@@ -48,11 +52,11 @@ jobs:
           npm run test browser -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -74,11 +78,11 @@ jobs:
           npm run test cloud -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -100,11 +104,11 @@ jobs:
           npm run test qseow -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -135,6 +139,9 @@ jobs:
   test-winsrv:
     needs:
       - test-macos
+    concurrency:
+      group: qs-tests-${{ github.repository }}
+      cancel-in-progress: false
     runs-on:
       - self-hosted
       - x64
@@ -154,16 +161,16 @@ jobs:
       #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
       #     connectTimeout: 30000
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Debugging 1
         run: dir
         working-directory: .
 
       - name: Setup node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 23
+          node-version: 24
 
       - name: Install dependencies
         run: |
@@ -183,11 +190,11 @@ jobs:
           npm run test browser -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -209,11 +216,11 @@ jobs:
           npm run test cloud -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -235,11 +242,11 @@ jobs:
           npm run test qseow -- -i
         working-directory: .
         env:
-          BSI_LOG_LEVEL: "info"
-          BSI_CONTENT_LIBRARY: "abc 123"
+          BSI_LOG_LEVEL: 'info'
+          BSI_CONTENT_LIBRARY: 'abc 123'
           BSI_HOST: ${{ secrets.BSI_HOST }}
           BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: "a3e0f5d2-000a-464f-998d-33d333b175d7"
+          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
           BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
@@ -267,9 +274,445 @@ jobs:
       #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
       #     connectTimeout: 30000
 
-  release-please:
+  docker-build-arm64:
+    name: docker-build-arm64
     needs:
       - test-winsrv
+    if: github.repository_owner == 'ptarmiganlabs'
+    runs-on:
+      - self-hosted
+      - macos
+      - arm64
+      - mac-build2
+      - sp53
+    env:
+      IMAGE_NAME: butler-sheet-icons:ci-arm64
+      IMAGE_TAR: butler-sheet-icons-ci-arm64.tar
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Show Docker disk usage (before build)
+        run: docker system df || true
+
+      - name: Build arm64 Docker image
+        run: |
+          docker build \
+            --file src/Dockerfile \
+            --tag "$IMAGE_NAME" \
+            .
+
+      - name: Save Docker image to tarball
+        run: docker save "$IMAGE_NAME" -o "$IMAGE_TAR"
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: butler-sheet-icons-ci-arm64-image
+          path: ${{ env.IMAGE_TAR }}
+          retention-days: 1
+
+      - name: Remove local image file
+        run: rm -f "$IMAGE_TAR"
+
+      - name: Remove local Docker image
+        run: docker image rm "$IMAGE_NAME" || true
+
+      - name: Prune dangling images
+        run: docker image prune -af || true
+
+      - name: Show Docker disk usage (after cleanup)
+        run: docker system df || true
+
+  docker-build-amd64:
+    name: docker-build-amd64
+    needs:
+      - test-winsrv
+    if: github.repository_owner == 'ptarmiganlabs'
+    runs-on:
+      - self-hosted
+      - x64
+      - windows
+      - sp53
+      - win-code-sign
+    env:
+      IMAGE_NAME: butler-sheet-icons:ci-amd64
+      IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Show Docker disk usage (before build)
+        run: docker system df || true
+
+      - name: Build amd64 Docker image
+        shell: pwsh
+        run: |
+          docker build `
+            --file src/Dockerfile `
+            --tag $Env:IMAGE_NAME `
+            .
+
+      - name: Save Docker image to tarball
+        shell: pwsh
+        run: docker save $Env:IMAGE_NAME -o $Env:IMAGE_TAR
+
+      - name: Upload Docker image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: butler-sheet-icons-ci-amd64-image
+          path: ${{ env.IMAGE_TAR }}
+          retention-days: 1
+
+      - name: Remove local image file
+        shell: pwsh
+        run: Remove-Item -Force $Env:IMAGE_TAR -ErrorAction SilentlyContinue
+
+      - name: Remove local Docker image
+        shell: pwsh
+        run: |
+          docker image rm $Env:IMAGE_NAME
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'Image already removed or missing'
+            exit 0
+          }
+
+      - name: Prune dangling images
+        shell: pwsh
+        run: |
+          docker image prune -af
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'docker image prune failed but continuing'
+            exit 0
+          }
+
+      - name: Show Docker disk usage (after cleanup)
+        shell: pwsh
+        run: |
+          docker system df
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'docker system df failed but continuing'
+            exit 0
+          }
+
+  docker-test-mac:
+    name: docker-test-mac
+    needs:
+      - docker-build-arm64
+    if: github.repository_owner == 'ptarmiganlabs'
+    concurrency:
+      group: qs-tests-${{ github.repository }}
+      cancel-in-progress: false
+    runs-on:
+      - self-hosted
+      - macos
+      - arm64
+      - mac-build2
+      - sp53
+    env:
+      IMAGE_NAME: butler-sheet-icons:ci-arm64
+      IMAGE_TAR: butler-sheet-icons-ci-arm64.tar
+      BSI_LOG_LEVEL: 'info'
+      BSI_CONTENT_LIBRARY: 'abc 123'
+      BSI_HOST: ${{ secrets.BSI_HOST }}
+      BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
+      BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
+      BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
+      BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
+      BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
+      BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+      BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
+      BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+      BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+      BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+      BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+      BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+      BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: butler-sheet-icons-ci-arm64-image
+
+      - name: Show Docker disk usage (before load)
+        run: docker system df || true
+
+      - name: Load Docker image
+        run: docker load --input "$IMAGE_TAR"
+
+      - name: Remove downloaded tarball
+        run: rm -f "$IMAGE_TAR"
+
+      - name: Smoke test arm64 image
+        run: docker run --rm "$IMAGE_NAME" --version
+
+      - name: Prepare host folders for Docker mounts
+        env:
+          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
+          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
+        run: |
+          set -euo pipefail
+          IMG_DIR="$HOME/bsi-bsi/img"
+          CERT_DIR="$HOME/bsi-bsi/cert"
+          CACHE_DIR="$HOME/bsi-browser-cache"
+          mkdir -p "$IMG_DIR" "$CERT_DIR" "$CACHE_DIR"
+          if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
+            echo 'Missing QSEoW client certificate secrets' >&2
+            exit 1
+          fi
+          printf '%s\n' "$QS_CLIENT_PEM" > "$CERT_DIR/client.pem"
+          printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$CERT_DIR/client_key.pem"
+          chmod 600 "$CERT_DIR"/client*.pem
+
+      - name: Run browser cache commands (arm64 image)
+        run: |
+          CACHE_DIR="$HOME/bsi-browser-cache"
+          docker run --rm \
+            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
+            "$IMAGE_NAME" \
+            browser list-available
+          docker run --rm \
+            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
+            "$IMAGE_NAME" \
+            browser uninstall-all
+
+      - name: Run QS Cloud commands (arm64 image)
+        run: |
+          IMG_DIR="$HOME/bsi-bsi/img"
+          docker run --rm \
+            "$IMAGE_NAME" \
+            qscloud list-collections \
+            --tenanturl "$BSI_CLOUD_TENANT_URL" \
+            --apikey "$BSI_CLOUD_API_KEY" \
+            --outputformat table
+
+          docker run --rm \
+            -v "$IMG_DIR:/nodeapp/img" \
+            "$IMAGE_NAME" \
+            qscloud create-sheet-thumbnails \
+            --tenanturl "$BSI_CLOUD_TENANT_URL" \
+            --apikey "$BSI_CLOUD_API_KEY" \
+            --logonuserid "$BSI_CLOUD_LOGON_USERID" \
+            --logonpwd "$BSI_CLOUD_LOGON_PWD" \
+            --appid "$BSI_CLOUD_APP_ID" \
+            --log-level verbose \
+            --imagedir ./img
+
+      - name: Run QSEoW Docker command (arm64 image)
+        run: |
+          IMG_DIR="$HOME/bsi-bsi/img"
+          CERT_DIR="$HOME/bsi-bsi/cert"
+          docker run --rm \
+            -v "$IMG_DIR:/nodeapp/img" \
+            -v "$CERT_DIR:/nodeapp/cert" \
+            "$IMAGE_NAME" \
+            qseow create-sheet-thumbnails \
+            --host "$BSI_HOST" \
+            --appid "$BSI_APP_ID" \
+            --apiuserdir Internal \
+            --apiuserid sa_api \
+            --loglevel info \
+            --logonuserdir "$BSI_LOGON_USER_DIR" \
+            --logonuserid "$BSI_LOGON_USER_ID" \
+            --logonpwd "$BSI_LOGON_PWD" \
+            --contentlibrary "$BSI_CONTENT_LIBRARY" \
+            --pagewait 5 \
+            --secure true \
+            --headless true \
+            --imagedir ./img \
+            --certfile /nodeapp/cert/client.pem \
+            --certkeyfile /nodeapp/cert/client_key.pem \
+            --includesheetpart "$BSI_INCLUDE_SHEET_PART" \
+            --qliksensetag updateSheetThumbnail \
+            --prefix "$BSI_PREFIX" \
+            --log-level verbose
+
+      - name: Remove local Docker image
+        run: docker image rm "$IMAGE_NAME" || true
+
+      - name: Prune dangling images
+        run: docker image prune -af || true
+
+      - name: Show Docker disk usage (after cleanup)
+        run: docker system df || true
+
+  docker-test-win:
+    name: docker-test-win
+    needs:
+      - docker-build-amd64
+    if: github.repository_owner == 'ptarmiganlabs'
+    concurrency:
+      group: qs-tests-${{ github.repository }}
+      cancel-in-progress: false
+    runs-on:
+      - self-hosted
+      - x64
+      - windows
+      - sp53
+      - win-code-sign
+    env:
+      IMAGE_NAME: butler-sheet-icons:ci-amd64
+      IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
+      BSI_LOG_LEVEL: 'info'
+      BSI_CONTENT_LIBRARY: 'abc 123'
+      BSI_HOST: ${{ secrets.BSI_HOST }}
+      BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
+      BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
+      BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
+      BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
+      BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
+      BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+      BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
+      BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+      BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+      BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+      BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+      BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+      BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: butler-sheet-icons-ci-amd64-image
+
+      - name: Show Docker disk usage (before load)
+        shell: pwsh
+        run: |
+          docker system df
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'docker system df failed but continuing'
+            exit 0
+          }
+
+      - name: Load Docker image
+        shell: pwsh
+        run: docker load --input $Env:IMAGE_TAR
+
+      - name: Remove downloaded tarball
+        shell: pwsh
+        run: Remove-Item -Force $Env:IMAGE_TAR -ErrorAction SilentlyContinue
+
+      - name: Smoke test amd64 image
+        shell: pwsh
+        run: docker run --rm $Env:IMAGE_NAME --version
+
+      - name: Prepare host folders for Docker mounts (Windows)
+        shell: pwsh
+        env:
+          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
+          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
+        run: |
+          $imgDir = Join-Path $env:USERPROFILE 'bsi-bsi\img'
+          $certDir = Join-Path $env:USERPROFILE 'bsi-bsi\cert'
+          $cacheDir = Join-Path $env:USERPROFILE 'bsi-browser-cache'
+          New-Item -ItemType Directory -Force -Path $imgDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $certDir | Out-Null
+          New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+          if (-not $Env:QS_CLIENT_PEM -or -not $Env:QS_CLIENT_KEY_PEM) {
+            throw 'Missing QSEoW client certificate secrets.'
+          }
+          Set-Content -Path (Join-Path $certDir 'client.pem') -Value $Env:QS_CLIENT_PEM -Encoding ascii
+          Set-Content -Path (Join-Path $certDir 'client_key.pem') -Value $Env:QS_CLIENT_KEY_PEM -Encoding ascii
+
+      - name: Run browser cache commands (amd64 image)
+        shell: pwsh
+        run: |
+          $cacheDir = Resolve-Path "$env:USERPROFILE/bsi-browser-cache"
+          docker run --rm `
+            -v "$cacheDir:/home/nodejs/.cache/puppeteer" `
+            $Env:IMAGE_NAME `
+            browser list-available
+          docker run --rm `
+            -v "$cacheDir:/home/nodejs/.cache/puppeteer" `
+            $Env:IMAGE_NAME `
+            browser uninstall-all
+
+      - name: Run QS Cloud commands (amd64 image)
+        shell: pwsh
+        run: |
+          $imgDir = Resolve-Path "$env:USERPROFILE/bsi-bsi/img"
+          docker run --rm `
+            $Env:IMAGE_NAME `
+            qscloud list-collections `
+            --tenanturl $Env:BSI_CLOUD_TENANT_URL `
+            --apikey $Env:BSI_CLOUD_API_KEY `
+            --outputformat table
+
+          docker run --rm `
+            -v "$imgDir:/nodeapp/img" `
+            $Env:IMAGE_NAME `
+            qscloud create-sheet-thumbnails `
+            --tenanturl $Env:BSI_CLOUD_TENANT_URL `
+            --apikey $Env:BSI_CLOUD_API_KEY `
+            --logonuserid $Env:BSI_CLOUD_LOGON_USERID `
+            --logonpwd $Env:BSI_CLOUD_LOGON_PWD `
+            --appid $Env:BSI_CLOUD_APP_ID `
+            --log-level verbose `
+            --imagedir ./img
+
+      - name: Run QSEoW Docker command (amd64 image)
+        shell: pwsh
+        run: |
+          $imgDir = Resolve-Path "$env:USERPROFILE/bsi-bsi/img"
+          $certDir = Resolve-Path "$env:USERPROFILE/bsi-bsi/cert"
+          docker run --rm `
+            -v "$imgDir:/nodeapp/img" `
+            -v "$certDir:/nodeapp/cert" `
+            $Env:IMAGE_NAME `
+            qseow create-sheet-thumbnails `
+            --host $Env:BSI_HOST `
+            --appid $Env:BSI_APP_ID `
+            --apiuserdir Internal `
+            --apiuserid sa_api `
+            --loglevel info `
+            --logonuserdir $Env:BSI_LOGON_USER_DIR `
+            --logonuserid $Env:BSI_LOGON_USER_ID `
+            --logonpwd $Env:BSI_LOGON_PWD `
+            --contentlibrary $Env:BSI_CONTENT_LIBRARY `
+            --pagewait 5 `
+            --secure true `
+            --headless true `
+            --imagedir ./img `
+            --certfile /nodeapp/cert/client.pem `
+            --certkeyfile /nodeapp/cert/client_key.pem `
+            --includesheetpart $Env:BSI_INCLUDE_SHEET_PART `
+            --qliksensetag updateSheetThumbnail `
+            --prefix $Env:BSI_PREFIX `
+            --log-level verbose
+
+      - name: Remove local Docker image
+        shell: pwsh
+        run: |
+          docker image rm $Env:IMAGE_NAME
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'Image already removed or missing'
+            exit 0
+          }
+
+      - name: Prune dangling images
+        shell: pwsh
+        run: |
+          docker image prune -af
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'docker image prune failed but continuing'
+            exit 0
+          }
+
+      - name: Show Docker disk usage (after cleanup)
+        shell: pwsh
+        run: |
+          docker system df
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'docker system df failed but continuing'
+            exit 0
+          }
+
+  release-please:
+    needs:
+      - docker-test-mac
+      - docker-test-win
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
@@ -284,7 +727,7 @@ jobs:
       - name: Show github.ref
         run: echo "$GITHUB_REF"
 
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
         id: release
         if: |
           github.repository_owner == 'ptarmiganlabs'
@@ -321,11 +764,57 @@ jobs:
           echo "patch           : ${{ steps.release.outputs['patch'] }}"
           echo "sha             : ${{ steps.release.outputs['sha'] }}"
 
-  release-macos-x64:
+  sbom-build:
+    needs: release-please
+    runs-on: ubuntu-latest
+
+    if: needs.release-please.outputs.releases_created == 'true'
+    env:
+      DIST_FILE_NAME: butler-sheet-icons
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: |
+          npm ci --include=prod
+
+      - name: Generate SBOM
+        run: |
+          curl -Lo $RUNNER_TEMP/sbom-tool https://github.com/microsoft/sbom-tool/releases/latest/download/sbom-tool-linux-x64
+          chmod +x $RUNNER_TEMP/sbom-tool
+          mkdir -p ./build/sbom
+
+          $RUNNER_TEMP/sbom-tool generate -b ./build/sbom -bc . -pn ${DIST_FILE_NAME} -pv ${{ needs.release-please.outputs.release_version }} -ps "Ptarmigan Labs" -nsb https://sbom.ptarmiganlabs.com -V verbose
+
+      - name: Upload SBOM to Release
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
+        with:
+          allowUpdates: true
+          omitBodyDuringUpdate: true
+          omitNameDuringUpdate: true
+          draft: true
+          tag: ${{ needs.release-please.outputs.release_tag_name }}
+          artifacts: './build/sbom/**/*.spdx.json'
+          token: ${{ github.token }}
+
+      - name: Upload SBOM as Workflow Artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ needs.release-please.outputs.release_version }}
+          path: ./build/sbom/
+          retention-days: 3
+
+  release-macos-arm64:
     needs: release-please
     runs-on:
       - self-hosted
-      - x64
+      - arm64
       - macos
       - sp53
     # timeout-minutes: 15
@@ -348,12 +837,12 @@ jobs:
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 23
+          node-version: 24
 
       - name: Install dependencies
         run: |
@@ -363,7 +852,7 @@ jobs:
       - name: Build binaries
         run: |
           # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
           node --experimental-sea-config src/sea-config.json
@@ -403,7 +892,7 @@ jobs:
           # notarization service
           # Notarize release binary
           echo "Creating temp notarization archive for release binary"
-          ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${{ needs.release-please.outputs.release_tag_name }}-macos-x64.zip"
+          ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip"
 
           # -------------------
           # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
@@ -411,7 +900,7 @@ jobs:
           # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
           # you're curious
           echo "Notarize release app"
-          xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos-x64.zip" --keychain-profile "notarytool-profile" --wait
+          xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip" --keychain-profile "notarytool-profile" --wait
 
           # -------------------
           # Clean up
@@ -422,7 +911,7 @@ jobs:
           ls -la
 
       - name: Upload to existing release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
         with:
           allowUpdates: true
           omitBodyDuringUpdate: true
@@ -431,130 +920,13 @@ jobs:
           # artifactContentType: application/zip
           draft: true
           tag: ${{ needs.release-please.outputs.release_tag_name }}
-          artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-macos-x64.zip
+          artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip
           token: ${{ github.token }}
 
       - name: Tidy up before exiting
         run: |
           pwd
           ls -la
-
-  # release-macos-arm64:
-  #   needs: release-please
-  #   runs-on:
-  #     - self-hosted
-  #     - arm64
-  #     - macos
-  #   # timeout-minutes: 15
-
-  #   if: needs.release-please.outputs.releases_created == 'true'
-  #   env:
-  #     DIST_FILE_NAME: butler-sheet-icons
-  #     GITHUB_TOKEN: ${{ secrets.PAT }}
-  #     MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
-  #     MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
-  #     MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
-  #     MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
-  #     PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
-  #     PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
-  #     PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
-  #   steps:
-  #     - name: Release tag and upload url from previous job
-  #       run: |
-  #         echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
-  #         echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
-
-  #     - name: Checkout repository
-  #       uses: actions/checkout@v4
-
-  #     - name: Setup Node.js
-  #       uses: actions/setup-node@v4
-  #       with:
-  #         node-version: 23
-
-  #     - name: Install dependencies
-  #       run: |
-  #         pwd
-  #         npm ci --include=prod
-
-  #     - name: Build binaries
-  #       run: |
-  #         # Create a single JS file using esbuild
-  #         ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
-
-  #         # Generate blob to be injected into the binary
-  #         node --experimental-sea-config src/sea-config.json
-
-  #         # Get a copy of the Node executable
-  #         cp $(command -v node) ${DIST_FILE_NAME}
-
-  #         # Remove the signature from the Node executable
-  #         codesign --remove-signature ${DIST_FILE_NAME}
-
-  #         # Inject the blob
-  #         npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
-
-  #         # Start signing of the binary
-  #         security delete-keychain build.keychain || true
-
-  #         # -------------------
-  #         # Turn our base64-encoded certificate back to a regular .p12 file
-  #         echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-
-  #         # -------------------
-  #         # We need to create a new keychain, otherwise using the certificate will prompt
-  #         # with a UI dialog asking for the certificate password, which we can't
-  #         # use in a headless CI environment
-  #         security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-  #         security list-keychains -d user -s build.keychain
-  #         security default-keychain -d user -s build.keychain
-  #         security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-  #         security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-  #         security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-
-  #         codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
-
-  #         # -------------------
-  #         # We can't notarize an app bundle directly, but we need to compress it as an archive.
-  #         # Therefore, we create a zip file containing our app bundle, so that we can send it to the
-  #         # notarization service
-  #         # Notarize release binary
-  #         echo "Creating temp notarization archive for release binary"
-  #         ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip"
-
-  #         # -------------------
-  #         # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
-  #         # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
-  #         # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
-  #         # you're curious
-  #         echo "Notarize release app"
-  #         xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip" --keychain-profile "notarytool-profile" --wait
-
-  #         # -------------------
-  #         # Clean up
-  #         # Delete build keychain
-  #         security delete-keychain build.keychain
-  #         rm build.cjs
-
-  #         ls -la
-
-  #     - name: Upload to existing release
-  #       uses: ncipollo/release-action@v1
-  #       with:
-  #         allowUpdates: true
-  #         omitBodyDuringUpdate: true
-  #         omitNameDuringUpdate: true
-  #         artifactContentType: raw
-  #         # artifactContentType: application/zip
-  #         draft: true
-  #         tag: ${{ needs.release-please.outputs.release_tag_name }}
-  #         artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip
-  #         token: ${{ github.token }}
-
-  #     - name: Tidy up before existing
-  #       run: |
-  #         pwd
-  #         ls -la
 
   release-win64:
     needs: release-please
@@ -577,12 +949,12 @@ jobs:
           Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 23
+          node-version: 24
 
       - name: Install dependencies
         run: |
@@ -592,7 +964,7 @@ jobs:
       - name: Build binaries
         run: |
           # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+          ./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
           node --experimental-sea-config src/sea-config.json
@@ -652,7 +1024,7 @@ jobs:
           dir
 
       - name: Upload to existing release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
         with:
           allowUpdates: true
           omitBodyDuringUpdate: true
@@ -683,12 +1055,12 @@ jobs:
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 23
+          node-version: 24
 
       - name: Install dependencies
         run: |
@@ -698,7 +1070,7 @@ jobs:
       - name: Build binaries
         run: |
           # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
           node --experimental-sea-config src/sea-config.json
@@ -722,7 +1094,7 @@ jobs:
           ls -la
 
       - name: Upload to existing release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
         with:
           allowUpdates: true
           omitBodyDuringUpdate: true

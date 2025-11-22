@@ -312,14 +312,18 @@ Butler Sheet Icons does not need to be installed.
 
 It is a standalone, cross-platform executable that is just downloaded and executed.
 
+> **Heads-up:** Starting with the November 2025 toolchain refresh the notarized macOS download targets Apple Silicon (arm64) only.
+
 The latest version is always available from the [download page](https://github.com/ptarmiganlabs/butler-sheet-icons/releases).
 Make sure to check for new versions (and star the [GitHub repository](https://github.com/ptarmiganlabs/butler-sheet-icons) and subscribe to updates!) - new features are added and security updates applied.
 
 ## The Sometimes Scenario: Docker Container
 
-The Docker image of BSI is intended to be used on Linux, macOS, or in a Kubernetes cluster.
+The Docker image of BSI is intended to be used on Linux, macOS, or in a Kubernetes cluster. The published image now rides on top of `node:24-alpine`, so any host requirements should align with that toolchain. The Docker image also supports air-gapped environments well.
 
 It may be possible to use the image also on Windows, at least when using the Linux subsystem that's available these days. This has however not been tested - your mileage may vary.
+
+Looking for ready-to-run Docker test commands (PowerShell + bash) that mirror the native CLI flows? Check out `docs/docker-testing-commands.md` for one-liners and mount/env setup tips.
 
 ## Least Common Scenario: Node.js Application
 
@@ -332,7 +336,7 @@ This scenario is for advanced users that already know the ins and outs of runnin
 On a high level the steps are:
 
 1. Install [Node.js](https://nodejs.org/en/) if not already installed.  
-   BSI is always tested against the most recent LTS version of Node.js, but any reasonably recent version is likely to work.
+   Butler Sheet Icons now targets Node.js 24 LTS specifically, and the developer workflow expects Node 24 to be available locally.
 2. Download source code for the desired BSI version (latest stable version recommended!) from the [download page](https://github.com/ptarmiganlabs/butler-sheet-icons/releases).
    1. Specifically - **do not** use the main branch in the GitHub repository. It does not necessarily reflect the latest and greatest version of the code.
 3. Extract the downloaded zip file into a suitable location (for example `d:\tools\butler-sheet-icons` on a Windows Server, then go to the `src` directory.
@@ -815,7 +819,7 @@ While this might sound like a good idea, there are several reasons to stay away 
 - You don't get the npm tool, which is needed to install the dependencies Butler Sheet Icons need (the `npm install` command).
   It may be possible to manually install npm and then use Sense's bundled Node version, but it's **_not_** recommended.
 
-A better solution is to use the stand-alone Butler Sheet Icons binaries. They are built to work on all major operating systems and are tested against the most recent Long Term Support (LTS) version of Node.js.
+A better solution is to use the stand-alone Butler Sheet Icons binaries. They are built to work on all major operating systems and are tested against the Node.js 24 Long Term Support (LTS) release.
 
 # Commands
 

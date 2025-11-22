@@ -307,8 +307,9 @@ const program = new Command();
                     '2024-Feb',
                     '2024-May',
                     '2024-Nov',
+                    '2025-May',
                 ])
-                .default('2024-Nov')
+                .default('2025-May')
                 .env('BSI_QSEOW_CST_SENSE_VERSION')
         )
         .addOption(
@@ -357,10 +358,8 @@ const program = new Command();
                     // Set default browser version per browser
                     if (!options.browserVersion || options.browserVersion === '') {
                         if (options.browser === 'chrome') {
-                            // eslint-disable-next-line no-param-reassign
                             options.browserVersion = 'latest';
                         } else if (options.browser === 'firefox') {
-                            // eslint-disable-next-line no-param-reassign
                             options.browserVersion = 'latest';
                         }
                     }
@@ -545,22 +544,6 @@ const program = new Command();
                 )
                     .default('5')
                     .env('BSI_QSCLOUD_CST_BLUR_FACTOR')
-            )
-            .addOption(
-                new Option('--sense-version <version>', 'Version of the QSEoW server to connect to')
-                    .choices([
-                        'pre-2022-Nov',
-                        '2022-Nov',
-                        '2023-Feb',
-                        '2023-May',
-                        '2023-Aug',
-                        '2023-Nov',
-                        '2024-Feb',
-                        '2024-May',
-                        '2024-Nov',
-                    ])
-                    .default('2024-Nov')
-                    .env('BSI_QSCLOUD_CST_SENSE_VERSION')
             )
             .addOption(
                 new Option(
@@ -837,12 +820,10 @@ const program = new Command();
                     // Set default browser version per browser
                     if (!options.browserVersion || options.browserVersion === '') {
                         if (options.browser === 'chrome') {
-                            // eslint-disable-next-line no-param-reassign
                             options.browserVersion = 'stable';
                         } else if (options.browser === 'firefox') {
                             // Firefox doesn't have a "stable" channel, so use "latest"
                             // Firefox support is still experimental, so always use latest version = nightly build
-                            // eslint-disable-next-line no-param-reassign
                             options.browserVersion = 'latest';
                         }
                     }

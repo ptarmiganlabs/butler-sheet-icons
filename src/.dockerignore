@@ -43,3 +43,21 @@ src/log
 __tests__
 jest.config.js
 
+# Build artifacts
+build.cjs
+*.blob
+sea-prep.blob
+sea-config.json
+
+# Coverage reports
+coverage/
+
+# Additional documentation
+CHANGELOG.md
+LICENSE
+
+# CI/CD workflows
+.github/workflows/
+
+# Editor configs
+eslint.config.js

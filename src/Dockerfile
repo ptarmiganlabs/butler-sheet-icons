@@ -1,44 +1,59 @@
-# Build Docker image for Amd64
-FROM node:22-bullseye-slim
+# Build Docker image (multi-arch capable)
+# Stage 1: Install dependencies
+FROM node:24-alpine AS deps
+
+WORKDIR /build
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --omit=dev --ignore-scripts && \
+    npm cache clean --force && \
+    # Remove documentation and unnecessary files from node_modules
+    find /build/node_modules -type f \( -name '*.md' -o -name 'LICENSE*' -o -name 'CHANGELOG*' -o -name '*.ts' -o -name '*.map' \) -delete && \
+    # Remove test directories
+    find /build/node_modules -type d \( -name test -o -name tests -o -name __tests__ -o -name '.github' \) -exec rm -rf {} + 2>/dev/null || true
+
+# Stage 2: Production image
+FROM node:24-alpine
 
 # Add metadata about the image
 LABEL maintainer="Göran Sander mountaindude@ptarmiganlabs.com"
 LABEL description="Creates thumbnail images based on sheets in QLik Sense applications."
 
-# Install Puppeteer dependencies
-# First a workaround to deal with the fact that libappindicator3-1 is no longer available in bullseye
-RUN apt-get update \
-    && apt-get install -y wget \
-    && wget http://ftp.us.debian.org/debian/pool/main/libi/libindicator/libindicator3-7_0.5.0-4_amd64.deb \
-    && wget http://ftp.us.debian.org/debian/pool/main/liba/libappindicator/libappindicator3-1_0.4.92-7_amd64.deb \
-    && apt install -y ./libindicator3-7_0.5.0-4_amd64.deb \
-    && apt install -y ./libappindicator3-1_0.4.92-7_amd64.deb
+# Install Puppeteer dependencies for Alpine Linux
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    font-dejavu \
+    tini
 
-RUN apt-get update && apt-get install -y ca-certificates fonts-liberation libasound2 libatk-bridge2.0-0 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgbm1 libgcc1 libglib2.0-0 libgtk-3-0 libnspr4 libnss3 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 lsb-release wget xdg-utils \
-    && apt-get remove -y wget \
-    && rm -rf /var/lib/apt/lists/* \
-    # && apt-get purge --auto-remove -y curl \
-    && rm -rf /src/*.deb
+# Create and use non-root user (Alpine syntax) BEFORE copying files
+RUN addgroup -S nodejs && adduser -S -G nodejs nodejs
 
 # Create app dir inside container
 WORKDIR /nodeapp
 
-# Install app dependencies separately (creating a separate layer for node_modules, effectively caching them between image rebuilds)
-COPY package.json .
-RUN npm install
+# Tell Puppeteer to skip installing Chrome, we'll use installed Chromium
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser \
+    NODE_ENV=production
 
-# Copy app's source files
-COPY . .
+# Copy node_modules from deps stage
+COPY --from=deps --chown=nodejs:nodejs /build/node_modules ./node_modules
 
-# Create and use non-root user 
-RUN groupadd -r nodejs \
-   && useradd -m -r -g nodejs nodejs
-
-RUN chown -R nodejs:nodejs /nodeapp
-RUN chmod 755 /nodeapp
+# Copy only necessary application files
+COPY --chown=nodejs:nodejs src/butler-sheet-icons.js ./src/
+COPY --chown=nodejs:nodejs src/globals.js ./src/
+COPY --chown=nodejs:nodejs src/lib/ ./src/lib/
+COPY --chown=nodejs:nodejs package.json ./
 
 USER nodejs
 
-# CMD ["node", "butler-sheet-icons.js"]
-ENTRYPOINT ["node", "butler-sheet-icons.js"]
+# Use tini as init to properly handle signals (allows Ctrl-C to work)
+ENTRYPOINT ["/sbin/tini", "--", "node", "src/butler-sheet-icons.js"]
 
