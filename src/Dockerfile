@@ -1,6 +1,6 @@
 # Build Docker image (multi-arch capable)
 # Stage 1: Install dependencies
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 
 WORKDIR /build
 
@@ -16,7 +16,7 @@ RUN npm ci --omit=dev --ignore-scripts && \
     find /build/node_modules -type d \( -name test -o -name tests -o -name __tests__ -o -name '.github' \) -exec rm -rf {} + 2>/dev/null || true
 
 # Stage 2: Production image
-FROM node:22-alpine
+FROM node:24-alpine
 
 # Add metadata about the image
 LABEL maintainer="Göran Sander mountaindude@ptarmiganlabs.com"

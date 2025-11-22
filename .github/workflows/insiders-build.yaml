@@ -10,17 +10,22 @@ jobs:
   insiders-build:
     strategy:
       matrix:
-        # os: [win-code-sign, tachyon2-build1, mac-build1, ubuntu-latest]
-        os: [win-code-sign, mac-build1, ubuntu-latest]
+        target: [win, mac, linux]
         include:
-          - os: win-code-sign
+          - target: win
+            runs_on:
+              - self-hosted
+              - x64
+              - windows
+              - sp53
+              - win-code-sign
             build: |
               # Inject git SHA into package.json
               $GIT_SHA = (git rev-parse --short HEAD)
               (Get-Content package.json) -replace '"version": "(.*?)"', ('"version": "$1-' + $GIT_SHA + '"') | Set-Content package.json
 
               # Create a single JS file using esbuild
-              ./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+              ./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
               # Generate blob to be injected into the binary
               node --experimental-sea-config src/sea-config.json
@@ -82,93 +87,21 @@ jobs:
 
               dir
             artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
-
-          # - os: tachyon2-build1
-          #   build: |
-          #     # Inject git SHA into package.json
-          #     GIT_SHA=$(git rev-parse --short HEAD)
-          #     sed -i '' "s/\"version\": \".*\"/\"version\": \"4.4.0-$GIT_SHA\"/" package.json
-
-          #     # Create a single JS file using esbuild
-          #     ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
-
-          #     # Generate blob to be injected into the binary
-          #     node --experimental-sea-config src/sea-config.json
-
-          #     # Get a copy of the Node executable
-          #     cp $(command -v node) ${DIST_FILE_NAME}
-
-          #     # Remove the signature from the Node executable
-          #     codesign --remove-signature ${DIST_FILE_NAME}
-
-          #     # Inject the blob
-          #     npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
-
-          #     security delete-keychain build.keychain || true
-
-          #     pwd
-          #     ls -la
-
-          #     # Start signing of the binary
-
-          #     # -------------------
-          #     # Turn our base64-encoded certificate back to a regular .p12 file
-          #     echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-
-          #     # -------------------
-          #     # We need to create a new keychain, otherwise using the certificate will prompt
-          #     # with a UI dialog asking for the certificate password, which we can't
-          #     # use in a headless CI environment
-          #     security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          #     security list-keychains -d user -s build.keychain
-          #     security default-keychain -d user -s build.keychain
-          #     security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          #     security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          #     security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-
-          #     codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
-
-          #     # -------------------
-          #     # Notarize
-          #     # Store the notarization credentials so that we can prevent a UI password dialog from blocking the CI
-          #     echo "Create keychain profile"
-          #     xcrun notarytool store-credentials "notarytool-profile" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" --password "$PROD_MACOS_NOTARIZATION_PWD"
-
-          #     # -------------------
-          #     # We can't notarize an app bundle directly, but we need to compress it as an archive.
-          #     # Therefore, we create a zip file containing our app bundle, so that we can send it to the
-          #     # notarization service
-          #     # Notarize insider binary
-          #     echo "Creating temp notarization archive for insider build"
-          #     #ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip"
-          #     ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-arm64--${{ github.sha }}.zip"
-
-          #     # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
-          #     # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
-          #     # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
-          #     # you're curious
-          #     echo "Notarize insider app"
-          #     #xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
-          #     xcrun notarytool submit "./${DIST_FILE_NAME}--macos-arm64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
-
-          #     # -------------------
-          #     # Clean up
-          #     # Delete build keychain
-          #     security delete-keychain build.keychain
-          #     rm build.cjs
-
-          #     ls -la
-
-          #   artifact_insider: butler-sheet-icons--macos-arm64--${{ github.sha }}.zip
-
-          - os: mac-build1
+          - target: mac
+            runs_on:
+              - self-hosted
+              - macos
+              - arm64
+              - mac-build2
+              - sp53
             build: |
               # Inject git SHA into package.json
               GIT_SHA=$(git rev-parse --short HEAD)
-              sed -i '' "s/\"version\": \".*\"/\"version\": \"4.4.0-$GIT_SHA\"/" package.json
+              CURRENT_VERSION=$(node -p "require('./package.json').version")
+              sed -i '' "s/\"version\": \".*\"/\"version\": \"${CURRENT_VERSION}-$GIT_SHA\"/" package.json
 
               # Create a single JS file using esbuild
-              ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+              ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
               # Generate blob to be injected into the binary
               node --experimental-sea-config src/sea-config.json
@@ -219,14 +152,14 @@ jobs:
               # notarization service
               # Notarize insider binary
               echo "Creating temp notarization archive for insider build"
-              ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip"
+              ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${DIST_FILE_NAME}--macos-arm64--${{ github.sha }}.zip"
 
               # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
               # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
               # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
               # you're curious
               echo "Notarize insider app"
-              xcrun notarytool submit "./${DIST_FILE_NAME}--macos-x64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
+              xcrun notarytool submit "./${DIST_FILE_NAME}--macos-arm64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
 
               # -------------------
               # Clean up
@@ -236,15 +169,18 @@ jobs:
 
               ls -la
 
-            artifact_insider: butler-sheet-icons--macos-x64--${{ github.sha }}.zip
+            artifact_insider: butler-sheet-icons--macos-arm64--${{ github.sha }}.zip
 
-          - os: ubuntu-latest
+          - target: linux
+            runs_on:
+              - ubuntu-latest
             build: |
               # Inject git SHA into package.json
               GIT_SHA=$(git rev-parse --short HEAD)
-              sed -i "s/\"version\": \".*\"/\"version\": \"4.4.0-$GIT_SHA\"/" package.json
+              CURRENT_VERSION=$(node -p "require('./package.json').version")
+              sed -i "s/\"version\": \".*\"/\"version\": \"${CURRENT_VERSION}-$GIT_SHA\"/" package.json
 
-              ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node23 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+              ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
               node --experimental-sea-config src/sea-config.json
 
               # Get a copy of the Node executable
@@ -262,7 +198,7 @@ jobs:
               ls -la
 
             artifact_insider: butler-sheet-icons--linux-x64--${{ github.sha }}.tgz
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runs_on }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -270,7 +206,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 23
+          node-version: 24
 
       - name: Install dependencies
         run: |
@@ -280,7 +216,7 @@ jobs:
       - name: Run Snyk to check for vulnerabilities
         if: |
           github.repository_owner == 'ptarmiganlabs' &&
-          matrix.os == 'ubuntu-latest'
+          matrix.target == 'linux'
         uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # master
         continue-on-error: true
         env:
@@ -292,7 +228,7 @@ jobs:
         continue-on-error: true
         if: |
           github.repository_owner == 'ptarmiganlabs' &&
-          matrix.os == 'ubuntu-latest'
+          matrix.target == 'linux'
         uses: github/codeql-action/upload-sarif@c3d42c5d08633d8b33635fbd94b000a0e2585b3c # v3
         with:
           sarif_file: snyk.sarif
@@ -312,6 +248,24 @@ jobs:
         run: |
           pwd
           ${{ matrix.build }}
+
+      - name: Generate SBOM (linux only)
+        if: matrix.target == 'linux'
+        env:
+          DIST_FILE_NAME: butler-sheet-icons
+        run: |
+          curl -Lo $RUNNER_TEMP/sbom-tool https://github.com/microsoft/sbom-tool/releases/latest/download/sbom-tool-linux-x64
+          chmod +x $RUNNER_TEMP/sbom-tool
+          mkdir -p ./build/sbom
+          VERSION=$(node -p "require('./package.json').version")
+          $RUNNER_TEMP/sbom-tool generate -b ./build/sbom -bc . -pn ${DIST_FILE_NAME} -pv ${VERSION} -ps "Ptarmigan Labs" -nsb https://sbom.ptarmiganlabs.com -V verbose
+
+      - name: Upload SBOM artifact
+        if: matrix.target == 'linux'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-insiders-${{ github.sha }}
+          path: ./build/sbom/
 
       - name: Upload insider build artifacts to GitHub
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
