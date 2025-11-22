@@ -115,7 +115,7 @@ jobs:
               # Inject the blob
               npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
 
-              security delete-keychain build.keychain || true
+              security delete-keychain build.keychain >/dev/null 2>&1 || true
 
               pwd
               ls -la
@@ -143,8 +143,7 @@ jobs:
               # -------------------
               # Notarize
               # Store the notarization credentials so that we can prevent a UI password dialog from blocking the CI
-              echo "Create keychain profile"
-              xcrun notarytool store-credentials "notarytool-profile" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" --password "$PROD_MACOS_NOTARIZATION_PWD"
+              echo "Using direct credentials for notarization"
 
               # -------------------
               # We can't notarize an app bundle directly, but we need to compress it as an archive.
@@ -159,7 +158,7 @@ jobs:
               # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
               # you're curious
               echo "Notarize insider app"
-              xcrun notarytool submit "./${DIST_FILE_NAME}--macos-arm64--${{ github.sha }}.zip" --keychain-profile "notarytool-profile" --wait
+              xcrun notarytool submit "./${DIST_FILE_NAME}--macos-arm64--${{ github.sha }}.zip" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" --password "$PROD_MACOS_NOTARIZATION_PWD" --wait
 
               # -------------------
               # Clean up
