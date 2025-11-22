@@ -59,6 +59,11 @@ const xpathHubUserPageButton2024Nov =
 const xpathLogoutButton2024Nov =
     'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
 
+const xpathHubUserPageButton2025May =
+    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
+const xpathLogoutButton2025May =
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[5]/span[2]';
+
 /**
  * Processes a Qlik Sense Enterprise on Windows (QSEoW) application to generate
  * and manage thumbnails for app sheets. It handles browser setup, logging in,
@@ -123,6 +128,9 @@ export const qseowProcessApp = async (appId, options) => {
     } else if (options.senseVersion === '2024-Nov') {
         xpathHubUserPageButton = xpathHubUserPageButton2024Nov;
         xpathLogoutButton = xpathLogoutButton2024Nov;
+    } else if (options.senseVersion === '2025-May') {
+        xpathHubUserPageButton = xpathHubUserPageButton2025May;
+        xpathLogoutButton = xpathLogoutButton2025May;
     } else {
         logger.error(
             `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
@@ -150,7 +158,6 @@ export const qseowProcessApp = async (appId, options) => {
         // Get metadata about the app
         const qseowConfigQrs = setupQseowQrsConnection(options);
 
-        // eslint-disable-next-line new-cap
         const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
         logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
 
@@ -188,10 +195,8 @@ export const qseowProcessApp = async (appId, options) => {
         const session = await enigma.create(configEnigma);
 
         if (options.loglevel === 'silly') {
-            // eslint-disable-next-line no-console
             session.on('traffic:sent', (data) => console.log('sent:', data));
             session.on('traffic:received', (data) =>
-                // eslint-disable-next-line no-console
                 console.log('received:', JSON.stringify(data, null, 2))
             );
         }
@@ -433,7 +438,6 @@ export const qseowProcessApp = async (appId, options) => {
             });
 
             // Loop over all sheets in app, processing each one unless excluded
-            // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
                 // Get repository db sheet id from mapRepoEngineSheetIdTmp1, using sheet.qInfo.qId as key
                 const repoDbSheetId = mapRepoEngineSheetId.get(sheet.qInfo.qId);
