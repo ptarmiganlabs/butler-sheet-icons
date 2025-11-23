@@ -302,6 +302,7 @@ jobs:
     needs:
       - test-on-winsrv-amd64
     if: github.repository_owner == 'ptarmiganlabs'
+    timeout-minutes: 60
     runs-on:
       - self-hosted
       - macos
@@ -311,18 +312,33 @@ jobs:
     env:
       IMAGE_NAME: butler-sheet-icons:ci-arm64
       IMAGE_TAR: butler-sheet-icons-ci-arm64.tar
+      DOCKER_BUILDKIT: 1
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Show Docker disk usage (before build)
         run: docker system df || true
 
+      - name: Verify Docker is responsive
+        run: |
+          docker info
+          docker ps -a
+          docker context ls
+          docker version
+
       - name: Build arm64 Docker image
         run: |
+          set -x
           docker build \
             --file src/Dockerfile \
             --tag "$IMAGE_NAME" \
-            .
+            --platform linux/arm64 \
+            --progress=plain \
+            . 2>&1 | tee /tmp/docker-build.log || {
+              echo "Build failed, showing last 50 lines:"
+              tail -50 /tmp/docker-build.log
+              exit 1
+            }
 
       - name: Save Docker image to tarball
         run: docker save "$IMAGE_NAME" -o "$IMAGE_TAR"
