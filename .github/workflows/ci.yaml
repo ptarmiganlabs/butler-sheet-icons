@@ -867,7 +867,7 @@ jobs:
           npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
 
           # Start signing of the binary    
-          security delete-keychain build.keychain || true
+          security delete-keychain build.keychain >/dev/null 2>&1 || true
 
           # -------------------
           # Turn our base64-encoded certificate back to a regular .p12 file
@@ -900,7 +900,7 @@ jobs:
           # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
           # you're curious
           echo "Notarize release app"
-          xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip" --keychain-profile "notarytool-profile" --wait
+          xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" --password "$PROD_MACOS_NOTARIZATION_PWD" --wait
 
           # -------------------
           # Clean up

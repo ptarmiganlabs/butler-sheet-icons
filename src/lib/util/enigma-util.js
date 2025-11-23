@@ -1,10 +1,23 @@
-import * as sea from 'node:sea';
-import { getAsset } from 'node:sea';
+import { createRequire } from 'node:module';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { logger, isSea } from '../../globals.js';
+
+const require = createRequire(import.meta.url);
+
+// Mirror the globals.js behavior: prefer the real SEA helper when available,
+// but fall back to a shim so Jest/Node-only contexts can still import this
+// module without the experimental runtime being present.
+let getSeaAsset;
+try {
+    ({ getAsset: getSeaAsset } = require('node:sea'));
+} catch (error) {
+    getSeaAsset = () => {
+        throw new Error('SEA asset requested outside SEA runtime.');
+    };
+}
 
 /**
  * Retrieves the Enigma.js schema JSON based on the provided options.
@@ -45,7 +58,7 @@ export const getEnigmaSchema = (options) => {
         // Are we running as a packaged app?
         if (isSea) {
             // Load schema file
-            qixSchemaJson = getAsset(`enigma_schema_${options.schemaversion}.json`, 'utf8');
+            qixSchemaJson = getSeaAsset(`enigma_schema_${options.schemaversion}.json`, 'utf8');
         } else {
             // No, we are running as native Node.js
             const __filename = fileURLToPath(import.meta.url);
