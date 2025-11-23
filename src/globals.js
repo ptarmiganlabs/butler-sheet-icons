@@ -1,15 +1,34 @@
 import winston from 'winston';
-import * as sea from 'node:sea';
+import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import 'dotenv/config';
+
+const require = createRequire(import.meta.url);
+
+// Load the experimental SEA helpers only when they exist (packaged builds).
+// During tests, Docker, or plain Node runtimes the module is absent, so we
+// provide a lightweight shim that preserves the API surface but keeps isSea()
+// false to force the traditional filesystem code paths.
+let sea;
+try {
+    sea = require('node:sea');
+} catch (error) {
+    sea = {
+        isSea: () => false,
+        getAsset: () => {
+            throw new Error('SEA asset access requested outside SEA runtime.');
+        },
+    };
+}
 
 // Get app version from package.json file
 const filenamePackage = `./package.json`;
 let b;
 let c;
 let appVersion;
+let packageJson;
 
 // Are we running as a packaged app?
 if (sea.isSea()) {
