@@ -181,8 +181,9 @@ jobs:
 
       - name: Debugging 1
         shell: pwsh
-        run: dir
-        working-directory: .
+        run: |
+          Get-Location
+          Get-ChildItem
 
       - name: Setup node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
