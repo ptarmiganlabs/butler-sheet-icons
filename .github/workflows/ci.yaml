@@ -354,9 +354,9 @@ jobs:
     runs-on:
       - self-hosted
       - x64
-      - windows
       - sp53
-      - win-code-sign
+      - linux
+      - pve101
     env:
       IMAGE_NAME: butler-sheet-icons:ci-amd64
       IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
@@ -364,25 +364,17 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Show Docker disk usage (before build)
-        shell: powershell
-        run: |
-          docker system df
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host 'docker system df failed but continuing'
-            exit 0
-          }
+        run: docker system df || true
 
       - name: Build amd64 Docker image
-        shell: powershell
         run: |
-          docker build `
-            --file src/Dockerfile `
-            --tag $Env:IMAGE_NAME `
+          docker build \
+            --file src/Dockerfile \
+            --tag "$IMAGE_NAME" \
             .
 
       - name: Save Docker image to tarball
-        shell: powershell
-        run: docker save $Env:IMAGE_NAME -o $Env:IMAGE_TAR
+        run: docker save "$IMAGE_NAME" -o "$IMAGE_TAR"
 
       - name: Upload Docker image artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -392,35 +384,16 @@ jobs:
           retention-days: 1
 
       - name: Remove local image file
-        shell: powershell
-        run: Remove-Item -Force $Env:IMAGE_TAR -ErrorAction SilentlyContinue
+        run: rm -f "$IMAGE_TAR"
 
       - name: Remove local Docker image
-        shell: powershell
-        run: |
-          docker image rm $Env:IMAGE_NAME
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host 'Image already removed or missing'
-            exit 0
-          }
+        run: docker image rm "$IMAGE_NAME" || true
 
       - name: Prune dangling images
-        shell: powershell
-        run: |
-          docker image prune -af
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host 'docker image prune failed but continuing'
-            exit 0
-          }
+        run: docker image prune -af || true
 
       - name: Show Docker disk usage (after cleanup)
-        shell: powershell
-        run: |
-          docker system df
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host 'docker system df failed but continuing'
-            exit 0
-          }
+        run: docker system df || true
 
   docker-test-mac:
     name: docker-test-mac
