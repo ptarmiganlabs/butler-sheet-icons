@@ -46,6 +46,28 @@ jobs:
           git version
         working-directory: .
 
+      - name: Prepare QSEoW cert files
+        env:
+          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
+          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
+        run: |
+          set -euo pipefail
+          CERT_DIR="$RUNNER_TEMP/bsi-cert"
+          mkdir -p "$CERT_DIR"
+          if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
+            echo 'Missing QSEoW client certificate secrets' >&2
+            exit 1
+          fi
+          CERT_FILE="$CERT_DIR/client.pem"
+          KEY_FILE="$CERT_DIR/client_key.pem"
+          printf '%s\n' "$QS_CLIENT_PEM" > "$CERT_FILE"
+          printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$KEY_FILE"
+          chmod 600 "$CERT_FILE" "$KEY_FILE"
+          {
+            echo "BSI_CERT_FILE=$CERT_FILE"
+            echo "BSI_CERT_KEY_FILE=$KEY_FILE"
+          } >> "$GITHUB_ENV"
+
       - name: Run browser tests
         run: |
           ls -la
@@ -61,8 +83,6 @@ jobs:
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
           BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
           BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
@@ -87,8 +107,6 @@ jobs:
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
           BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
           BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
@@ -113,8 +131,6 @@ jobs:
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_MAC_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_MAC_CERT_KEY_FILE }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
           BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
           BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
