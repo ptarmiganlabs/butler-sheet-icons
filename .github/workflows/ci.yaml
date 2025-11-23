@@ -180,6 +180,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Debugging 1
+        shell: pwsh
         run: dir
         working-directory: .
 
@@ -189,11 +190,13 @@ jobs:
           node-version: 24
 
       - name: Install dependencies
+        shell: pwsh
         run: |
           dir
           npm ci --include=dev --include=prod
 
       - name: Debugging 2
+        shell: pwsh
         run: |
           dir 
           node --version
@@ -201,6 +204,7 @@ jobs:
         working-directory: .
 
       - name: Run browser tests
+        shell: pwsh
         run: |
           dir
           npm run test browser -- -i
@@ -227,6 +231,7 @@ jobs:
           BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       - name: Run QS cloud tests
+        shell: pwsh
         run: |
           dir
           npm run test cloud -- -i
@@ -253,6 +258,7 @@ jobs:
           BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       - name: Run QSEoW tests
+        shell: pwsh
         run: |
           dir
           npm run test qseow -- -i
@@ -357,7 +363,13 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Show Docker disk usage (before build)
-        run: docker system df || true
+        shell: pwsh
+        run: |
+          docker system df
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'docker system df failed but continuing'
+            exit 0
+          }
 
       - name: Build amd64 Docker image
         shell: pwsh
@@ -960,6 +972,7 @@ jobs:
       CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT}}
     steps:
       - name: Release tag and upload url from previous job
+        shell: pwsh
         run: |
           Write-Output 'tag_name        : ${{ needs.release-please.outputs.release_tag_name }}'
           Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
@@ -973,11 +986,13 @@ jobs:
           node-version: 24
 
       - name: Install dependencies
+        shell: pwsh
         run: |
           pwd 
           npm ci --include=prod
 
       - name: Build binaries
+        shell: pwsh
         run: |
           # Create a single JS file using esbuild
           ./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
@@ -1052,6 +1067,7 @@ jobs:
           token: ${{ github.token }}
 
       - name: Tidy up before existing
+        shell: pwsh
         run: |
           dir
 
