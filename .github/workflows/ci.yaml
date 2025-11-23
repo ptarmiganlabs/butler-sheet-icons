@@ -11,7 +11,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  test-macos:
+  test-on-macos-arm64:
     concurrency:
       group: qs-tests-${{ github.repository }}
       cancel-in-progress: false
@@ -152,9 +152,9 @@ jobs:
       #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
       #     connectTimeout: 30000
 
-  test-winsrv:
+  test-on-winsrv-amd64:
     needs:
-      - test-macos
+      - test-on-macos-arm64
     concurrency:
       group: qs-tests-${{ github.repository }}
       cancel-in-progress: false
@@ -299,7 +299,7 @@ jobs:
   docker-build-arm64:
     name: docker-build-arm64
     needs:
-      - test-winsrv
+      - test-on-winsrv-amd64
     if: github.repository_owner == 'ptarmiganlabs'
     runs-on:
       - self-hosted
@@ -348,7 +348,7 @@ jobs:
   docker-build-amd64:
     name: docker-build-amd64
     needs:
-      - test-winsrv
+      - test-on-winsrv-amd64
     if: github.repository_owner == 'ptarmiganlabs'
     runs-on:
       - self-hosted
@@ -568,6 +568,7 @@ jobs:
     name: docker-test-win
     needs:
       - docker-build-amd64
+      - docker-test-mac
     if: github.repository_owner == 'ptarmiganlabs'
     concurrency:
       group: qs-tests-${{ github.repository }}
