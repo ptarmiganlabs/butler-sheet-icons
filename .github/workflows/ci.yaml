@@ -363,7 +363,13 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Show Docker disk usage (before build)
-        run: docker system df || true
+        shell: pwsh
+        run: |
+          docker system df
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host 'docker system df failed but continuing'
+            exit 0
+          }
 
       - name: Build amd64 Docker image
         shell: pwsh
