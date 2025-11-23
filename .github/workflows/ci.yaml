@@ -362,8 +362,8 @@ jobs:
       - name: Show Docker disk usage (after cleanup)
         run: docker system df || true
 
-  docker-build-amd64:
-    name: docker-build-amd64
+  docker-build-on-ubuntu-amd64:
+    name: docker-build-on-ubuntu-amd64
     needs:
       - test-on-winsrv-amd64
     if: github.repository_owner == 'ptarmiganlabs'
@@ -411,8 +411,8 @@ jobs:
       - name: Show Docker disk usage (after cleanup)
         run: docker system df || true
 
-  docker-test-mac:
-    name: docker-test-mac
+  docker-test-on-macos-arm64:
+    name: docker-test-on-macos-arm64
     needs:
       - docker-build-arm64
     if: github.repository_owner == 'ptarmiganlabs'
@@ -554,11 +554,11 @@ jobs:
       - name: Show Docker disk usage (after cleanup)
         run: docker system df || true
 
-  docker-test-win:
-    name: docker-test-win
+  docker-test-on-ubuntu-amd64:
+    name: docker-test-on-ubuntu-amd64
     needs:
-      - docker-build-amd64
-      - docker-test-mac
+      - docker-build-on-ubuntu-amd64
+      - docker-test-on-macos-arm64
     if: github.repository_owner == 'ptarmiganlabs'
     concurrency:
       group: qs-tests-${{ github.repository }}
@@ -566,9 +566,9 @@ jobs:
     runs-on:
       - self-hosted
       - x64
-      - windows
       - sp53
-      - win-code-sign
+      - linux
+      - pve101
     env:
       IMAGE_NAME: butler-sheet-icons:ci-amd64
       IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
@@ -597,141 +597,111 @@ jobs:
           name: butler-sheet-icons-ci-amd64-image
 
       - name: Show Docker disk usage (before load)
-        shell: powershell
-        run: |
-          docker system df
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host 'docker system df failed but continuing'
-            exit 0
-          }
+        run: docker system df || true
 
       - name: Load Docker image
-        shell: powershell
-        run: docker load --input $Env:IMAGE_TAR
+        run: docker load --input "$IMAGE_TAR"
 
       - name: Remove downloaded tarball
-        shell: powershell
-        run: Remove-Item -Force $Env:IMAGE_TAR -ErrorAction SilentlyContinue
+        run: rm -f "$IMAGE_TAR"
 
       - name: Smoke test amd64 image
-        shell: powershell
-        run: docker run --rm $Env:IMAGE_NAME --version
+        run: docker run --rm "$IMAGE_NAME" --version
 
-      - name: Prepare host folders for Docker mounts (Windows)
-        shell: powershell
+      - name: Prepare host folders for Docker mounts
         env:
           QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
           QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
         run: |
-          $imgDir = Join-Path $env:USERPROFILE 'bsi-bsi\img'
-          $certDir = Join-Path $env:USERPROFILE 'bsi-bsi\cert'
-          $cacheDir = Join-Path $env:USERPROFILE 'bsi-browser-cache'
-          New-Item -ItemType Directory -Force -Path $imgDir | Out-Null
-          New-Item -ItemType Directory -Force -Path $certDir | Out-Null
-          New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
-          if (-not $Env:QS_CLIENT_PEM -or -not $Env:QS_CLIENT_KEY_PEM) {
-            throw 'Missing QSEoW client certificate secrets.'
-          }
-          Set-Content -Path (Join-Path $certDir 'client.pem') -Value $Env:QS_CLIENT_PEM -Encoding ascii
-          Set-Content -Path (Join-Path $certDir 'client_key.pem') -Value $Env:QS_CLIENT_KEY_PEM -Encoding ascii
+          set -euo pipefail
+          IMG_DIR="$HOME/bsi-bsi/img"
+          CERT_DIR="$HOME/bsi-bsi/cert"
+          CACHE_DIR="$HOME/bsi-browser-cache"
+          mkdir -p "$IMG_DIR" "$CERT_DIR" "$CACHE_DIR"
+          if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
+            echo 'Missing QSEoW client certificate secrets' >&2
+            exit 1
+          fi
+          printf '%s\n' "$QS_CLIENT_PEM" > "$CERT_DIR/client.pem"
+          printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$CERT_DIR/client_key.pem"
+          chmod 600 "$CERT_DIR"/client*.pem
 
       - name: Run browser cache commands (amd64 image)
-        shell: powershell
         run: |
-          $cacheDir = Resolve-Path "$env:USERPROFILE/bsi-browser-cache"
-          docker run --rm `
-            -v "$cacheDir:/home/nodejs/.cache/puppeteer" `
-            $Env:IMAGE_NAME `
+          CACHE_DIR="$HOME/bsi-browser-cache"
+          docker run --rm \
+            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
+            "$IMAGE_NAME" \
             browser list-available
-          docker run --rm `
-            -v "$cacheDir:/home/nodejs/.cache/puppeteer" `
-            $Env:IMAGE_NAME `
+          docker run --rm \
+            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
+            "$IMAGE_NAME" \
             browser uninstall-all
 
       - name: Run QS Cloud commands (amd64 image)
-        shell: powershell
         run: |
-          $imgDir = Resolve-Path "$env:USERPROFILE/bsi-bsi/img"
-          docker run --rm `
-            $Env:IMAGE_NAME `
-            qscloud list-collections `
-            --tenanturl $Env:BSI_CLOUD_TENANT_URL `
-            --apikey $Env:BSI_CLOUD_API_KEY `
+          IMG_DIR="$HOME/bsi-bsi/img"
+          docker run --rm \
+            "$IMAGE_NAME" \
+            qscloud list-collections \
+            --tenanturl "$BSI_CLOUD_TENANT_URL" \
+            --apikey "$BSI_CLOUD_API_KEY" \
             --outputformat table
 
-          docker run --rm `
-            -v "$imgDir:/nodeapp/img" `
-            $Env:IMAGE_NAME `
-            qscloud create-sheet-thumbnails `
-            --tenanturl $Env:BSI_CLOUD_TENANT_URL `
-            --apikey $Env:BSI_CLOUD_API_KEY `
-            --logonuserid $Env:BSI_CLOUD_LOGON_USERID `
-            --logonpwd $Env:BSI_CLOUD_LOGON_PWD `
-            --appid $Env:BSI_CLOUD_APP_ID `
-            --log-level verbose `
+          docker run --rm \
+            -v "$IMG_DIR:/nodeapp/img" \
+            "$IMAGE_NAME" \
+            qscloud create-sheet-thumbnails \
+            --tenanturl "$BSI_CLOUD_TENANT_URL" \
+            --apikey "$BSI_CLOUD_API_KEY" \
+            --logonuserid "$BSI_CLOUD_LOGON_USERID" \
+            --logonpwd "$BSI_CLOUD_LOGON_PWD" \
+            --appid "$BSI_CLOUD_APP_ID" \
+            --log-level verbose \
             --imagedir ./img
 
       - name: Run QSEoW Docker command (amd64 image)
-        shell: powershell
         run: |
-          $imgDir = Resolve-Path "$env:USERPROFILE/bsi-bsi/img"
-          $certDir = Resolve-Path "$env:USERPROFILE/bsi-bsi/cert"
-          docker run --rm `
-            -v "$imgDir:/nodeapp/img" `
-            -v "$certDir:/nodeapp/cert" `
-            $Env:IMAGE_NAME `
-            qseow create-sheet-thumbnails `
-            --host $Env:BSI_HOST `
-            --appid $Env:BSI_APP_ID `
-            --apiuserdir Internal `
-            --apiuserid sa_api `
-            --loglevel info `
-            --logonuserdir $Env:BSI_LOGON_USER_DIR `
-            --logonuserid $Env:BSI_LOGON_USER_ID `
-            --logonpwd $Env:BSI_LOGON_PWD `
-            --contentlibrary $Env:BSI_CONTENT_LIBRARY `
-            --pagewait 5 `
-            --secure true `
-            --headless true `
-            --imagedir ./img `
-            --certfile /nodeapp/cert/client.pem `
-            --certkeyfile /nodeapp/cert/client_key.pem `
-            --includesheetpart $Env:BSI_INCLUDE_SHEET_PART `
-            --qliksensetag updateSheetThumbnail `
-            --prefix $Env:BSI_PREFIX `
+          IMG_DIR="$HOME/bsi-bsi/img"
+          CERT_DIR="$HOME/bsi-bsi/cert"
+          docker run --rm \
+            -v "$IMG_DIR:/nodeapp/img" \
+            -v "$CERT_DIR:/nodeapp/cert" \
+            "$IMAGE_NAME" \
+            qseow create-sheet-thumbnails \
+            --host "$BSI_HOST" \
+            --appid "$BSI_APP_ID" \
+            --apiuserdir Internal \
+            --apiuserid sa_api \
+            --loglevel info \
+            --logonuserdir "$BSI_LOGON_USER_DIR" \
+            --logonuserid "$BSI_LOGON_USER_ID" \
+            --logonpwd "$BSI_LOGON_PWD" \
+            --contentlibrary "$BSI_CONTENT_LIBRARY" \
+            --pagewait 5 \
+            --secure true \
+            --headless true \
+            --imagedir ./img \
+            --certfile /nodeapp/cert/client.pem \
+            --certkeyfile /nodeapp/cert/client_key.pem \
+            --includesheetpart "$BSI_INCLUDE_SHEET_PART" \
+            --qliksensetag updateSheetThumbnail \
+            --prefix "$BSI_PREFIX" \
             --log-level verbose
 
       - name: Remove local Docker image
-        shell: powershell
-        run: |
-          docker image rm $Env:IMAGE_NAME
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host 'Image already removed or missing'
-            exit 0
-          }
+        run: docker image rm "$IMAGE_NAME" || true
 
       - name: Prune dangling images
-        shell: powershell
-        run: |
-          docker image prune -af
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host 'docker image prune failed but continuing'
-            exit 0
-          }
+        run: docker image prune -af || true
 
       - name: Show Docker disk usage (after cleanup)
-        shell: powershell
-        run: |
-          docker system df
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host 'docker system df failed but continuing'
-            exit 0
-          }
+        run: docker system df || true
 
   release-please:
     needs:
-      - docker-test-mac
-      - docker-test-win
+      - docker-test-on-macos-arm64
+      - docker-test-on-ubuntu-amd64
     runs-on: ubuntu-latest
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
