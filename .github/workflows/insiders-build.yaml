@@ -252,12 +252,21 @@ jobs:
         if: matrix.target == 'linux'
         env:
           DIST_FILE_NAME: butler-sheet-icons
+          SBOM_TOOL_VERSION: v4.0.2
         run: |
-          curl -Lo $RUNNER_TEMP/sbom-tool https://github.com/microsoft/sbom-tool/releases/latest/download/sbom-tool-linux-x64
+          curl -Lo $RUNNER_TEMP/sbom-tool "https://github.com/microsoft/sbom-tool/releases/download/${SBOM_TOOL_VERSION}/sbom-tool-linux-x64"
           chmod +x $RUNNER_TEMP/sbom-tool
+
           mkdir -p ./build/sbom
           VERSION=$(node -p "require('./package.json').version")
-          $RUNNER_TEMP/sbom-tool generate -b ./build/sbom -bc . -pn ${DIST_FILE_NAME} -pv ${VERSION} -ps "Ptarmigan Labs" -nsb https://sbom.ptarmiganlabs.com -V verbose
+          $RUNNER_TEMP/sbom-tool generate \
+            -b ./build/sbom \
+            -bc . \
+            -pn ${DIST_FILE_NAME} \
+            -pv ${VERSION} \
+            -ps "Ptarmigan Labs" \
+            -nsb https://sbom.ptarmiganlabs.com \
+            -V verbose
 
       - name: Upload SBOM artifact
         if: matrix.target == 'linux'
