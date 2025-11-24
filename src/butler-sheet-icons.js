@@ -308,8 +308,9 @@ const program = new Command();
                     '2024-May',
                     '2024-Nov',
                     '2025-May',
+                    '2025-Nov',
                 ])
-                .default('2025-May')
+                .default('2025-Nov')
                 .env('BSI_QSEOW_CST_SENSE_VERSION')
         )
         .addOption(

@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.9.0] - 2025-11-24
+
+### Features
+
+- Add support for QSEoW 2025-Nov version
+- Update default `--sense-version` to `2025-Nov`
+
 ## [3.8.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.8.0...butler-sheet-icons-v3.8.0) (2025-05-06)
 
 ### Features
