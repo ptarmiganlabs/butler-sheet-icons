@@ -64,6 +64,11 @@ const xpathHubUserPageButton2025May =
 const xpathLogoutButton2025May =
     'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[5]/span[2]';
 
+const xpathHubUserPageButton2025Nov =
+    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
+const xpathLogoutButton2025Nov =
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[5]/span[2]';
+
 /**
  * Processes a Qlik Sense Enterprise on Windows (QSEoW) application to generate
  * and manage thumbnails for app sheets. It handles browser setup, logging in,
@@ -131,6 +136,9 @@ export const qseowProcessApp = async (appId, options) => {
     } else if (options.senseVersion === '2025-May') {
         xpathHubUserPageButton = xpathHubUserPageButton2025May;
         xpathLogoutButton = xpathLogoutButton2025May;
+    } else if (options.senseVersion === '2025-Nov') {
+        xpathHubUserPageButton = xpathHubUserPageButton2025Nov;
+        xpathLogoutButton = xpathLogoutButton2025Nov;
     } else {
         logger.error(
             `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`

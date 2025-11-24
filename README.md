@@ -918,7 +918,7 @@ Options:
   --blur-sheet-number <number...>     Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.
   --blur-sheet-title <title...>       Sheets with this title will be blurred in the sheet icon update.
   --blur-factor <factor>              Factor to blur the sheets with. 0 = no blur, 1000 = full blur. (default: "10")
-  --sense-version <version>           Version of the QSEoW server to connect to (choices: "pre-2022-Nov", "2022-Nov", "2023-Feb", "2023-May", "2023-Aug", "2023-Nov", "2024-Feb", "2024-May", default: "2024-May")
+  --sense-version <version>           Version of the QSEoW server to connect to (choices: "pre-2022-Nov", "2022-Nov", "2023-Feb", "2023-May", "2023-Aug", "2023-Nov", "2024-Feb", "2024-May", "2024-Nov", "2025-May", "2025-Nov", default: "2025-Nov")
   --browser <browser>                 Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. (choices: "chrome", "firefox", default: "chrome")
   --browser-version <version>         Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed. Leave empty or set to "latest" to get latest available version.
   -h, --help                          display help for command
@@ -1496,6 +1496,8 @@ First list installed browsers, then uninstall all of them. Finally list installe
 
 | Version          | BSI version | Tested date  | Comment                            |
 | ---------------- | ----------- | ------------ | ---------------------------------- |
+| 2025-Nov IR      | 3.9.0       | 2025-Nov-24  | Use `--sense-version 2025-Nov`     |
+| 2025-May IR      | 3.9.0       | 2025-Nov-24  | Use `--sense-version 2025-May`     |
 | 2024-Nov IR      | 3.8.0       | 2025-May-6   | Use `--sense-version 2024-Nov`     |
 | 2024-May IR      | 3.6.4       | 2024-Nov-6   | Use `--sense-version 2024-May`     |
 | 2024-May IR      | 3.6.3       | 2024-Aug-23  | Use `--sense-version 2024-May`     |
