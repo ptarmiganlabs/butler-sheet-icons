@@ -180,6 +180,10 @@ jobs:
             VERSION=$(node -pe "require('./package.json').version")
             echo "Read version from package.json: $VERSION"
           fi
+          if [ -z "$VERSION" ]; then
+            echo "ERROR: Failed to extract version" >&2
+            exit 1
+          fi
           echo "DOCKER_VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
