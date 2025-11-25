@@ -316,7 +316,7 @@ jobs:
           VERSION="${{ env.DOCKER_VERSION }}"
           echo "Validating version: $VERSION"
           echo "Event type: ${{ github.event_name }}"
-          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+-]+)?$'; then
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?(\+[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?$'; then
             echo "ERROR: Version does not match semver format: $VERSION" >&2
             exit 1
           fi
