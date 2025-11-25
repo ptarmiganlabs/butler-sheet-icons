@@ -29,6 +29,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      - name: Detect version for Docker tags
+        id: detect_version
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "release" ]; then
+            # Extract from release tag: refs/tags/butler-sheet-icons-vX.Y.Z -> X.Y.Z
+            TAG_REF="${{ github.ref }}"
+            echo "Source: Release event with ref: $TAG_REF"
+            # Remove refs/tags/ prefix
+            TAG="${TAG_REF#refs/tags/}"
+            # Remove package name prefix: butler-sheet-icons-vX.Y.Z -> vX.Y.Z
+            TAG="${TAG#butler-sheet-icons-}"
+            # Remove v prefix: vX.Y.Z -> X.Y.Z
+            VERSION="${TAG#v}"
+            echo "Extracted version from release tag: $VERSION"
+          else
+            # Read from package.json for workflow_dispatch
+            echo "Source: Manual workflow_dispatch event"
+            VERSION=$(node -pe "require('./package.json').version")
+            echo "Read version from package.json: $VERSION"
+          fi
+          echo "DOCKER_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Show Docker disk usage (before build)
         run: docker system df || true
 
@@ -43,13 +67,16 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Create clean tag for Docker
-        id: clean_tag
-        env:
-          REF: ${{ github.ref }}
+      - name: Validate version format
         run: |
-          TAGTMP1="${REF}"
-          echo "tag=${TAGTMP1##*-}" >> "$GITHUB_OUTPUT"
+          VERSION="${{ env.DOCKER_VERSION }}"
+          echo "Validating version: $VERSION"
+          echo "Event type: ${{ github.event_name }}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+-]+)?$'; then
+            echo "ERROR: Version does not match semver format: $VERSION" >&2
+            exit 1
+          fi
+          echo "Version validation successful: $VERSION"
 
       - name: Dump GitHub context
         if: always()
@@ -79,11 +106,10 @@ jobs:
           flavor: |
             suffix=-amd64
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}},value=${{ steps.clean_tag.outputs.tag }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.clean_tag.outputs.tag }}
-            type=semver,pattern={{major}},value=${{ steps.clean_tag.outputs.tag }}
+            type=semver,pattern={{version}},value=${{ env.DOCKER_VERSION }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.DOCKER_VERSION }}
+            type=semver,pattern={{major}},value=${{ env.DOCKER_VERSION }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Show Docker tags that will be used
         run: echo '${{ steps.meta.outputs.tags }}'
@@ -129,6 +155,30 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
+      - name: Detect version for Docker tags
+        id: detect_version
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "release" ]; then
+            # Extract from release tag: refs/tags/butler-sheet-icons-vX.Y.Z -> X.Y.Z
+            TAG_REF="${{ github.ref }}"
+            echo "Source: Release event with ref: $TAG_REF"
+            # Remove refs/tags/ prefix
+            TAG="${TAG_REF#refs/tags/}"
+            # Remove package name prefix: butler-sheet-icons-vX.Y.Z -> vX.Y.Z
+            TAG="${TAG#butler-sheet-icons-}"
+            # Remove v prefix: vX.Y.Z -> X.Y.Z
+            VERSION="${TAG#v}"
+            echo "Extracted version from release tag: $VERSION"
+          else
+            # Read from package.json for workflow_dispatch
+            echo "Source: Manual workflow_dispatch event"
+            VERSION=$(node -pe "require('./package.json').version")
+            echo "Read version from package.json: $VERSION"
+          fi
+          echo "DOCKER_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Show Docker disk usage (before build)
         run: docker system df || true
 
@@ -148,13 +198,16 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Create clean tag for Docker
-        id: clean_tag
-        env:
-          REF: ${{ github.ref }}
+      - name: Validate version format
         run: |
-          TAGTMP1="${REF}"
-          echo "tag=${TAGTMP1##*-}" >> "$GITHUB_OUTPUT"
+          VERSION="${{ env.DOCKER_VERSION }}"
+          echo "Validating version: $VERSION"
+          echo "Event type: ${{ github.event_name }}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+-]+)?$'; then
+            echo "ERROR: Version does not match semver format: $VERSION" >&2
+            exit 1
+          fi
+          echo "Version validation successful: $VERSION"
 
       - name: Dump GitHub context
         if: always()
@@ -184,11 +237,10 @@ jobs:
           flavor: |
             suffix=-arm64
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}},value=${{ steps.clean_tag.outputs.tag }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.clean_tag.outputs.tag }}
-            type=semver,pattern={{major}},value=${{ steps.clean_tag.outputs.tag }}
+            type=semver,pattern={{version}},value=${{ env.DOCKER_VERSION }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.DOCKER_VERSION }}
+            type=semver,pattern={{major}},value=${{ env.DOCKER_VERSION }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Show Docker tags that will be used
         run: echo '${{ steps.meta.outputs.tags }}'
@@ -228,6 +280,44 @@ jobs:
       packages: write
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Detect version for Docker tags
+        id: detect_version
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "release" ]; then
+            # Extract from release tag: refs/tags/butler-sheet-icons-vX.Y.Z -> X.Y.Z
+            TAG_REF="${{ github.ref }}"
+            echo "Source: Release event with ref: $TAG_REF"
+            # Remove refs/tags/ prefix
+            TAG="${TAG_REF#refs/tags/}"
+            # Remove package name prefix: butler-sheet-icons-vX.Y.Z -> vX.Y.Z
+            TAG="${TAG#butler-sheet-icons-}"
+            # Remove v prefix: vX.Y.Z -> X.Y.Z
+            VERSION="${TAG#v}"
+            echo "Extracted version from release tag: $VERSION"
+          else
+            # Read from package.json for workflow_dispatch
+            echo "Source: Manual workflow_dispatch event"
+            VERSION=$(node -pe "require('./package.json').version")
+            echo "Read version from package.json: $VERSION"
+          fi
+          echo "DOCKER_VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ env.DOCKER_VERSION }}"
+          echo "Validating version: $VERSION"
+          echo "Event type: ${{ github.event_name }}"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+-]+)?$'; then
+            echo "ERROR: Version does not match semver format: $VERSION" >&2
+            exit 1
+          fi
+          echo "Version validation successful: $VERSION"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3
 
@@ -237,25 +327,16 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Create clean tag for Docker
-        id: clean_tag
-        env:
-          REF: ${{ github.ref }}
-        run: |
-          TAGTMP1="${REF}"
-          echo "tag=${TAGTMP1##*-}" >> "$GITHUB_OUTPUT"
-
       - name: Extract Docker metadata (multi-arch)
         id: meta
         uses: docker/metadata-action@318604b99e75e41977312d83839a89be02ca4893 # v5
         with:
           images: ${{ github.repository }}
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}},value=${{ steps.clean_tag.outputs.tag }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.clean_tag.outputs.tag }}
-            type=semver,pattern={{major}},value=${{ steps.clean_tag.outputs.tag }}
+            type=semver,pattern={{version}},value=${{ env.DOCKER_VERSION }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.DOCKER_VERSION }}
+            type=semver,pattern={{major}},value=${{ env.DOCKER_VERSION }}
+            type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Show multi-arch tags
         run: echo '${{ steps.meta.outputs.tags }}'
@@ -270,14 +351,36 @@ jobs:
             exit 0
           fi
           echo "Publishing multi-arch manifests for:"
-            printf '%s\n' "$BASE_TAGS"
+          printf '%s\n' "$BASE_TAGS"
+          echo ""
           while IFS= read -r tag; do
             if [ -z "$tag" ]; then
               continue
             fi
-            echo "Creating manifest for $tag"
+            echo "======================================"
+            echo "Creating manifest for: $tag"
+            echo "Source images:"
+            echo "  - ${tag}-amd64"
+            echo "  - ${tag}-arm64"
+            echo ""
+            # Verify source images exist
+            for arch in amd64 arm64; do
+              echo "Inspecting ${tag}-${arch}..."
+              if docker buildx imagetools inspect "${tag}-${arch}" > /dev/null 2>&1; then
+                echo "✓ ${tag}-${arch} exists"
+              else
+                echo "✗ ERROR: ${tag}-${arch} not found on Docker Hub" >&2
+                exit 1
+              fi
+            done
+            echo ""
+            echo "Creating multi-arch manifest..."
             docker buildx imagetools create \
               -t "$tag" \
               "${tag}-amd64" \
               "${tag}-arm64"
+            echo "✓ Successfully created manifest: $tag"
+            echo ""
           done <<< "$BASE_TAGS"
+          echo "======================================"
+          echo "All manifests published successfully!"
