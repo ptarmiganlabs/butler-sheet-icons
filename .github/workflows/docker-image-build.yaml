@@ -1,9 +1,3 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
-# Inspiration
-# https://github.com/actions/starter-workflows/blob/main/ci/docker-publish.yml
-
 name: build-docker-image
 on:
   workflow_dispatch:
@@ -15,12 +9,7 @@ jobs:
   build-amd64:
     name: Build & Push (amd64)
     if: ${{ github.event_name != 'pull_request' && github.repository_owner == 'ptarmiganlabs' }}
-    runs-on:
-      - self-hosted
-      - x64
-      - sp53
-      - linux
-      - pve101
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -28,6 +17,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
 
       - name: Detect version for Docker tags
         id: detect_version
@@ -145,12 +139,7 @@ jobs:
     name: Build & Push (arm64)
     if: ${{ github.event_name != 'pull_request' && github.repository_owner == 'ptarmiganlabs' }}
     timeout-minutes: 60
-    runs-on:
-      - self-hosted
-      - macos
-      - arm64
-      - mac-build2
-      - sp53
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -158,6 +147,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
 
       - name: Detect version for Docker tags
         id: detect_version
@@ -290,6 +284,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
 
       - name: Detect version for Docker tags
         id: detect_version
