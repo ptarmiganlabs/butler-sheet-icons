@@ -352,9 +352,30 @@ jobs:
       - name: Show multi-arch tags
         run: echo '${{ steps.meta.outputs.tags }}'
 
+      - name: Ensure latest arch tags exist
+        if: ${{ github.event_name == 'release' }}
+        env:
+          IMAGE_NAME: ${{ github.repository }}
+          VERSION_TAG: ${{ env.DOCKER_VERSION }}
+        run: |
+          set -euo pipefail
+          echo "Ensuring latest-* tags exist for release $VERSION_TAG"
+          for arch in amd64 arm64; do
+            src="$IMAGE_NAME:${VERSION_TAG}-${arch}"
+            dest="$IMAGE_NAME:latest-${arch}"
+            if docker buildx imagetools inspect "$dest" > /dev/null 2>&1; then
+              echo "✓ $dest already present"
+              continue
+            fi
+            echo "Creating $dest from $src"
+            docker buildx imagetools create -t "$dest" "$src"
+            echo "✓ Created $dest"
+          done
+
       - name: Publish manifest list
         env:
           BASE_TAGS: ${{ steps.meta.outputs.tags }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
           if [ -z "$BASE_TAGS" ]; then
@@ -366,6 +387,10 @@ jobs:
           echo ""
           while IFS= read -r tag; do
             if [ -z "$tag" ]; then
+              continue
+            fi
+            if [ "$EVENT_NAME" != "release" ] && echo "$tag" | grep -q ':latest$'; then
+              echo "Skipping $tag because this is not a release event."
               continue
             fi
             echo "======================================"
