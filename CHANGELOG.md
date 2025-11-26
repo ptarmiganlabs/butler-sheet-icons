@@ -1,5 +1,51 @@
 # Changelog
 
+## [3.9.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.8.0...butler-sheet-icons-v3.9.0) (2025-11-26)
+
+
+### Features
+
+* add browser page timeout option with default value of 90 seconds ([fd75a9f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fd75a9f423240e3fe8627117b222422d5c7c3a17))
+* Add software bill of materials (SBOM) as part of each release ([87d20d6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/87d20d68510ccb29daef36b57df391bbe0d843e3))
+* **docker:** Build separate amd64 and arm64 images ([67c8930](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/67c8930ebd11222f9a7240d4125d0e54c2aca725))
+* **docker:** Build separate amd64 and arm64 images ([6011586](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/60115863070830a3ee8870ead01ddf0ed4f6d2e3))
+* Embed Chrome in Docker image to enable zero-setup use in air-gapped environments ([e9cb84f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e9cb84f2a24ca7fb0769f62f1ab9c222ccb40526))
+* **qseow:** Add support for client-managed Qlik Sense 2025-May ([b02ada6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b02ada69144c42876542ba0a5c0a72f6862a8d3d))
+* **qseow:** add support for QSEoW 2025-Nov ([12fe2af](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/12fe2af09e6a14b718150d69445003d5d9a1ee92))
+* **qseow:** add support for QSEoW 2025-Nov ([2c1ec7c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2c1ec7cbea6814a45dda3d609b487ab6176fb5fd))
+* Update CI workflows to use Node.js 24 and Apple Silicon builds ([53caf75](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/53caf75194ac7f143a00ae373f05fd8b62c40c5c))
+
+
+### Bug Fixes
+
+* **ci:** enhance keychain management when building macOS binary ([910dcaf](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/910dcafe307cabe767fe4f7977c93785dc117d89))
+* **ci:** enhance keychain management when building macOS binary ([d25c149](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d25c149be1d4a270f47d17ca167359a3ec201eab))
+* **ci:** update Docker build on GH hosted runners ([c1a4cf9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c1a4cf92949c50e5e95fd495144a56511322e635))
+* Consolidate browser launch arguments for stability and performance ([482559c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/482559c0cd68f361c8866a3ffa5f93df466e7c1f)), closes [#742](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/742)
+* Make test cases work afrer upgrade of test framework ([24d2eab](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/24d2eab38e4da0ef602690e5e6d63ecbbc95d998))
+* Remove invalid --sense-version option for QS Cloud commands ([3b9a228](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3b9a228b85e48c7633acc6d3c07690487e15a758))
+* Resolve GPG issues in Dockerfile by cleaning and re-initializing apt ([41c571d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/41c571ddce600849a31f597139201c4aee5f3759))
+* Tweak CI flow ([3ad0f8c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3ad0f8cfc8a5fca2602b24f84a427af9d5a45193))
+* Update Dockerfile to use Alpine base image and install Puppeteer dependencies for improved compatibility, enable ctrl-c to abort running BSI docker containers ([4c9c4c1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4c9c4c1d1fff12757c8b99ffded05bb12a88f855))
+
+
+### Miscellaneous
+
+* **deps:** Update all dependencies to latest versions ([f77637b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f77637ba582385eb1c9ca6964c9c7c9940fa1358))
+* **deps:** update dependencies and add browser page timeout option ([851ed0c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/851ed0c588b68c6d61f27f18054aa974a6c85f8c))
+* **deps:** Update dependencies to latest versions ([540221e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/540221e0fd7bc7f339eed7a68d2967c74b930ec4))
+* Disable macOS Arm64 builds for now, will be reintroduced later. ([92b3c45](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/92b3c45a917b618e0f490ec333c0fc5434209faf))
+* Enhance CI workflows with concurrency groups for macOS and Windows Docker builds ([0a49adb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0a49adb41c755291c4f8bb79df48bac908140109))
+* Enhance Docker workflows for multi-architecture support and update testing documentation ([2a2b0f3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2a2b0f3eccf824b61ad6ae320f5d17aa0e734e0a))
+* pin workflow action versions to improve security ([b61dafa](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b61dafa114adf27922e4e9db417a9545e4af6f43))
+* pin workflow action versions to improve security ([f4e41fb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f4e41fb9e5e10e65eb17bf598a33e4d6153f6565))
+* Update GitHub Actions workflows to use specific version tags for actions ([8801341](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8801341d1bbcbbf25f390d7a0f37447a855565ed))
+
+
+### Documentation
+
+* Describe how env variables can be used instead of command line parameters, refine blurring docs ([ec7fba3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ec7fba37241039193a5d9a7514bc53ab64ed4048))
+
 ## [3.9.0] - 2025-11-24
 
 ### Features
