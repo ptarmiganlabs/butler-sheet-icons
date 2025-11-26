@@ -864,7 +864,7 @@ jobs:
           cleanup() {
             security delete-keychain build.keychain >/dev/null 2>&1 || true
             if [ -n "${ORIGINAL_KEYCHAINS:-}" ]; then
-              security list-keychains -d user -s ${ORIGINAL_KEYCHAINS} >/dev/null 2>&1 || true
+              security list-keychains -d user -s "${ORIGINAL_KEYCHAINS}" >/dev/null 2>&1 || true
             fi
             if [ -n "${ORIGINAL_DEFAULT_KEYCHAIN:-}" ]; then
               security default-keychain -d user -s "${ORIGINAL_DEFAULT_KEYCHAIN}" >/dev/null 2>&1 || true
