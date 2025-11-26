@@ -885,7 +885,7 @@ jobs:
           # with a UI dialog asking for the certificate password, which we can't
           # use in a headless CI environment
           security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security list-keychains -d user -s build.keychain ${ORIGINAL_KEYCHAINS:-}
+          security list-keychains -d user -s build.keychain "${ORIGINAL_KEYCHAINS:-}"
           security default-keychain -d user -s build.keychain
           security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
           security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
