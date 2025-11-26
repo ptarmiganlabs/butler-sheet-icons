@@ -95,6 +95,8 @@ jobs:
               - mac-build2
               - sp53
             build: |
+              set -euo pipefail
+
               # Inject git SHA into package.json
               GIT_SHA=$(git rev-parse --short HEAD)
               CURRENT_VERSION=$(node -p "require('./package.json').version")
@@ -115,6 +117,22 @@ jobs:
               # Inject the blob
               npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
 
+              ORIGINAL_KEYCHAINS=$(security list-keychains -d user | tr -d '"' | xargs || true)
+              ORIGINAL_DEFAULT_KEYCHAIN=$(security default-keychain -d user | tr -d '"' | xargs || true)
+
+              cleanup() {
+                security delete-keychain build.keychain >/dev/null 2>&1 || true
+                if [ -n "${ORIGINAL_KEYCHAINS:-}" ]; then
+                  security list-keychains -d user -s ${ORIGINAL_KEYCHAINS} >/dev/null 2>&1 || true
+                fi
+                if [ -n "${ORIGINAL_DEFAULT_KEYCHAIN:-}" ]; then
+                  security default-keychain -d user -s "${ORIGINAL_DEFAULT_KEYCHAIN}" >/dev/null 2>&1 || true
+                fi
+                rm -f certificate.p12
+              }
+
+              trap cleanup EXIT
+
               security delete-keychain build.keychain >/dev/null 2>&1 || true
 
               pwd
@@ -131,7 +149,7 @@ jobs:
               # with a UI dialog asking for the certificate password, which we can't
               # use in a headless CI environment
               security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-              security list-keychains -d user -s build.keychain
+              security list-keychains -d user -s build.keychain ${ORIGINAL_KEYCHAINS:-}
               security default-keychain -d user -s build.keychain
               security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
               security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
