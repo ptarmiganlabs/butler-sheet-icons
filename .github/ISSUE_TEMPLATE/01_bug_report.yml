@@ -1,47 +1,50 @@
 name: 🐞 Bug Report
 description: Create a bug report for Butler Sheet Icons
-labels: 'template: bug'
+labels: "template: bug"
 body:
   - type: markdown
     attributes:
       value: Thanks for taking the time to file a bug report! Please fill out this form as completely as possible.
   - type: markdown
     attributes:
-      value: 'Please first search the repository for similar issues and discussions.'
+      value: "Please first search the repository for similar issues and discussions."
+  - type: markdown
+    attributes:
+      value: "**Need install, option, or troubleshooting details?** The full documentation lives at [butler-sheet-icons.ptarmiganlabs.com](https://butler-sheet-icons.ptarmiganlabs.com). Please review the relevant guide before filing."
   - type: input
     attributes:
       label: What version of Butler Sheet Icons are you using?
-      description: '`node butler-sheet-icons.js --version` or `butler-sheet-icons --version` - For example: 2.3.1'
+      description: "`node butler-sheet-icons.js --version` or `butler-sheet-icons --version` - For example: 2.3.1"
     validations:
       required: true
   - type: input
     attributes:
       label: What version of Node.js are you using? Not applicable if you use the standalone version of Butler Sheet Icons.
-      description: '`node --version` - For example: 16.0.0'
+      description: "`node --version` - For example: 16.0.0"
     validations:
       required: false
   - type: input
     attributes:
       label: What command did you use to start Butler Sheet Icons?
-      description: 'Please include all parameters!'
+      description: "Please include all parameters!"
     validations:
       required: true
   - type: input
     attributes:
       label: What operating system are you using?
-      description: 'For example: macOS, Windows, Windows Server, Ubuntu 20.04'
+      description: "For example: macOS, Windows, Windows Server, Ubuntu 20.04"
     validations:
       required: true
   - type: input
     attributes:
       label: What CPU architecture are you using?
-      description: 'For example: x86_64, arm64, armv7, Intel 12900K, Apple M1, Not sure'
+      description: "For example: x86_64, arm64, armv7, Intel 12900K, Apple M1, Not sure"
     validations:
       required: true
   - type: input
     attributes:
       label: What Qlik Sense versions are you using?
-      description: 'For example: 2021-November sp2'
+      description: "For example: 2021-November sp2"
     validations:
       required: true
   - type: textarea

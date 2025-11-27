@@ -1,7 +1,14 @@
 contact_links:
   - name: 💡 Feature Request
     url: https://github.com/ptarmiganlabs/butler-sheet-icons/discussions/new
-    about: Share ideas for new features
+    about: |
+      Share ideas for new features.
+      Need implementation details? Visit https://butler-sheet-icons.ptarmiganlabs.com for full docs.
   - name: ❓ Question
     url: https://github.com/ptarmiganlabs/butler-sheet-icons/discussions/new
-    about: General questions
+    about: |
+      General questions and support.
+      Most answers live at https://butler-sheet-icons.ptarmiganlabs.com.
+  - name: 📚 Documentation Site
+    url: https://butler-sheet-icons.ptarmiganlabs.com
+    about: Full docs, guides and references (Quick Start, configuration, troubleshooting)
