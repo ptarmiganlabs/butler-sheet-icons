@@ -1,6 +1,40 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 
+/**
+ * Commander action that normalizes requested browser defaults before installation.
+ *
+ * @param {object} [options={}] - CLI options describing target browser and loglevel.
+ *
+ * @returns {Promise<void>} Resolves when normalization/logging logic completes.
+ */
+const handleBrowserInstall = async (options = {}) => {
+    logger.info(`App version: ${appVersion}`);
+
+    try {
+        if (!options.browserVersion || options.browserVersion === '') {
+            if (options.browser === 'chrome') {
+                options.browserVersion = 'stable';
+            } else if (options.browser === 'firefox') {
+                options.browserVersion = 'latest';
+            }
+        }
+    } catch (err) {
+        if (err.stack) {
+            logger.error(`BROWSER MAIN 9 (stack): ${err.stack}`);
+        } else if (err.message) {
+            logger.error(`BROWSER MAIN 9 (message): ${err.message}`);
+        } else {
+            logger.error(`BROWSER MAIN 9: ${err}`);
+        }
+    }
+};
+
+/**
+ * Builds the "browser install" command for the CLI.
+ *
+ * @returns {import('commander').Command} Configured install command instance.
+ */
 const buildBrowserInstallCommand = () => {
     const command = new Command('install');
 
@@ -8,27 +42,7 @@ const buildBrowserInstallCommand = () => {
         .description(
             'Install a browser into the Butler Sheet Icons cache.\nThis will download the browser and install it into the cache, where it can be used by Butler Sheet Icons.\nUse the "butler-sheet-icons browser list-installed" command to see which browsers are currently installed.'
         )
-        .action(async (options) => {
-            logger.info(`App version: ${appVersion}`);
-
-            try {
-                if (!options.browserVersion || options.browserVersion === '') {
-                    if (options.browser === 'chrome') {
-                        options.browserVersion = 'stable';
-                    } else if (options.browser === 'firefox') {
-                        options.browserVersion = 'latest';
-                    }
-                }
-            } catch (err) {
-                if (err.stack) {
-                    logger.error(`BROWSER MAIN 9 (stack): ${err.stack}`);
-                } else if (err.message) {
-                    logger.error(`BROWSER MAIN 9 (message): ${err.message}`);
-                } else {
-                    logger.error(`BROWSER MAIN 9: ${err}`);
-                }
-            }
-        })
+        .action(handleBrowserInstall)
         .addOption(
             new Option('--loglevel, --log-level <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
@@ -56,4 +70,4 @@ const buildBrowserInstallCommand = () => {
     return command;
 };
 
-export { buildBrowserInstallCommand };
+export { buildBrowserInstallCommand, handleBrowserInstall };

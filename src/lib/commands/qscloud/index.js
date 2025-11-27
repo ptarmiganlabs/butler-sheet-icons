@@ -3,6 +3,11 @@ import { buildCloudCreateSheetThumbnailsCommand } from './create-sheet-thumbnail
 import { buildCloudListCollectionsCommand } from './list-collections.js';
 import { buildCloudRemoveSheetIconsCommand } from './remove-sheet-icons.js';
 
+/**
+ * Builds the "qscloud" command namespace and attaches all related sub-commands.
+ *
+ * @returns {import('commander').Command} Command containing create, list and remove sheet sub-commands.
+ */
 const buildQscloudCommand = () => {
     const cloud = new Command('qscloud');
 

@@ -3,6 +3,46 @@ import { logger, appVersion } from '../../../globals.js';
 import { qscloudCreateThumbnails } from '../../cloud/cloud-create-thumbnails.js';
 import { parsePositiveInteger } from '../helpers.js';
 
+/**
+ * Commander action for generating Qlik Sense Cloud sheet thumbnails via the worker module.
+ *
+ * @param {object} [options={}] - Parsed CLI options describing tenant, auth, browser and filtering settings.
+ * @param {import('commander').Command} cmd - Commander command reference forwarded to the worker.
+ *
+ * @returns {Promise<void>} Resolves after delegating to qscloudCreateThumbnails and logging any errors.
+ */
+const handleCloudCreateSheetThumbnails = async (options = {}, cmd) => {
+    logger.info(`App version: ${appVersion}`);
+
+    logger.verbose(`appid=${options.appid}`);
+    try {
+        const resolvedOptions = { ...options };
+        if (!resolvedOptions.browserVersion || resolvedOptions.browserVersion === '') {
+            if (resolvedOptions.browser === 'chrome') {
+                resolvedOptions.browserVersion = 'latest';
+            } else if (resolvedOptions.browser === 'firefox') {
+                resolvedOptions.browserVersion = 'latest';
+            }
+        }
+
+        const res = await qscloudCreateThumbnails(resolvedOptions, cmd);
+        logger.debug(`Call to qscloudCreateThumbnails succeeded: ${res}`);
+    } catch (err) {
+        logger.error(`CLOUD MAIN 3: ${err}`);
+        if (err.message) {
+            logger.error(`CLOUD MAIN 3 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`CLOUD MAIN 3 (stack): ${err.stack}`);
+        }
+    }
+};
+
+/**
+ * Creates the "qscloud create-sheet-thumbnails" command complete with options and action handler.
+ *
+ * @returns {import('commander').Command} Configured command ready to be attached to the root CLI.
+ */
 const buildCloudCreateSheetThumbnailsCommand = () => {
     const command = new Command('create-sheet-thumbnails');
 
@@ -11,32 +51,7 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
         .description(
             'Create thumbnail images based on the layout of each sheet in Qlik Sense Cloud applications.\nMultiple apps can be updated with a single command, using a Qlik Sense collection to identify which apps will be updated.'
         )
-        .action(async (options, cmd) => {
-            logger.info(`App version: ${appVersion}`);
-
-            logger.verbose(`appid=${options.appid}`);
-            try {
-                const resolvedOptions = { ...options };
-                if (!resolvedOptions.browserVersion || resolvedOptions.browserVersion === '') {
-                    if (resolvedOptions.browser === 'chrome') {
-                        resolvedOptions.browserVersion = 'latest';
-                    } else if (resolvedOptions.browser === 'firefox') {
-                        resolvedOptions.browserVersion = 'latest';
-                    }
-                }
-
-                const res = await qscloudCreateThumbnails(resolvedOptions, cmd);
-                logger.debug(`Call to qscloudCreateThumbnails succeeded: ${res}`);
-            } catch (err) {
-                logger.error(`CLOUD MAIN 3: ${err}`);
-                if (err.message) {
-                    logger.error(`CLOUD MAIN 3 (message): ${err.message}`);
-                }
-                if (err.stack) {
-                    logger.error(`CLOUD MAIN 3 (stack): ${err.stack}`);
-                }
-            }
-        })
+        .action(handleCloudCreateSheetThumbnails)
         .addOption(
             new Option('--loglevel, --log-level <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
@@ -263,4 +278,4 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
     return command;
 };
 
-export { buildCloudCreateSheetThumbnailsCommand };
+export { buildCloudCreateSheetThumbnailsCommand, handleCloudCreateSheetThumbnails };

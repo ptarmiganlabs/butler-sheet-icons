@@ -1,5 +1,19 @@
 import { InvalidArgumentError } from 'commander';
 
+/**
+ * Validates that the provided CLI argument represents a non-negative integer within optional bounds.
+ *
+ * @param {string|number} value - Raw argument value supplied via Commander.
+ * @param {object} [options]
+ * @param {number} [options.min=0] - Minimum allowed integer value (inclusive).
+ * @param {number} [options.max] - Maximum allowed integer value (inclusive).
+ * @param {string} [options.errorMessage] - Custom error message for invalid input.
+ * @param {boolean} [options.returnNumber=false] - Whether to return the parsed number instead of the original string.
+ *
+ * @returns {string|number} Either the trimmed string or parsed integer, depending on returnNumber.
+ *
+ * @throws {InvalidArgumentError} When the input is not an integer or outside the configured boundaries.
+ */
 const parsePositiveInteger = (value, { min = 0, max, errorMessage, returnNumber = false } = {}) => {
     const stringValue = `${value}`.trim();
     const messageParts = [];

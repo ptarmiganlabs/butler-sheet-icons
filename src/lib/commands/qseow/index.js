@@ -3,6 +3,47 @@ import { logger, appVersion } from '../../../globals.js';
 import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
 import { parsePositiveInteger } from '../helpers.js';
 
+/**
+ * Commander action that triggers QSEoW thumbnail creation with normalized options and error logging.
+ *
+ * @param {object} [options={}] - Parsed CLI options forwarded to the worker.
+ * @param {import('commander').Command} command - Commander command instance for contextual metadata.
+ *
+ * @returns {Promise<void>} Resolves when the worker call finishes (successfully or after logging errors).
+ */
+const handleQseowCreateSheetThumbnails = async (options = {}, command) => {
+    logger.info(`App version: ${appVersion}`);
+
+    logger.verbose(`appid=${options.appid}`);
+    logger.verbose(`itemid=${options.itemid}`);
+    try {
+        const resolvedOptions = { ...options };
+        if (!resolvedOptions.browserVersion || resolvedOptions.browserVersion === '') {
+            if (resolvedOptions.browser === 'chrome') {
+                resolvedOptions.browserVersion = 'latest';
+            } else if (resolvedOptions.browser === 'firefox') {
+                resolvedOptions.browserVersion = 'latest';
+            }
+        }
+
+        const res = await qseowCreateThumbnails(resolvedOptions, command);
+        logger.debug(`Call to qseowCreateThumbnails succeeded: ${res}`);
+    } catch (err) {
+        logger.error(`QSEOW MAIN 1: ${err}`);
+        if (err.message) {
+            logger.error(`QSEOW MAIN 1 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`QSEOW MAIN 1 (stack): ${err.stack}`);
+        }
+    }
+};
+
+/**
+ * Builds the root "qseow" command with its create-sheet-thumbnails sub-command.
+ *
+ * @returns {import('commander').Command} Configured qseow command tree ready for registration.
+ */
 const buildQseowCommand = () => {
     const qseow = new Command('qseow');
 
@@ -12,33 +53,7 @@ const buildQseowCommand = () => {
         .description(
             'Create thumbnail images based on the layout of each sheet in Qlik Sense Enterprise on Windows (QSEoW) applications.\nMultiple apps can be updated with a single command, using a Qlik Sense tag to identify  which apps will be updated.'
         )
-        .action(async (options, command) => {
-            logger.info(`App version: ${appVersion}`);
-
-            logger.verbose(`appid=${options.appid}`);
-            logger.verbose(`itemid=${options.itemid}`);
-            try {
-                const resolvedOptions = { ...options };
-                if (!resolvedOptions.browserVersion || resolvedOptions.browserVersion === '') {
-                    if (resolvedOptions.browser === 'chrome') {
-                        resolvedOptions.browserVersion = 'latest';
-                    } else if (resolvedOptions.browser === 'firefox') {
-                        resolvedOptions.browserVersion = 'latest';
-                    }
-                }
-
-                const res = await qseowCreateThumbnails(resolvedOptions, command);
-                logger.debug(`Call to qseowCreateThumbnails succeeded: ${res}`);
-            } catch (err) {
-                logger.error(`QSEOW MAIN 1: ${err}`);
-                if (err.message) {
-                    logger.error(`QSEOW MAIN 1 (message): ${err.message}`);
-                }
-                if (err.stack) {
-                    logger.error(`QSEOW MAIN 1 (stack): ${err.stack}`);
-                }
-            }
-        })
+        .action(handleQseowCreateSheetThumbnails)
         .addOption(
             new Option('--loglevel, --log-level <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
@@ -368,4 +383,4 @@ const buildQseowCommand = () => {
     return qseow;
 };
 
-export { buildQseowCommand };
+export { buildQseowCommand, handleQseowCreateSheetThumbnails };

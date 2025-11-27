@@ -5,6 +5,11 @@ import { buildBrowserUninstallAllCommand } from './uninstall-all.js';
 import { buildBrowserInstallCommand } from './install.js';
 import { buildBrowserListAvailableCommand } from './list-available.js';
 
+/**
+ * Builds the "browser" command namespace and wires up the install/list/uninstall sub-commands.
+ *
+ * @returns {import('commander').Command} Configured browser command tree.
+ */
 const buildBrowserCommand = () => {
     const browser = new Command('browser');
 

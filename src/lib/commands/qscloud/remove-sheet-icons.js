@@ -2,28 +2,43 @@ import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qscloudRemoveSheetIcons } from '../../cloud/cloud-remove-sheet-icons.js';
 
+/**
+ * Commander action that removes sheet icons from specified Qlik Sense Cloud apps.
+ *
+ * @param {object} [options={}] - Options describing tenant, authentication and app selection.
+ * @param {import('commander').Command} cmd - Commander command reference for worker logging.
+ *
+ * @returns {Promise<void>} Resolves once the worker reports success or the error is logged.
+ */
+const handleCloudRemoveSheetIcons = async (options = {}, cmd) => {
+    logger.info(`App version: ${appVersion}`);
+
+    try {
+        const res = await qscloudRemoveSheetIcons(options, cmd);
+        logger.debug(`Call to qscloudRemoveSheetIcons succeeded: ${res}`);
+    } catch (err) {
+        logger.error(`CLOUD MAIN 5: ${err}`);
+        if (err.message) {
+            logger.error(`CLOUD MAIN 5 (message): ${err.message}`);
+        }
+        if (err.stack) {
+            logger.error(`CLOUD MAIN 5 (stack): ${err.stack}`);
+        }
+    }
+};
+
+/**
+ * Creates the "qscloud remove-sheet-icons" command and wires it up to its handler.
+ *
+ * @returns {import('commander').Command} Configured remove-sheet-icons command instance.
+ */
 const buildCloudRemoveSheetIconsCommand = () => {
     const command = new Command('remove-sheet-icons');
 
     command
         .alias('remove-sheet-thumbnails')
         .description('Remove all sheet icons from a Qlik Sense Cloud app.')
-        .action(async (options, cmd) => {
-            logger.info(`App version: ${appVersion}`);
-
-            try {
-                const res = await qscloudRemoveSheetIcons(options, cmd);
-                logger.debug(`Call to qscloudRemoveSheetIcons succeeded: ${res}`);
-            } catch (err) {
-                logger.error(`CLOUD MAIN 5: ${err}`);
-                if (err.message) {
-                    logger.error(`CLOUD MAIN 5 (message): ${err.message}`);
-                }
-                if (err.stack) {
-                    logger.error(`CLOUD MAIN 5 (stack): ${err.stack}`);
-                }
-            }
-        })
+        .action(handleCloudRemoveSheetIcons)
         .addOption(
             new Option('--loglevel, --log-level <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
@@ -75,4 +90,4 @@ const buildCloudRemoveSheetIconsCommand = () => {
     return command;
 };
 
-export { buildCloudRemoveSheetIconsCommand };
+export { buildCloudRemoveSheetIconsCommand, handleCloudRemoveSheetIcons };
