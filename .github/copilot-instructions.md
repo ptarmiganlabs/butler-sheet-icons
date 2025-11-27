@@ -8,7 +8,7 @@ Butler Sheet Icons is a cross-platform Node.js CLI tool for creating sheet thumb
 
 Bootstrap, build, and test the repository:
 
-- Install Node.js 20+ if not available: `apt-get update && apt-get install -y nodejs npm` 
+- Install Node.js 20+ if not available: `apt-get update && apt-get install -y nodejs npm`
 - Install dependencies: `npm install`
 - **NEVER CANCEL**: Build takes 1-2 minutes for development builds. Set timeout to 5+ minutes.
 - **NEVER CANCEL**: Test suite takes 5-20 minutes depending on network connectivity. Set timeout to 30+ minutes.
@@ -34,7 +34,7 @@ Bootstrap, build, and test the repository:
 **ALWAYS** run through at least one complete end-to-end scenario after making changes:
 
 1. **Basic CLI Validation**: Run `node src/butler-sheet-icons.js --help` and verify all commands show properly
-2. **Browser Management**: Test `node src/butler-sheet-icons.js browser list-installed` 
+2. **Browser Management**: Test `node src/butler-sheet-icons.js browser list-installed`
 3. **Build Validation**: Run the development build command and verify `build.cjs` is created (~6MB)
 4. **Test Core Functionality**: Run CLI tests with `npm run test -- --testPathPattern="butler-sheet-icons.test.js"`
 
@@ -56,16 +56,19 @@ After making changes, **ALWAYS** test at least one of these scenarios:
 
 ### Test Environment Setup
 
-Tests require specific environment variables. In CI, these are set via secrets:
+Tests require specific environment variables.
+When testing locally, set these by running `source ../butler-sheet-icons-env-p2w1.sh` from the repository root.
+
+In CI, these are set via secrets:
 
 ```bash
 # For QSEoW tests (optional for development)
 export BSI_HOST="your-qseow-server"
-export BSI_CERT_FILE="path/to/client.pem" 
+export BSI_CERT_FILE="path/to/client.pem"
 export BSI_CERT_KEY_FILE="path/to/client_key.pem"
 export BSI_APP_ID="app-guid"
 
-# For QS Cloud tests (optional for development)  
+# For QS Cloud tests (optional for development)
 export BSI_CLOUD_TENANT_URL="https://your-tenant.qlikcloud.com"
 export BSI_CLOUD_API_KEY="your-api-key"
 export BSI_CLOUD_APP_ID="app-guid"
@@ -79,6 +82,7 @@ export BSI_TEST_TIMEOUT="1200000"  # 20 minutes
 ## Common Tasks
 
 ### Repository Structure
+
 ```
 src/
 ├── butler-sheet-icons.js          # Main CLI entry point
@@ -86,7 +90,7 @@ src/
 ├── lib/
 │   ├── browser/                   # Browser management (install/uninstall)
 │   ├── cloud/                     # Qlik Sense Cloud integration
-│   ├── qseow/                     # QSEoW (on-premises) integration  
+│   ├── qseow/                     # QSEoW (on-premises) integration
 │   └── util/                      # Shared utilities
 ├── __tests__/                     # Main CLI tests
 └── Dockerfile                     # Docker build configuration
@@ -109,7 +113,7 @@ When making changes, **ALWAYS** check these files:
 # Browser functionality tests (5-10 minutes)
 npm run test -- --testPathPattern="browser" --testTimeout=600000
 
-# QS Cloud tests (10-15 minutes, requires network/credentials)  
+# QS Cloud tests (10-15 minutes, requires network/credentials)
 npm run test -- --testPathPattern="cloud" --testTimeout=900000
 
 # QSEoW tests (10-15 minutes, requires network/credentials)
@@ -119,6 +123,7 @@ npm run test -- --testPathPattern="qseow" --testTimeout=900000
 ## Architecture Notes
 
 ### Key Dependencies
+
 - **Puppeteer**: Browser automation for screenshots
 - **Commander.js**: CLI argument parsing
 - **Winston**: Logging framework
@@ -127,9 +132,11 @@ npm run test -- --testPathPattern="qseow" --testTimeout=900000
 - **Jest**: Testing framework
 
 ### Browser Management
+
 The tool can install and manage Chrome/Firefox browsers via `@puppeteer/browsers`. Browser installation is required for thumbnail generation functionality.
 
 ### Build Process
+
 - Development: Uses esbuild to bundle dependencies
 - Production: Creates Single Executable Applications (SEA) using Node.js experimental features
 - Docker: Multi-stage build with Puppeteer dependencies
@@ -138,23 +145,26 @@ The tool can install and manage Chrome/Firefox browsers via `@puppeteer/browsers
 
 1. Use `--loglevel debug` or `--loglevel silly` for detailed troubleshooting
 2. Check certificate paths and permissions for QSEoW connection issues
-3. Verify API key validity and network connectivity for QS Cloud issues  
+3. Verify API key validity and network connectivity for QS Cloud issues
 4. Use `--headless false` to see browser automation for debugging thumbnails
 5. Browser installation failures usually indicate network connectivity issues
 
 ## Common Issues
 
 ### Network Connectivity
+
 - Browser installation requires internet access to Google/Mozilla CDNs
 - Tests may fail in sandboxed environments without external network access
 - QS Cloud and QSEoW tests require connections to actual Qlik Sense servers
 
-### Build Issues  
+### Build Issues
+
 - ESLint warnings about unused directives are expected and can be ignored
 - Import/extensions ESLint errors are known issues with the current configuration
 - esbuild requires the specific inject and define parameters for proper bundling
 
 ### Test Failures
+
 - Browser tests fail without internet access (expected in CI/sandboxed environments)
 - Timeout errors indicate the need for longer timeout values, not faster tests
 - Certificate-related test failures require valid QSEoW certificates
