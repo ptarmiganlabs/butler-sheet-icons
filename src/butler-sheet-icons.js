@@ -1,4 +1,4 @@
-import { Command, Option } from 'commander';
+import { Command, Option, InvalidArgumentError } from 'commander';
 import { logger, appVersion } from './globals.js';
 
 import { qseowCreateThumbnails } from './lib/qseow/qseow-create-thumbnails.js';
@@ -10,6 +10,14 @@ import { browserUninstall, browserUninstallAll } from './lib/browser/browser-uni
 import { browserListAvailable } from './lib/browser/browser-list-available.js';
 
 const program = new Command();
+
+const parsePositiveInteger = (value) => {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isNaN(parsed) || parsed <= 0) {
+        throw new InvalidArgumentError('Browser page timeout must be a positive integer.');
+    }
+    return parsed;
+};
 
 /**
  * Top level async function.
@@ -38,18 +46,17 @@ const program = new Command();
             logger.verbose(`appid=${options.appid}`);
             logger.verbose(`itemid=${options.itemid}`);
             try {
+                const resolvedOptions = { ...options };
                 // Set default browser version per browser
-                if (!options.browserVersion || options.browserVersion === '') {
-                    if (options.browser === 'chrome') {
-                        // eslint-disable-next-line no-param-reassign
-                        options.browserVersion = 'latest';
-                    } else if (options.browser === 'firefox') {
-                        // eslint-disable-next-line no-param-reassign
-                        options.browserVersion = 'latest';
+                if (!resolvedOptions.browserVersion || resolvedOptions.browserVersion === '') {
+                    if (resolvedOptions.browser === 'chrome') {
+                        resolvedOptions.browserVersion = 'latest';
+                    } else if (resolvedOptions.browser === 'firefox') {
+                        resolvedOptions.browserVersion = 'latest';
                     }
                 }
 
-                const res = await qseowCreateThumbnails(options, command);
+                const res = await qseowCreateThumbnails(resolvedOptions, command);
                 logger.debug(`Call to qseowCreateThumbnails succeeded: ${res}`);
             } catch (err) {
                 logger.error(`QSEOW MAIN 1: ${err}`);
@@ -332,10 +339,11 @@ const program = new Command();
         )
         .addOption(
             new Option(
-                '--browser-page-timeout <version>',
+                '--browser-page-timeout <seconds>',
                 'Timeout (seconds) for the browser to load a page. Default is 90 seconds. This is the time that the browser will wait for a page to load before giving up.'
             )
-                .default('latest')
+                .argParser(parsePositiveInteger)
+                .default(90)
                 .env('BSI_BROWSER_PAGE_TIMEOUT')
         );
 
@@ -356,16 +364,17 @@ const program = new Command();
 
                 logger.verbose(`appid=${options.appid}`);
                 try {
+                    const resolvedOptions = { ...options };
                     // Set default browser version per browser
-                    if (!options.browserVersion || options.browserVersion === '') {
-                        if (options.browser === 'chrome') {
-                            options.browserVersion = 'latest';
-                        } else if (options.browser === 'firefox') {
-                            options.browserVersion = 'latest';
+                    if (!resolvedOptions.browserVersion || resolvedOptions.browserVersion === '') {
+                        if (resolvedOptions.browser === 'chrome') {
+                            resolvedOptions.browserVersion = 'latest';
+                        } else if (resolvedOptions.browser === 'firefox') {
+                            resolvedOptions.browserVersion = 'latest';
                         }
                     }
 
-                    const res = await qscloudCreateThumbnails(options, command);
+                    const res = await qscloudCreateThumbnails(resolvedOptions, command);
                     logger.debug(`Call to qscloudCreateThumbnails succeeded: ${res}`);
                 } catch (err) {
                     logger.error(`CLOUD MAIN 3: ${err}`);
@@ -565,10 +574,11 @@ const program = new Command();
             )
             .addOption(
                 new Option(
-                    '--browser-page-timeout <version>',
+                    '--browser-page-timeout <seconds>',
                     'Timeout (seconds) for the browser to load a page. Default is 90 seconds. This is the time that the browser will wait for a page to load before giving up.'
                 )
-                    .default('latest')
+                    .argParser(parsePositiveInteger)
+                    .default(90)
                     .env('BSI_BROWSER_PAGE_TIMEOUT')
             );
 
