@@ -11,12 +11,34 @@ import { browserListAvailable } from './lib/browser/browser-list-available.js';
 
 const program = new Command();
 
-const parsePositiveInteger = (value) => {
-    const parsed = Number.parseInt(value, 10);
-    if (Number.isNaN(parsed) || parsed <= 0) {
-        throw new InvalidArgumentError('Browser page timeout must be a positive integer.');
+const parsePositiveInteger = (value, { min = 0, max, errorMessage, returnNumber = false } = {}) => {
+    const stringValue = `${value}`.trim();
+    const messageParts = [];
+    if (min !== undefined) {
+        messageParts.push(`>= ${min}`);
     }
-    return parsed;
+    if (max !== undefined) {
+        messageParts.push(`<= ${max}`);
+    }
+    const defaultMessage =
+        errorMessage ||
+        `Value must be an integer${messageParts.length ? ` ${messageParts.join(' and ')}` : ''}.`;
+
+    if (!/^\d+$/.test(stringValue)) {
+        throw new InvalidArgumentError(defaultMessage);
+    }
+
+    const parsed = Number.parseInt(stringValue, 10);
+
+    if (
+        Number.isNaN(parsed) ||
+        (min !== undefined && parsed < min) ||
+        (max !== undefined && parsed > max)
+    ) {
+        throw new InvalidArgumentError(defaultMessage);
+    }
+
+    return returnNumber ? parsed : stringValue;
 };
 
 /**
@@ -81,12 +103,22 @@ const parsePositiveInteger = (value) => {
         )
         .addOption(
             new Option('--engineport <port>', 'Qlik Sense server engine port')
+                .argParser((value) =>
+                    parsePositiveInteger(value, {
+                        errorMessage: 'Engine port must be a non-negative integer.',
+                    })
+                )
                 .default('4747')
                 .makeOptionMandatory()
                 .env('BSI_QSEOW_CST_ENGINE_PORT')
         )
         .addOption(
             new Option('--qrsport <port>', 'Qlik Sense server repository service (QRS) port')
+                .argParser((value) =>
+                    parsePositiveInteger(value, {
+                        errorMessage: 'QRS port must be a non-negative integer.',
+                    })
+                )
                 .default('4242')
                 .makeOptionMandatory()
                 .env('BSI_QSEOW_CST_QRS_PORT')
@@ -95,7 +127,13 @@ const parsePositiveInteger = (value) => {
             new Option(
                 '--port <port>',
                 'Qlik Sense http/https port. 443 is default for https, 80 for http'
-            ).env('BSI_QSEOW_CST_PORT')
+            )
+                .argParser((value) =>
+                    parsePositiveInteger(value, {
+                        errorMessage: 'Port must be a non-negative integer.',
+                    })
+                )
+                .env('BSI_QSEOW_CST_PORT')
         )
         .addOption(
             new Option('--schemaversion <version>', 'Qlik Sense engine schema version')
@@ -209,6 +247,11 @@ const parsePositiveInteger = (value) => {
                 '--pagewait <seconds>',
                 'Number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly'
             )
+                .argParser((value) =>
+                    parsePositiveInteger(value, {
+                        errorMessage: 'Page wait must be a non-negative integer.',
+                    })
+                )
                 .default(5)
                 .makeOptionMandatory()
                 .env('BSI_QSEOW_CST_PAGE_WAIT')
@@ -236,6 +279,11 @@ const parsePositiveInteger = (value) => {
                 '--includesheetpart <value>',
                 'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar'
             )
+                .argParser((value) =>
+                    parsePositiveInteger(value, {
+                        errorMessage: 'Include sheet part must be a non-negative integer.',
+                    })
+                )
                 .default('1')
                 .makeOptionMandatory()
                 .env('BSI_QSEOW_CST_INCLUDE_SHEET_PART')
@@ -259,7 +307,13 @@ const parsePositiveInteger = (value) => {
             new Option(
                 '--exclude-sheet-number <number...>',
                 'Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.'
-            ).env('BSI_QSEOW_CST_EXCLUDE_SHEET_NUMBER')
+            )
+                .argParser((value) =>
+                    parsePositiveInteger(value, {
+                        errorMessage: 'Exclude sheet number must be a non-negative integer.',
+                    })
+                )
+                .env('BSI_QSEOW_CST_EXCLUDE_SHEET_NUMBER')
         )
         .addOption(
             new Option(
@@ -286,7 +340,13 @@ const parsePositiveInteger = (value) => {
             new Option(
                 '--blur-sheet-number <number...>',
                 'Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.'
-            ).env('BSI_QSEOW_CST_BLUR_SHEET_NUMBER')
+            )
+                .argParser((value) =>
+                    parsePositiveInteger(value, {
+                        errorMessage: 'Blur sheet number must be a non-negative integer.',
+                    })
+                )
+                .env('BSI_QSEOW_CST_BLUR_SHEET_NUMBER')
         )
         .addOption(
             new Option(
@@ -299,6 +359,11 @@ const parsePositiveInteger = (value) => {
                 '--blur-factor <factor>',
                 'Factor to blur the sheets with. 0 = no blur, 100 = full blur.'
             )
+                .argParser((value) =>
+                    parsePositiveInteger(value, {
+                        errorMessage: 'Blur factor must be a non-negative integer.',
+                    })
+                )
                 .default('5')
                 .env('BSI_QSEOW_CST_BLUR_FACTOR')
         )
@@ -342,8 +407,12 @@ const parsePositiveInteger = (value) => {
                 '--browser-page-timeout <seconds>',
                 'Timeout (seconds) for the browser to load a page. Default is 90 seconds. This is the time that the browser will wait for a page to load before giving up.'
             )
-                .argParser(parsePositiveInteger)
-                .default(90)
+                .argParser((value) =>
+                    parsePositiveInteger(value, {
+                        errorMessage: 'Browser page timeout must be a non-negative integer.',
+                    })
+                )
+                .default('90')
                 .env('BSI_BROWSER_PAGE_TIMEOUT')
         );
 
@@ -456,6 +525,11 @@ const parsePositiveInteger = (value) => {
                     '--pagewait <seconds>',
                     'Number of seconds to wait after moving to a new sheet. Set this high enough so the sheet has time to render properly'
                 )
+                    .argParser((value) =>
+                        parsePositiveInteger(value, {
+                            errorMessage: 'Page wait must be a non-negative integer.',
+                        })
+                    )
                     .default(5)
                     .makeOptionMandatory()
                     .env('BSI_QSCLOUD_CST_PAGE_WAIT')
@@ -474,6 +548,11 @@ const parsePositiveInteger = (value) => {
                     '--includesheetpart <value>',
                     'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen'
                 )
+                    .argParser((value) =>
+                        parsePositiveInteger(value, {
+                            errorMessage: 'Include sheet part must be a non-negative integer.',
+                        })
+                    )
                     .choices(['1', '2', '4'])
                     .default('1')
                     .makeOptionMandatory()
@@ -512,7 +591,13 @@ const parsePositiveInteger = (value) => {
                 new Option(
                     '--exclude-sheet-number <number...>',
                     'Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.'
-                ).env('BSI_QSCLOUD_CST_EXCLUDE_SHEET_NUMBER')
+                )
+                    .argParser((value) =>
+                        parsePositiveInteger(value, {
+                            errorMessage: 'Exclude sheet number must be a non-negative integer.',
+                        })
+                    )
+                    .env('BSI_QSCLOUD_CST_EXCLUDE_SHEET_NUMBER')
             )
             .addOption(
                 new Option(
@@ -539,7 +624,13 @@ const parsePositiveInteger = (value) => {
                 new Option(
                     '--blur-sheet-number <number...>',
                     'Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.'
-                ).env('BSI_QSCLOUD_CST_BLUR_SHEET_NUMBER')
+                )
+                    .argParser((value) =>
+                        parsePositiveInteger(value, {
+                            errorMessage: 'Blur sheet number must be a non-negative integer.',
+                        })
+                    )
+                    .env('BSI_QSCLOUD_CST_BLUR_SHEET_NUMBER')
             )
             .addOption(
                 new Option(
@@ -552,6 +643,11 @@ const parsePositiveInteger = (value) => {
                     '--blur-factor <factor>',
                     'Factor to blur the sheets with. 0 = no blur, 100 = full blur.'
                 )
+                    .argParser((value) =>
+                        parsePositiveInteger(value, {
+                            errorMessage: 'Blur factor must be a non-negative integer.',
+                        })
+                    )
                     .default('5')
                     .env('BSI_QSCLOUD_CST_BLUR_FACTOR')
             )
@@ -577,8 +673,12 @@ const parsePositiveInteger = (value) => {
                     '--browser-page-timeout <seconds>',
                     'Timeout (seconds) for the browser to load a page. Default is 90 seconds. This is the time that the browser will wait for a page to load before giving up.'
                 )
-                    .argParser(parsePositiveInteger)
-                    .default(90)
+                    .argParser((value) =>
+                        parsePositiveInteger(value, {
+                            errorMessage: 'Browser page timeout must be a non-negative integer.',
+                        })
+                    )
+                    .default('90')
                     .env('BSI_BROWSER_PAGE_TIMEOUT')
             );
 
