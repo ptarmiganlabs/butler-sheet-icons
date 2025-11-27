@@ -1,5 +1,27 @@
 # Changelog
 
+## [3.10.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.9.0...butler-sheet-icons-v3.10.0) (2025-11-27)
+
+
+### Features
+
+* Stricter parsing and verification of numeric command line options ([9364d00](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9364d00b6c32fc9453419da2f4900868e35eb23b))
+
+
+### Bug Fixes
+
+* make browser page timeout option use the correct type (number, not string) ([cffd0e7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cffd0e7f504a6dcd8c5dac5cdd5ae8efc6e5c8db))
+
+
+### Miscellaneous
+
+* **tests:** Improve unit tests for the command line options ([800e260](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/800e26013a6ba241bc5489f976fb6f1c8c7915da))
+
+
+### Documentation
+
+* Switch to using dedicated doc site for Butler Sheet Icons ([df0f460](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/df0f460239ca874a72770bf347e162a62a9ae8d4))
+
 ## [3.9.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.8.0...butler-sheet-icons-v3.9.0) (2025-11-26)
 
 
