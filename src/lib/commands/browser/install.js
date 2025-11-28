@@ -11,8 +11,6 @@ import { browserInstall } from '../../browser/browser-install.js';
  * @returns {Promise<void>} Resolves after attempting the install and logging any failures.
  */
 const handleBrowserInstall = async (options = {}, cmd) => {
-    console.log('0');
-
     logger.info(`App version: ${appVersion}`);
 
     try {
