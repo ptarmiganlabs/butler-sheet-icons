@@ -1,38 +1,19 @@
-import { spawnSync } from 'node:child_process';
 import { Command } from 'commander';
 import { appVersion, isSea, logger } from './globals.js';
 import { buildQseowCommand } from './lib/commands/qseow/index.js';
 import { buildQscloudCommand } from './lib/commands/qscloud/index.js';
 import { buildBrowserCommand } from './lib/commands/browser/index.js';
 import { installWarningFilter } from './lib/runtime/node-warning-filter.js';
+import { shouldSilenceBundledDeprecations } from './lib/runtime/should-silence-bundled-deprecations.js';
+import {
+    ensureNodeFlagsApplied,
+    DEFAULT_SUPPORTED_NODE_FLAGS,
+} from './lib/runtime/ensure-node-flags.js';
 
 const NODE_FLAG_FORWARD_ENV = 'BSI_NODE_FLAG_REINVOKED';
-const supportedNodeFlags = new Set(['--trace-warnings', '--trace-deprecation', '--trace-uncaught']);
-
-const splitNodeOptions = (value = '') => value.split(/\s+/u).filter(Boolean);
-
-/**
- * Determine whether bundled deprecation warnings from third-party dependencies should be
- * suppressed. SEA builds default to suppression but the behaviour can be overridden via
- * BSI_SUPPRESS_DEPRECATIONS=1|0.
- *
- * @returns {boolean} True when warnings should be silenced.
- */
-const shouldSilenceBundledDeprecations = () => {
-    const override = process.env.BSI_SUPPRESS_DEPRECATIONS?.toLowerCase();
-
-    if (override === '0' || override === 'false') {
-        return false;
-    }
-    if (override === '1' || override === 'true') {
-        return true;
-    }
-
-    return isSea;
-};
 
 installWarningFilter({
-    enabled: shouldSilenceBundledDeprecations(),
+    enabled: shouldSilenceBundledDeprecations({ env: process.env, isSeaRuntime: isSea }),
     logger,
 });
 
@@ -41,55 +22,14 @@ installWarningFilter({
  * NODE_OPTIONS populated. Without this Commander would reject flags such as
  * --trace-warnings that normally belong to the Node runtime.
  */
-const ensureNodeFlagsApplied = () => {
-    if (process.env[NODE_FLAG_FORWARD_ENV] === '1') {
-        return;
-    }
-
-    const runtimeFlags = [];
-    const filteredArgs = [];
-
-    for (const arg of process.argv.slice(2)) {
-        if (supportedNodeFlags.has(arg)) {
-            runtimeFlags.push(arg);
-        } else {
-            filteredArgs.push(arg);
-        }
-    }
-
-    if (runtimeFlags.length === 0) {
-        return;
-    }
-
-    const existingFlags = splitNodeOptions(process.env.NODE_OPTIONS);
-    const combinedFlags = [...new Set([...existingFlags, ...runtimeFlags])];
-
-    // Log so users understand the apparent double-start of the CLI.
-    console.info(
-        `[BSI] Restarting CLI to honour Node.js runtime flag(s): ${runtimeFlags.join(', ')}`
-    );
-
-    const child = spawnSync(process.execPath, filteredArgs, {
-        stdio: 'inherit',
-        env: {
-            ...process.env,
-            NODE_OPTIONS: combinedFlags.join(' '),
-            [NODE_FLAG_FORWARD_ENV]: '1',
-        },
-    });
-
-    if (child.error) {
-        console.error(
-            `[BSI] Failed to re-run CLI with Node.js runtime flag(s): ${child.error.message}`
-        );
-        process.exitCode = 1;
-        return;
-    }
-
-    process.exit(child.status ?? 1);
-};
-
-ensureNodeFlagsApplied();
+ensureNodeFlagsApplied({
+    argv: process.argv.slice(2),
+    env: process.env,
+    processRef: process,
+    consoleRef: console,
+    nodeFlagForwardEnv: NODE_FLAG_FORWARD_ENV,
+    supportedNodeFlags: DEFAULT_SUPPORTED_NODE_FLAGS,
+});
 
 const program = new Command();
 

@@ -3,7 +3,7 @@
 Standalone Butler Sheet Icons binaries are packaged with Node.js single executable applications (SEA). When you append tracing flags such as `--trace-warnings`, `--trace-deprecation`, or `--trace-uncaught` to the Butler Sheet Icons command line, the CLI automatically restarts itself once with those flags added to `NODE_OPTIONS`. This mirrors the behaviour you get when running `node --trace-warnings ./src/butler-sheet-icons.js ...` in a local development checkout.
 
 ```powershell
-butler-sheet-icons --trace-warnings qseow create-sheet-thumbnails \
+butler-sheet-icons --trace-warnings qseow create-sheet-thumbnails `
   --host your-server --appid your-app-id ...
 ```
 
