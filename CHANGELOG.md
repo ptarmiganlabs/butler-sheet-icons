@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.11.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.10.0...butler-sheet-icons-v3.11.0) (2025-11-28)
+
+
+### Features
+
+* Add support for suppressing Node.js warnings in created Win/macOS/Linux binaries ([2ba8ea0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2ba8ea0e0351245fdf6b283356ccef4eb2fad3ae))
+* Implement support for sending Node.js runtime flags as parameters to BSI ([b8d1c53](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b8d1c5338847237610c2482e98b4791087fcc8ea))
+
+
+### Bug Fixes
+
+* `browser install` command now properly installs the specified browser ([c77b930](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c77b9305501cb379e043120345394920098c5959))
+* Suppress the warnings shown when installing browsers, as there isn't much to do about these ([e854e10](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e854e1001f3178870ea71da0b7a2fae0b9bf278f))
+
+
+### Miscellaneous
+
+* Add Copilot agents for Documentation Writer, Node.js Architect, and Test Writer roles ([c9c3cc0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c9c3cc06531cbe71f9b6d2620a8348ecab1212fd))
+
 ## [3.10.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.9.0...butler-sheet-icons-v3.10.0) (2025-11-27)
 
 
