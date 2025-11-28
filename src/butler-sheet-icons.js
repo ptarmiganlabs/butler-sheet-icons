@@ -12,8 +12,17 @@ import {
 
 const NODE_FLAG_FORWARD_ENV = 'BSI_NODE_FLAG_REINVOKED';
 
+const suppressBundledDeprecations = shouldSilenceBundledDeprecations({
+    env: process.env,
+    isSeaRuntime: isSea,
+});
+
+if (suppressBundledDeprecations) {
+    process.noProcessWarnings = true;
+}
+
 installWarningFilter({
-    enabled: shouldSilenceBundledDeprecations({ env: process.env, isSeaRuntime: isSea }),
+    enabled: suppressBundledDeprecations,
     logger,
 });
 

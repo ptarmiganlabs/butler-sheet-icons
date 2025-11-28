@@ -46,4 +46,4 @@ set NODE_OPTIONS=
 
 ## Deprecation warnings
 
-Known Node.js deprecation warnings originating from third-party dependencies are suppressed automatically when Butler Sheet Icons runs as a SEA binary. Set `BSI_SUPPRESS_DEPRECATIONS=0` in the environment to surface every warning again, or `BSI_SUPPRESS_DEPRECATIONS=1` to force suppression for non-SEA runs.
+Known Node.js deprecation warnings originating from third-party dependencies are suppressed automatically when Butler Sheet Icons runs as a SEA binary. When suppression is active the CLI also sets `process.noProcessWarnings = true` so Node itself keeps quiet while our own logger still receives any non-filtered warnings. Set `BSI_SUPPRESS_DEPRECATIONS=0` in the environment to surface every warning again, or `BSI_SUPPRESS_DEPRECATIONS=1` to force suppression for non-SEA runs.
