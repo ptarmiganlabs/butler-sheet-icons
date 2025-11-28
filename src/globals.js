@@ -77,6 +77,73 @@ const logger = winston.createLogger({
     ),
 });
 
+// ============================================================================
+// Deprecation warning suppression
+// ============================================================================
+
+/**
+ * List of Node.js deprecation codes to suppress.
+ * These typically come from third-party dependencies bundled in SEA builds.
+ * Add new codes here as needed.
+ */
+const SUPPRESSED_DEPRECATION_CODES = [
+    'DEP0005', // Buffer() constructor deprecation
+    'DEP0169', // url.parse() deprecation
+];
+
+/**
+ * Determine if deprecation warnings should be suppressed.
+ * Default: suppress for SEA binaries, show for regular Node.js.
+ * Can be overridden with BSI_SUPPRESS_DEPRECATIONS environment variable.
+ */
+const shouldSuppressDeprecations = () => {
+    const envValue = process.env.BSI_SUPPRESS_DEPRECATIONS;
+    if (envValue === '1' || envValue === 'true') return true;
+    if (envValue === '0' || envValue === 'false') return false;
+    // Default: suppress for SEA, show for regular Node.js
+    return sea.isSea();
+};
+
+// Install warning filter if deprecation suppression is enabled
+if (shouldSuppressDeprecations()) {
+    // Prevent Node.js from printing warnings directly to console
+    // This must be set BEFORE any warnings are emitted
+    process.noProcessWarnings = true;
+
+    // Remove any existing warning listeners to prevent default behavior
+    process.removeAllListeners('warning');
+
+    // Install custom warning handler as the ONLY handler
+    process.on('warning', (warning) => {
+        // Only handle DeprecationWarning types
+        if (warning.name === 'DeprecationWarning') {
+            // Check if this deprecation code should be suppressed
+            if (SUPPRESSED_DEPRECATION_CODES.includes(warning.code)) {
+                // Log at debug level instead of console output
+                logger.debug(
+                    `Suppressed deprecation warning: ${warning.name} [${warning.code}]: ${warning.message}${
+                        warning.stack ? `\n${warning.stack}` : ''
+                    }`
+                );
+                return; // Suppress (don't propagate to console)
+            }
+        }
+
+        // For non-suppressed warnings, log them normally
+        logger.warn(
+            `Node.js warning: ${warning.name}${warning.code ? ` [${warning.code}]` : ''}: ${warning.message}${
+                warning.stack ? `\n${warning.stack}` : ''
+            }`
+        );
+    });
+
+    logger.debug(
+        `Deprecation warning suppression enabled (suppressing codes: ${SUPPRESSED_DEPRECATION_CODES.join(', ')})`
+    );
+}
+
+// ============================================================================
+
 // Suppported Chromium version: https://pptr.dev/chromium-support
 // Correlate with https://chromium.woolyss.com to get revision number
 const chromiumRevisionLinux = '1109227';
