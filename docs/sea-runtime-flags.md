@@ -43,3 +43,7 @@ set NODE_OPTIONS=
 ```
 
 > Tip: Combine `NODE_OPTIONS` with `--loglevel debug` when troubleshooting SEA binaries so you capture both high-level logs and Node stack traces.
+
+## Deprecation warnings
+
+Known Node.js deprecation warnings originating from third-party dependencies are suppressed automatically when Butler Sheet Icons runs as a SEA binary. Set `BSI_SUPPRESS_DEPRECATIONS=0` in the environment to surface every warning again, or `BSI_SUPPRESS_DEPRECATIONS=1` to force suppression for non-SEA runs.

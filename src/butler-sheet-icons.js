@@ -1,14 +1,40 @@
 import { spawnSync } from 'node:child_process';
 import { Command } from 'commander';
-import { appVersion } from './globals.js';
+import { appVersion, isSea, logger } from './globals.js';
 import { buildQseowCommand } from './lib/commands/qseow/index.js';
 import { buildQscloudCommand } from './lib/commands/qscloud/index.js';
 import { buildBrowserCommand } from './lib/commands/browser/index.js';
+import { installWarningFilter } from './lib/runtime/node-warning-filter.js';
 
 const NODE_FLAG_FORWARD_ENV = 'BSI_NODE_FLAG_REINVOKED';
 const supportedNodeFlags = new Set(['--trace-warnings', '--trace-deprecation', '--trace-uncaught']);
 
 const splitNodeOptions = (value = '') => value.split(/\s+/u).filter(Boolean);
+
+/**
+ * Determine whether bundled deprecation warnings from third-party dependencies should be
+ * suppressed. SEA builds default to suppression but the behaviour can be overridden via
+ * BSI_SUPPRESS_DEPRECATIONS=1|0.
+ *
+ * @returns {boolean} True when warnings should be silenced.
+ */
+const shouldSilenceBundledDeprecations = () => {
+    const override = process.env.BSI_SUPPRESS_DEPRECATIONS?.toLowerCase();
+
+    if (override === '0' || override === 'false') {
+        return false;
+    }
+    if (override === '1' || override === 'true') {
+        return true;
+    }
+
+    return isSea;
+};
+
+installWarningFilter({
+    enabled: shouldSilenceBundledDeprecations(),
+    logger,
+});
 
 /**
  * Allow SEA binaries to respect Node tracing flags by reinvoking the CLI once with
