@@ -6,7 +6,8 @@
     "main": "src/butler-sheet-icons.js",
     "scripts": {
         "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit --coverage",
-        "test:watch": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit --watch --coverage"
+        "test:watch": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit --watch --coverage",
+        "build:macos": "./build-script/build-macos.sh"
     },
     "author": "Göran Sander mountaindude@ptarmiganlabs.com",
     "license": "MIT",

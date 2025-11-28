@@ -47,7 +47,7 @@ jest.config.js
 build.cjs
 *.blob
 sea-prep.blob
-sea-config.json
+build-script/sea-config.json
 
 # Coverage reports
 coverage/

@@ -846,7 +846,7 @@ jobs:
           ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
-          node --experimental-sea-config src/sea-config.json
+          node --experimental-sea-config build-script/sea-config.json
 
           # Get a copy of the Node executable
           cp $(command -v node) ${DIST_FILE_NAME}
@@ -977,7 +977,7 @@ jobs:
           ./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
-          node --experimental-sea-config src/sea-config.json
+          node --experimental-sea-config build-script/sea-config.json
 
           # Get a copy of the Node executable
           node -e "require('fs').copyFileSync(process.execPath, '${env:DIST_FILE_NAME}.exe')" 
@@ -1084,7 +1084,7 @@ jobs:
           ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
           # Generate blob to be injected into the binary
-          node --experimental-sea-config src/sea-config.json
+          node --experimental-sea-config build-script/sea-config.json
 
           # Get a copy of the Node executable
           cp $(command -v node) ${DIST_FILE_NAME}

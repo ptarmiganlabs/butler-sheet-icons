@@ -45,6 +45,13 @@ const mockBrowserInstalledPromise = jest.unstable_mockModule(
     })
 );
 
+const mockBrowserInstallPromise = jest.unstable_mockModule(
+    '../../browser/browser-install.js',
+    () => ({
+        browserInstall: jest.fn().mockResolvedValue({ browser: 'chrome', buildId: '123.0.456.78' }),
+    })
+);
+
 const mockBrowserUninstallPromise = jest.unstable_mockModule(
     '../../browser/browser-uninstall.js',
     () => ({
@@ -68,6 +75,7 @@ let qscloudCreateThumbnails;
 let qscloudListCollections;
 let qscloudRemoveSheetIcons;
 let browserInstalled;
+let browserInstall;
 let browserUninstall;
 let browserUninstallAll;
 let browserListAvailable;
@@ -93,6 +101,7 @@ beforeAll(async () => {
         mockQscloudCollectionsPromise,
         mockQscloudRemovePromise,
         mockBrowserInstalledPromise,
+        mockBrowserInstallPromise,
         mockBrowserUninstallPromise,
         mockBrowserListAvailablePromise,
     ]);
@@ -102,6 +111,7 @@ beforeAll(async () => {
     ({ qscloudListCollections } = await import('../../cloud/cloud-collections.js'));
     ({ qscloudRemoveSheetIcons } = await import('../../cloud/cloud-remove-sheet-icons.js'));
     ({ browserInstalled } = await import('../../browser/browser-installed.js'));
+    ({ browserInstall } = await import('../../browser/browser-install.js'));
     ({ browserUninstall, browserUninstallAll } = await import(
         '../../browser/browser-uninstall.js'
     ));
@@ -292,19 +302,54 @@ describe('browser commands', () => {
         expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('BROWSER MAIN 10'));
     });
 
-    test('install normalizes chrome and firefox defaults', async () => {
+    test('install delegates to browserInstall after normalizing chrome defaults', async () => {
         const chromeOptions = { browser: 'chrome', browserVersion: '' };
-        const firefoxOptions = { browser: 'firefox', browserVersion: '' };
 
-        await handleBrowserInstall(chromeOptions);
-        await handleBrowserInstall(firefoxOptions);
+        await handleBrowserInstall(chromeOptions, {});
 
+        // Verify normalization happened
         expect(chromeOptions.browserVersion).toBe('stable');
-        expect(firefoxOptions.browserVersion).toBe('latest');
+        // Verify delegation to worker function
+        expect(browserInstall).toHaveBeenCalledWith(chromeOptions, {});
     });
 
-    test('install logs unexpected errors without throwing', async () => {
+    test('install delegates to browserInstall after normalizing firefox defaults', async () => {
+        const firefoxOptions = { browser: 'firefox', browserVersion: '' };
+
+        await handleBrowserInstall(firefoxOptions, {});
+
+        expect(firefoxOptions.browserVersion).toBe('latest');
+        expect(browserInstall).toHaveBeenCalledWith(firefoxOptions, {});
+    });
+
+    test('install passes through explicit browser versions without modification', async () => {
+        const options = { browser: 'chrome', browserVersion: '114.0.5735.133' };
+
+        await handleBrowserInstall(options, {});
+
+        expect(options.browserVersion).toBe('114.0.5735.133');
+        expect(browserInstall).toHaveBeenCalledWith(options, {});
+    });
+
+    test('install logs errors from browserInstall', async () => {
+        browserInstall.mockRejectedValueOnce(new Error('installation failed'));
+
+        await handleBrowserInstall({ browser: 'chrome', browserVersion: 'stable' }, {});
+
+        expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('BROWSER MAIN 9'));
+    });
+
+    test('install handles null options gracefully', async () => {
         await expect(handleBrowserInstall(null)).resolves.toBeUndefined();
         expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('BROWSER MAIN 9'));
+    });
+
+    test('install delegates with command parameter', async () => {
+        const options = { browser: 'firefox', browserVersion: 'latest', loglevel: 'debug' };
+        const command = { name: () => 'browser' };
+
+        await handleBrowserInstall(options, command);
+
+        expect(browserInstall).toHaveBeenCalledWith(options, command);
     });
 });

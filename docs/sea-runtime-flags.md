@@ -46,4 +46,65 @@ set NODE_OPTIONS=
 
 ## Deprecation warnings
 
-Known Node.js deprecation warnings originating from third-party dependencies are suppressed automatically when Butler Sheet Icons runs as a SEA binary. When suppression is active the CLI also sets `process.noProcessWarnings = true` so Node itself keeps quiet while our own logger still receives any non-filtered warnings. Set `BSI_SUPPRESS_DEPRECATIONS=0` in the environment to surface every warning again, or `BSI_SUPPRESS_DEPRECATIONS=1` to force suppression for non-SEA runs.
+Butler Sheet Icons automatically suppresses known Node.js deprecation warnings that originate from bundled third-party dependencies when running as a SEA binary. These warnings are filtered at runtime to keep console output clean while still maintaining visibility for debugging.
+
+### Default behavior
+
+- **SEA binaries**: Deprecation warnings are suppressed by default
+- **Node.js execution**: Deprecation warnings are shown by default (e.g., `node src/butler-sheet-icons.js`)
+
+### Suppressed deprecation codes
+
+The following Node.js deprecation codes are currently suppressed:
+
+- `DEP0005`: `Buffer()` constructor deprecation (use `Buffer.alloc()`, `Buffer.allocUnsafe()`, or `Buffer.from()` instead)
+- `DEP0169`: `url.parse()` deprecation (use WHATWG URL API instead)
+
+Additional codes can be added to the `SUPPRESSED_DEPRECATION_CODES` array in `src/globals.js` as needed.
+
+### Viewing suppressed warnings
+
+Suppressed warnings are logged at the `debug` level. To see them during development or troubleshooting, use:
+
+```bash
+# View suppressed deprecation warnings
+butler-sheet-icons browser install --loglevel debug
+```
+
+### Environment variable override
+
+Use the `BSI_SUPPRESS_DEPRECATIONS` environment variable to override default behavior:
+
+- `BSI_SUPPRESS_DEPRECATIONS=1` or `true`: Force suppression even for Node.js execution
+- `BSI_SUPPRESS_DEPRECATIONS=0` or `false`: Disable suppression even for SEA binaries
+
+**macOS / Linux:**
+
+```bash
+# Disable suppression in SEA binary to see all warnings
+BSI_SUPPRESS_DEPRECATIONS=0 ./build/butler-sheet-icons browser install
+
+# Enable suppression for Node.js execution
+BSI_SUPPRESS_DEPRECATIONS=1 node src/butler-sheet-icons.js browser install
+```
+
+**Windows PowerShell:**
+
+```powershell
+# Disable suppression
+$env:BSI_SUPPRESS_DEPRECATIONS = "0"
+.\build\butler-sheet-icons.exe browser install
+
+# Enable suppression
+$env:BSI_SUPPRESS_DEPRECATIONS = "1"
+node src/butler-sheet-icons.js browser install
+```
+
+### Technical details
+
+When suppression is active:
+
+- `process.noProcessWarnings = true` prevents Node.js from printing warnings directly to stderr
+- A custom `process.on('warning')` handler intercepts all Node.js warnings
+- Deprecation warnings matching suppressed codes are logged at `debug` level with full details (name, code, message, stack)
+- Non-suppressed warnings are forwarded to the logger at `warn` level
