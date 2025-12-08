@@ -35,7 +35,7 @@
         "qrs-interact": "^6.3.1",
         "table": "^6.9.0",
         "upath": "^2.0.1",
-        "winston": "^3.18.3",
+        "winston": "^3.19.0",
         "ws": "^8.18.3"
     },
     "devDependencies": {
