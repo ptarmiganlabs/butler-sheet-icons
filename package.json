@@ -47,7 +47,7 @@
         "eslint-plugin-prettier": "^5.5.4",
         "jest": "^30.2.0",
         "prettier": "^3.6.2",
-        "snyk": "^1.1301.0"
+        "snyk": "^1.1301.1"
     },
     "repository": {
         "type": "git",
