@@ -22,7 +22,7 @@
     ],
     "dependencies": {
         "@puppeteer/browsers": "^2.10.13",
-        "axios": "^1.13.2",
+        "axios": "^1.13.5",
         "cli-progress": "^3.12.0",
         "commander": "^14.0.2",
         "dotenv": "^17.2.3",
