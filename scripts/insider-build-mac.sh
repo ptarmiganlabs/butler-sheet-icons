@@ -45,8 +45,8 @@ ls -la
 # Start signing of the binary
 
 # -------------------
-# Turn our base64-encoded certificate back to a regular .p12 file              
-echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+# Turn our base64-encoded certificate back to a regular .p12 file
+printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
 
 # -------------------
 # We need to create a new keychain, otherwise using the certificate will prompt
