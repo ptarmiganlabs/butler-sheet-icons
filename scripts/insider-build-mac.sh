@@ -64,10 +64,22 @@ security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
 security list-keychains -d user -s build.keychain "${ORIGINAL_KEYCHAINS[@]}"
 security default-keychain -d user -s build.keychain
 security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign -A
+
+# Import Apple Developer ID G2 intermediate CA to allow building the cert chain
+curl -f -L -sS -o DeveloperIDG2CA.cer https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer
+security import DeveloperIDG2CA.cer -k build.keychain
+rm DeveloperIDG2CA.cer
+
+# Prevent keychain from locking during CI
+security set-keychain-settings -t 3600 -l build.keychain
+
 security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
 
 codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
+
+# Verify code signature
+codesign -vvv --deep --strict "./${DIST_FILE_NAME}"
 
 # -------------------
 # Notarize
