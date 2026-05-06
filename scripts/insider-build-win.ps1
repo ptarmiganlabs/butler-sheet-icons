@@ -31,13 +31,13 @@ npx postject "${env:DIST_FILE_NAME}.exe" NODE_SEA_BLOB ./build/sea-prep.blob --s
 # -------------------
 # Sign the executable
 # 1st signing
-& $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr https://time.certum.pl /td sha256 /fd sha1 /v "./${env:DIST_FILE_NAME}.exe"
-if ($LASTEXITCODE -ne 0) { throw "signtool sign (sha1) failed with exit code $LASTEXITCODE" }
+# & $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr https://time.certum.pl /td sha256 /fd sha1 /v "./${env:DIST_FILE_NAME}.exe"
+# if ($LASTEXITCODE -ne 0) { throw "signtool sign (sha1) failed with exit code $LASTEXITCODE" }
 
 # -------------------
 # 2nd signing
-& $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr https://time.certum.pl /td sha256 /fd sha256 /v "./${env:DIST_FILE_NAME}.exe"
-if ($LASTEXITCODE -ne 0) { throw "signtool sign (sha256) failed with exit code $LASTEXITCODE" }
+# & $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr https://time.certum.pl /td sha256 /fd sha256 /v "./${env:DIST_FILE_NAME}.exe"
+# if ($LASTEXITCODE -ne 0) { throw "signtool sign (sha256) failed with exit code $LASTEXITCODE" }
 
 # -------------------
 # Create insider's build zip
