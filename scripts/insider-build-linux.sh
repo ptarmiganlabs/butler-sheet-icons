@@ -18,8 +18,8 @@ node --experimental-sea-config build-script/sea-config.json
 # Get a copy of the Node executable
 cp $(command -v node) ${DIST_FILE_NAME}
 
-# Inject the blob
-npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+# Inject the blob using only the locally installed postject
+npx --no-install postject ${DIST_FILE_NAME} NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 
 # Compress insider's build
 tar -czf "${DIST_FILE_NAME}--linux-x64--${GITHUB_SHA}.tgz" "${DIST_FILE_NAME}"
