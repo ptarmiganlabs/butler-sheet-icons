@@ -63,6 +63,6 @@ Compress-Archive @compress
 
 # -------------------
 # Clean up
-Remove-Item -Force ./build/build.cjs
+Remove-Item -Force ./build/build.cjs, ./build/sea-prep.blob
 
 dir
