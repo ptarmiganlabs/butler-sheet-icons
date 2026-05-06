@@ -20,8 +20,9 @@ jobs:
       - mac-build2
       - sp53
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Debugging 1
@@ -179,8 +180,9 @@ jobs:
       #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
       #     connectTimeout: 30000
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Debugging 1
@@ -193,6 +195,7 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
+          cache: ''
 
       - name: Install dependencies
         shell: powershell
@@ -321,8 +324,9 @@ jobs:
       IMAGE_TAR: butler-sheet-icons-ci-arm64.tar
       DOCKER_BUILDKIT: 1
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Show Docker disk usage (before build)
@@ -389,8 +393,9 @@ jobs:
       IMAGE_NAME: butler-sheet-icons:ci-amd64
       IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Show Docker disk usage (before build)
@@ -462,8 +467,9 @@ jobs:
       BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
       BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Download Docker image artifact
@@ -611,8 +617,9 @@ jobs:
       BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
       BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Download Docker image artifact
@@ -791,14 +798,16 @@ jobs:
       DIST_FILE_NAME: butler-sheet-icons
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          fetch-depth: 2
           persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
+          cache: ''
 
       - name: Install dependencies
         run: |
