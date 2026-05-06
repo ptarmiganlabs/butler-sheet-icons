@@ -784,6 +784,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: write
 
     if: needs.release-please.outputs.releases_created == 'true'
     env:
