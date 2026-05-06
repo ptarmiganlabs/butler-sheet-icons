@@ -24,13 +24,13 @@ codesign --remove-signature ${DIST_FILE_NAME}
 # Inject the blob
 ./node_modules/.bin/postject ${DIST_FILE_NAME} NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
 
-ORIGINAL_KEYCHAINS=$(security list-keychains -d user | tr -d '"' | xargs || true)
+mapfile -t ORIGINAL_KEYCHAINS < <(security list-keychains -d user | tr -d '"' | xargs -n1 || true)
 ORIGINAL_DEFAULT_KEYCHAIN=$(security default-keychain -d user | tr -d '"' | xargs || true)
 
 cleanup() {
   security delete-keychain build.keychain >/dev/null 2>&1 || true
-  if [ -n "${ORIGINAL_KEYCHAINS:-}" ]; then
-    security list-keychains -d user -s ${ORIGINAL_KEYCHAINS} >/dev/null 2>&1 || true
+  if [ "${#ORIGINAL_KEYCHAINS[@]}" -gt 0 ]; then
+    security list-keychains -d user -s "${ORIGINAL_KEYCHAINS[@]}" >/dev/null 2>&1 || true
   fi
   if [ -n "${ORIGINAL_DEFAULT_KEYCHAIN:-}" ]; then
     security default-keychain -d user -s "${ORIGINAL_DEFAULT_KEYCHAIN}" >/dev/null 2>&1 || true
@@ -56,7 +56,7 @@ printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
 # with a UI dialog asking for the certificate password, which we can't
 # use in a headless CI environment
 security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-security list-keychains -d user -s build.keychain ${ORIGINAL_KEYCHAINS:-}
+security list-keychains -d user -s build.keychain "${ORIGINAL_KEYCHAINS[@]}"
 security default-keychain -d user -s build.keychain
 security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
 security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign

@@ -179,7 +179,7 @@ jobs:
           else
             # Read from package.json for workflow_dispatch
             echo "Source: Manual workflow_dispatch event"
-            VERSION=$(node -pe "require('./package.json').version")
+            VERSION=$(jq -r '.version' package.json)
             echo "Read version from package.json: $VERSION"
           fi
           if [ -z "$VERSION" ]; then
@@ -324,7 +324,7 @@ jobs:
           else
             # Read from package.json for workflow_dispatch
             echo "Source: Manual workflow_dispatch event"
-            VERSION=$(node -pe "require('./package.json').version")
+            VERSION=$(jq -r '.version' package.json)
             echo "Read version from package.json: $VERSION"
           fi
           if [ -z "$VERSION" ]; then
