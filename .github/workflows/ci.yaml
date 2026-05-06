@@ -583,6 +583,7 @@ jobs:
       group: qs-tests-${{ github.repository }}
       cancel-in-progress: false
     permissions:
+      actions: read
       contents: read
     runs-on:
       - self-hosted
