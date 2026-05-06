@@ -36,7 +36,7 @@ security delete-keychain build.keychain >/dev/null 2>&1 || true
 
 # -------------------
 # Turn our base64-encoded certificate back to a regular .p12 file
-echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
+printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
 
 # -------------------
 # We need to create a new keychain, otherwise using the certificate will prompt
