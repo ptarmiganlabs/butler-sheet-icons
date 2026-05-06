@@ -57,5 +57,6 @@ Compress-Archive @compress
 # -------------------
 # Clean up
 Remove-Item -Force ./build/build.cjs
+Remove-Item -Force ./build/sea-prep.blob
 
 dir
