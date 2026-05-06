@@ -24,7 +24,12 @@ codesign --remove-signature ${DIST_FILE_NAME}
 # Inject the blob
 npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
 
-mapfile -t ORIGINAL_KEYCHAINS < <(security list-keychains -d user | tr -d '"' | xargs -n1 || true)
+ORIGINAL_KEYCHAINS=()
+while IFS= read -r keychain; do
+  if [ -n "$keychain" ]; then
+    ORIGINAL_KEYCHAINS+=("$keychain")
+  fi
+done < <(security list-keychains -d user | tr -d '"' | xargs -n1 || true)
 ORIGINAL_DEFAULT_KEYCHAIN=$(security default-keychain -d user | tr -d '"' | xargs || true)
 
 cleanup() {
