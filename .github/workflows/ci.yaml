@@ -378,6 +378,7 @@ jobs:
     if: github.repository_owner == 'ptarmiganlabs'
     permissions:
       contents: read
+      actions: write
     runs-on:
       - self-hosted
       - x64
