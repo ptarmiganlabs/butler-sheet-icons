@@ -6,6 +6,9 @@ GIT_SHA=$(git rev-parse --short HEAD)
 CURRENT_VERSION=$(node -p "require('./package.json').version")
 sed -i '' "s/\"version\": \".*\"/\"version\": \"${CURRENT_VERSION}-$GIT_SHA\"/" package.json
 
+# Create build directory if it doesn't exist
+mkdir -p ./build
+
 # Create a single JS file using esbuild
 ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=./build/build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
 
@@ -82,6 +85,6 @@ xcrun notarytool submit "./${DIST_FILE_NAME}--macos-arm64--${GITHUB_SHA}.zip" --
 # Clean up
 # Delete build keychain
 security delete-keychain build.keychain
-rm ./build/build.cjs
+rm ./build/build.cjs ./build/sea-prep.blob
 
 ls -la
