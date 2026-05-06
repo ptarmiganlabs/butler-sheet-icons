@@ -25,6 +25,6 @@ ls -la
 
 # -------------------
 # Clean up
-rm ./build/build.cjs
+rm ./build/build.cjs ./build/sea-prep.blob
 
 ls -la
