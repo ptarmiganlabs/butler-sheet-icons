@@ -15,6 +15,6 @@ npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fu
 
 # -------------------
 # Clean up
-rm ./build/build.cjs
+rm ./build/build.cjs ./build/sea-prep.blob
 
 ls -la
