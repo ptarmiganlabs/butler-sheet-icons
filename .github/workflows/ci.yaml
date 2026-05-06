@@ -6,12 +6,10 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   test-on-macos-arm64:
+    permissions:
+      contents: read
     concurrency:
       group: qs-tests-${{ github.repository }}
       cancel-in-progress: false
@@ -23,6 +21,8 @@ jobs:
       - sp53
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Debugging 1
         run: pwd && ls -la
@@ -158,6 +158,8 @@ jobs:
     concurrency:
       group: qs-tests-${{ github.repository }}
       cancel-in-progress: false
+    permissions:
+      contents: read
     runs-on:
       - self-hosted
       - x64
@@ -178,6 +180,8 @@ jobs:
       #     connectTimeout: 30000
 
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Debugging 1
         shell: powershell
@@ -303,6 +307,8 @@ jobs:
       - test-on-winsrv-amd64
     if: github.repository_owner == 'ptarmiganlabs'
     timeout-minutes: 60
+    permissions:
+      contents: read
     runs-on:
       - self-hosted
       - macos
@@ -315,6 +321,8 @@ jobs:
       DOCKER_BUILDKIT: 1
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Show Docker disk usage (before build)
         run: docker system df || true
@@ -367,6 +375,8 @@ jobs:
     needs:
       - test-on-winsrv-amd64
     if: github.repository_owner == 'ptarmiganlabs'
+    permissions:
+      contents: read
     runs-on:
       - self-hosted
       - x64
@@ -378,6 +388,8 @@ jobs:
       IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Show Docker disk usage (before build)
         run: docker system df || true
@@ -419,6 +431,8 @@ jobs:
     concurrency:
       group: qs-tests-${{ github.repository }}
       cancel-in-progress: false
+    permissions:
+      contents: read
     runs-on:
       - self-hosted
       - macos
@@ -446,6 +460,8 @@ jobs:
       BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Download Docker image artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -563,6 +579,8 @@ jobs:
     concurrency:
       group: qs-tests-${{ github.repository }}
       cancel-in-progress: false
+    permissions:
+      contents: read
     runs-on:
       - self-hosted
       - x64
@@ -590,6 +608,8 @@ jobs:
       BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Download Docker image artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -703,6 +723,8 @@ jobs:
       - docker-test-on-macos-arm64
       - docker-test-on-ubuntu-amd64
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       release_tag_name: ${{ steps.release.outputs['tag_name'] }}
@@ -756,6 +778,8 @@ jobs:
   sbom-build:
     needs: release-please
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     if: needs.release-please.outputs.releases_created == 'true'
     env:
@@ -763,6 +787,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -807,6 +833,8 @@ jobs:
       - macos
       - sp53
     # timeout-minutes: 15
+    permissions:
+      contents: write
 
     if: needs.release-please.outputs.releases_created == 'true'
     env:
@@ -827,6 +855,8 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -839,83 +869,9 @@ jobs:
           npm ci --include=prod
 
       - name: Build binaries
-        run: |
-          set -euo pipefail
-
-          # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=./build/build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
-
-          # Generate blob to be injected into the binary
-          node --experimental-sea-config build-script/sea-config.json
-
-          # Get a copy of the Node executable
-          cp $(command -v node) ${DIST_FILE_NAME}
-
-          # Remove the signature from the Node executable
-          codesign --remove-signature ${DIST_FILE_NAME}
-
-          # Inject the blob
-          npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
-
-          # Start signing of the binary    
-          ORIGINAL_KEYCHAINS=$(security list-keychains -d user | tr -d '"' | xargs || true)
-          ORIGINAL_DEFAULT_KEYCHAIN=$(security default-keychain -d user | tr -d '"' | xargs || true)
-
-          cleanup() {
-            security delete-keychain build.keychain >/dev/null 2>&1 || true
-            if [ -n "${ORIGINAL_KEYCHAINS:-}" ]; then
-              security list-keychains -d user -s "${ORIGINAL_KEYCHAINS}" >/dev/null 2>&1 || true
-            fi
-            if [ -n "${ORIGINAL_DEFAULT_KEYCHAIN:-}" ]; then
-              security default-keychain -d user -s "${ORIGINAL_DEFAULT_KEYCHAIN}" >/dev/null 2>&1 || true
-            fi
-            rm -f certificate.p12
-          }
-
-          trap cleanup EXIT
-
-          security delete-keychain build.keychain >/dev/null 2>&1 || true
-
-          # -------------------
-          # Turn our base64-encoded certificate back to a regular .p12 file
-          echo $MACOS_CERTIFICATE | base64 --decode > certificate.p12
-
-          # -------------------
-          # We need to create a new keychain, otherwise using the certificate will prompt
-          # with a UI dialog asking for the certificate password, which we can't
-          # use in a headless CI environment
-          security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security list-keychains -d user -s build.keychain "${ORIGINAL_KEYCHAINS:-}"
-          security default-keychain -d user -s build.keychain
-          security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-
-          codesign --force -s "$MACOS_CERTIFICATE_NAME" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
-
-          # -------------------
-          # We can't notarize an app bundle directly, but we need to compress it as an archive.
-          # Therefore, we create a zip file containing our app bundle, so that we can send it to the
-          # notarization service
-          # Notarize release binary
-          echo "Creating temp notarization archive for release binary"
-          ditto -c -k --keepParent "./${DIST_FILE_NAME}" "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip"
-
-          # -------------------
-          # Here we send the notarization request to the Apple's Notarization service, waiting for the result.
-          # This typically takes a few seconds inside a CI environment, but it might take more depending on the App
-          # characteristics. Visit the Notarization docs for more information and strategies on how to optimize it if
-          # you're curious
-          echo "Notarize release app"
-          xcrun notarytool submit "./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip" --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" --password "$PROD_MACOS_NOTARIZATION_PWD" --wait
-
-          # -------------------
-          # Clean up
-          # Delete build keychain
-          security delete-keychain build.keychain >/dev/null 2>&1 || true
-          rm ./build/build.cjs
-
-          ls -la
+        env:
+          RELEASE_VERSION: ${{ needs.release-please.outputs.release_tag_name }}
+        run: bash ./scripts/release-macos.sh
 
       - name: Upload to existing release
         uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
@@ -945,6 +901,8 @@ jobs:
       - win-code-sign
     # timeout-minutes: 15
     if: needs.release-please.outputs.releases_created == 'true'
+    permissions:
+      contents: write
     env:
       DIST_FILE_NAME: butler-sheet-icons
       GITHUB_TOKEN: ${{ secrets.PAT }}
@@ -958,6 +916,8 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -971,67 +931,9 @@ jobs:
           npm ci --include=prod
 
       - name: Build binaries
-        shell: powershell
-        run: |
-          # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=./build/build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
-
-          # Generate blob to be injected into the binary
-          node --experimental-sea-config build-script/sea-config.json
-
-          # Get a copy of the Node executable
-          node -e "require('fs').copyFileSync(process.execPath, '${env:DIST_FILE_NAME}.exe')" 
-
-          # -------------------
-          # Remove the signature from the executable
-          $processOptions1 = @{
-            FilePath = "C:\Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe"
-            Wait = $true
-            ArgumentList = "remove", "/s", "./${env:DIST_FILE_NAME}.exe"
-            WorkingDirectory = "."
-            NoNewWindow = $true
-          }
-          Start-Process @processOptions1
-
-          npx postject "${env:DIST_FILE_NAME}.exe" NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
-
-          # -------------------
-          # Sign the executable
-          # 1st signing
-          $processOptions1 = @{
-            FilePath = "C:\Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe"
-            Wait = $true
-            ArgumentList = "sign", "/sha1", "$env:CODESIGN_WIN_THUMBPRINT", "/tr", "http://time.certum.pl", "/td", "sha256", "/fd", "sha1", "/v", "./${env:DIST_FILE_NAME}.exe"
-            WorkingDirectory = "."
-            NoNewWindow = $true
-          }
-          Start-Process @processOptions1
-
-          # -------------------
-          # 2nd signing
-          $processOptions2 = @{
-            FilePath = "C:\Program Files (x86)/Windows Kits/10/bin/10.0.22621.0/x64/signtool.exe"
-            Wait = $true
-            ArgumentList = "sign", "/sha1", "$env:CODESIGN_WIN_THUMBPRINT", "/tr", "http://time.certum.pl", "/td", "sha256", "/fd", "sha256", "/v", "./${env:DIST_FILE_NAME}.exe"
-            WorkingDirectory = "."
-            NoNewWindow = $true
-          }
-          Start-Process @processOptions2
-
-          # -------------------
-          # Create release binary zip
-          $compress = @{
-            Path = "./${env:DIST_FILE_NAME}.exe"
-            CompressionLevel = "Fastest"
-            DestinationPath = "${{ needs.release-please.outputs.release_tag_name }}-win.zip"
-          }
-          Compress-Archive @compress
-
-          # -------------------
-          # Clean up
-          Remove-Item -Force ./build/build.cjs
-
-          dir
+        env:
+          RELEASE_VERSION: ${{ needs.release-please.outputs.release_tag_name }}
+        run: ./scripts/release-win.ps1
 
       - name: Upload to existing release
         uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
@@ -1056,6 +958,8 @@ jobs:
     # timeout-minutes: 15
 
     if: needs.release-please.outputs.releases_created == 'true'
+    permissions:
+      contents: write
     env:
       DIST_FILE_NAME: butler-sheet-icons
       GITHUB_TOKEN: ${{ secrets.PAT }}
@@ -1067,6 +971,8 @@ jobs:
 
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
@@ -1079,22 +985,9 @@ jobs:
           npm ci --include=prod
 
       - name: Build binaries
-        run: |
-          # Create a single JS file using esbuild
-          ./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js  --bundle --outfile=./build/build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
-
-          # Generate blob to be injected into the binary
-          node --experimental-sea-config build-script/sea-config.json
-
-          # Get a copy of the Node executable
-          cp $(command -v node) ${DIST_FILE_NAME}
-          npx postject ${DIST_FILE_NAME} NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
-
-          # -------------------
-          # Clean up
-          rm ./build/build.cjs
-
-          ls -la
+        env:
+          RELEASE_VERSION: ${{ needs.release-please.outputs.release_tag_name }}
+        run: bash ./scripts/release-linux.sh
 
       - name: Compress release binary
         run: |

@@ -16,20 +16,20 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Use Node.js 24
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          node-version: 24
+          fetch-depth: 2
+          persist-credentials: false
 
       - name: Detect version for Docker tags
         id: detect_version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TAG_REF: ${{ github.ref }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "$EVENT_NAME" = "release" ]; then
             # Extract from release tag: refs/tags/butler-sheet-icons-vX.Y.Z -> X.Y.Z
-            TAG_REF="${{ github.ref }}"
             echo "Source: Release event with ref: $TAG_REF"
             # Remove refs/tags/ prefix
             TAG="${TAG_REF#refs/tags/}"
@@ -41,7 +41,7 @@ jobs:
           else
             # Read from package.json for workflow_dispatch
             echo "Source: Manual workflow_dispatch event"
-            VERSION=$(node -pe "require('./package.json').version")
+            VERSION=$(jq -r '.version' package.json)
             echo "Read version from package.json: $VERSION"
           fi
           if [ -z "$VERSION" ]; then
@@ -66,11 +66,13 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Validate version format
+        env:
+          VERSION: ${{ env.DOCKER_VERSION }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          VERSION="${{ env.DOCKER_VERSION }}"
           echo "Validating version: $VERSION"
-          echo "Event type: ${{ github.event_name }}"
-          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?(\+[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?$'; then
+          echo "Event type: $EVENT_NAME"
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+-]+)?$'; then
             echo "ERROR: Version does not match semver format: $VERSION" >&2
             exit 1
           fi
@@ -110,10 +112,14 @@ jobs:
             type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Show Docker tags that will be used
-        run: echo '${{ steps.meta.outputs.tags }}'
+        env:
+          DOCKER_TAGS: ${{ steps.meta.outputs.tags }}
+        run: echo "$DOCKER_TAGS"
 
       - name: Show Docker labels that will be used
-        run: echo '${{ steps.meta.outputs.labels }}'
+        env:
+          DOCKER_LABELS: ${{ steps.meta.outputs.labels }}
+        run: echo "$DOCKER_LABELS"
 
       - name: Build and push (amd64)
         id: docker_build
@@ -127,7 +133,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Image digest
-        run: echo ${{ steps.docker_build.outputs.digest }}
+        env:
+          DOCKER_DIGEST: ${{ steps.docker_build.outputs.digest }}
+        run: echo "$DOCKER_DIGEST"
 
       - name: Prune dangling images
         run: docker image prune -af || true
@@ -146,20 +154,20 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Use Node.js 24
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          node-version: 24
+          fetch-depth: 2
+          persist-credentials: false
 
       - name: Detect version for Docker tags
         id: detect_version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TAG_REF: ${{ github.ref }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "$EVENT_NAME" = "release" ]; then
             # Extract from release tag: refs/tags/butler-sheet-icons-vX.Y.Z -> X.Y.Z
-            TAG_REF="${{ github.ref }}"
             echo "Source: Release event with ref: $TAG_REF"
             # Remove refs/tags/ prefix
             TAG="${TAG_REF#refs/tags/}"
@@ -201,10 +209,12 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Validate version format
+        env:
+          VERSION: ${{ env.DOCKER_VERSION }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          VERSION="${{ env.DOCKER_VERSION }}"
           echo "Validating version: $VERSION"
-          echo "Event type: ${{ github.event_name }}"
+          echo "Event type: $EVENT_NAME"
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.+-]+)?$'; then
             echo "ERROR: Version does not match semver format: $VERSION" >&2
             exit 1
@@ -245,10 +255,14 @@ jobs:
             type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Show Docker tags that will be used
-        run: echo '${{ steps.meta.outputs.tags }}'
+        env:
+          DOCKER_TAGS: ${{ steps.meta.outputs.tags }}
+        run: echo "$DOCKER_TAGS"
 
       - name: Show Docker labels that will be used
-        run: echo '${{ steps.meta.outputs.labels }}'
+        env:
+          DOCKER_LABELS: ${{ steps.meta.outputs.labels }}
+        run: echo "$DOCKER_LABELS"
 
       - name: Build and push (arm64)
         id: docker_build
@@ -262,7 +276,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
       - name: Image digest
-        run: echo ${{ steps.docker_build.outputs.digest }}
+        env:
+          DOCKER_DIGEST: ${{ steps.docker_build.outputs.digest }}
+        run: echo "$DOCKER_DIGEST"
 
       - name: Prune dangling images
         run: docker image prune -af || true
@@ -283,20 +299,20 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-
-      - name: Use Node.js 24
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          node-version: 24
+          fetch-depth: 2
+          persist-credentials: false
 
       - name: Detect version for Docker tags
         id: detect_version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TAG_REF: ${{ github.ref }}
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "release" ]; then
+          if [ "$EVENT_NAME" = "release" ]; then
             # Extract from release tag: refs/tags/butler-sheet-icons-vX.Y.Z -> X.Y.Z
-            TAG_REF="${{ github.ref }}"
             echo "Source: Release event with ref: $TAG_REF"
             # Remove refs/tags/ prefix
             TAG="${TAG_REF#refs/tags/}"
@@ -319,10 +335,12 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Validate version format
+        env:
+          VERSION: ${{ env.DOCKER_VERSION }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          VERSION="${{ env.DOCKER_VERSION }}"
           echo "Validating version: $VERSION"
-          echo "Event type: ${{ github.event_name }}"
+          echo "Event type: $EVENT_NAME"
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?(\+[a-zA-Z0-9]+(\.[a-zA-Z0-9]+)*)?$'; then
             echo "ERROR: Version does not match semver format: $VERSION" >&2
             exit 1
@@ -350,7 +368,9 @@ jobs:
             type=raw,value=latest,enable=${{ github.event_name == 'release' }}
 
       - name: Show multi-arch tags
-        run: echo '${{ steps.meta.outputs.tags }}'
+        env:
+          DOCKER_TAGS: ${{ steps.meta.outputs.tags }}
+        run: echo "$DOCKER_TAGS"
 
       - name: Ensure latest arch tags exist
         if: ${{ github.event_name == 'release' }}
