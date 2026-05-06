@@ -811,7 +811,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm ci --include=prod
+          npm ci --include=dev --include=prod
 
       - name: Generate SBOM
         run: |
@@ -880,7 +880,7 @@ jobs:
       - name: Install dependencies
         run: |
           pwd 
-          npm ci --include=prod
+          npm ci --include=dev --include=prod
 
       - name: Build binaries
         env:
@@ -942,7 +942,7 @@ jobs:
         shell: powershell
         run: |
           pwd 
-          npm ci --include=prod
+          npm ci --include=dev --include=prod
 
       - name: Build binaries
         env:
@@ -996,7 +996,7 @@ jobs:
       - name: Install dependencies
         run: |
           pwd 
-          npm ci --include=prod
+          npm ci --include=dev --include=prod
 
       - name: Build binaries
         env:
