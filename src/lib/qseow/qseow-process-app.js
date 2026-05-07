@@ -62,7 +62,7 @@ const xpathLogoutButton2024Nov =
 const xpathHubUserPageButton2025May =
     'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
 const xpathLogoutButton2025May =
-    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[5]/span[2]';
+    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[4]/span[2]';
 
 const xpathHubUserPageButton2025Nov =
     'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
