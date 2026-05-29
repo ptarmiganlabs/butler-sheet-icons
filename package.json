@@ -36,7 +36,7 @@
         "table": "^6.9.0",
         "upath": "^3.0.7",
         "winston": "^3.19.0",
-        "ws": "^8.20.0"
+        "ws": "^8.21.0"
     },
     "devDependencies": {
         "@eslint/js": "^10.0.1",
