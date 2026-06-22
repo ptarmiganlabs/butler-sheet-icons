@@ -20,7 +20,9 @@
 const config = {
     clearMocks: true,
     collectCoverage: true,
+    collectCoverageFrom: ['<rootDir>/src/**/*.js'],
     coverageDirectory: 'coverage',
+    coveragePathIgnorePatterns: ['/node_modules/', '/build/', '/dist/'],
     coverageProvider: 'v8',
     testEnvironment: 'node',
     roots: ['<rootDir>/src'],
