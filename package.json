@@ -7,6 +7,10 @@
     "scripts": {
         "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit --coverage",
         "test:watch": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit --watch --coverage",
+        "test:unit": "npm test",
+        "lint": "npx eslint src/ --max-warnings 0",
+        "lint:fix": "npx eslint --fix src/",
+        "format": "npx prettier --write \"src/**/*.js\"",
         "build:macos": "./build-script/build-macos.sh"
     },
     "author": "Göran Sander mountaindude@ptarmiganlabs.com",
