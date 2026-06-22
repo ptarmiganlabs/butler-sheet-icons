@@ -20,7 +20,7 @@ describe('ESLint Configuration', () => {
 
         expect(configWithLanguageOptions).toBeDefined();
         expect(configWithLanguageOptions.languageOptions).toHaveProperty('globals');
-        expect(configWithLanguageOptions.languageOptions).toHaveProperty('ecmaVersion', 12);
+        expect(configWithLanguageOptions.languageOptions).toHaveProperty('ecmaVersion', 'latest');
         expect(configWithLanguageOptions.languageOptions).toHaveProperty('sourceType', 'module');
     });
 
