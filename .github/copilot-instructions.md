@@ -4,6 +4,48 @@
 
 Butler Sheet Icons is a cross-platform Node.js CLI tool for creating sheet thumbnails based on actual sheet layouts in Qlik Sense applications. Works with both Qlik Sense Cloud and Qlik Sense Enterprise on Windows (QSEoW). The tool uses Puppeteer for browser automation and supports creating single executable binaries.
 
+## GitNexus Code Intelligence
+
+This repo is indexed in GitNexus as `butler-sheet-icons`. In this multi-repo workspace, always include `-r butler-sheet-icons` on GitNexus CLI commands. GitNexus MCP tools may not be available in VS Code/Copilot chats, so use the CLI unless a `gitnexus_*` tool is actually exposed.
+
+Start by checking index freshness:
+
+```bash
+npx gitnexus status
+```
+
+If the index is stale, rebuild it before relying on impact analysis:
+
+```bash
+npx gitnexus analyze
+```
+
+Before modifying a function, class, or method, run upstream impact analysis and report the blast radius to the user:
+
+```bash
+npx gitnexus impact -r butler-sheet-icons <symbolName>
+```
+
+If the symbol name is ambiguous, inspect context with a file hint:
+
+```bash
+npx gitnexus context -r butler-sheet-icons <symbolName> -f src/path/file.js
+```
+
+For unfamiliar flows, query the graph before broad grepping:
+
+```bash
+npx gitnexus query -r butler-sheet-icons "concept or behavior"
+```
+
+Before committing or finalizing a broad refactor, verify the affected scope:
+
+```bash
+npx gitnexus detect-changes -r butler-sheet-icons --scope all
+```
+
+Warn the user before editing if impact analysis reports HIGH or CRITICAL risk. Do not rename symbols with blind find-and-replace; use a language-server rename or GitNexus-aware rename support if available, then verify with detect-changes.
+
 ## Working Effectively
 
 Bootstrap, build, and test the repository:
