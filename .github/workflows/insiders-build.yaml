@@ -54,8 +54,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pwd 
+          pwd
           npm ci --include=dev --include=prod
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test:unit
 
       - name: Run Snyk to check for vulnerabilities
         if: |

@@ -53,10 +53,11 @@ Bootstrap, build, and test the repository:
 - Install Node.js 24+ if not available: `apt-get update && apt-get install -y nodejs npm`
 - Install dependencies: `npm install`
 - **NEVER CANCEL**: Build takes 1-2 minutes for development builds. Set timeout to 5+ minutes.
-- **NEVER CANCEL**: Test suite takes 5-20 minutes depending on network connectivity. Set timeout to 30+ minutes.
-- Basic functionality test: `npm run test -- --testPathPattern="butler-sheet-icons.test.js" --testTimeout=300000`
-- Browser-related tests: `npm run test -- --testPathPattern="browser" --testTimeout=600000`
-- Full test suite: `npm test` (takes 15-20 minutes, requires network access to download browsers)
+- **NEVER CANCEL**: Integration tests take 5-20 minutes depending on network connectivity. Set timeout to 30+ minutes.
+- Unit tests only (fast, no network): `npm run test:unit`
+- Basic functionality test: `npm run test:unit -- --testPathPattern="butler-sheet-icons.test.js" --testTimeout=300000`
+- Browser integration tests: `npm run test:integration -- --testPathPattern="browser" --testTimeout=600000`
+- Full test suite (unit + integration): `npm test` (takes 15-20 minutes, requires network access to download browsers)
 
 ### Build Commands
 
@@ -78,7 +79,7 @@ Bootstrap, build, and test the repository:
 1. **Basic CLI Validation**: Run `node src/butler-sheet-icons.js --help` and verify all commands show properly
 2. **Browser Management**: Test `node src/butler-sheet-icons.js browser list-installed`
 3. **Build Validation**: Run the development build command and verify `build.cjs` is created (~6MB)
-4. **Test Core Functionality**: Run CLI tests with `npm run test -- --testPathPattern="butler-sheet-icons.test.js"`
+4. **Test Core Functionality**: Run CLI tests with `npm run test:unit -- --testPathPattern="butler-sheet-icons.test.js"`
 
 ### Manual Testing Scenarios
 
@@ -93,7 +94,7 @@ After making changes, **ALWAYS** test at least one of these scenarios:
 **ALWAYS** run these before committing or the CI (.github/workflows/ci.yaml) will fail:
 
 - **ESLint**: `npx eslint src/ --max-warnings 0` (may show import/extensions errors, these are expected)
-- **Tests**: `npm test` - **NEVER CANCEL**: Full test suite takes 15-20 minutes
+- **Tests**: `npm run test:unit` for fast unit tests, `npm test` for full suite - **NEVER CANCEL**: Full test suite takes 15-20 minutes
 - **Build Test**: Verify esbuild works with the development build command above
 
 ### Test Environment Setup
@@ -152,14 +153,17 @@ When making changes, **ALWAYS** check these files:
 ### Running Specific Test Categories
 
 ```bash
-# Browser functionality tests (5-10 minutes)
-npm run test -- --testPathPattern="browser" --testTimeout=600000
+# Unit tests (fast, no network)
+npm run test:unit
 
-# QS Cloud tests (10-15 minutes, requires network/credentials)
-npm run test -- --testPathPattern="cloud" --testTimeout=900000
+# Browser integration tests (5-10 minutes)
+npm run test:integration -- --testPathPattern="browser" --testTimeout=600000
 
-# QSEoW tests (10-15 minutes, requires network/credentials)
-npm run test -- --testPathPattern="qseow" --testTimeout=900000
+# QS Cloud integration tests (10-15 minutes, requires network/credentials)
+npm run test:integration -- --testPathPattern="cloud" --testTimeout=900000
+
+# QSEoW integration tests (10-15 minutes, requires network/credentials)
+npm run test:integration -- --testPathPattern="qseow" --testTimeout=900000
 ```
 
 ## Architecture Notes
