@@ -52,7 +52,10 @@ This project is indexed by GitNexus as **butler-sheet-icons** (898 symbols, 1073
 
 - `npm ci` — install deps
 - `npm run lint:fix` then `npm run test:unit` — required quality gates before commit
-- `npm run test:unit` — Jest with ESM (uses `node --experimental-vm-modules`)
+- `npm run test:unit` — unit tests only (fast, no network); uses `node --experimental-vm-modules`
+- `npm run test:integration` — integration tests only (need real Qlik servers/certs/browsers; long-running)
+- `npm run test` — runs both `test:unit` and `test:integration`
+- `npm run test:watch` — unit tests in watch mode
 - Single test: `node --experimental-vm-modules node_modules/jest/bin/jest.js src/path/to/file.test.js`
 - `npm run format` — Prettier
 - `npm run build:macos` — produce a macOS SEA binary
@@ -67,6 +70,7 @@ This project is indexed by GitNexus as **butler-sheet-icons** (898 symbols, 1073
     - `browser` — Puppeteer browser install/management in `src/lib/browser/`
 - **Utilities**: `src/lib/util/` — shared helpers (config loading, logging, image processing, etc.)
 - **Tests**: `src/__tests__/` for top-level CLI tests; module-specific tests live next to code as `*.test.js`
+- **Test types** — `*.test.js` are unit tests (run by `test:unit`); `*.integration.test.js` are integration tests that need external services (run by `test:integration`). Always use the `.integration.test.js` suffix for tests that require network, credentials, real Qlik servers, or browser downloads.
 - **Dockerfile**: `src/Dockerfile` — multi-stage build with Chromium for Puppeteer
 
 ## Conventions
