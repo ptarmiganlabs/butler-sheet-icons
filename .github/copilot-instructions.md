@@ -8,7 +8,7 @@ Butler Sheet Icons is a cross-platform Node.js CLI tool for creating sheet thumb
 
 Bootstrap, build, and test the repository:
 
-- Install Node.js 20+ if not available: `apt-get update && apt-get install -y nodejs npm`
+- Install Node.js 24+ if not available: `apt-get update && apt-get install -y nodejs npm`
 - Install dependencies: `npm install`
 - **NEVER CANCEL**: Build takes 1-2 minutes for development builds. Set timeout to 5+ minutes.
 - **NEVER CANCEL**: Test suite takes 5-20 minutes depending on network connectivity. Set timeout to 30+ minutes.
@@ -18,7 +18,7 @@ Bootstrap, build, and test the repository:
 
 ### Build Commands
 
-- Development build: `npx esbuild src/butler-sheet-icons.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node20 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url`
+- Development build: `npx esbuild src/butler-sheet-icons.js --bundle --outfile=build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url`
 - Single executable build (Linux): `node --experimental-sea-config build-script/sea-config.json && cp $(command -v node) butler-sheet-icons && npx postject butler-sheet-icons NODE_SEA_BLOB sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2`
 - **CRITICAL**: Always clean up build artifacts with `rm build.cjs sea-prep.blob` after builds
 
