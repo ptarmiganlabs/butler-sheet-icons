@@ -10,7 +10,7 @@
         "test": "npm run test:unit && npm run test:integration",
         "test:unit": "npm run jest -- --testPathIgnorePatterns=\\.integration\\.test\\.js$ --coverage",
         "test:integration": "npm run jest -- --testPathPatterns=\\.integration\\.test\\.js$",
-        "test:watch": "npm run jest:watch -- --testPathIgnorePatterns=\\.integration\\.test\\.js$ --watch"
+        "test:watch": "npm run jest:watch -- --testPathIgnorePatterns=\\.integration\\.test\\.js$ --watch",
         "lint": "npx eslint src/ --max-warnings 0",
         "lint:fix": "npx eslint --fix src/",
         "format": "npx prettier --write \"src/**/*.js\"",
