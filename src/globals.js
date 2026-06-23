@@ -89,26 +89,33 @@ const logger = winston.createLogger({
 const SUPPRESSED_DEPRECATION_CODES = [
     'DEP0005', // Buffer() constructor deprecation
     'DEP0169', // url.parse() deprecation
+    'DEP0190', // child_process spawn args with shell:true (emitted by @puppeteer/browsers on Windows when running setup.exe)
 ];
 
 /**
  * Determine if deprecation warnings should be suppressed.
- * Default: suppress for SEA binaries, show for regular Node.js.
+ * Default: always on (covers both SEA binaries and regular Node.js invocations).
  * Can be overridden with BSI_SUPPRESS_DEPRECATIONS environment variable.
  */
 const shouldSuppressDeprecations = () => {
     const envValue = process.env.BSI_SUPPRESS_DEPRECATIONS;
     if (envValue === '1' || envValue === 'true') return true;
     if (envValue === '0' || envValue === 'false') return false;
-    // Default: suppress for SEA, show for regular Node.js
-    return sea.isSea();
+    // Default: suppress for both SEA binaries and regular Node.js runs
+    return true;
 };
 
 // Install warning filter if deprecation suppression is enabled
 if (shouldSuppressDeprecations()) {
     // Prevent Node.js from printing warnings directly to console
-    // This must be set BEFORE any warnings are emitted
-    process.noProcessWarnings = true;
+    // This must be set BEFORE any warnings are emitted. The flag is read-only
+    // in some environments (e.g. Jest workers) where the listener swap below
+    // is sufficient on its own, so treat this assignment as best-effort.
+    try {
+        process.noProcessWarnings = true;
+    } catch {
+        // Ignore: the warning listener swap below still suppresses defaults
+    }
 
     // Remove any existing warning listeners to prevent default behavior
     process.removeAllListeners('warning');
