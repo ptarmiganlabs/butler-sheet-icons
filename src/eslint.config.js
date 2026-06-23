@@ -1,23 +1,15 @@
 import prettier from 'eslint-plugin-prettier';
+import prettierConfig from 'eslint-config-prettier/flat';
 import globals from 'globals';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import js from '@eslint/js';
-import { FlatCompat } from '@eslint/eslintrc';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const compat = new FlatCompat({
-    baseDirectory: __dirname,
-    recommendedConfig: js.configs.recommended,
-    allConfig: js.configs.all,
-});
+import jsdoc from 'eslint-plugin-jsdoc';
 
 export default [
-    ...compat.extends('prettier'),
+    prettierConfig,
+    jsdoc.configs['flat/recommended'],
     {
         plugins: {
             prettier,
+            jsdoc,
         },
 
         languageOptions: {
@@ -25,12 +17,34 @@ export default [
                 ...globals.node,
             },
 
-            ecmaVersion: 2022,
+            ecmaVersion: 'latest',
             sourceType: 'module',
         },
 
         rules: {
             'prettier/prettier': 'error',
+            // JSDoc rules
+            'jsdoc/tag-lines': ['error', 'any', { startLines: 1 }],
+            'jsdoc/require-jsdoc': [
+                'error',
+                {
+                    require: {
+                        FunctionDeclaration: true,
+                        MethodDefinition: true,
+                        ClassDeclaration: true,
+                        ArrowFunctionExpression: true,
+                        FunctionExpression: true,
+                    },
+                },
+            ],
+            'jsdoc/require-description': 'error',
+            'jsdoc/require-param': 'error',
+            'jsdoc/require-param-description': 'error',
+            'jsdoc/require-param-name': 'error',
+            'jsdoc/require-param-type': 'error',
+            'jsdoc/require-returns': 'error',
+            'jsdoc/require-returns-description': 'error',
+            'jsdoc/require-returns-type': 'error',
         },
     },
 ];
