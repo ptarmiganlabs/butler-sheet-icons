@@ -1,4 +1,4 @@
-import { jest, test, expect, describe } from '@jest/globals';
+import { jest, test, expect, describe, beforeAll } from '@jest/globals';
 import 'dotenv/config';
 
 // Mock the browser-install module
@@ -15,16 +15,19 @@ jest.unstable_mockModule('../browser-installed', () => ({
 
 // Import the function under test
 import { browserInstalled } from '../browser-installed.js';
+import { assertEnv, getTestTimeout } from '../../util/env-check.js';
 
-const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1800000; // 20 minute default timeout
-
-console.log(`Jest timeout: ${defaultTestTimeout}`);
+const defaultTestTimeout = getTestTimeout(process.env, 1800000);
 
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'info',
 };
 
 describe('test browser list_installed command', () => {
+    beforeAll(() => {
+        assertEnv(process.env, { informational: ['BSI_LOG_LEVEL', 'BSI_TEST_TIMEOUT'] });
+    });
+
     /**
      * List installed browsers
      * Should return an array of installed browser, zero or more entries

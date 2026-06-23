@@ -1,10 +1,10 @@
 import { test, expect, describe } from '@jest/globals';
+import 'dotenv/config';
 
 import { qseowCreateThumbnails } from '../qseow-create-thumbnails.js';
+import { assertEnv, getTestTimeout } from '../../util/env-check.js';
 
-const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1200000; // 20 minute default timeout
-
-console.log(`Jest timeout: ${defaultTestTimeout}`);
+const defaultTestTimeout = getTestTimeout(process.env);
 
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'verbose',
@@ -39,6 +39,36 @@ options.contentlibrary = 'abc 12';
 test(
     'qseow create sheet thumbnails, non-existing content library (should fail)',
     async () => {
+        // This test is intentionally lenient on cert/host requirements: it
+        // exercises the "missing content library" code path which fails
+        // before the cert files are used. Still require the connectivity
+        // pieces that are needed to even reach the failure point.
+        assertEnv(process.env, {
+            mandatory: ['BSI_HOST', 'BSI_LOGON_USER_DIR', 'BSI_LOGON_USER_ID', 'BSI_LOGON_PWD'],
+            secret: ['BSI_LOGON_PWD'],
+            informational: [
+                'BSI_LOG_LEVEL',
+                'BSI_ENGINE_PORT',
+                'BSI_QRS_PORT',
+                'BSI_SCHEMA_VERSION',
+                'BSI_CERT_FILE',
+                'BSI_CERT_KEY_FILE',
+                'BSI_PREFIX',
+                'BSI_SECURE',
+                'BSI_HEADLESS',
+                'BSI_PAGE_WAIT',
+                'BSI_IAMGE_DIR',
+                'BSI_API_USER_DIR',
+                'BSI_API_USER_ID',
+                'BSI_APP_ID',
+                'BSI_INCLUDE_SHEET_PART',
+                'BSI_QLIK_SENSE_TAG',
+                'BSI_SENSE_VERSION',
+                'BSI_CONTENT_LIBRARY',
+            ],
+            label: 'qseow fail-missing-content-library test prerequisites not met',
+        });
+
         const data = await qseowCreateThumbnails(options);
         expect(data).toBe(false);
     },

@@ -4,15 +4,21 @@ import 'dotenv/config';
 import { browserInstalled } from '../browser-installed.js';
 import { browserInstall } from '../browser-install.js';
 import { browserUninstallAll } from '../browser-uninstall.js';
+import { assertEnv, getTestTimeout } from '../../util/env-check.js';
 
-const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1800000; // 20 minute default timeout
-console.log(`Jest timeout: ${defaultTestTimeout}`);
+const defaultTestTimeout = getTestTimeout(process.env, 1800000);
 
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'info',
 };
 
 describe('install/uninstall browser scenarios', () => {
+    // Run once for the whole describe block so the env dump appears in the
+    // test log even though no per-test failures depend on it.
+    beforeAll(() => {
+        assertEnv(process.env, { informational: ['BSI_LOG_LEVEL', 'BSI_TEST_TIMEOUT'] });
+    });
+
     /**
      * Install a stable Chrome version that exists
      * Should return true.

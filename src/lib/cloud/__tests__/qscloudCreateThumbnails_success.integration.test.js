@@ -4,9 +4,9 @@ import 'dotenv/config';
 import { qscloudCreateThumbnails } from '../cloud-create-thumbnails.js';
 import { browserInstalled } from '../../browser/browser-installed.js';
 import { browserUninstallAll } from '../../browser/browser-uninstall.js';
+import { assertEnv, getTestTimeout } from '../../util/env-check.js';
 
-const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1200000; // 20 minute default timeout
-console.log(`Jest timeout: ${defaultTestTimeout}`);
+const defaultTestTimeout = getTestTimeout(process.env);
 
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'verbose',
@@ -37,6 +37,35 @@ const options = {
 test(
     'qs cloud create sheet thumbnails, correct parameters (should succeed)',
     async () => {
+        // Hard-fail fast on missing/empty prerequisites so a misconfigured
+        // local dev box reports a clear env error rather than a bare
+        // "Expected: true, Received: false" further down. Pass { diagnostic: true }
+        // to surface raw byte info on secrets if a similar encoding bug shows up again.
+        assertEnv(process.env, {
+            mandatory: [
+                'BSI_CLOUD_TENANT_URL',
+                'BSI_CLOUD_API_KEY',
+                'BSI_CLOUD_LOGON_USERID',
+                'BSI_CLOUD_LOGON_PWD',
+            ],
+            xor: [['BSI_CLOUD_APP_ID', 'BSI_CLOUD_COLLECTION_ID']],
+            secret: ['BSI_CLOUD_API_KEY', 'BSI_CLOUD_LOGON_PWD'],
+            informational: [
+                'BSI_LOG_LEVEL',
+                'BSI_HEADLESS',
+                'BSI_PAGE_WAIT',
+                'BSI_IMAGE_DIR',
+                'BSI_CLOUD_SCHEMA_VERSION',
+                'BSI_INCLUDE_SHEET_PART',
+                'BSI_BROWSER',
+                'BSI_BROWSER_VERSION',
+                'BSI_BLUR_SHEET_STATUS',
+                'BSI_BLUR_SHEET_TAG',
+                'BSI_BLUR_SHEET_NUMBER',
+                'BSI_BLUR_FACTOR',
+            ],
+        });
+
         // Remove all installed browsers
         const uninstallRes1 = await browserUninstallAll(options);
         expect(uninstallRes1).toEqual(true);

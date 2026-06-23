@@ -2,10 +2,9 @@ import { test, expect, describe } from '@jest/globals';
 import 'dotenv/config';
 
 import { qseowCreateThumbnails } from '../qseow-create-thumbnails.js';
+import { assertEnv, getTestTimeout } from '../../util/env-check.js';
 
-const defaultTestTimeout = process.env.BSI_TEST_TIMEOUT || 1200000; // 20 minute default timeout
-
-console.log(`Jest timeout: ${defaultTestTimeout}`);
+const defaultTestTimeout = getTestTimeout(process.env);
 
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'verbose',
@@ -45,6 +44,42 @@ const options = {
 test(
     'qseow create sheet thumbnails, correct parameters (should succeed)',
     async () => {
+        assertEnv(process.env, {
+            mandatory: [
+                'BSI_HOST',
+                'BSI_CONTENT_LIBRARY',
+                'BSI_LOGON_USER_DIR',
+                'BSI_LOGON_USER_ID',
+                'BSI_LOGON_PWD',
+                'BSI_CERT_FILE',
+                'BSI_CERT_KEY_FILE',
+                'BSI_SENSE_VERSION',
+            ],
+            secret: ['BSI_LOGON_PWD'],
+            informational: [
+                'BSI_LOG_LEVEL',
+                'BSI_ENGINE_PORT',
+                'BSI_QRS_PORT',
+                'BSI_SCHEMA_VERSION',
+                'BSI_PREFIX',
+                'BSI_SECURE',
+                'BSI_HEADLESS',
+                'BSI_PAGE_WAIT',
+                'BSI_IMAGE_DIR',
+                'BSI_API_USER_DIR',
+                'BSI_API_USER_ID',
+                'BSI_APP_ID',
+                'BSI_INCLUDE_SHEET_PART',
+                'BSI_QLIK_SENSE_TAG',
+                'BSI_BROWSER',
+                'BSI_BROWSER_VERSION',
+                'BSI_BLUR_SHEET_STATUS',
+                'BSI_BLUR_SHEET_TAG',
+                'BSI_BLUR_SHEET_NUMBER',
+                'BSI_BLUR_FACTOR',
+            ],
+        });
+
         const data = await qseowCreateThumbnails(options);
         expect(data).toBe(true);
     },
