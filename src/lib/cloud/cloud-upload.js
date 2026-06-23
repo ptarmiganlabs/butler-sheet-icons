@@ -1,4 +1,3 @@
-/* eslint-disable import/extensions */
 import fs from 'fs';
 import path from 'path';
 
@@ -29,7 +28,6 @@ export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
-            // eslint-disable-next-line no-param-reassign
             options.loglevel = options.logLevel;
         }
         setLoggingLevel(options.loglevel);
@@ -53,7 +51,6 @@ export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
         logger.debug(`Files to be uploaded to Qlik Sense Cloud`);
         filesToUpload.forEach((file) => logger.debug(JSON.stringify(file)));
 
-        // eslint-disable-next-line no-restricted-syntax
         for (const file of filesToUpload) {
             logger.info(`Uploading file: ${file.fileNameShort}`);
 
@@ -74,7 +71,7 @@ export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
 
                 try {
                     const fileData = fs.readFileSync(fileFullPath);
-                    // eslint-disable-next-line no-await-in-loop
+
                     const result = await saasInstance.Put({
                         path: apiUrl,
                         data: fileData,

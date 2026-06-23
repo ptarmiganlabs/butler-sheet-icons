@@ -19,7 +19,7 @@ export const qseowVerifyContentLibraryExists = async (options) => {
         logger.debug('Checking if QSEoW content library already exists');
 
         const qseowConfigQrs = setupQseowQrsConnection(options);
-        // eslint-disable-next-line new-cap
+
         const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
 
         const { contentlibrary } = options;

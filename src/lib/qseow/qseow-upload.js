@@ -1,4 +1,3 @@
-/* eslint-disable import/extensions */
 import fs from 'fs';
 import path from 'path';
 import qrsInteract from 'qrs-interact';
@@ -41,7 +40,7 @@ export const qseowUploadToContentLibrary = async (filesToUpload, appId, options)
         filesToUpload.forEach((file) => logger.debug(JSON.stringify(file)));
 
         const qseowConfigQrs = setupQseowQrsConnection(options);
-        // eslint-disable-next-line new-cap
+
         const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
 
         logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
@@ -56,7 +55,6 @@ export const qseowUploadToContentLibrary = async (filesToUpload, appId, options)
         logger.debug(`Files to be uploaded to QSEoW`);
         filesToUpload.forEach((file) => logger.debug(JSON.stringify(file)));
 
-        // eslint-disable-next-line no-restricted-syntax
         for (const file of filesToUpload) {
             logger.verbose(`Uploading file: ${JSON.stringify(file)}`);
 
@@ -81,7 +79,6 @@ export const qseowUploadToContentLibrary = async (filesToUpload, appId, options)
                 try {
                     const fileData = fs.readFileSync(fileFullPath);
 
-                    // eslint-disable-next-line no-await-in-loop
                     const result = await qrsInteractInstance.Post(apiUrl, fileData, 'image/png');
                     logger.debug(`QSEoW image upload result=${JSON.stringify(result)}`);
                     logger.verbose(`QSEoW image upload done: ${JSON.stringify(file)}`);

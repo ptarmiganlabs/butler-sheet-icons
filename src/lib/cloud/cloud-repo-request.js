@@ -1,4 +1,3 @@
-/* eslint-disable no-param-reassign */
 import axios from 'axios';
 import FormData from 'form-data';
 import { Readable } from 'stream';
@@ -23,7 +22,6 @@ axios.interceptors.response.use(
         return response;
     },
     (e) =>
-        // eslint-disable-next-line prefer-promise-reject-errors
         Promise.reject({
             status: e.response.status,
             statusText: e.response.statusText,

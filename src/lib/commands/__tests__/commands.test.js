@@ -112,9 +112,8 @@ beforeAll(async () => {
     ({ qscloudRemoveSheetIcons } = await import('../../cloud/cloud-remove-sheet-icons.js'));
     ({ browserInstalled } = await import('../../browser/browser-installed.js'));
     ({ browserInstall } = await import('../../browser/browser-install.js'));
-    ({ browserUninstall, browserUninstallAll } = await import(
-        '../../browser/browser-uninstall.js'
-    ));
+    ({ browserUninstall, browserUninstallAll } =
+        await import('../../browser/browser-uninstall.js'));
     ({ browserListAvailable } = await import('../../browser/browser-list-available.js'));
     ({ parsePositiveInteger } = await import('../helpers.js'));
     ({ buildQseowCommand, handleQseowCreateSheetThumbnails } = await import('../qseow/index.js'));

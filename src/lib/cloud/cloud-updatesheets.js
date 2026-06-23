@@ -1,4 +1,3 @@
-/* eslint-disable no-await-in-loop */
 import enigma from 'enigma.js';
 
 import { setupEnigmaConnection } from './cloud-enigma.js';
@@ -33,9 +32,8 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
 
         const session = await enigma.create(configEnigma);
         if (options.loglevel === 'silly') {
-            // eslint-disable-next-line no-console
             session.on('traffic:sent', (data) => console.log('sent:', data));
-            // eslint-disable-next-line no-console
+
             session.on('traffic:received', (data) => console.log('received:', data));
         }
 
@@ -79,7 +77,7 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
             });
 
             let iSheetNum = 1;
-            // eslint-disable-next-line no-restricted-syntax
+
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
                 const createdFile = createdFiles.find((element) => element.sheetPos === iSheetNum);
                 if (!createdFile) {

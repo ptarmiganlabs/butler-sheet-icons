@@ -1,4 +1,3 @@
-/* eslint-disable global-require */
 import SenseUtilities from 'enigma.js/sense-utilities.js';
 import WebSocket from 'ws';
 

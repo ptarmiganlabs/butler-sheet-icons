@@ -1,4 +1,3 @@
-/* eslint-disable no-await-in-loop */
 import enigma from 'enigma.js';
 
 import { setupEnigmaConnection } from './qseow-enigma.js';
@@ -24,9 +23,8 @@ export const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) =
 
         const session = await enigma.create(configEnigma);
         if (options.loglevel === 'silly') {
-            // eslint-disable-next-line no-console
             session.on('traffic:sent', (data) => console.log('sent:', data));
-            // eslint-disable-next-line no-console
+
             session.on('traffic:received', (data) => console.log('received:', data));
         }
 
@@ -70,10 +68,10 @@ export const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) =
             });
 
             let iSheetNum = 1;
-            // eslint-disable-next-line no-restricted-syntax
+
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
                 // Is this sheet among those that should be updated?
-                // eslint-disable-next-line no-loop-func
+
                 if (createdFiles.find((element) => element.sheetPos === iSheetNum) === undefined) {
                     // No thumbnail for this sheet, skip
                     logger.info(

@@ -46,7 +46,6 @@ export async function browserListAvailable(options) {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
-            // eslint-disable-next-line no-param-reassign
             options.loglevel = options.logLevel;
         }
         setLoggingLevel(options.loglevel);
@@ -135,10 +134,9 @@ export async function browserListAvailable(options) {
                     'Note that not all versions may be available for use with Butler Sheet Icons.'
                 );
 
-                // eslint-disable-next-line no-restricted-syntax
                 for (const version of browsersAvailable) {
                     // Can this version be downloaded?
-                    // eslint-disable-next-line no-await-in-loop
+
                     const canDownloadBrowser = await canDownload({
                         browser: options.browser,
                         buildId: version.version,
@@ -242,10 +240,9 @@ export async function getMostRecentUsableChromeBuildId(channel) {
 
         // Output Chrome versions and names to info log
         if (browsersAvailable.length > 0) {
-            // eslint-disable-next-line no-restricted-syntax
             for (const version of browsersAvailable) {
                 // Can this version be downloaded?
-                // eslint-disable-next-line no-await-in-loop
+
                 const canDownloadBrowser = await canDownload({
                     browser: 'chrome',
                     buildId: version.version,

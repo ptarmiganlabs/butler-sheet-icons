@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { test, expect, describe } from '@jest/globals';
 
 import { qseowCreateThumbnails } from '../qseow-create-thumbnails.js';

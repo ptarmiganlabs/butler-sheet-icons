@@ -73,7 +73,6 @@ export const determineSheetExcludeStatus = async (
 
     const showConditionEval = await app.evaluateEx(showConditionCall);
     const sheetIsHidden =
-        // eslint-disable-next-line no-unneeded-ternary
         sheet.qData.showCondition &&
         (sheet.qData.showCondition.toLowerCase() === 'false' ||
             (showConditionEval?.qIsNumeric === true && showConditionEval?.qNumber === 0))

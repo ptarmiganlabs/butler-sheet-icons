@@ -28,7 +28,6 @@ export const qseowCreateThumbnails = async (options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
-            // eslint-disable-next-line no-param-reassign
             options.loglevel = options.logLevel;
         }
         setLoggingLevel(options.loglevel);
@@ -86,7 +85,6 @@ export const qseowCreateThumbnails = async (options) => {
             // Get all apps matching the tag in --qliksensetag
             const qseowConfigQrs = setupQseowQrsConnection(options);
 
-            // eslint-disable-next-line new-cap
             const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
             logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
 
@@ -96,7 +94,7 @@ export const qseowCreateThumbnails = async (options) => {
             );
 
             // Add all apps with this tag
-            // eslint-disable-next-line no-restricted-syntax
+
             for (const app of result.body) {
                 appIdsToProcess.push(app.id);
             }
@@ -112,7 +110,7 @@ export const qseowCreateThumbnails = async (options) => {
         });
 
         // Process all apps
-        // eslint-disable-next-line no-restricted-syntax
+
         for (const appId of uniqueAppIds) {
             try {
                 logger.info(`--------------------------------------------------`);

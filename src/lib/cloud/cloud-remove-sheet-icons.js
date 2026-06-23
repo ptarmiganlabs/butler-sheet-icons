@@ -1,5 +1,3 @@
-/* eslint-disable no-await-in-loop */
-/* eslint-disable import/extensions */
 import enigma from 'enigma.js';
 
 import { setupEnigmaConnection } from './cloud-enigma.js';
@@ -37,7 +35,6 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
                 `apps/${appId}/media/list/thumbnails`
             );
 
-            // eslint-disable-next-line no-restricted-syntax
             for (const thumbnailImg of existingThumbnails) {
                 if (thumbnailImg.type === 'image') {
                     const result = await saasInstance.Delete(
@@ -57,10 +54,8 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
         const session = await enigma.create(configEnigma);
 
         if (options.loglevel === 'silly') {
-            // eslint-disable-next-line no-console
             session.on('traffic:sent', (data) => console.log('sent:', data));
             session.on('traffic:received', (data) =>
-                // eslint-disable-next-line no-console
                 console.log('received:', JSON.stringify(data, null, 2))
             );
         }
@@ -111,7 +106,6 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
 
             let iSheetNum = 1;
 
-            // eslint-disable-next-line no-restricted-syntax
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
                 logger.info(
                     `Removing icon for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
@@ -168,7 +162,6 @@ export const qscloudRemoveSheetIcons = async (options) => {
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
-            // eslint-disable-next-line no-param-reassign
             options.loglevel = options.logLevel;
         }
         setLoggingLevel(options.loglevel);
@@ -235,7 +228,7 @@ export const qscloudRemoveSheetIcons = async (options) => {
                 );
 
                 // Process all apps in this collection
-                // eslint-disable-next-line no-restricted-syntax
+
                 for (const item of collectionItems) {
                     // Is item an app?
                     if (item.resourceType === 'app') {
@@ -259,7 +252,7 @@ export const qscloudRemoveSheetIcons = async (options) => {
         });
 
         // Process all apps
-        // eslint-disable-next-line no-restricted-syntax
+
         for (const appId of uniqueAppIds) {
             try {
                 logger.info(`--------------------------------------------------`);

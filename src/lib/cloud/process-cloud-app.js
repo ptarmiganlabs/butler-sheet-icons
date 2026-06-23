@@ -80,7 +80,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 }
                 throw Error('Error getting existing thumbnails');
             }
-            // eslint-disable-next-line no-restricted-syntax
+
             for (const thumbnailImg of existingThumbnails) {
                 if (thumbnailImg.type === 'image') {
                     await deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance, logger);
@@ -102,10 +102,8 @@ export const processCloudApp = async (appId, saasInstance, options) => {
         const imgDir = options.imagedir;
         const session = await enigma.create(configEnigma);
         if (options.loglevel === 'silly') {
-            // eslint-disable-next-line no-console
             session.on('traffic:sent', (data) => console.log('sent:', data));
             session.on('traffic:received', (data) =>
-                // eslint-disable-next-line no-console
                 console.log('received:', JSON.stringify(data, null, 2))
             );
         }
@@ -400,7 +398,6 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 };
                 const showConditionEval = await app.evaluateEx(showConditionCall);
                 const sheetIsHidden =
-                    // eslint-disable-next-line no-unneeded-ternary
                     sheet.qData.showCondition &&
                     (sheet.qData.showCondition.toLowerCase() === 'false' ||
                         (showConditionEval?.qIsNumeric === true &&
