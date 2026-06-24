@@ -70,16 +70,11 @@ if (sea.isSea()) {
 const logTransports = [];
 
 /**
- * Winston format that redacts secrets from log output.
+ * Sanitizes a single log payload value before it reaches the logger output.
  *
- * Runs the regex-based `redactSensitivePatterns` over the message and any
- * string meta values, and runs the deep-clone `redactValue` over any object
- * meta values. The intent is to make it impossible to leak `password=…`,
- * `Authorization: Bearer …`, or a full options bag containing `apikey` /
- * `logonpwd` to a log file even when the caller forgot to redact manually.
- *
- * The standard winston level metadata is left untouched, while message text,
- * stack traces, and splat/meta payloads are sanitized.
+ * String values are pattern-redacted, arrays are sanitized recursively, and
+ * object values are deep-cloned through `redactValue()` so secret-keyed
+ * properties are replaced without mutating the original payload.
  *
  * @param {unknown} value - The log payload value to sanitize.
  *
@@ -98,6 +93,17 @@ const sanitizeLogValue = (value) => {
     return value;
 };
 
+/**
+ * Winston format that redacts secrets from log output.
+ *
+ * Runs the regex-based `redactSensitivePatterns` over the message and any
+ * string meta values, and runs the deep-clone `redactValue` over any object
+ * meta values. The intent is to make it impossible to leak secret-bearing
+ * message text or metadata when the caller forgot to redact manually.
+ *
+ * The standard winston level metadata is left untouched, while message text,
+ * stack traces, and splat/meta payloads are sanitized.
+ */
 const sanitizeFormat = winston.format((info) => {
     try {
         for (const key of Reflect.ownKeys(info)) {
