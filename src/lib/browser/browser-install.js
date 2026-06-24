@@ -4,6 +4,7 @@ import { homedir } from 'os';
 import cliProgress from 'cli-progress';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { redactOptions } from '../util/redact-secrets.js';
 import { getMostRecentUsableChromeBuildId } from './browser-list-available.js';
 
 /**
@@ -38,7 +39,7 @@ export const browserInstall = async (options, _command) => {
         logger.verbose('Starting browser install');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
-        logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+        logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
         // Create a new progress bar instance using cli-progress
         const progressBar = new cliProgress.SingleBar(

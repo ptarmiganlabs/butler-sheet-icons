@@ -1,6 +1,7 @@
 import path from 'path';
 
 import { bsiExecutablePath } from '../../globals.js';
+import { CertError } from './errors.js';
 
 /**
  * Resolves the certificate and key file paths to absolute paths, anchored at
@@ -11,6 +12,9 @@ import { bsiExecutablePath } from '../../globals.js';
  * @param {string} options.certkeyfile - Path to the certificate key file (relative to the BSI executable dir).
  *
  * @returns {{ fileCert: string, fileCertKey: string }} Absolute paths to the client certificate and key files.
+ *
+ * @throws {CertError} When path resolution fails. The top-level safety net
+ *   in `src/butler-sheet-icons.js` will write a crash dump and exit.
  */
 export const getCertFilePaths = (options) => {
     let fileCert;
@@ -23,7 +27,7 @@ export const getCertFilePaths = (options) => {
         fileCertKey = path.resolve(bsiExecutablePath, options.certkeyfile);
         // fileCertCA = path.resolve(bsiExecutablePath, options.authRootCertFile);
     } catch (err) {
-        process.exit(1);
+        throw new CertError('Failed to resolve certificate file paths', { cause: err });
     }
 
     // return { fileCert, fileCertKey, fileCertCA };

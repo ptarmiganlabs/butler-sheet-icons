@@ -4,6 +4,7 @@ import { homedir } from 'os';
 import axios from 'axios';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { redactOptions } from '../util/redact-secrets.js';
 
 /**
  * Maps Puppeteer's platform values to corresponding Chrome version history API platform values.
@@ -54,7 +55,7 @@ export async function browserListAvailable(options) {
         logger.verbose('Starting check for available browser versions');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
-        logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+        logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
         // Verify release channek is valid for the selected browser
         if (options.browser === 'chrome') {

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import 'dotenv/config';
+import { redactSensitivePatterns, redactValue } from './lib/util/redact-secrets.js';
 
 const require = createRequire(import.meta.url);
 
@@ -67,11 +68,47 @@ if (sea.isSea()) {
 // Set up logger with timestamps and colors, and optional logging to disk file
 const logTransports = [];
 
+/**
+ * Winston format that redacts secrets from log output.
+ *
+ * Runs the regex-based `redactSensitivePatterns` over the message and any
+ * string meta values, and runs the deep-clone `redactValue` over any object
+ * meta values. The intent is to make it impossible to leak `password=…`,
+ * `Authorization: Bearer …`, or a full options bag containing `apikey` /
+ * `logonpwd` to a log file even when the caller forgot to redact manually.
+ *
+ * The standard winston meta keys (`level`, `message`, `timestamp`, `splat`,
+ * and the internal `Symbol(level)`) are left untouched.
+ */
+const sanitizeFormat = winston.format((info) => {
+    try {
+        if (typeof info.message === 'string') {
+            info.message = redactSensitivePatterns(info.message);
+        }
+        for (const key of Object.keys(info)) {
+            if (key === 'level' || key === 'message' || key === 'timestamp' || key === 'splat') {
+                continue;
+            }
+            const value = info[key];
+            if (typeof value === 'string') {
+                info[key] = redactSensitivePatterns(value);
+            } else if (value && typeof value === 'object') {
+                info[key] = redactValue(value);
+            }
+        }
+    } catch {
+        // Never let the sanitizer break logging. If redaction itself throws
+        // (e.g. exotic object with a throwing getter), pass the info through.
+    }
+    return info;
+});
+
 logTransports.push(
     new winston.transports.Console({
         name: 'console',
         level: 'info',
         format: winston.format.combine(
+            sanitizeFormat(),
             winston.format.errors({ stack: true }),
             winston.format.timestamp(),
             winston.format.colorize(),
@@ -84,6 +121,7 @@ logTransports.push(
 const logger = winston.createLogger({
     transports: logTransports,
     format: winston.format.combine(
+        sanitizeFormat(),
         winston.format.errors({ stack: true }),
         winston.format.timestamp(),
         winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)

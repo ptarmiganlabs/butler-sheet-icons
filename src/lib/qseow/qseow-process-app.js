@@ -16,6 +16,7 @@ import { browserInstall } from '../browser/browser-install.js';
 import { detectAvailableBrowser } from '../browser/browser-detect.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
 import { parseHeadlessOption } from '../util/headless-option.js';
+import { QseowError } from '../util/errors.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -146,7 +147,7 @@ export const qseowProcessApp = async (appId, options) => {
         logger.error(
             `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
         );
-        process.exit(1);
+        throw new QseowError(`Invalid QSEoW Sense version specified: ${options.senseVersion}`);
     }
 
     // Create image directory for this app
@@ -277,8 +278,8 @@ export const qseowProcessApp = async (appId, options) => {
 
                 const browserInstallResult = await browserInstall(options);
                 if (browserInstallResult === false) {
-                    logger.error(`QSEoW APP: Error installing browser. Exiting.`);
-                    process.exit(1);
+                    logger.error(`QSEoW APP: Error installing browser for app ${appId}.`);
+                    throw new QseowError(`Failed to install a browser for QSEoW app ${appId}`);
                 }
 
                 executablePath = computeExecutablePath({
@@ -355,7 +356,9 @@ export const qseowProcessApp = async (appId, options) => {
                     logger.error(`QSEOW Could not launch virtual browser: ${err}. Exiting.`);
                 }
 
-                process.exit(1);
+                throw new QseowError(`Failed to launch virtual browser for QSEoW app ${appId}`, {
+                    cause: err,
+                });
             }
 
             const page = await browser.newPage();

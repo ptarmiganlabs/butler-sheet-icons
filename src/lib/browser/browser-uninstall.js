@@ -4,6 +4,7 @@ import { homedir } from 'os';
 import fs from 'fs-extra';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { redactOptions } from '../util/redact-secrets.js';
 
 /**
  * Uninstall a browser from the Butler Sheet Icons cache.
@@ -28,7 +29,7 @@ export const browserUninstall = async (options) => {
         logger.info('Starting browser uninstallation');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
-        logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+        logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
         const browserPath = path.join(homedir(), '.cache/puppeteer');
 
@@ -93,7 +94,7 @@ export const browserUninstallAll = async (options) => {
         logger.info('Starting uninstallation of all browsers');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
-        logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+        logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
         const browserPath = path.join(homedir(), '.cache/puppeteer');
         logger.debug(`Browser cache path: ${browserPath}`);

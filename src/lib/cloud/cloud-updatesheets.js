@@ -2,6 +2,7 @@ import enigma from 'enigma.js';
 
 import { setupEnigmaConnection } from './cloud-enigma.js';
 import { logger } from '../../globals.js';
+import { CloudError } from '../util/errors.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Cloud app.
@@ -200,6 +201,6 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
             logger.error(`CLOUD UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
         }
 
-        process.exit(1);
+        throw new CloudError(`Failed to update sheet thumbnails in app ${appId}`, { cause: err });
     }
 };

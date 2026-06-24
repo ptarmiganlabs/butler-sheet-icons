@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { logger, isSea } from '../../globals.js';
+import { EnigmaError } from './errors.js';
 
 const require = createRequire(import.meta.url);
 
@@ -37,6 +38,10 @@ try {
  * @param {string} options.schemaversion - Desired Enigma.js schema version (e.g. `12.170.2`). Must be one of the supported versions.
  *
  * @returns {object} The parsed Enigma.js schema JSON, ready to be passed to `enigma.js`.
+ *
+ * @throws {EnigmaError} When the requested schema version is unsupported or
+ *   the schema file cannot be read. The top-level safety net writes a crash
+ *   dump and exits.
  */
 export const getEnigmaSchema = (options) => {
     // Array of supported schema versions
@@ -51,7 +56,6 @@ export const getEnigmaSchema = (options) => {
         '12.2015.0',
     ];
 
-    let qixSchemaJson;
     try {
         // Check if the specified schema version is supported
         if (!supportedSchemaVersions.includes(options.schemaversion)) {
@@ -60,11 +64,14 @@ export const getEnigmaSchema = (options) => {
             // Show supported schema versions
             logger.error(`Supported schema versions: ${supportedSchemaVersions.join(', ')}`);
 
-            logger.error(`Exiting...`);
-            process.exit(1);
+            throw new EnigmaError(
+                `Unsupported Enigma.js schema version: ${options.schemaversion}. ` +
+                    `Supported: ${supportedSchemaVersions.join(', ')}`
+            );
         }
 
         // Are we running as a packaged app?
+        let qixSchemaJson;
         if (isSea) {
             // Load schema file
             qixSchemaJson = getSeaAsset(`enigma_schema_${options.schemaversion}.json`, 'utf8');
@@ -82,13 +89,13 @@ export const getEnigmaSchema = (options) => {
 
             qixSchemaJson = fs.readFileSync(schemaFilePath, 'utf8');
         }
+
+        const qixSchema = JSON.parse(qixSchemaJson);
+        logger.debug(`Enigma.js schema: ${qixSchema}`);
+
+        return qixSchema;
     } catch (err) {
-        logger.error(`Error when getting Enigma schema: ${err}`);
-        process.exit(1);
+        if (err instanceof EnigmaError) throw err;
+        throw new EnigmaError(`Failed to load Enigma.js schema: ${err.message}`, { cause: err });
     }
-
-    const qixSchema = JSON.parse(qixSchemaJson);
-    logger.debug(`Enigma.js schema: ${qixSchema}`);
-
-    return qixSchema;
 };

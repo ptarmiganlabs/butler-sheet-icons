@@ -13,6 +13,7 @@ import { detectAvailableBrowser } from '../browser/browser-detect.js';
 import { deleteCloudAppThumbnail } from './cloud-delete-thumbnails.js';
 import { takeSheetScreenshot } from './sheet-screenshot.js';
 import { parseHeadlessOption } from '../util/headless-option.js';
+import { CloudError } from '../util/errors.js';
 
 // Selector paths to elements on login page
 const selectorLoginPageUserName = '[id="\u0031-email"]';
@@ -169,8 +170,10 @@ export const processCloudApp = async (appId, saasInstance, options) => {
 
                 const browserInstallResult = await browserInstall(options);
                 if (browserInstallResult === false) {
-                    logger.error(`CLOUD: Error installing browser. Exiting.`);
-                    process.exit(1);
+                    logger.error(`CLOUD: Error installing browser for app ${appId}.`);
+                    throw new CloudError(
+                        `Failed to install a browser for Qlik Sense Cloud app ${appId}`
+                    );
                 }
 
                 executablePath = computeExecutablePath({
@@ -247,7 +250,10 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 } else {
                     logger.error(`CLOUD APP: Could not launch virtual browser: ${err}. Exiting.`);
                 }
-                process.exit(1);
+                throw new CloudError(
+                    `Failed to launch virtual browser for Qlik Sense Cloud app ${appId}`,
+                    { cause: err }
+                );
             }
             const page = await browser.newPage();
             // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.

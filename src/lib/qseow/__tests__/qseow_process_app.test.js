@@ -91,7 +91,6 @@ const mockDetermineSheetExcludeStatus = jest.unstable_mockModule(
     })
 );
 
-
 let qseowProcessApp;
 let puppeteer;
 let computeExecutablePath;

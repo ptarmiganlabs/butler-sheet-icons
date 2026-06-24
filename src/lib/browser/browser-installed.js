@@ -3,6 +3,7 @@ import path from 'path';
 import { homedir } from 'os';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { redactOptions } from '../util/redact-secrets.js';
 
 /**
  * List all installed browsers.
@@ -24,7 +25,7 @@ export async function browserInstalled(options) {
         logger.verbose('Starting check for installed browser');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
-        logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+        logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
         const browserPath = path.join(homedir(), '.cache/puppeteer');
         logger.debug(`Browser cache path: ${browserPath}`);
