@@ -7,11 +7,12 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
 
 /**
  * Maps Puppeteer's platform values to corresponding Chrome version history API platform values.
- * Converts 'win' to 'win', 'mac' to 'mac', and 'linux' to 'linux'.
+ * Converts `win*` to `win`, `mac*` to `mac`, and `linux*` to `linux`.
  * If the platform cannot be mapped, it returns the original Puppeteer platform value.
  *
- * @param {string} puppeteerPlatform - Platform value from detectBrowserPlatform().
- * @returns {string} - Platform value suitable for the Chrome version history API.
+ * @param {string} puppeteerPlatform - Platform value from `detectBrowserPlatform()`.
+ *
+ * @returns {string} Platform value suitable for the Chrome version history API.
  */
 function mapPlatformToChrome(puppeteerPlatform) {
     // Chrome API expects: win, mac, linux
@@ -31,16 +32,16 @@ function mapPlatformToChrome(puppeteerPlatform) {
 /**
  * List all available browser versions.
  *
- * @param {object} options - An options object.
- * @param {string} options.browser - Browser to list available versions for. Can be one of "chrome" or "firefox".
- * @param {string} options.channel - Which of the browser's release channel versions should be listed?
- * This option is only used for Chrome. Can be one of "stable", "beta", "dev", or "canary".
- * @param {string} options.loglevel - The log level. Can be one of "error", "warn", "info", "verbose", "debug", or "silly".
+ * For Chrome, the available versions are fetched from the Chrome version history API and filtered
+ * to those that Puppeteer can actually download. For Firefox, only `latest` is supported at this time.
  *
- * @returns {Promise<Array<Object>>} - A promise that resolves to an array of available browsers.
- * Each browser is represented by an object with the following properties:
- * - version {string}: The browser version, e.g. "115.0.5790.90".
- * - name {string}: The browser name, e.g. "chrome/platforms/win/channels/stable/versions/115.0.5790.90".
+ * @param {object} options - An options object.
+ * @param {string} options.browser - Browser to list available versions for (`chrome` or `firefox`).
+ * @param {string} options.channel - Which Chrome release channel to list (`stable`, `beta`, `dev`, or `canary`). Ignored for Firefox.
+ * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", or "silly".
+ *
+ * @returns {Promise<Array<object>>} A promise that resolves to an array of available browsers.
+ * Each entry has a `version` (e.g. `115.0.5790.90`) and a `name` (the API path for that version).
  */
 export async function browserListAvailable(options) {
     try {
@@ -191,9 +192,9 @@ export async function browserListAvailable(options) {
 /**
  * Finds the most recent version of Chrome that Puppeteer can download and use.
  *
- * @param {string} channel - The Chrome release channel.
- * Valid values are "stable", "beta", "dev", "canary".
- * @returns {Promise<string>} - A promise that resolves to the most recent usable Chrome build ID.
+ * @param {string} channel - The Chrome release channel. Valid values are `stable`, `beta`, `dev`, `canary`.
+ *
+ * @returns {Promise<string|false>} A promise that resolves to the most recent usable Chrome build ID, or `false` if no usable version was found.
  */
 export async function getMostRecentUsableChromeBuildId(channel) {
     try {

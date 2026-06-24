@@ -6,13 +6,12 @@ import { logger } from '../../globals.js';
 /**
  * Updates sheet thumbnails in a Qlik Sense Enterprise on Windows (QSEoW) app.
  *
- * @param {Array<Object>} createdFiles - Array of objects describing the files
+ * @param {Array<object>} createdFiles - Array of objects describing the files
  * that were created during the previous step in the process.
  * @param {string} appId - The ID of the QSEoW app to process.
- * @param {Object} options - Configuration options for processing the app.
+ * @param {object} options - Configuration options for processing the app.
  *
- * @returns {Promise<void>} A promise that resolves when the sheet thumbnails have
- * been updated in the QSEoW app.
+ * @returns {Promise<void>} Resolves when the sheet thumbnails have been updated in the QSEoW app.
  */
 export const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
     try {

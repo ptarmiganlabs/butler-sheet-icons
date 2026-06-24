@@ -7,22 +7,21 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
 import { getMostRecentUsableChromeBuildId } from './browser-list-available.js';
 
 /**
- * Install browser
- * Returns object with browser info if browser installed successfully
- * @param {object} options
- * @param {string} options.browser - Browser to install
- * @param {string} options.browserVersion - Browser version to install
- * @returns {boolean} - True if browser installed successfully
+ * Install a browser into the Puppeteer cache directory.
  *
- * @returns {Promise<Object>} - Browser info if installed successfully
+ * Resolves a build ID (for `'latest'` Chrome this picks the most recent usable stable build),
+ * downloads and unpacks the browser while showing a progress bar, and returns the installed
+ * browser metadata on success.
  *
- * @throws {Error} - If browser not installed successfully
- * @throws {Error} - If browser version not found
- * @throws {Error} - If error installing browser
- * @throws {Error} - If error resolving browser build id
- * @throws {Error} - If error detecting browser platform
- * @throws {Error} - If error getting browser cache path
- * @throws {Error} - If error getting browser executable path
+ * @param {object} options - Options object.
+ * @param {string} options.browser - Browser to install (`chrome` or `firefox`).
+ * @param {string} options.browserVersion - Browser version to install, or `latest` for Chrome to auto-pick the newest stable build.
+ * @param {string} [options.loglevel] - Optional log level override (`error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`).
+ * @param {object} [_command] - Commander command instance (unused, kept for symmetry with other command handlers).
+ *
+ * @returns {Promise<object>} Resolves with the installed browser metadata from `@puppeteer/browsers` (`browser`, `buildId`, `executablePath`, ...).
+ *
+ * @throws {Error} If required options are missing, the version cannot be resolved, the build is unavailable, or the install fails.
  */
 export const browserInstall = async (options, _command) => {
     try {
@@ -106,6 +105,15 @@ export const browserInstall = async (options, _command) => {
             browser: options.browser,
             buildId,
             cacheDir: browserPath,
+            /**
+             * Progress callback used by `@puppeteer/browsers` to report download progress.
+             * Updates the CLI progress bar to reflect the current download percentage.
+             *
+             * @param {number} downloadedBytes - Bytes downloaded so far.
+             * @param {number} totalBytes - Total bytes to download.
+             *
+             * @returns {void}
+             */
             downloadProgressCallback: (downloadedBytes, totalBytes) => {
                 // Update the progress bar.
                 progressBar.update((downloadedBytes / totalBytes) * 100);

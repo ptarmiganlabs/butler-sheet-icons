@@ -10,12 +10,8 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
  * @param {object} options - An options object.
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
  *
- * @returns {Promise<Array<Object>>} - A promise that resolves to an array of installed browsers.
- * Each browser is represented by an object with the following properties:
- * - browser {string}: The browser name, e.g. "chrome" or "firefox".
- * - buildId {string}: The build id, e.g. "121.0.6167.85".
- * - platform {string}: The platform, e.g. "win64" or "linux".
- * - path {string}: The path to the browser executable.
+ * @returns {Promise<Array<object>>} A promise that resolves to an array of installed browsers.
+ * Each browser is represented by an object with `browser` (name), `buildId`, `platform`, and `path` (executable path).
  */
 export async function browserInstalled(options) {
     try {

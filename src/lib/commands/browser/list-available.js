@@ -5,7 +5,7 @@ import { browserListAvailable } from '../../browser/browser-list-available.js';
 /**
  * Commander action that queries which browsers are available for download.
  *
- * @param {object} [options={}] - CLI options specifying browser type, channel and logging.
+ * @param {object} [options] - CLI options specifying browser type, channel and logging. Defaults to `{}`.
  * @param {import('commander').Command} cmd - Commander command context propagated to the worker.
  *
  * @returns {Promise<void>} Resolves when the worker returns or errors are logged.

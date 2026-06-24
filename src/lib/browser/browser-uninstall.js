@@ -7,15 +7,15 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
 
 /**
  * Uninstall a browser from the Butler Sheet Icons cache.
+ *
  * @param {object} options - An options object.
  * @param {string} options.browser - The browser to uninstall.
  * @param {string} options.browserVersion - The version of the browser to uninstall.
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
  *
- * @returns {Promise<boolean>} - A promise that resolves to true if the browser was uninstalled successfully, false otherwise.
+ * @returns {Promise<boolean>} A promise that resolves to `true` if the browser was uninstalled successfully, `false` if it was not found in the cache.
  *
- * @throws {Error} - If the browser was not found.
- * @throws {Error} - If there was an error uninstalling the browser.
+ * @throws {Error} If there was an error uninstalling the browser.
  */
 export const browserUninstall = async (options) => {
     try {
@@ -78,9 +78,9 @@ export const browserUninstall = async (options) => {
  * @param {object} options - An options object.
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
  *
- * @returns {Promise<boolean>} - A promise that resolves to true when all browsers are uninstalled.
+ * @returns {Promise<boolean>} A promise that resolves to `true` when all browsers are uninstalled.
  *
- * @throws {Error} - If there is an error during the uninstallation process.
+ * @throws {Error} If there is an error during the uninstallation process.
  */
 export const browserUninstallAll = async (options) => {
     try {

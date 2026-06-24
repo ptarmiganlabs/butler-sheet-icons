@@ -9,11 +9,10 @@ import { setupQseowQrsConnection } from './qseow-qrs.js';
  * @param {object} options - Configuration options for the verification.
  * @param {string} options.contentlibrary - Name of the content library to check for existence.
  *
- * @returns {Promise<boolean>} - Resolves to true if the content library exists, false otherwise.
+ * @returns {Promise<boolean>} Resolves to `true` if the content library exists, `false` otherwise.
  *
- * @throws {Error} - Throws an error if there is an issue during the verification process.
+ * @throws {Error} Throws an error if there is an issue during the verification process.
  */
-
 export const qseowVerifyContentLibraryExists = async (options) => {
     try {
         logger.debug('Checking if QSEoW content library already exists');

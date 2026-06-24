@@ -6,17 +6,16 @@ import { qscloudTestConnection } from './cloud-test-connection.js';
 /**
  * Lists all available collections in the Qlik Sense Cloud tenant.
  *
- * @param {Object} options - Configuration options for listing collections.
+ * @param {object} options - Configuration options for listing collections.
  * @param {string} options.tenanturl - URL or host of Qlik Sense cloud tenant.
  * @param {string} options.apikey - API key used to access the Sense APIs.
  * @param {string} options.outputformat - Output format, either 'table' or 'json'.
  * @param {string} [options.loglevel] - Optional log level.
  *
- * @returns {Promise<boolean>} - Resolves to true if collections are successfully listed, false otherwise.
+ * @returns {Promise<boolean>} Resolves to `true` if collections are successfully listed, `false` otherwise.
  *
- * @throws {Error} - Throws an error if there is an issue during the listing process.
+ * @throws {Error} Throws an error if there is an issue during the listing process.
  */
-
 export const qscloudListCollections = async (options) => {
     try {
         // Set log level
@@ -148,9 +147,9 @@ export const qscloudListCollections = async (options) => {
  * @param {string} options.apikey - API key for the QS Cloud tenant.
  * @param {string} options.collectionid - ID of the collection to check for existence.
  *
- * @returns {Promise<boolean>} - Resolves to true if the collection exists, false otherwise.
+ * @returns {Promise<boolean>} Resolves to `true` if the collection exists, `false` otherwise.
  *
- * @throws {Error} - Throws an error if there is an issue during the verification process.
+ * @throws {Error} Throws an error if there is an issue during the verification process.
  */
 export const qscloudVerifyCollectionExists = async (options) => {
     try {

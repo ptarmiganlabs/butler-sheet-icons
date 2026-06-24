@@ -21,11 +21,11 @@ const selectorLoginPageLoginButton = '[id="\u0031-submit"]';
 /**
  * Process a single Qlik Sense Cloud app.
  *
- * @param {string} appId      App ID of the app to process.
- * @param {QlikSaas} saasInstance QlikSaas object.
- * @param {Object}  options    Options object.
+ * @param {string} appId - App ID of the app to process.
+ * @param {import('./cloud-test-connection.js').QlikSaasInstance} saasInstance - QlikSaas object.
+ * @param {object} options - Options object.
  *
- * @returns {Promise<void>}
+ * @returns {Promise<void>} Resolves when thumbnail generation, upload, and property updates for the app have completed (or thrown, which is logged by the caller).
  */
 export const processCloudApp = async (appId, saasInstance, options) => {
     // Get page timeout from options

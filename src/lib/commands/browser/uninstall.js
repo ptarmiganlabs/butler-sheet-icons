@@ -5,7 +5,7 @@ import { browserUninstall } from '../../browser/browser-uninstall.js';
 /**
  * Commander action that uninstalls a single browser build from the local cache.
  *
- * @param {object} [options={}] - CLI options that specify browser name/version and loglevel.
+ * @param {object} [options] - CLI options that specify browser name/version and loglevel. Defaults to `{}`.
  * @param {import('commander').Command} cmd - Commander command object for downstream context.
  *
  * @returns {Promise<void>} Resolves after attempting the uninstall and logging any failures.

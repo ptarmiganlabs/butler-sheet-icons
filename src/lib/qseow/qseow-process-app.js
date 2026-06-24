@@ -76,7 +76,7 @@ const xpathLogoutButton2025Nov =
  * interactions with the Qlik engine.
  *
  * @param {string} appId - The ID of the QSEoW application to process.
- * @param {Object} options - Configuration options for processing the application.
+ * @param {object} options - Configuration options for processing the application.
  * @param {string} options.senseVersion - The version of Qlik Sense being used.
  * @param {string} options.imagedir - Directory path for storing image thumbnails.
  * @param {string} options.host - Host address of the Qlik server.
@@ -93,6 +93,8 @@ const xpathLogoutButton2025Nov =
  * @param {string} options.prefix - URL prefix for accessing Qlik services.
  * @param {boolean|string} options.headless - Whether to run the browser in headless mode.
  * @param {number} options.blurFactor - Factor by which to blur images.
+ *
+ * @returns {Promise<void>} Resolves when thumbnail generation, upload, and sheet-property updates for the app are complete.
  */
 export const qseowProcessApp = async (appId, options) => {
     // Get page timeout from options

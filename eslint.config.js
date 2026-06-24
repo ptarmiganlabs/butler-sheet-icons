@@ -5,6 +5,9 @@ import jsdoc from 'eslint-plugin-jsdoc';
 
 export default [
     prettierConfig,
+    {
+        ignores: ['src/lib/util/import-meta-url.js'],
+    },
     jsdoc.configs['flat/recommended'],
     {
         plugins: {
@@ -19,6 +22,12 @@ export default [
 
             ecmaVersion: 'latest',
             sourceType: 'module',
+        },
+
+        settings: {
+            jsdoc: {
+                mode: 'typescript',
+            },
         },
 
         rules: {
@@ -45,6 +54,8 @@ export default [
             'jsdoc/require-returns': 'error',
             'jsdoc/require-returns-description': 'error',
             'jsdoc/require-returns-type': 'error',
+            // Allow `Function` as a type instead of requiring a specific signature
+            'jsdoc/reject-function-type': 'off',
         },
     },
 ];

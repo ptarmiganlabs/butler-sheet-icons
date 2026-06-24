@@ -4,27 +4,27 @@ import { qscloudTestConnection } from './cloud-test-connection.js';
 import { processCloudApp } from './process-cloud-app.js';
 
 /**
- * Create thumbnails for Qlik Sense Cloud (QSC)
- * @param {object} options - Object containing options for creating thumbnails
- * @param {string} options.tenanturl - URL of Qlik Sense Cloud tenant
- * @param {string} options.apikey - API key for Qlik Sense Cloud tenant
- * @param {string} options.loglevel - log level for the operation
- * @param {string} options.logonuserid - user ID for Qlik Sense Cloud tenant
- * @param {string} options.logonpwd - password for Qlik Sense Cloud tenant
- * @param {string} options.collectionid - ID of collection in Qlik Sense Cloud tenant
- * @param {string} options.appid - ID of app in Qlik Sense Cloud tenant
- * @param {string} options.imagedir - directory where images will be stored
- * @param {string} options.includesheetpart - optional parameter to include sheet parts in the thumbnails. Values: 1, 2, 4
- * @param {string} options.schemaversion - version of the QS schema
- * @param {string} options.appid - ID of app in Qlik Sense Cloud tenant
- * @param {string} options.browser - name of browser to use for rendering thumbnails
- * @param {string} options.browserVersion - version of browser to use for rendering thumbnails
- * @param {string} options.blurSheetStatus - which sheet statuses should be blurred
- * @param {string} options.blurSheetTag - which sheet tags should be blurred
- * @param {string} options.blurSheetNumber - number of sheets to blur
- * @param {string} options.blurFactor - blur factor
+ * Create thumbnails for Qlik Sense Cloud (QSC).
  *
- * @returns {Promise<boolean>} - true if thumbnails were created successfully, false otherwise
+ * @param {object} options - Object containing options for creating thumbnails.
+ * @param {string} options.tenanturl - URL of Qlik Sense Cloud tenant.
+ * @param {string} options.apikey - API key for Qlik Sense Cloud tenant.
+ * @param {string} options.loglevel - Log level for the operation.
+ * @param {string} options.logonuserid - User ID for Qlik Sense Cloud tenant.
+ * @param {string} options.logonpwd - Password for Qlik Sense Cloud tenant.
+ * @param {string} options.collectionid - ID of collection in Qlik Sense Cloud tenant.
+ * @param {string} options.appid - ID of app in Qlik Sense Cloud tenant.
+ * @param {string} options.imagedir - Directory where images will be stored.
+ * @param {string} options.includesheetpart - Optional parameter to include sheet parts in the thumbnails. Values: 1, 2, 4.
+ * @param {string} options.schemaversion - Version of the QS schema.
+ * @param {string} options.browser - Name of browser to use for rendering thumbnails.
+ * @param {string} options.browserVersion - Version of browser to use for rendering thumbnails.
+ * @param {string} options.blurSheetStatus - Which sheet statuses should be blurred.
+ * @param {string} options.blurSheetTag - Which sheet tags should be blurred.
+ * @param {string} options.blurSheetNumber - Number of sheets to blur.
+ * @param {string} options.blurFactor - Blur factor.
+ *
+ * @returns {Promise<boolean>} Resolves to `true` if thumbnails were created successfully, `false` otherwise.
  */
 export const qscloudCreateThumbnails = async (options) => {
     try {

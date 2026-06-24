@@ -1,12 +1,12 @@
 /**
  * Deletes a single thumbnail image from a Qlik Sense Cloud app's media library.
  *
- * @param {Object} thumbnailImg - Thumbnail image object from the media library list.
+ * @param {object} thumbnailImg - Thumbnail image object from the media library list.
  * @param {string} appId - App ID of the app to which the thumbnail belongs.
- * @param {Object} saasInstance - Instance of the QlikSaas class, with the Qlik Sense Cloud tenant configured.
- * @param {Object} logger - Logger instance.
+ * @param {object} saasInstance - Instance of the QlikSaas class, with the Qlik Sense Cloud tenant configured.
+ * @param {object} logger - Logger instance.
  *
- * @returns {Promise<void>}
+ * @returns {Promise<void>} Resolves when the thumbnail has been deleted (or has already been removed).
  */
 export async function deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance, logger) {
     try {

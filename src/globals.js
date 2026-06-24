@@ -16,7 +16,20 @@ try {
     sea = require('node:sea');
 } catch (error) {
     sea = {
+        /**
+         * Shim for `node:sea`'s `isSea()`. Always returns `false` because `node:sea`
+         * is only available inside a SEA-built binary.
+         *
+         * @returns {boolean} Always `false` in this fallback shim.
+         */
         isSea: () => false,
+        /**
+         * Shim for `node:sea`'s `getAsset()`. Throws because SEA assets are not
+         * available outside a SEA-built binary.
+         *
+         * @returns {never} Never returns; always throws.
+         * @throws {Error} Always, because SEA assets are unavailable in this shim.
+         */
         getAsset: () => {
             throw new Error('SEA asset access requested outside SEA runtime.');
         },
@@ -96,6 +109,8 @@ const SUPPRESSED_DEPRECATION_CODES = [
  * Determine if deprecation warnings should be suppressed.
  * Default: always on (covers both SEA binaries and regular Node.js invocations).
  * Can be overridden with BSI_SUPPRESS_DEPRECATIONS environment variable.
+ *
+ * @returns {boolean} `true` when deprecation warnings should be filtered.
  */
 const shouldSuppressDeprecations = () => {
     const envValue = process.env.BSI_SUPPRESS_DEPRECATIONS;
@@ -158,6 +173,13 @@ const chromiumRevisionWin = '1097664';
 const chromiumRevisionMac = '1097624';
 
 // Inspiration: https://github.com/dtolstyi/node-chromium/blob/master/utils.js
+/**
+ * Returns the bundled Chromium revision number for the current platform.
+ *
+ * @returns {string} Chromium revision number (e.g. `1109227` for Linux, `1097664` for Windows, `1097624` for macOS).
+ *
+ * @throws {Error} When the current platform is not one of `linux`, `win32`, or `darwin`.
+ */
 const getChromiumRevision = () => {
     const { platform } = process;
     let revision = '';
@@ -176,14 +198,16 @@ const getChromiumRevision = () => {
 };
 
 /**
- * Functions to get/set current console logging level
- * @returns
+ * Returns the current console logging level configured on the `winston` console transport.
+ *
+ * @returns {string} The current log level (e.g. `info`, `debug`).
  */
 const getLoggingLevel = () => logTransports.find((transport) => transport.name === 'console').level;
 
 /**
- * Set the console logging level
- * @param {*} newLevel
+ * Sets the console logging level on the `winston` console transport.
+ *
+ * @param {string} newLevel - The new log level (e.g. `info`, `debug`, `silly`).
  */
 const setLoggingLevel = (newLevel) => {
     logTransports.find((transport) => transport.name === 'console').level = newLevel;
@@ -195,6 +219,13 @@ const setLoggingLevel = (newLevel) => {
 const isSea = sea.isSea();
 const bsiExecutablePath = isSea ? path.dirname(process.execPath) : process.cwd();
 
+/**
+ * Resolves after the given number of milliseconds.
+ *
+ * @param {number} ms - Number of milliseconds to wait before resolving.
+ *
+ * @returns {Promise<void>} A promise that resolves after `ms` milliseconds.
+ */
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
