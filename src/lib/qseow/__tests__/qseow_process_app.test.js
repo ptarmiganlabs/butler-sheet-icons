@@ -125,7 +125,6 @@ beforeAll(async () => {
         mockBrowserInstall,
         mockBrowserDetect,
         mockDetermineSheetExcludeStatus,
-        mockQseowUploadSheetThumb,
     ]);
 
     puppeteer = (await import('puppeteer-core')).default;
