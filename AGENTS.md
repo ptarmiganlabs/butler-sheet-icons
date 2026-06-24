@@ -81,7 +81,7 @@ This project is indexed by GitNexus as **butler-sheet-icons** (898 symbols, 1073
 - **Node.js 24+** (`engines.node` in `package.json`) — use modern JS (optional chaining, `??`, top-level await, etc.)
 - **Commander** for CLI argument parsing; do not roll new CLI parsers
 - **Logging** — use `globals.logger` (winston-based), never `console.log`. Keep log messages free of secrets (tokens, credentials, certificate contents).
-- **JSDoc** — enforced via `eslint-plugin-jsdoc` on functions, methods, classes, and arrow functions. Document behavior, list all params (with name/type/description), list return type (including `Promise<T>`), and insert a blank line between the `@param` and `@returns` blocks.
+- **JSDoc** — enforced via `eslint-plugin-jsdoc` on functions, methods, and classes. Document behavior, list all params (with name/type/description), list return type (including `Promise<T>`), and insert a blank line between the `@param` and `@returns` blocks.
 - **Prettier** — 100 printWidth, 4 tabWidth, single quotes, trailing comma `es5`. Config in `.prettierrc.yaml`; run `npm run format` before committing.
 - **Config-driven** — many runtime options come from env vars (`BSI_HOST`, `BSI_CERT_FILE`, `BSI_CLOUD_*`, etc.) or a YAML config; avoid hard-coding new env-var reads
 - **Dependencies** — Docker/SEA builds use `--omit=dev`; runtime deps must be in `dependencies`, not `devDependencies`

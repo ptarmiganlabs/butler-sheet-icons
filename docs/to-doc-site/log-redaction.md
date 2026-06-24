@@ -40,7 +40,7 @@ The redaction also matches common patterns in free text, so log messages and sta
 The redaction is implemented in two places:
 
 1. **In the logging pipeline.** Every log line that goes through the Winston logger is run through a redaction step before it is written to the console. This means secrets are redacted even if a third-party library tries to log them.
-2. **In crash dump files.** Crash dump files are written with the same redaction applied, so the text contents of any error message or stack trace captured in a crash dump is also cleaned up before the file is written to disk.
+2. **In crash dump files.** Crash dump files apply the same best-effort **text-pattern** redaction to captured error messages and stack traces before they are written to disk.
 
 In both places, the redaction runs on the message text after your code has produced it. It cannot look inside encrypted blobs or pull secrets out of binary attachments.
 
@@ -86,7 +86,7 @@ If the redaction is matching text that is not actually a secret (for example, a 
 
 ## What is the difference between secret redaction in logs and in crash dumps?
 
-Log redaction and crash dump redaction are the same code path. Both apply the same patterns and the same property allow-list. A crash dump file is safe to share with the same care you would take with a log file: the redaction makes accidental disclosure much less likely, but it is not a guarantee. Always read the file before sharing it.
+Log redaction and crash dump redaction overlap, but they are not identical. Crash dumps reuse the same best-effort **text-pattern** redaction for error messages and stack traces, while normal log redaction also applies the object-property allow-list when Butler Sheet Icons logs structured option/config objects. A crash dump file should still be treated with care: the redaction makes accidental disclosure much less likely, but it is not a guarantee. Always read the file before sharing it.
 
 ## Related
 

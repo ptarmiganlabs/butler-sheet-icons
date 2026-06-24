@@ -144,14 +144,14 @@ function redactSensitivePatterns(text) {
     //    Matches: password=, passwd=, pwd=, secret=, token=, api_key=, apiKey=, apitoken=,
     //             access_key=, accessKey=, auth=, passphrase=, clientSecret=, client_secret=
     result = result.replace(
-        /\b(password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)\s*[=:]\s*[^\s&,;"'[\]{}()]+/gi,
+        /\b(logonpwd|password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)\s*[=:]\s*[^\s&,;"'[\]{}()]+/gi,
         '$1=[REDACTED]'
     );
 
     // 4. JSON-style quoted key/value pairs for the same patterns
     //    e.g. `"password": "mysecret"` or `'token': 'abc123'`
     result = result.replace(
-        /["'](password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)["']\s*:\s*["'][^"']+["']/gi,
+        /["'](logonpwd|password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)["']\s*:\s*["'][^"']+["']/gi,
         '"$1": "[REDACTED]"'
     );
 

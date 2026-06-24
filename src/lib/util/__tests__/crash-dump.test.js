@@ -79,6 +79,18 @@ describe('writeCrashDump', () => {
         expect(parsed.runtime.isSea).toBe(false);
     });
 
+    test('JSON dump redacts logonpwd secrets in error text', async () => {
+        const err = new Error(`failed with ${['logon', 'pwd'].join('')}=topsecret`);
+
+        await writeCrashDump(err, 'manual');
+
+        const files = await listDumps();
+        const jsonFile = files.find((f) => f.endsWith('.json'));
+        const parsed = JSON.parse(await fs.promises.readFile(path.join(tmpDir, jsonFile), 'utf8'));
+
+        expect(parsed.error.message).toBe('failed with logonpwd=[REDACTED]');
+    });
+
     test('JSON dump replaces absolute paths that do not include src/', async () => {
         const err = new Error('boom');
         err.stack = 'Error: boom\n    at /Users/admin/secret/keys/derivate.js:5:1';

@@ -7,6 +7,7 @@ import 'dotenv/config';
 import { redactSensitivePatterns, redactValue } from './lib/util/redact-secrets.js';
 
 const require = createRequire(import.meta.url);
+const LEVEL = Symbol.for('level');
 
 // Load the experimental SEA helpers only when they exist (packaged builds).
 // During tests, Docker, or plain Node runtimes the module is absent, so we
@@ -77,24 +78,33 @@ const logTransports = [];
  * `Authorization: Bearer …`, or a full options bag containing `apikey` /
  * `logonpwd` to a log file even when the caller forgot to redact manually.
  *
- * The standard winston meta keys (`level`, `message`, `timestamp`, `splat`,
- * and the internal `Symbol(level)`) are left untouched.
+ * The standard winston level metadata is left untouched, while message text,
+ * stack traces, and splat/meta payloads are sanitized.
+ *
+ * @param {unknown} value - The log payload value to sanitize.
+ *
+ * @returns {unknown} The sanitized value.
  */
+const sanitizeLogValue = (value) => {
+    if (typeof value === 'string') {
+        return redactSensitivePatterns(value);
+    }
+    if (Array.isArray(value)) {
+        return value.map((entry) => sanitizeLogValue(entry));
+    }
+    if (value && typeof value === 'object') {
+        return redactValue(value);
+    }
+    return value;
+};
+
 const sanitizeFormat = winston.format((info) => {
     try {
-        if (typeof info.message === 'string') {
-            info.message = redactSensitivePatterns(info.message);
-        }
-        for (const key of Object.keys(info)) {
-            if (key === 'level' || key === 'message' || key === 'timestamp' || key === 'splat') {
+        for (const key of Reflect.ownKeys(info)) {
+            if (key === 'level' || key === 'timestamp' || key === LEVEL) {
                 continue;
             }
-            const value = info[key];
-            if (typeof value === 'string') {
-                info[key] = redactSensitivePatterns(value);
-            } else if (value && typeof value === 'object') {
-                info[key] = redactValue(value);
-            }
+            info[key] = sanitizeLogValue(info[key]);
         }
     } catch {
         // Never let the sanitizer break logging. If redaction itself throws
@@ -108,8 +118,8 @@ logTransports.push(
         name: 'console',
         level: 'info',
         format: winston.format.combine(
-            sanitizeFormat(),
             winston.format.errors({ stack: true }),
+            sanitizeFormat(),
             winston.format.timestamp(),
             winston.format.colorize(),
             winston.format.simple(),
@@ -121,8 +131,8 @@ logTransports.push(
 const logger = winston.createLogger({
     transports: logTransports,
     format: winston.format.combine(
-        sanitizeFormat(),
         winston.format.errors({ stack: true }),
+        sanitizeFormat(),
         winston.format.timestamp(),
         winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
     ),
