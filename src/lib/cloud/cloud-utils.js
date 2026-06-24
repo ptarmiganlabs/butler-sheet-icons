@@ -1,3 +1,18 @@
+/**
+ * Decides whether a sheet should be included in thumbnail generation, given the
+ * configured exclusion options (status, sheet number, sheet title, hidden flag).
+ *
+ * @param {object} sheet - Sheet object as returned by the Qlik engine's `SheetList` (with `qMeta` and `qData`).
+ * @param {number} iSheetNum - 1-based index of the sheet within its app.
+ * @param {object} options - Sheet-exclusion options.
+ * @param {string[]} [options.excludeSheetStatus] - Statuses to exclude (`private`, `published`, `public`).
+ * @param {string[]} [options.excludeSheetNumber] - Sheet numbers to exclude.
+ * @param {string[]} [options.excludeSheetTitle] - Sheet titles to exclude.
+ * @param {boolean} appIsPublished - Whether the parent app is published. Used to resolve `public` vs `published` exclusion.
+ * @param {object} logger - Logger instance; verbose-level output explains which exclusion triggered.
+ *
+ * @returns {boolean} `true` if the sheet should be processed, `false` if it should be skipped.
+ */
 export const shouldProcessSheet = (sheet, iSheetNum, options, appIsPublished, logger) => {
     let excludeSheet = false;
 

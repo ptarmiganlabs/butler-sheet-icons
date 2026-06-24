@@ -8,9 +8,8 @@ import { logger, bsiExecutablePath } from '../../globals.js';
  *
  * @param {string} pathToCheck - The file path to check for existence.
  *
- * @returns {Promise<boolean>} - A promise that resolves to `true` if the file exists and is accessible, `false` otherwise.
+ * @returns {Promise<boolean>} Resolves to `true` if the file exists and is accessible, `false` otherwise.
  */
-
 async function exists(pathToCheck) {
     try {
         await Fs.access(pathToCheck);

@@ -5,7 +5,7 @@ import { browserUninstallAll } from '../../browser/browser-uninstall.js';
 /**
  * Commander action that removes every cached browser managed by Butler Sheet Icons.
  *
- * @param {object} [options={}] - CLI options (loglevel) passed through to the worker.
+ * @param {object} [options] - CLI options (loglevel) passed through to the worker. Defaults to `{}`.
  * @param {import('commander').Command} cmd - Commander command reference for auditing/logging.
  *
  * @returns {Promise<void>} Resolves after the uninstall-all worker finishes or errors are logged.

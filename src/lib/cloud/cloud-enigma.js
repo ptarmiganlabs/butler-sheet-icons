@@ -8,13 +8,13 @@ import { getEnigmaSchema } from '../util/enigma-util.js';
  * Sets up an Enigma connection to a Qlik Sense SaaS tenant.
  *
  * @param {string} appId - The ID of the Qlik Sense app to connect to.
- * @param {Object} options - Options for the Enigma connection.
+ * @param {object} options - Options for the Enigma connection.
  * @param {string} options.schemaversion - The version of the Enigma schema to use.
  * @param {string} options.tenanturl - The URL of the Qlik Sense SaaS tenant.
  * @param {string} options.apikey - The API key to use for authentication.
- * @param {Object} command - Command options, used for logging.
+ * @param {object} command - Command options, used for logging.
  *
- * @returns {Object} An object with properties `schema` and `url` to be used when creating an Enigma session.
+ * @returns {object} An object with `schema`, `url`, and `createSocket(url)` to be used when creating an Enigma session.
  */
 export const setupEnigmaConnection = (appId, options, command) => {
     logger.debug(`Prepping for cloud Enigma connection for app ${appId}`);
@@ -30,6 +30,13 @@ export const setupEnigmaConnection = (appId, options, command) => {
             secure: true,
             appId,
         }),
+        /**
+         * Builds a `WebSocket` connection to the SaaS Enigma endpoint, using the API key for authentication.
+         *
+         * @param {string} url - Full WebSocket URL produced by `SenseUtilities.buildUrl`.
+         *
+         * @returns {WebSocket} A `ws` WebSocket instance ready to be used by `enigma.js`.
+         */
         createSocket: (url) =>
             new WebSocket(url, {
                 headers: {

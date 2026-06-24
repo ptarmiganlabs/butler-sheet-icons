@@ -4,6 +4,22 @@
 
 Butler Sheet Icons is a cross-platform Node.js CLI tool for creating sheet thumbnails based on actual sheet layouts in Qlik Sense applications. Works with both Qlik Sense Cloud and Qlik Sense Enterprise on Windows (QSEoW). The tool uses Puppeteer for browser automation and supports creating single executable binaries.
 
+## Onboarding
+
+At the start of each session, read:
+
+1. Any `**/README.md` docs across the project
+2. Any `**/README.*.md` docs across the project
+
+## Quality Gates
+
+When writing code, do not finish until all of these succeed:
+
+1. `npm run lint:fix`
+2. All unit tests (`npm run test:unit`) pass
+
+If any check fails, fix the issues and run the checks again.
+
 ## GitNexus Code Intelligence
 
 This repo is indexed in GitNexus as `butler-sheet-icons`. In this multi-repo workspace, always include `-r butler-sheet-icons` on GitNexus CLI commands. GitNexus MCP tools may not be available in VS Code/Copilot chats, so use the CLI unless a `gitnexus_*` tool is actually exposed.
@@ -96,6 +112,27 @@ After making changes, **ALWAYS** test at least one of these scenarios:
 - **ESLint**: `npx eslint src/ --max-warnings 0` (may show import/extensions errors, these are expected)
 - **Tests**: `npm run test:unit` for fast unit tests, `npm test` for full suite - **NEVER CANCEL**: Full test suite takes 15-20 minutes
 - **Build Test**: Verify esbuild works with the development build command above
+
+## Linting, Formatting, and Diffs
+
+- The repo enforces **Prettier** (100 printWidth, 4 tabWidth, single quotes, trailing comma es5; see `.prettierrc.yaml`) and **strict JSDoc rules** via `eslint-plugin-jsdoc`.
+- Do **not** do drive-by formatting/indentation changes "by hand". Keep diffs focused on the requested change.
+- When you add or modify a function/method/class, include complete JSDoc:
+    - Describe behavior.
+    - List all params (including object param properties when feasible) with name, type, and description.
+    - List return type(s), including `Promise<T>`.
+    - Insert an empty line between `@param` and `@returns` blocks.
+- Keep log messages free of secrets (tokens, credentials, certificate contents).
+
+## Testing (Jest v30 + ES modules)
+
+- Tests use Jest with ESM support (`node --experimental-vm-modules`).
+- Use ESM-friendly Jest imports: `import { jest, describe, test, expect } from '@jest/globals';`
+- For **ESM mocking**, mock before importing and then dynamically import:
+    - Use `jest.unstable_mockModule('some-module', () => ({ ... }))`
+    - Then `const mod = await import('some-module');`
+- Prefer placing tests in `__tests__/` folders near the code, using the `*.test.js` naming convention.
+- `*.test.js` is the unit-test suffix; `*.integration.test.js` is the integration-test suffix (requires network/credentials/browsers).
 
 ### Test Environment Setup
 
@@ -214,5 +251,10 @@ The tool can install and manage Chrome/Firefox browsers via `@puppeteer/browsers
 - Browser tests fail without internet access (expected in CI/sandboxed environments)
 - Timeout errors indicate the need for longer timeout values, not faster tests
 - Certificate-related test failures require valid QSEoW certificates
+
+## Repo Hygiene
+
+- Do not edit generated artifacts or dependencies (e.g. `node_modules/`, `build/`, `coverage/`, `sea-prep.blob`, `build.cjs`) unless the task explicitly requires it.
+- Run `npm run format` before committing to keep formatting consistent.
 
 **CRITICAL REMINDER**: **NEVER CANCEL** long-running builds or tests. Build may take several minutes, tests take 15-20+ minutes. Always use appropriate timeouts (5+ minutes for builds, 30+ minutes for tests).

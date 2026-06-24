@@ -1,28 +1,30 @@
 import qrsInteract from 'qrs-interact';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } from '../../globals.js';
+import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyContentLibraryExists } from './qseow-contentlibrary.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { qseowProcessApp } from './qseow-process-app.js';
 
 /**
- * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW)
- * @param {object} options - Object containing options for creating thumbnails
- * @param {string} options.host - hostname of QSEoW server
- * @param {number} options.port - port number of QSEoW server
- * @param {string} options.username - username for QSEoW server
- * @param {string} options.userdirectory - user directory for QSEoW server
- * @param {string} options.password - password for QSEoW server
- * @param {string} options.contentlibrary - name of content library where thumbnails will be stored
- * @param {string} options.appid - ID of app for which thumbnails will be created
- * @param {string} options.qliksensetag - tag for which apps will be processed
- * @param {number} options.includesheetpart - optional parameter to include sheet parts in the thumbnails. Values: 1, 2, 3, 4
- * @param {string} options.certfile - path to certificate file
- * @param {string} options.certkeyfile - path to certificate key file
- * @param {string} options.loglevel - log level for the operation
+ * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW).
  *
- * @returns {Promise.<boolean>} - true if thumbnails were created successfully, false otherwise
+ * @param {object} options - Object containing options for creating thumbnails.
+ * @param {string} options.host - Hostname of QSEoW server.
+ * @param {number} options.port - Port number of QSEoW server.
+ * @param {string} options.username - Username for QSEoW server.
+ * @param {string} options.userdirectory - User directory for QSEoW server.
+ * @param {string} options.password - Password for QSEoW server.
+ * @param {string} options.contentlibrary - Name of content library where thumbnails will be stored.
+ * @param {string} options.appid - ID of app for which thumbnails will be created.
+ * @param {string} options.qliksensetag - Tag for which apps will be processed.
+ * @param {number} options.includesheetpart - Optional parameter to include sheet parts in the thumbnails. Values: 1, 2, 3, 4.
+ * @param {string} options.certfile - Path to certificate file.
+ * @param {string} options.certkeyfile - Path to certificate key file.
+ * @param {string} options.loglevel - Log level for the operation.
+ *
+ * @returns {Promise<boolean>} Resolves to `true` if thumbnails were created successfully, `false` otherwise.
  */
 export const qseowCreateThumbnails = async (options) => {
     try {
@@ -35,7 +37,7 @@ export const qseowCreateThumbnails = async (options) => {
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
-        logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+        logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
         const appIdsToProcess = [];
 

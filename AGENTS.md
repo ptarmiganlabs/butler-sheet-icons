@@ -71,6 +71,8 @@ This project is indexed by GitNexus as **butler-sheet-icons** (898 symbols, 1073
 - **Utilities**: `src/lib/util/` — shared helpers (config loading, logging, image processing, etc.)
 - **Tests**: `src/__tests__/` for top-level CLI tests; module-specific tests live next to code as `*.test.js`
 - **Test types** — `*.test.js` are unit tests (run by `test:unit`); `*.integration.test.js` are integration tests that need external services (run by `test:integration`). Always use the `.integration.test.js` suffix for tests that require network, credentials, real Qlik servers, or browser downloads.
+- **ESM-friendly Jest imports** — use `import { jest, describe, test, expect } from '@jest/globals';` at the top of test files.
+- **ESM mocking** — use `jest.unstable_mockModule('some-module', () => ({...}))` *before* importing, then `const mod = await import('some-module');`. Plain `jest.mock()` does not work with ESM.
 - **Dockerfile**: `src/Dockerfile` — multi-stage build with Chromium for Puppeteer
 
 ## Conventions
@@ -78,9 +80,12 @@ This project is indexed by GitNexus as **butler-sheet-icons** (898 symbols, 1073
 - **ESM only** (`"type": "module"`) — use `import`/`export`, avoid `require`
 - **Node.js 24+** (`engines.node` in `package.json`) — use modern JS (optional chaining, `??`, top-level await, etc.)
 - **Commander** for CLI argument parsing; do not roll new CLI parsers
-- **Logging** — use `globals.logger` (winston-based), never `console.log`
+- **Logging** — use `globals.logger` (winston-based), never `console.log`. Keep log messages free of secrets (tokens, credentials, certificate contents).
+- **JSDoc** — enforced via `eslint-plugin-jsdoc` on functions, methods, and classes. Document behavior, list all params (with name/type/description), list return type (including `Promise<T>`), and insert a blank line between the `@param` and `@returns` blocks.
+- **Prettier** — 100 printWidth, 4 tabWidth, single quotes, trailing comma `es5`. Config in `.prettierrc.yaml`; run `npm run format` before committing.
 - **Config-driven** — many runtime options come from env vars (`BSI_HOST`, `BSI_CERT_FILE`, `BSI_CLOUD_*`, etc.) or a YAML config; avoid hard-coding new env-var reads
 - **Dependencies** — Docker/SEA builds use `--omit=dev`; runtime deps must be in `dependencies`, not `devDependencies`
+- **Repo hygiene** — do not edit `node_modules/`, `build/`, `coverage/`, `sea-prep.blob`, `build.cjs`, or other generated artifacts. No drive-by formatting/indentation changes — keep diffs focused on the requested change.
 
 ## Browser / Puppeteer
 

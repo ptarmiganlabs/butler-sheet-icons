@@ -2,16 +2,17 @@ import enigma from 'enigma.js';
 
 import { setupEnigmaConnection } from './cloud-enigma.js';
 import { logger } from '../../globals.js';
+import { CloudError } from '../util/errors.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Cloud app.
  *
- * @param {Array<Object>} createdFiles - Array of objects describing the files
+ * @param {Array<object>} createdFiles - Array of objects describing the files
  * that were created during the thumbnail creation step. Each object includes
  * properties `fileNameShort` (short name of the file), and `fileNameShortBlurred`
  * (short name of the blurred file).
  * @param {string} appId - The ID of the Qlik Sense Cloud app to process.
- * @param {Object} options - Configuration options for updating the app.
+ * @param {object} options - Configuration options for updating the app.
  * @param {string} options.tenanturl - URL of the Qlik Sense Cloud tenant.
  * @param {string} options.apikey - API key for authentication.
  * @param {string} options.loglevel - Log level for the operation.
@@ -19,10 +20,8 @@ import { logger } from '../../globals.js';
  * @param {Array<string>} [options.blurSheetNumber] - Array of sheet numbers to be blurred.
  * @param {Array<string>} [options.blurSheetTitle] - Array of sheet titles to be blurred.
  *
- * @returns {Promise<void>} A promise that resolves when the sheet thumbnails
- * have been successfully updated in the Qlik Sense Cloud app.
+ * @returns {Promise<void>} Resolves when the sheet thumbnails have been successfully updated in the Qlik Sense Cloud app.
  */
-
 export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
     try {
         logger.verbose(`Starting update of sheet icons for app ${appId}`);
@@ -202,6 +201,6 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
             logger.error(`CLOUD UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
         }
 
-        process.exit(1);
+        throw new CloudError(`Failed to update sheet thumbnails in app ${appId}`, { cause: err });
     }
 };

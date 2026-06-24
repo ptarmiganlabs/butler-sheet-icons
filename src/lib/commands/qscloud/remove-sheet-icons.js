@@ -5,7 +5,7 @@ import { qscloudRemoveSheetIcons } from '../../cloud/cloud-remove-sheet-icons.js
 /**
  * Commander action that removes sheet icons from specified Qlik Sense Cloud apps.
  *
- * @param {object} [options={}] - Options describing tenant, authentication and app selection.
+ * @param {object} [options] - Options describing tenant, authentication and app selection. Defaults to `{}`.
  * @param {import('commander').Command} cmd - Commander command reference for worker logging.
  *
  * @returns {Promise<void>} Resolves once the worker reports success or the error is logged.

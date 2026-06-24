@@ -5,7 +5,7 @@ import { qscloudListCollections } from '../../cloud/cloud-collections.js';
 /**
  * Commander action that lists available Qlik Sense Cloud collections through the worker module.
  *
- * @param {object} [options={}] - CLI options containing tenant URL, API key and output format.
+ * @param {object} [options] - CLI options containing tenant URL, API key and output format. Defaults to `{}`.
  * @param {import('commander').Command} cmd - Commander command instance propagated downstream.
  *
  * @returns {Promise<void>} Resolves after the worker completes or errors are logged.

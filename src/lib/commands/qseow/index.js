@@ -6,7 +6,7 @@ import { parsePositiveInteger } from '../helpers.js';
 /**
  * Commander action that triggers QSEoW thumbnail creation with normalized options and error logging.
  *
- * @param {object} [options={}] - Parsed CLI options forwarded to the worker.
+ * @param {object} [options] - Parsed CLI options forwarded to the worker. Defaults to `{}`.
  * @param {import('commander').Command} command - Commander command instance for contextual metadata.
  *
  * @returns {Promise<void>} Resolves when the worker call finishes (successfully or after logging errors).

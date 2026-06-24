@@ -11,14 +11,12 @@ import { logger } from '../../globals.js';
  * 2. Cached browsers in Puppeteer cache directory
  * 3. Returns null if no browser found (caller should download)
  *
- * @param {object} options - Options object
- * @param {string} options.browser - Browser type (chrome, firefox)
- * @param {string} options.browserVersion - Requested browser version
- * @returns {Promise<Object|null>} Browser info object or null if no browser found
- * @returns {string} return.executablePath - Path to browser executable
- * @returns {string} return.source - Source of browser ('system', 'cache', or null)
- * @returns {string} return.browser - Browser type
- * @returns {string} return.buildId - Build ID (only for cached browsers)
+ * @param {object} options - Options object.
+ * @param {string} options.browser - Browser type (e.g. `chrome`, `firefox`).
+ * @param {string} options.browserVersion - Requested browser version.
+ *
+ * @returns {Promise<object|null>} Browser info object, or `null` if no browser was found.
+ * Returns an object with `executablePath`, `source` (`'system'` or `'cache'`), `browser`, and `buildId`.
  */
 export const detectAvailableBrowser = async (options) => {
     try {

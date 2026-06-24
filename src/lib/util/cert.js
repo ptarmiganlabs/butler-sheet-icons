@@ -1,18 +1,20 @@
 import path from 'path';
 
 import { bsiExecutablePath } from '../../globals.js';
+import { CertError } from './errors.js';
 
 /**
- * Resolves the paths to the certificate files (client and key) and the root
- * certificate file based on the command line options.
+ * Resolves the certificate and key file paths to absolute paths, anchored at
+ * the Butler Sheet Icons executable directory.
  *
- * @param {Object} options - Options object with the following properties:
- *   - `authCertFile`: The path to the certificate file.
- *   - `authCertKeyFile`: The path to the certificate key file.
- *   - `authRootCertFile`: The path to the root certificate file.
+ * @param {object} options - Options object with the following properties.
+ * @param {string} options.certfile - Path to the client certificate file (relative to the BSI executable dir).
+ * @param {string} options.certkeyfile - Path to the certificate key file (relative to the BSI executable dir).
  *
- * @returns {Object} An object with the resolved paths to the certificate files
- * and the root certificate file.
+ * @returns {{ fileCert: string, fileCertKey: string }} Absolute paths to the client certificate and key files.
+ *
+ * @throws {CertError} When path resolution fails. The top-level safety net
+ *   in `src/butler-sheet-icons.js` will write a crash dump and exit.
  */
 export const getCertFilePaths = (options) => {
     let fileCert;
@@ -25,7 +27,7 @@ export const getCertFilePaths = (options) => {
         fileCertKey = path.resolve(bsiExecutablePath, options.certkeyfile);
         // fileCertCA = path.resolve(bsiExecutablePath, options.authRootCertFile);
     } catch (err) {
-        process.exit(1);
+        throw new CertError('Failed to resolve certificate file paths', { cause: err });
     }
 
     // return { fileCert, fileCertKey, fileCertCA };

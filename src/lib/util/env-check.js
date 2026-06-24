@@ -1,4 +1,30 @@
 /**
+ * @typedef {Record<string, (string|undefined)>} ProcessEnvLike
+ */
+
+/**
+ * @typedef {object} CheckEnvConfig
+ * @property {string[]} [mandatory] - Var names that must be set and non-empty (after `.trim()`).
+ * @property {string[][]} [xor] - Each inner group is a list of var names where at least one must be set.
+ * @property {string[]} [secret] - Var names rendered with `formatSecret` (redacted; raw value never logged).
+ * @property {string[]} [informational] - Var names rendered with `describePlain`; never cause failure.
+ * @property {boolean} [diagnostic] - When true, includes raw byte diagnostic in secret output.
+ */
+
+/**
+ * @typedef {object} CheckEnvResult
+ * @property {string[]} lines - Human-readable lines to log/print.
+ * @property {string[]} errors - One message per failing check (empty when valid).
+ * @property {boolean} isValid - True when `errors` is empty.
+ */
+
+/**
+ * @typedef {object} AssertEnvOptions
+ * @property {string} [label] - Label prepended to the thrown error message.
+ * @property {boolean} [diagnostic] - When true, enables raw byte diagnostic for secret output.
+ */
+
+/**
  * Reusable env-var sanity check for integration tests.
  *
  * Exports a small set of pure helpers plus an `assertEnv` convenience
@@ -17,12 +43,21 @@
  *     similar shows up again.
  */
 
+/**
+ * Tests whether a raw env-var value should be treated as missing/empty.
+ *
+ * @param {string|undefined} rawValue - Raw env-var value.
+ *
+ * @returns {boolean} True when the value is not a string or is only whitespace.
+ */
 const isMissing = (rawValue) => typeof rawValue !== 'string' || rawValue.trim() === '';
 
 /**
  * Redacted status for a secret env var. Never returns the raw value.
- * @param {string|undefined} rawValue
- * @returns {string} 'missing' or 'present (length=N, last4=****abcd)'
+ *
+ * @param {string|undefined} rawValue - Raw env-var value.
+ *
+ * @returns {string} Either `'missing'` or `'present (length=N, last4=****abcd)'`.
  */
 export const redactSecret = (rawValue) => {
     const value = typeof rawValue === 'string' ? rawValue.trim() : '';
@@ -34,8 +69,10 @@ export const redactSecret = (rawValue) => {
 /**
  * Plain status for a non-secret env var. Logs the value JSON-quoted so
  * embedded quotes/spaces are unambiguous.
- * @param {string|undefined} rawValue
- * @returns {string}
+ *
+ * @param {string|undefined} rawValue - Raw env-var value.
+ *
+ * @returns {string} Either `'missing'` or `'present (=<json-quoted value>)'`.
  */
 export const describePlain = (rawValue) => {
     const value = typeof rawValue === 'string' ? rawValue.trim() : '';
@@ -43,6 +80,13 @@ export const describePlain = (rawValue) => {
     return `present (=${JSON.stringify(value)})`;
 };
 
+/**
+ * Formats a numeric char code as a 2-digit uppercase hex string with `0x` prefix.
+ *
+ * @param {number} code - A character code (`String.prototype.charCodeAt` result).
+ *
+ * @returns {string} Hex string such as `'0x0D'`.
+ */
 const toHex = (code) => `0x${code.toString(16).padStart(2, '0').toUpperCase()}`;
 
 /**
@@ -54,9 +98,11 @@ const toHex = (code) => `0x${code.toString(16).padStart(2, '0').toUpperCase()}`;
  *   `present (raw=492, trimmed=491, firstByteHex=0x65, lastByteHex=0x0D, last4=****wxyz)`
  *   - raw - trimmed == 1 and lastByteHex == 0x0D is the Windows CRLF signature.
  *
- * @param {string|undefined} rawValue
- * @param {{ diagnostic?: boolean }} [opts]
- * @returns {string}
+ * @param {string|undefined} rawValue - Raw env-var value.
+ * @param {object} [opts] - Options object.
+ * @param {boolean} [opts.diagnostic] - When true, include raw byte info (first/last byte hex, raw/trimmed length).
+ *
+ * @returns {string} A redacted status string safe to log.
  */
 export const formatSecret = (rawValue, opts = {}) => {
     const { diagnostic = false } = opts;
@@ -76,14 +122,10 @@ export const formatSecret = (rawValue, opts = {}) => {
  * Pure env-var sanity check. Returns structured output and a list of errors.
  * Does not log or throw.
  *
- * @param {NodeJS.ProcessEnv|object} [env={}] - typically `process.env`
- * @param {object} [config={}]
- * @param {string[]} [config.mandatory] - must be set and non-empty (after .trim())
- * @param {string[][]} [config.xor] - each group: at least one must be set
- * @param {string[]} [config.secret] - rendered with formatSecret (redacted)
- * @param {string[]} [config.informational] - rendered, never fail
- * @param {boolean} [config.diagnostic] - opt-in raw byte diagnostic for secrets
- * @returns {{ lines: string[], errors: string[], isValid: boolean }}
+ * @param {ProcessEnvLike} [env] - Env-var source. Typically `process.env`. Defaults to `{}`.
+ * @param {CheckEnvConfig} [config] - Check configuration. Defaults to `{}`.
+ *
+ * @returns {CheckEnvResult} The result object with `lines`, `errors`, and `isValid`.
  */
 export const checkEnv = (env = {}, config = {}) => {
     const {
@@ -98,6 +140,14 @@ export const checkEnv = (env = {}, config = {}) => {
     const errors = [];
     const secretSet = new Set(secret);
 
+    /**
+     * Renders a single env-var name to a log-friendly status string.
+     * Uses the redacted secret formatter for secret names and the plain formatter otherwise.
+     *
+     * @param {string} name - Env-var name to render.
+     *
+     * @returns {string} Status string suitable for logging.
+     */
     const render = (name) =>
         secretSet.has(name) ? formatSecret(env[name], { diagnostic }) : describePlain(env[name]);
 
@@ -139,9 +189,10 @@ export const checkEnv = (env = {}, config = {}) => {
  * Convenience wrapper for tests. Logs the check output to console and
  * throws a multi-line Error if any mandatory var is missing/empty.
  *
- * @param {NodeJS.ProcessEnv|object} env
- * @param {object} config - see checkEnv
- * @param {{ label?: string, diagnostic?: boolean }} [opts]
+ * @param {ProcessEnvLike} env - Env-var source, typically `process.env`.
+ * @param {CheckEnvConfig} config - See {@link checkEnv}.
+ * @param {AssertEnvOptions} [opts] - Options.
+ *
  * @returns {void}
  */
 export const assertEnv = (env, config, opts = {}) => {
@@ -159,12 +210,13 @@ export const assertEnv = (env, config, opts = {}) => {
 };
 
 /**
- * Resolve the integration test timeout from BSI_TEST_TIMEOUT (ms).
- * Logs the resolved value to the console. Falls back to defaultMs.
+ * Resolve the integration test timeout from `BSI_TEST_TIMEOUT` (ms).
+ * Logs the resolved value to the console. Falls back to `defaultMs`.
  *
- * @param {NodeJS.ProcessEnv|object} env
- * @param {number} [defaultMs=1200000]
- * @returns {number}
+ * @param {ProcessEnvLike} env - Env-var source, typically `process.env`.
+ * @param {number} [defaultMs] - Fallback in milliseconds when `BSI_TEST_TIMEOUT` is unset/invalid. Defaults to 1200000 (20 minutes).
+ *
+ * @returns {number} The resolved test timeout in milliseconds.
  */
 export const getTestTimeout = (env, defaultMs = 1200000) => {
     const raw = env && env.BSI_TEST_TIMEOUT;

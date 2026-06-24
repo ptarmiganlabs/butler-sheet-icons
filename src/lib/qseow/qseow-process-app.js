@@ -15,6 +15,8 @@ import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { browserInstall } from '../browser/browser-install.js';
 import { detectAvailableBrowser } from '../browser/browser-detect.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
+import { parseHeadlessOption } from '../util/headless-option.js';
+import { QseowError } from '../util/errors.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -76,7 +78,7 @@ const xpathLogoutButton2025Nov =
  * interactions with the Qlik engine.
  *
  * @param {string} appId - The ID of the QSEoW application to process.
- * @param {Object} options - Configuration options for processing the application.
+ * @param {object} options - Configuration options for processing the application.
  * @param {string} options.senseVersion - The version of Qlik Sense being used.
  * @param {string} options.imagedir - Directory path for storing image thumbnails.
  * @param {string} options.host - Host address of the Qlik server.
@@ -93,6 +95,8 @@ const xpathLogoutButton2025Nov =
  * @param {string} options.prefix - URL prefix for accessing Qlik services.
  * @param {boolean|string} options.headless - Whether to run the browser in headless mode.
  * @param {number} options.blurFactor - Factor by which to blur images.
+ *
+ * @returns {Promise<void>} Resolves when thumbnail generation, upload, and sheet-property updates for the app are complete.
  */
 export const qseowProcessApp = async (appId, options) => {
     // Get page timeout from options
@@ -143,7 +147,7 @@ export const qseowProcessApp = async (appId, options) => {
         logger.error(
             `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
         );
-        process.exit(1);
+        throw new QseowError(`Invalid QSEoW Sense version specified: ${options.senseVersion}`);
     }
 
     // Create image directory for this app
@@ -274,8 +278,8 @@ export const qseowProcessApp = async (appId, options) => {
 
                 const browserInstallResult = await browserInstall(options);
                 if (browserInstallResult === false) {
-                    logger.error(`QSEoW APP: Error installing browser. Exiting.`);
-                    process.exit(1);
+                    logger.error(`QSEoW APP: Error installing browser for app ${appId}.`);
+                    throw new QseowError(`Failed to install a browser for QSEoW app ${appId}`);
                 }
 
                 executablePath = computeExecutablePath({
@@ -291,12 +295,7 @@ export const qseowProcessApp = async (appId, options) => {
             logger.verbose(`Using browser at ${executablePath}`);
 
             // Parse --headless option
-            let headless = true;
-            if (options.headless === 'true' || options.headless === true) {
-                headless = 'new';
-            } else if (options.headless === 'false' || options.headless === false) {
-                headless = false;
-            }
+            const headless = parseHeadlessOption(options.headless);
 
             const browserArgs = [
                 '--proxy-bypass-list=*',
@@ -344,7 +343,6 @@ export const qseowProcessApp = async (appId, options) => {
                     executablePath,
                     headless,
                     ignoreHTTPSErrors: true,
-                    acceptInsecureCerts: true,
                     args: browserArgs,
                 });
             } catch (err) {
@@ -358,7 +356,9 @@ export const qseowProcessApp = async (appId, options) => {
                     logger.error(`QSEOW Could not launch virtual browser: ${err}. Exiting.`);
                 }
 
-                process.exit(1);
+                throw new QseowError(`Failed to launch virtual browser for QSEoW app ${appId}`, {
+                    cause: err,
+                });
             }
 
             const page = await browser.newPage();
@@ -406,7 +406,6 @@ export const qseowProcessApp = async (appId, options) => {
             // User
             await page.click(selectorLoginPageUserName, {
                 button: 'left',
-                clickCount: 1,
                 delay: 10,
             });
 
@@ -416,7 +415,6 @@ export const qseowProcessApp = async (appId, options) => {
             // Pwd
             await page.click(selectorLoginPageUserPwd, {
                 button: 'left',
-                clickCount: 1,
                 delay: 10,
             });
             await page.keyboard.type(options.logonpwd);
@@ -427,7 +425,6 @@ export const qseowProcessApp = async (appId, options) => {
             await Promise.all([
                 page.click(selectorLoginPageLoginButton, {
                     button: 'left',
-                    clickCount: 1,
                     delay: 10,
                 }),
                 page.waitForNavigation({ waitUntil: 'networkidle2' }),
