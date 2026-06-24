@@ -30,6 +30,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { isSea, logger } from '../../globals.js';
+import { redactSensitivePatterns } from './redact-secrets.js';
 
 // ---------------------------------------------------------------------------
 // Module-level constants and state
@@ -114,46 +115,6 @@ function sanitizeStackTrace(stack) {
 
     // 3. Redact remaining absolute Windows paths (e.g. `C:\...`).
     result = result.replace(/[A-Za-z]:\\[^\s\n()]+/g, '[path]');
-
-    return result;
-}
-
-/**
- * Applies best-effort redaction of common sensitive patterns from a string.
- * This covers URLs with embedded credentials, bearer tokens, and common
- * key=value secret patterns found in error messages.
- *
- * This is best-effort only: it cannot guarantee that all sensitive data is
- * removed, especially when errors embed unusual secret formats.
- *
- * @param {string|undefined} text - The text to redact.
- * @returns {string} Text with common sensitive patterns replaced.
- */
-function redactSensitivePatterns(text) {
-    if (!text) return '';
-
-    let result = text;
-
-    // 1. URLs with embedded credentials: protocol://user:pass@host
-    result = result.replace(/([\w+.-]+:\/\/)[^@\s]+@/g, '$1[REDACTED]@');
-
-    // 2. Bearer / Basic / Token authorization headers
-    result = result.replace(/\b(Bearer|Basic|Token)\s+[A-Za-z0-9+/=._-]{8,}/gi, '$1 [REDACTED]');
-
-    // 3. Common key=value secret patterns (query strings, connection strings, etc.)
-    //    Matches: password=, passwd=, pwd=, secret=, token=, api_key=, apiKey=, apitoken=,
-    //             access_key=, accessKey=, auth=, passphrase=, clientSecret=, client_secret=
-    result = result.replace(
-        /\b(logonpwd|password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)\s*[=:]\s*[^\s&,;"'[\]{}()]+/gi,
-        '$1=[REDACTED]'
-    );
-
-    // 4. JSON-style quoted key/value pairs for the same patterns
-    //    e.g. `"password": "mysecret"` or `'token': 'abc123'`
-    result = result.replace(
-        /["'](logonpwd|password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)["']\s*:\s*["'][^"']+["']/gi,
-        '"$1": "[REDACTED]"'
-    );
 
     return result;
 }
