@@ -1,6 +1,5 @@
 /**
- * @typedef {object} ProcessEnvLike
- * @property {string|undefined} [key] - Any env-var key. Mirrors the shape of `NodeJS.ProcessEnv`.
+ * @typedef {Record<string, (string|undefined)>} ProcessEnvLike
  */
 
 /**
