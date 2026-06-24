@@ -91,9 +91,6 @@ const mockDetermineSheetExcludeStatus = jest.unstable_mockModule(
     })
 );
 
-const mockQseowUploadSheetThumb = jest.unstable_mockModule('../qseow-upload.js', () => ({
-    qseowUploadToContentLibrary: jest.fn().mockResolvedValue(true),
-}));
 
 let qseowProcessApp;
 let puppeteer;
