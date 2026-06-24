@@ -9,7 +9,7 @@ jest.unstable_mockModule('@puppeteer/browsers', () => ({
 const { install, resolveBuildId, detectBrowserPlatform, canDownload } =
     await import('@puppeteer/browsers');
 
-jest.unstable_mockModule('../../../globals', () => ({
+jest.unstable_mockModule('../../../globals.js', () => ({
     logger: {
         info: jest.fn(),
         verbose: jest.fn(),
