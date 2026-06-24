@@ -7,7 +7,7 @@ jest.unstable_mockModule('@puppeteer/browsers', () => ({
 }));
 const { getInstalledBrowsers, uninstall } = await import('@puppeteer/browsers');
 
-jest.unstable_mockModule('../../../globals', () => ({
+jest.unstable_mockModule('../../../globals.js', () => ({
     logger: {
         info: jest.fn(),
         verbose: jest.fn(),
