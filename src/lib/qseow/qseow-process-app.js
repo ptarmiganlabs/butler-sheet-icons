@@ -15,6 +15,7 @@ import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { browserInstall } from '../browser/browser-install.js';
 import { detectAvailableBrowser } from '../browser/browser-detect.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
+import { parseHeadlessOption } from '../util/headless-option.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -293,12 +294,7 @@ export const qseowProcessApp = async (appId, options) => {
             logger.verbose(`Using browser at ${executablePath}`);
 
             // Parse --headless option
-            let headless = true;
-            if (options.headless === 'true' || options.headless === true) {
-                headless = 'new';
-            } else if (options.headless === 'false' || options.headless === false) {
-                headless = false;
-            }
+            const headless = parseHeadlessOption(options.headless);
 
             const browserArgs = [
                 '--proxy-bypass-list=*',
@@ -346,7 +342,6 @@ export const qseowProcessApp = async (appId, options) => {
                     executablePath,
                     headless,
                     ignoreHTTPSErrors: true,
-                    acceptInsecureCerts: true,
                     args: browserArgs,
                 });
             } catch (err) {
@@ -408,7 +403,6 @@ export const qseowProcessApp = async (appId, options) => {
             // User
             await page.click(selectorLoginPageUserName, {
                 button: 'left',
-                clickCount: 1,
                 delay: 10,
             });
 
@@ -418,7 +412,6 @@ export const qseowProcessApp = async (appId, options) => {
             // Pwd
             await page.click(selectorLoginPageUserPwd, {
                 button: 'left',
-                clickCount: 1,
                 delay: 10,
             });
             await page.keyboard.type(options.logonpwd);
@@ -429,7 +422,6 @@ export const qseowProcessApp = async (appId, options) => {
             await Promise.all([
                 page.click(selectorLoginPageLoginButton, {
                     button: 'left',
-                    clickCount: 1,
                     delay: 10,
                 }),
                 page.waitForNavigation({ waitUntil: 'networkidle2' }),

@@ -101,7 +101,7 @@ export const browserInstall = async (options, _command) => {
         // start the progress bar with a total value of 100 and start value of 0
         progressBar.start(100, 0);
 
-        const browser = await install({
+        const installOptions = {
             browser: options.browser,
             buildId,
             cacheDir: browserPath,
@@ -119,11 +119,47 @@ export const browserInstall = async (options, _command) => {
                 progressBar.update((downloadedBytes / totalBytes) * 100);
             },
             unpack: true,
-        });
+        };
+
+        // `@puppeteer/browsers` v3+ uses the OS `unzip` binary for extraction
+        // (macOS ships a 2009 build that occasionally fails on the Chrome for
+        // Testing archives with "End-of-central-directory signature not found").
+        // Wrap the install in a small retry loop to ride out the transient
+        // failures that were not present with v2's JS-based `extract-zip`.
+        const MAX_INSTALL_ATTEMPTS = 3;
+        const RETRY_DELAY_MS = 2000;
+        let browser;
+        let lastError;
+        for (let attempt = 1; attempt <= MAX_INSTALL_ATTEMPTS; attempt++) {
+            try {
+                browser = await install(installOptions);
+                if (browser) {
+                    break;
+                }
+                throw new Error('install returned no browser metadata');
+            } catch (err) {
+                lastError = err;
+                if (attempt < MAX_INSTALL_ATTEMPTS) {
+                    progressBar.stop();
+                    logger.warn(
+                        `Install attempt ${attempt}/${MAX_INSTALL_ATTEMPTS} failed: ${err.message}. Retrying in ${RETRY_DELAY_MS / 1000}s...`
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+                    progressBar.start(100, 0);
+                }
+            }
+        }
 
         // stop the progress bar
         progressBar.update(100);
         progressBar.stop();
+
+        if (!browser) {
+            // All attempts failed. Throw the last error so the outer catch
+            // block logs the diagnostic context and the error propagates to
+            // the caller unchanged.
+            throw lastError;
+        }
 
         logger.info(`Browser "${browser.browser}" version "${browser.buildId}" installed`);
 

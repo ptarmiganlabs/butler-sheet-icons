@@ -106,19 +106,34 @@ export const browserUninstallAll = async (options) => {
         // Check if any browsers are installed
         if (browsersInstalled.length > 0) {
             logger.info(`Uninstalling ${browsersInstalled.length} browsers:`);
-            browsersInstalled.forEach(async (browser) => {
+
+            // Use a for-of loop so each uninstall is awaited before the next
+            // starts. The previous `.forEach(async ...)` did not await inner
+            // promises, so the subsequent `fs.emptyDir` raced with in-flight
+            // uninstalls and could leave the cache in an inconsistent state
+            // (which then caused the next install to fail with an extraction
+            // error on `@puppeteer/browsers` v3+).
+            for (const browser of browsersInstalled) {
                 logger.info(
                     `    Starting uninstallation of "${browser.browser}", build id "${browser.buildId}", platform "${browser.platform}", path "${browser.path}"`
                 );
 
-                await uninstall({
-                    browser: browser.browser,
-                    buildId: browser.buildId,
-                    cacheDir: browserPath,
-                });
+                try {
+                    await uninstall({
+                        browser: browser.browser,
+                        buildId: browser.buildId,
+                        cacheDir: browserPath,
+                    });
+                } catch (err) {
+                    // Continue with the remaining browsers even if one fails.
+                    logger.warn(
+                        `Failed to uninstall browser "${browser.browser}" (${browser.buildId}): ${err.message}. Continuing with remaining browsers.`
+                    );
+                    continue;
+                }
 
                 logger.info(`Browser "${browser.browser}" (${browser.buildId}) uninstalled.`);
-            });
+            }
 
             // Remove any remaining files and directories in the browser cache directory
             // This is necessary because Puppeteer's uninstall function may not remove all files

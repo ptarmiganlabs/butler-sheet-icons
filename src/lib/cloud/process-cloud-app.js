@@ -12,6 +12,7 @@ import { browserInstall } from '../browser/browser-install.js';
 import { detectAvailableBrowser } from '../browser/browser-detect.js';
 import { deleteCloudAppThumbnail } from './cloud-delete-thumbnails.js';
 import { takeSheetScreenshot } from './sheet-screenshot.js';
+import { parseHeadlessOption } from '../util/headless-option.js';
 
 // Selector paths to elements on login page
 const selectorLoginPageUserName = '[id="\u0031-email"]';
@@ -185,12 +186,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
             logger.verbose(`Using browser at ${executablePath}`);
 
             // Parse --headless option
-            let headless = true;
-            if (options.headless === 'true' || options.headless === true) {
-                headless = 'new';
-            } else if (options.headless === 'false' || options.headless === false) {
-                headless = false;
-            }
+            const headless = parseHeadlessOption(options.headless);
             // Make sure browser is launched ok
             const browserArgs = [
                 '--proxy-bypass-list=*',
@@ -237,7 +233,6 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                     executablePath,
                     headless,
                     ignoreHTTPSErrors: true,
-                    acceptInsecureCerts: true,
                     args: browserArgs,
                 });
             } catch (err) {
@@ -281,7 +276,6 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 // User
                 await page.click(selectorLoginPageUserName, {
                     button: 'left',
-                    clickCount: 1,
                     delay: 10,
                 });
                 const user = `${options.logonuserid}`;
@@ -289,7 +283,6 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 // Pwd
                 await page.click(selectorLoginPageUserPwd, {
                     button: 'left',
-                    clickCount: 1,
                     delay: 10,
                 });
                 await page.keyboard.type(options.logonpwd);
@@ -298,7 +291,6 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 await Promise.all([
                     page.click(selectorLoginPageLoginButton, {
                         button: 'left',
-                        clickCount: 1,
                         delay: 10,
                     }),
                     page.waitForNavigation({ waitUntil: 'networkidle2', timeout: pageTimeout }),
