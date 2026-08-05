@@ -91,5 +91,5 @@ Log redaction and crash dump redaction overlap, but they are not identical. Cras
 
 ## Related
 
-- [Crash dump files](./crash-dump-files.md) — what is in a crash dump, where the files are written, and how to share them with support.
+- [Crash dump files](./done_crash-dump-files.md) — what is in a crash dump, where the files are written, and how to share them with support.
 - [Node runtime flags for SEA builds](../sea-runtime-flags.md) — how to set `BSI_LOG_LEVEL` and other environment variables on Windows, macOS, and Linux.
