@@ -24,17 +24,17 @@ description: "Skill for the Qseow area of butler-sheet-icons. 4 symbols across 2
 
 Start here when exploring this area:
 
-- **`qseowVerifyCertificatesExist`** (Function) — `src/lib/qseow/qseow-certificates.js:31`
-- **`createSocket`** (Function) — `src/lib/qseow/qseow-enigma.js:69`
+- **`qseowVerifyCertificatesExist`** (Function) — `src/lib/qseow/qseow-certificates.js:30`
+- **`createSocket`** (Function) — `src/lib/qseow/qseow-enigma.js:71`
 
 ## Key Symbols
 
 | Symbol | Type | File | Line |
 |--------|------|------|------|
-| `qseowVerifyCertificatesExist` | Function | `src/lib/qseow/qseow-certificates.js` | 31 |
-| `createSocket` | Function | `src/lib/qseow/qseow-enigma.js` | 69 |
-| `exists` | Function | `src/lib/qseow/qseow-certificates.js` | 13 |
-| `readCert` | Function | `src/lib/qseow/qseow-enigma.js` | 13 |
+| `qseowVerifyCertificatesExist` | Function | `src/lib/qseow/qseow-certificates.js` | 30 |
+| `createSocket` | Function | `src/lib/qseow/qseow-enigma.js` | 71 |
+| `exists` | Function | `src/lib/qseow/qseow-certificates.js` | 12 |
+| `readCert` | Function | `src/lib/qseow/qseow-enigma.js` | 15 |
 
 ## How to Explore
 

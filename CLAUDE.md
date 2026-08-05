@@ -1,9 +1,15 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **butler-sheet-icons** (898 symbols, 1073 relationships, 5 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus MCP tools to understand code, assess impact, and navigate safely. Read `gitnexus://repo/butler-sheet-icons/context` for live index statistics.
 
-> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
+> If any GitNexus tool warns the index is stale, run `npm run gitnexus:index` in terminal first.
+>
+> **Never run a bare `npx gitnexus analyze`.** It rewrites this managed block, and without
+> `--skills` it deletes the generated-skills table below. Re-index only through the
+> `npm run gitnexus:*` scripts, which route through `scripts/gitnexus.js` and pass the right
+> flags. The read-only subcommands (`impact`, `context`, `query`, `detect-changes`) are safe to
+> run directly. See `docs/README.gitnexus.md`.
 
 ## Always Do
 
@@ -39,9 +45,10 @@ This project is indexed by GitNexus as **butler-sheet-icons** (898 symbols, 1073
 | Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-| Work in the Cloud area (22 symbols) | `.claude/skills/generated/cloud/SKILL.md` |
-| Work in the Browser area (10 symbols) | `.claude/skills/generated/browser/SKILL.md` |
-| Work in the Qscloud area (6 symbols) | `.claude/skills/generated/qscloud/SKILL.md` |
-| Work in the Qseow area (4 symbols) | `.claude/skills/generated/qseow/SKILL.md` |
+| Work in the Cloud area | `.claude/skills/generated/cloud/SKILL.md` |
+| Work in the Browser area | `.claude/skills/generated/browser/SKILL.md` |
+| Work in the Qscloud area | `.claude/skills/generated/qscloud/SKILL.md` |
+| Work in the Qseow area | `.claude/skills/generated/qseow/SKILL.md` |
+| Work in the Util area | `.claude/skills/generated/util/SKILL.md` |
 
 <!-- gitnexus:end -->
