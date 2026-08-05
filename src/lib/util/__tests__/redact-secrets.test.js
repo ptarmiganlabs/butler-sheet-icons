@@ -1,3 +1,8 @@
+// NOTE: every credential-shaped string in this file is a deliberately fake
+// fixture used to prove that redaction works. Nothing here is a real secret and
+// nothing here needs revoking or rotating. The file is excluded from secret
+// scanning in `.gitguardian.yaml`; see issue #819 for background.
+
 import { describe, test, expect } from '@jest/globals';
 
 import {

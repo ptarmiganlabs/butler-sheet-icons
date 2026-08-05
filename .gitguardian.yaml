@@ -1,0 +1,15 @@
+version: 2
+
+secret:
+    # The secret-redaction unit tests exist to prove that credentials are stripped
+    # from log output and crash dumps. To do that they necessarily contain
+    # credential-shaped fixtures: fake JWTs, fake basic-auth URLs, fake API keys.
+    #
+    # None of these are real. They are constructed so that the fake-ness is obvious
+    # on inspection (payloads such as "fake", "sig", "hunter2"). Scanning this file
+    # produces nothing but false positives, and a recurring false positive is how
+    # real findings end up being ignored.
+    #
+    # See https://github.com/ptarmiganlabs/butler-sheet-icons/issues/819
+    ignored-paths:
+        - 'src/lib/util/__tests__/redact-secrets.test.js'
