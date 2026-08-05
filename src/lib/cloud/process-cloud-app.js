@@ -172,10 +172,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 try {
                     browserInstallResult = await browserInstall(options);
                 } catch (err) {
-                    // browserInstall() returns browser metadata or throws; it never returns a
-                    // falsy sentinel. The app context therefore has to be attached here rather
-                    // than by testing the return value, which is what the previous
-                    // `=== false` check attempted and could never reach.
+                    // browserInstall() signals failure by throwing - see its JSDoc.
                     throw new CloudError(
                         `Failed to install a browser for Qlik Sense Cloud app ${appId}`,
                         { cause: err }
