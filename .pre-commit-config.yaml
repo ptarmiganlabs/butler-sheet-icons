@@ -1,3 +1,8 @@
+# The `pre-commit` stage name (renamed from `commit`) requires pre-commit 3.2.0
+# or later. Declaring it here turns an obscure schema validation error on older
+# versions into a clear "upgrade pre-commit" message.
+minimum_pre_commit_version: '3.2.0'
+
 repos:
     - repo: https://github.com/gitguardian/ggshield
       rev: v1.53.0
