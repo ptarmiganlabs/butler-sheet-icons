@@ -14,6 +14,10 @@ import { getMostRecentUsableChromeBuildId } from './browser-list-available.js';
  * downloads and unpacks the browser while showing a progress bar, and returns the installed
  * browser metadata on success.
  *
+ * Failure is signalled by throwing, never by a falsy return value: the single `return` is
+ * guarded by `if (!browser) throw lastError;`. Callers that need to add context to a failure
+ * must therefore wrap the call in try/catch rather than test the result.
+ *
  * @param {object} options - Options object.
  * @param {string} options.browser - Browser to install (`chrome` or `firefox`).
  * @param {string} options.browserVersion - Browser version to install, or `latest` for Chrome to auto-pick the newest stable build.

@@ -276,10 +276,14 @@ export const qseowProcessApp = async (appId, options) => {
                 // No browser found - download required
                 logger.info(`No local browser found. Downloading and installing browser...`);
 
-                const browserInstallResult = await browserInstall(options);
-                if (browserInstallResult === false) {
-                    logger.error(`QSEoW APP: Error installing browser for app ${appId}.`);
-                    throw new QseowError(`Failed to install a browser for QSEoW app ${appId}`);
+                let browserInstallResult;
+                try {
+                    browserInstallResult = await browserInstall(options);
+                } catch (err) {
+                    // browserInstall() signals failure by throwing - see its JSDoc.
+                    throw new QseowError(`Failed to install a browser for QSEoW app ${appId}`, {
+                        cause: err,
+                    });
                 }
 
                 executablePath = computeExecutablePath({

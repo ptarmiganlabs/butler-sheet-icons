@@ -168,11 +168,14 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 // No browser found - download required
                 logger.info(`No local browser found. Downloading and installing browser...`);
 
-                const browserInstallResult = await browserInstall(options);
-                if (browserInstallResult === false) {
-                    logger.error(`CLOUD: Error installing browser for app ${appId}.`);
+                let browserInstallResult;
+                try {
+                    browserInstallResult = await browserInstall(options);
+                } catch (err) {
+                    // browserInstall() signals failure by throwing - see its JSDoc.
                     throw new CloudError(
-                        `Failed to install a browser for Qlik Sense Cloud app ${appId}`
+                        `Failed to install a browser for Qlik Sense Cloud app ${appId}`,
+                        { cause: err }
                     );
                 }
 
