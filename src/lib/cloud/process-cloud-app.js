@@ -472,15 +472,11 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 }
             }
         }
-        if ((await session.close()) === true) {
-            logger.verbose(
-                `Closed session after generating sheet thumbnail images for all sheets in QS Cloud app ${appId} on tenant ${options.tenanturl}`
-            );
-        } else {
-            logger.error(
-                `Error closing session for QS Cloud app ${appId} on host ${options.tenanturl}`
-            );
-        }
+        // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+        await session.close();
+        logger.verbose(
+            `Closed session after generating sheet thumbnail images for all sheets in QS Cloud app ${appId} on tenant ${options.tenanturl}`
+        );
 
         // Upload to QS Cloud app
         await qscloudUploadToApp(createdFiles, appId, options);

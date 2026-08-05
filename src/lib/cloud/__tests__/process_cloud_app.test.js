@@ -328,6 +328,20 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         }
     });
 
+    test('closes the enigma session without branching on its resolved value', async () => {
+        setupHappyPath();
+
+        await processCloudApp('test-app-id', defaultSaasInstance, defaultOptions);
+
+        const session = await enigma.create.mock.results[0].value;
+        expect(session.close).toHaveBeenCalled();
+
+        // The removed `else` branch logged this on any non-true resolution. enigma.js always
+        // resolves close() truthy, so it only ever fired on a misreading of the contract.
+        const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(logged).not.toContain('Error closing session');
+    });
+
     test('reports the app context when browser installation fails', async () => {
         setupHappyPath();
         // Force the download branch, then make the install fail. browserInstall() signals

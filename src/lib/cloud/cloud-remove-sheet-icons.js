@@ -126,13 +126,11 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
                 iSheetNum += 1;
             }
 
-            if ((await session.close()) === true) {
-                logger.verbose(
-                    `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
-                );
-            } else {
-                logger.error(`Error closing session for QS Cloud app ${appId}`);
-            }
+            // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+            await session.close();
+            logger.verbose(
+                `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
+            );
         }
 
         logger.info(`Done processing app ${appId}`);
