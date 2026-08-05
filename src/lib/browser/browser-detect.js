@@ -46,7 +46,7 @@ export const detectAvailableBrowser = async (options) => {
         const browserPath = path.join(homedir(), '.cache/puppeteer');
         logger.debug(`Checking for cached browsers in: ${browserPath}`);
 
-        const installedBrowsers = getInstalledBrowsers({
+        const installedBrowsers = await getInstalledBrowsers({
             cacheDir: browserPath,
         });
 
@@ -56,11 +56,21 @@ export const detectAvailableBrowser = async (options) => {
             // Filter by requested browser type if specified
             let matchingBrowsers = installedBrowsers;
             if (options.browser) {
-                matchingBrowsers = installedBrowsers.filter((b) => b.browser === options.browser);
+                matchingBrowsers = matchingBrowsers.filter((b) => b.browser === options.browser);
+            }
+
+            // browserVersion is part of this function's documented contract but was never
+            // applied, because the block was unreachable until the missing `await` above was
+            // fixed. Honour it now: 'latest' means any cached build of the requested type,
+            // anything else is a pin, and a cache miss correctly falls through to download.
+            if (options.browserVersion && options.browserVersion !== 'latest') {
+                matchingBrowsers = matchingBrowsers.filter(
+                    (b) => b.buildId === options.browserVersion
+                );
             }
 
             if (matchingBrowsers.length > 0) {
-                // Use the first matching browser
+                // Any matching build is acceptable; this is filesystem order, not newest-first.
                 const browser = matchingBrowsers[0];
                 logger.info(`Using cached browser: ${browser.browser} ${browser.buildId}`);
 
