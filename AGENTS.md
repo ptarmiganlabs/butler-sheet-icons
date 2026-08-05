@@ -115,3 +115,21 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 - No real secrets/keys/certs in repo — secrets are provided via env vars or `BSI_*` vars in CI
 - QSEoW certificate handling uses `BSI_CERT_FILE` / `BSI_CERT_KEY_FILE`; ensure files are `chmod 600` before use
 - Puppeteer runs in headless mode by default — only switch to `--headless false` for local debugging
+
+## Workflow
+
+The order is: **branch first, implement, verify, stop and report.** Committing, pushing, opening a PR and merging are separate steps that each need the user to ask for them.
+
+- **MUST create a feature branch before making any change.** Check it out before the first edit, so that when a commit is eventually authorised it cannot land on `main`.
+- **NEVER commit to `main`, and never merge to `main` outside a pull request.** A PR is the only route into `main` — no direct commits, no fast-forwards.
+- **MUST stop once the change is implemented and verified.** Report what changed, how it was verified, and what the commit or PR would say. Then wait.
+- **NEVER commit, push, open a pull request, or merge** unless the user has asked for that step. Authorisation is per request and does not carry over — being asked to commit once does not authorise committing next time, and being asked to open a PR is not permission to merge it.
+- Creating GitHub issues and posting comments on issues or PRs is allowed without asking. They record findings without changing the code.
+- **MUST close by weighing the remaining work.** For each open item give the rough cost, the value it delivers, and then a single recommended next step rather than a menu of options. Say plainly when something is not worth doing, and why.
+
+### When a commit is authorised
+
+- **MUST group changes by topic.** One commit per logical change. Do not lump unrelated edits into a single commit, and split a mixed working tree into separate commits rather than writing one message that lists everything. A reviewer should be able to read one commit and understand one thing.
+- **MUST use Conventional Commits** — `type: subject`, or `type(scope): subject`. This is functional, not cosmetic: release-please derives both the changelog and the version bump from the type. `feat` produces a minor bump, `fix` a patch, and `feat!` or a `BREAKING CHANGE:` footer a major.
+- The types configured in `release-please-config.json` are `feat`, `fix`, `chore`, `docs`, `build` and `refactor`. `refactor` is deliberately hidden from the changelog. A type outside that list still parses, but will not show up where you expect it to.
+- Explain **why** in the body, not just what — the diff already says what changed.

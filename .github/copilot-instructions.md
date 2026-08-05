@@ -20,6 +20,20 @@ When writing code, do not finish until all of these succeed:
 
 If any check fails, fix the issues and run the checks again.
 
+**Then stop.** Green checks mean the work is ready for review, not ready to land.
+
+- **ALWAYS** create a feature branch before the first edit. **NEVER** work on `main`, commit to `main`, or merge to `main` outside a pull request — a PR is the only route in.
+- **NEVER** commit, push, open a pull request, or merge unless the user has asked for that step. Authorisation is per request and does not carry over: being asked to open a PR is not permission to merge it.
+- Report what changed, how it was verified, and what the commit or PR would say. Then wait for the user.
+- Creating GitHub issues and posting comments is allowed without asking — they record findings without changing the code.
+
+When the user does authorise a commit:
+
+- **ALWAYS** group changes by topic — one commit per logical change. Split a mixed working tree into separate commits instead of writing one message that lists everything.
+- **ALWAYS** use Conventional Commits (`type: subject`). This is functional, not cosmetic: release-please derives the changelog and the version bump from the type. `feat` gives a minor bump, `fix` a patch, `feat!` or a `BREAKING CHANGE:` footer a major.
+- Types configured in `release-please-config.json`: `feat`, `fix`, `chore`, `docs`, `build`, `refactor` (hidden from the changelog). Anything else parses but will not appear where you expect.
+- Explain **why** in the body — the diff already shows what changed.
+
 ## GitNexus Code Intelligence
 
 This repo is indexed in GitNexus as `butler-sheet-icons`. In this multi-repo workspace, always include `-r butler-sheet-icons` on GitNexus CLI commands. GitNexus MCP tools may not be available in VS Code/Copilot chats, so use the CLI unless a `gitnexus_*` tool is actually exposed.
@@ -267,5 +281,14 @@ If a change adds, alters, or removes behaviour a Butler Sheet Icons user can obs
 - Verify the text against the implementation before publishing rather than trusting the staged draft.
 
 Internal-only changes — refactors, test changes, build or lint tooling — need no doc page.
+
+## Prioritising remaining work
+
+When work remains, **ALWAYS** close by weighing it rather than listing it.
+
+- For each open item, give the rough cost, the value it delivers, and how the two compare.
+- Recommend **one** next step, not a menu of options.
+- Say plainly when something is not worth doing, and why — a recommendation against acting is as useful as one for it.
+- Prefer work that unblocks other work, and flag anything that is cheap now and expensive later.
 
 **CRITICAL REMINDER**: **NEVER CANCEL** long-running builds or tests. Build may take several minutes, tests take 15-20+ minutes. Always use appropriate timeouts (5+ minutes for builds, 30+ minutes for tests).
