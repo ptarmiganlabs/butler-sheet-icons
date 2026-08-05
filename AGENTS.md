@@ -93,6 +93,7 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 - **Config-driven** — many runtime options come from env vars (`BSI_HOST`, `BSI_CERT_FILE`, `BSI_CLOUD_*`, etc.) or a YAML config; avoid hard-coding new env-var reads
 - **Dependencies** — Docker/SEA builds use `--omit=dev`; runtime deps must be in `dependencies`, not `devDependencies`
 - **Repo hygiene** — do not edit `node_modules/`, `build/`, `coverage/`, `sea-prep.blob`, `build.cjs`, or other generated artifacts. No drive-by formatting/indentation changes — keep diffs focused on the requested change.
+- **Document user-facing changes** — if a change adds, alters, or removes behaviour a BSI user can observe (CLI commands or flags, environment variables, defaults, output, or error messages they are expected to act on), stage a page in `docs/to-doc-site/` as part of the same change. Write for Qlik Sense administrators, not Node developers. See `docs/to-doc-site/README.md` for the staging and `done_` publication workflow; the published site is [butler-sheet-icons.ptarmiganlabs.com](https://butler-sheet-icons.ptarmiganlabs.com), built from [ptarmiganlabs/butler-sheet-icons-docs](https://github.com/ptarmiganlabs/butler-sheet-icons-docs). Internal-only changes (refactors, test changes, tooling) need no doc page.
 
 ## Browser / Puppeteer
 

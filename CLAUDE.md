@@ -52,3 +52,16 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 | Work in the Util area | `.claude/skills/generated/util/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+## Documenting user-facing changes
+
+If a change adds, alters, or removes behaviour a Butler Sheet Icons user can observe — CLI commands or flags, environment variables, defaults, output, or error messages they are expected to act on — stage a page in `docs/to-doc-site/` as part of the same change.
+
+- Write for **Qlik Sense administrators**, not Node developers.
+- `docs/to-doc-site/README.md` defines the workflow: unprefixed means pending publication; rename with a `done_` prefix once published.
+- The published site is [butler-sheet-icons.ptarmiganlabs.com](https://butler-sheet-icons.ptarmiganlabs.com), built from [ptarmiganlabs/butler-sheet-icons-docs](https://github.com/ptarmiganlabs/butler-sheet-icons-docs). Verify with `npm run docs:build` there — it fails on dead links.
+- Verify the text against the implementation before publishing rather than trusting the staged draft.
+
+Internal-only changes — refactors, test changes, build or lint tooling — need no doc page.
+
+See `AGENTS.md` for the full set of repository conventions.

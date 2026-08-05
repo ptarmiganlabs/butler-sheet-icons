@@ -257,4 +257,15 @@ The tool can install and manage Chrome/Firefox browsers via `@puppeteer/browsers
 - Do not edit generated artifacts or dependencies (e.g. `node_modules/`, `build/`, `coverage/`, `sea-prep.blob`, `build.cjs`) unless the task explicitly requires it.
 - Run `npm run format` before committing to keep formatting consistent.
 
+## Documenting user-facing changes
+
+If a change adds, alters, or removes behaviour a Butler Sheet Icons user can observe — CLI commands or flags, environment variables, defaults, output, or error messages they are expected to act on — stage a page in `docs/to-doc-site/` as part of the same change.
+
+- Write for **Qlik Sense administrators**, not Node developers.
+- `docs/to-doc-site/README.md` defines the workflow: unprefixed means pending publication; rename with a `done_` prefix once published.
+- The published site is [butler-sheet-icons.ptarmiganlabs.com](https://butler-sheet-icons.ptarmiganlabs.com), built from [ptarmiganlabs/butler-sheet-icons-docs](https://github.com/ptarmiganlabs/butler-sheet-icons-docs).
+- Verify the text against the implementation before publishing rather than trusting the staged draft.
+
+Internal-only changes — refactors, test changes, build or lint tooling — need no doc page.
+
 **CRITICAL REMINDER**: **NEVER CANCEL** long-running builds or tests. Build may take several minutes, tests take 15-20+ minutes. Always use appropriate timeouts (5+ minutes for builds, 30+ minutes for tests).
