@@ -64,4 +64,20 @@ If a change adds, alters, or removes behaviour a Butler Sheet Icons user can obs
 
 Internal-only changes — refactors, test changes, build or lint tooling — need no doc page.
 
+## Workflow
+
+The order is: **branch first, implement, verify, stop and report.**
+
+- **MUST create a feature branch before the first edit.** Never work on `main`.
+- **NEVER commit to `main`, and never merge to `main` outside a pull request.**
+- **MUST stop once the change is implemented and verified.** Report what changed, how it was verified, and what the commit or PR would say. Then wait.
+- **NEVER commit, push, open a pull request, or merge** unless the user asks for that step. Authorisation is per request and does not carry over — being asked to open a PR is not permission to merge it.
+- Creating GitHub issues and posting comments is allowed without asking.
+- **MUST close by weighing the remaining work** — rough cost, value, and one recommended next step rather than a menu. Say plainly when something is not worth doing.
+
+When a commit is authorised:
+
+- **MUST group changes by topic** — one commit per logical change, not one commit listing everything. Split a mixed working tree rather than writing a catch-all message.
+- **MUST use Conventional Commits** (`type: subject`). This is functional: release-please derives the changelog and version bump from the type — `feat` minor, `fix` patch, `feat!` or a `BREAKING CHANGE:` footer major. Configured types are `feat`, `fix`, `chore`, `docs`, `build`, `refactor` (hidden from the changelog).
+
 See `AGENTS.md` for the full set of repository conventions.
