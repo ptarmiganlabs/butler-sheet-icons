@@ -348,4 +348,20 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             expect(opts).not.toHaveProperty('clickCount');
         }
     });
+
+    test('reports the app context when browser installation fails', async () => {
+        setupHappyPath();
+        // Force the download branch, then make the install fail. browserInstall() signals
+        // failure by throwing, never by returning false.
+        detectAvailableBrowser.mockResolvedValue(null);
+        browserInstall.mockRejectedValue(new Error('network unreachable'));
+
+        // qseowProcessApp catches and logs rather than rethrowing, so callers can continue
+        // to the next app. Assert it resolves; `rejects.toThrow` would fail here.
+        await qseowProcessApp('test-app-id', defaultOptions);
+
+        const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(logged).toContain('Failed to install a browser for QSEoW app test-app-id');
+        expect(puppeteer.launch).not.toHaveBeenCalled();
+    });
 });

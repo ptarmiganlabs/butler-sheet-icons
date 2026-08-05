@@ -276,10 +276,17 @@ export const qseowProcessApp = async (appId, options) => {
                 // No browser found - download required
                 logger.info(`No local browser found. Downloading and installing browser...`);
 
-                const browserInstallResult = await browserInstall(options);
-                if (browserInstallResult === false) {
-                    logger.error(`QSEoW APP: Error installing browser for app ${appId}.`);
-                    throw new QseowError(`Failed to install a browser for QSEoW app ${appId}`);
+                let browserInstallResult;
+                try {
+                    browserInstallResult = await browserInstall(options);
+                } catch (err) {
+                    // browserInstall() returns browser metadata or throws; it never returns a
+                    // falsy sentinel. The app context therefore has to be attached here rather
+                    // than by testing the return value, which is what the previous
+                    // `=== false` check attempted and could never reach.
+                    throw new QseowError(`Failed to install a browser for QSEoW app ${appId}`, {
+                        cause: err,
+                    });
                 }
 
                 executablePath = computeExecutablePath({
