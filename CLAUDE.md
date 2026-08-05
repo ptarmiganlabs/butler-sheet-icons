@@ -45,9 +45,10 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 | Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-| Work in the Cloud area (22 symbols) | `.claude/skills/generated/cloud/SKILL.md` |
-| Work in the Browser area (10 symbols) | `.claude/skills/generated/browser/SKILL.md` |
-| Work in the Qscloud area (6 symbols) | `.claude/skills/generated/qscloud/SKILL.md` |
-| Work in the Qseow area (4 symbols) | `.claude/skills/generated/qseow/SKILL.md` |
+| Work in the Cloud area | `.claude/skills/generated/cloud/SKILL.md` |
+| Work in the Browser area | `.claude/skills/generated/browser/SKILL.md` |
+| Work in the Qscloud area | `.claude/skills/generated/qscloud/SKILL.md` |
+| Work in the Qseow area | `.claude/skills/generated/qseow/SKILL.md` |
+| Work in the Util area | `.claude/skills/generated/util/SKILL.md` |
 
 <!-- gitnexus:end -->

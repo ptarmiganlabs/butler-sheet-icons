@@ -1,11 +1,11 @@
 ---
 name: cloud
-description: "Skill for the Cloud area of butler-sheet-icons. 22 symbols across 16 files."
+description: "Skill for the Cloud area of butler-sheet-icons. 23 symbols across 17 files."
 ---
 
 # Cloud
 
-22 symbols | 16 files | Cohesion: 95%
+23 symbols | 17 files | Cohesion: 92%
 
 ## When to Use
 
@@ -32,36 +32,36 @@ description: "Skill for the Cloud area of butler-sheet-icons. 22 symbols across 
 
 Start here when exploring this area:
 
-- **`browserInstalled`** (Function) — `src/lib/browser/browser-installed.js:19`
-- **`browserUninstall`** (Function) — `src/lib/browser/browser-uninstall.js:19`
+- **`browserInstalled`** (Function) — `src/lib/browser/browser-installed.js:16`
+- **`browserUninstall`** (Function) — `src/lib/browser/browser-uninstall.js:20`
 - **`browserUninstallAll`** (Function) — `src/lib/browser/browser-uninstall.js:85`
 - **`qscloudListCollections`** (Function) — `src/lib/cloud/cloud-collections.js:19`
-- **`qscloudCreateThumbnails`** (Function) — `src/lib/cloud/cloud-create-thumbnails.js:28`
+- **`qscloudCreateThumbnails`** (Function) — `src/lib/cloud/cloud-create-thumbnails.js:29`
 
 ## Key Symbols
 
 | Symbol | Type | File | Line |
 |--------|------|------|------|
-| `browserInstalled` | Function | `src/lib/browser/browser-installed.js` | 19 |
-| `browserUninstall` | Function | `src/lib/browser/browser-uninstall.js` | 19 |
+| `CloudError` | Class | `src/lib/util/errors.js` | 75 |
+| `browserInstalled` | Function | `src/lib/browser/browser-installed.js` | 16 |
+| `browserUninstall` | Function | `src/lib/browser/browser-uninstall.js` | 20 |
 | `browserUninstallAll` | Function | `src/lib/browser/browser-uninstall.js` | 85 |
 | `qscloudListCollections` | Function | `src/lib/cloud/cloud-collections.js` | 19 |
-| `qscloudCreateThumbnails` | Function | `src/lib/cloud/cloud-create-thumbnails.js` | 28 |
-| `qscloudRemoveSheetIcons` | Function | `src/lib/cloud/cloud-remove-sheet-icons.js` | 166 |
-| `qscloudUploadToApp` | Function | `src/lib/cloud/cloud-upload.js` | 27 |
-| `qseowCreateThumbnails` | Function | `src/lib/qseow/qseow-create-thumbnails.js` | 26 |
+| `qscloudCreateThumbnails` | Function | `src/lib/cloud/cloud-create-thumbnails.js` | 29 |
+| `qscloudRemoveSheetIcons` | Function | `src/lib/cloud/cloud-remove-sheet-icons.js` | 161 |
+| `qscloudUploadToApp` | Function | `src/lib/cloud/cloud-upload.js` | 25 |
+| `qseowCreateThumbnails` | Function | `src/lib/qseow/qseow-create-thumbnails.js` | 28 |
 | `qseowRemoveSheetIcons` | Function | `src/lib/qseow/qseow-remove-sheet-icons.js` | 137 |
-| `qseowUploadToContentLibrary` | Function | `src/lib/qseow/qseow-upload.js` | 29 |
+| `qseowUploadToContentLibrary` | Function | `src/lib/qseow/qseow-upload.js` | 27 |
 | `deleteCloudAppThumbnail` | Function | `src/lib/cloud/cloud-delete-thumbnails.js` | 10 |
-| `processCloudApp` | Function | `src/lib/cloud/process-cloud-app.js` | 29 |
-| `takeSheetScreenshot` | Function | `src/lib/cloud/sheet-screenshot.js` | 17 |
-| `qseowProcessApp` | Function | `src/lib/qseow/qseow-process-app.js` | 96 |
-| `setLoggingLevel` | Function | `src/globals.js` | 180 |
-| `removeSheetIconsCloudApp` | Function | `src/lib/cloud/cloud-remove-sheet-icons.js` | 21 |
-| `removeSheetIconsQSEoWApp` | Function | `src/lib/qseow/qseow-remove-sheet-icons.js` | 19 |
-| `sleep` | Function | `src/globals.js` | 190 |
-| `bufferToStream` | Function | `src/lib/cloud/cloud-repo-request.js` | 40 |
-| `makeRequest` | Function | `src/lib/cloud/cloud-repo-request.js` | 56 |
+| `qscloudUpdateSheetThumbnails` | Function | `src/lib/cloud/cloud-updatesheets.js` | 24 |
+| `processCloudApp` | Function | `src/lib/cloud/process-cloud-app.js` | 31 |
+| `takeSheetScreenshot` | Function | `src/lib/cloud/sheet-screenshot.js` | 18 |
+| `setLoggingLevel` | Function | `src/globals.js` | 265 |
+| `removeSheetIconsCloudApp` | Function | `src/lib/cloud/cloud-remove-sheet-icons.js` | 20 |
+| `removeSheetIconsQSEoWApp` | Function | `src/lib/qseow/qseow-remove-sheet-icons.js` | 22 |
+| `sleep` | Function | `src/globals.js` | 282 |
+| `bufferToStream` | Function | `src/lib/cloud/cloud-repo-request.js` | 38 |
 
 ## Execution Flows
 

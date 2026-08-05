@@ -31,7 +31,7 @@ description: "Skill for the Browser area of butler-sheet-icons. 10 symbols acros
 Start here when exploring this area:
 
 - **`browserInstall`** (Function) — `src/lib/browser/browser-install.js:26`
-- **`browserListAvailable`** (Function) — `src/lib/browser/browser-list-available.js:44`
+- **`browserListAvailable`** (Function) — `src/lib/browser/browser-list-available.js:46`
 - **`getMostRecentUsableChromeBuildId`** (Function) — `src/lib/browser/browser-list-available.js:199`
 
 ## Key Symbols
@@ -39,7 +39,7 @@ Start here when exploring this area:
 | Symbol | Type | File | Line |
 |--------|------|------|------|
 | `browserInstall` | Function | `src/lib/browser/browser-install.js` | 26 |
-| `browserListAvailable` | Function | `src/lib/browser/browser-list-available.js` | 44 |
+| `browserListAvailable` | Function | `src/lib/browser/browser-list-available.js` | 46 |
 | `getMostRecentUsableChromeBuildId` | Function | `src/lib/browser/browser-list-available.js` | 199 |
 | `buildBrowserCommand` | Function | `src/lib/commands/browser/index.js` | 12 |
 | `buildBrowserInstallCommand` | Function | `src/lib/commands/browser/install.js` | 44 |
@@ -47,7 +47,7 @@ Start here when exploring this area:
 | `buildBrowserListInstalledCommand` | Function | `src/lib/commands/browser/list-installed.js` | 35 |
 | `buildBrowserUninstallAllCommand` | Function | `src/lib/commands/browser/uninstall-all.js` | 34 |
 | `buildBrowserUninstallCommand` | Function | `src/lib/commands/browser/uninstall.js` | 34 |
-| `mapPlatformToChrome` | Function | `src/lib/browser/browser-list-available.js` | 15 |
+| `mapPlatformToChrome` | Function | `src/lib/browser/browser-list-available.js` | 17 |
 
 ## Execution Flows
 
