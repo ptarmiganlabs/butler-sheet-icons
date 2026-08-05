@@ -185,13 +185,11 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
             }
         }
 
-        if ((await session.close()) === true) {
-            logger.verbose(
-                `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
-            );
-        } else {
-            logger.error(`Error closing session for QS Cloud app ${appId}`);
-        }
+        // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+        await session.close();
+        logger.verbose(
+            `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
+        );
     } catch (err) {
         if (err.stack) {
             logger.error(`CLOUD UPDATE SHEETS (stack): ${err.stack}`);

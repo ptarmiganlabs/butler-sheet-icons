@@ -98,15 +98,11 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
                 iSheetNum += 1;
             }
 
-            if ((await session.close()) === true) {
-                logger.verbose(
-                    `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
-                );
-            } else {
-                logger.error(
-                    `Error closing session for QSEoW app ${appId} on host ${options.host}`
-                );
-            }
+            // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+            await session.close();
+            logger.verbose(
+                `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
+            );
         }
 
         logger.info(`Done processing app ${appId}`);

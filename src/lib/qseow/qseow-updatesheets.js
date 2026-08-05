@@ -180,13 +180,11 @@ export const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) =
             }
         }
 
-        if ((await session.close()) === true) {
-            logger.verbose(
-                `Closed session after updating sheet thumbnail images in QSEoW app ${appId} on host ${options.host}`
-            );
-        } else {
-            logger.error(`Error closing session for QSEoW app ${appId} on host ${options.host}`);
-        }
+        // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+        await session.close();
+        logger.verbose(
+            `Closed session after updating sheet thumbnail images in QSEoW app ${appId} on host ${options.host}`
+        );
     } catch (err) {
         if (err.stack) {
             logger.error(`QSEOW UPDATE SHEETS (stack): ${err.stack}`);
