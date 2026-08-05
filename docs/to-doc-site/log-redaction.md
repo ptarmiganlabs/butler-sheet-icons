@@ -16,6 +16,7 @@ The allow-list covers the property names most likely to contain a credential, in
 
 - `logonpwd`
 - `apikey`, `apiKey`, `api_key`
+- `apiToken`, `api_token`
 - `password`, `pwd`, `passwd`
 - `passphrase`
 - `secret`, `token`
@@ -28,11 +29,11 @@ If you add a new option that carries a credential, add the property name to the 
 
 ### Patterns that are always redacted in text
 
-The redaction also matches common patterns in free text, so log messages and stack traces that mention secrets in passing are cleaned up as well. The text `***[REDACTED]***` is substituted for the matched value. The following patterns are recognised:
+The redaction also matches common patterns in free text, so log messages and stack traces that mention secrets in passing are cleaned up as well. The text `[REDACTED]` is substituted for the matched value. The following patterns are recognised:
 
 - **URLs with embedded credentials** — `https://user:secret@host/...` becomes `https://[REDACTED]@host/...`
 - **Authorization headers** — `Authorization: Bearer eyJhbGciOi…` becomes `Authorization: Bearer [REDACTED]`. The same applies to `Basic …` and `Token …` schemes.
-- **`key=value` and `key:value` patterns** — `password=hunter2`, `api_key=abcdef`, `clientSecret: topsecret`, and similar. Recognised key names are the same as the property-name allow-list above.
+- **`key=value` and `key:value` patterns** — `password=hunter2`, `api_key=abcdef`, `clientSecret: topsecret`, and similar. The recognised key names are close to the property-name allow-list above, but not identical: this pattern also matches a bare `auth`, and it does not match the `BSI_*` environment variable names. Note that a match written with a colon is rewritten using `=`, so `clientSecret: topsecret` appears in the log as `clientSecret=[REDACTED]`.
 - **JSON-style quoted secrets** — `"password": "mysecret"` becomes `"password": "[REDACTED]"`.
 
 ## Where does the redaction happen?
