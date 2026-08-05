@@ -11,5 +11,5 @@ secret:
     # real findings end up being ignored.
     #
     # See https://github.com/ptarmiganlabs/butler-sheet-icons/issues/819
-    ignored-paths:
+    ignored_paths:
         - 'src/lib/util/__tests__/redact-secrets.test.js'
