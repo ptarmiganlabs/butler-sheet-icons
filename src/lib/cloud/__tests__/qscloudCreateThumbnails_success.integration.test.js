@@ -20,7 +20,7 @@ const options = {
     imagedir: process.env.BSI_IMAGE_DIR || 'img',
     schemaversion: process.env.BSI_CLOUD_SCHEMA_VERSION || '12.612.0',
     appid: process.env.BSI_CLOUD_APP_ID,
-    includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || 1,
+    includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || '1',
     browser: process.env.BSI_BROWSER || 'chrome',
     browserVersion: process.env.BSI_BROWSER_VERSION || 'latest',
     blurSheetStatus: process.env.BSI_BLUR_SHEET_STATUS || [],
