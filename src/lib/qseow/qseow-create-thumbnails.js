@@ -19,7 +19,7 @@ import { qseowProcessApp } from './qseow-process-app.js';
  * @param {string} options.contentlibrary - Name of content library where thumbnails will be stored.
  * @param {string} options.appid - ID of app for which thumbnails will be created.
  * @param {string} options.qliksensetag - Tag for which apps will be processed.
- * @param {number} options.includesheetpart - Optional parameter to include sheet parts in the thumbnails. Values: 1, 2, 3, 4.
+ * @param {string} options.includesheetpart - Optional parameter to include sheet parts in the thumbnails. Values: 1, 2, 3, 4. Normalised to a string on entry, so a number is also accepted.
  * @param {string} options.certfile - Path to certificate file.
  * @param {string} options.certkeyfile - Path to certificate key file.
  * @param {string} options.loglevel - Log level for the operation.
@@ -41,17 +41,14 @@ export const qseowCreateThumbnails = async (options) => {
 
         const appIdsToProcess = [];
 
+        // Commander always yields a string here (.default('1') and .env() both produce
+        // strings), but programmatic and test callers may pass a number. Normalise once so the
+        // check below - and the string-only sheet-part comparisons downstream in
+        // qseow-process-app.js - see a consistent type.
+        options.includesheetpart = String(options.includesheetpart);
+
         // If --includesheetpart has been specifed it should contain a valid value
-        if (
-            options.includesheetpart !== '1' &&
-            options.includesheetpart !== '2' &&
-            options.includesheetpart !== '3' &&
-            options.includesheetpart !== '4' &&
-            options.includesheetpart !== 1 &&
-            options.includesheetpart !== 2 &&
-            options.includesheetpart !== 3 &&
-            options.includesheetpart !== 4
-        ) {
+        if (!['1', '2', '3', '4'].includes(options.includesheetpart)) {
             logger.error(
                 `Invalid --includesheetpart paramater: ${options.includesheetpart}. Aborting`
             );

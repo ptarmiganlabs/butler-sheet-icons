@@ -16,7 +16,7 @@ import { processCloudApp } from './process-cloud-app.js';
  * @param {string} options.collectionid - ID of collection in Qlik Sense Cloud tenant.
  * @param {string} options.appid - ID of app in Qlik Sense Cloud tenant.
  * @param {string} options.imagedir - Directory where images will be stored.
- * @param {string} options.includesheetpart - Optional parameter to include sheet parts in the thumbnails. Values: 1, 2, 4.
+ * @param {string} options.includesheetpart - Optional parameter to include sheet parts in the thumbnails. Values: 1, 2, 4. Normalised to a string on entry, so a number is also accepted.
  * @param {string} options.schemaversion - Version of the QS schema.
  * @param {string} options.browser - Name of browser to use for rendering thumbnails.
  * @param {string} options.browserVersion - Version of browser to use for rendering thumbnails.
@@ -42,15 +42,14 @@ export const qscloudCreateThumbnails = async (options) => {
 
         const appIdsToProcess = [];
 
+        // Commander always yields a string here (.default('1'), .env() and the .choices()
+        // wrapper all produce strings), but programmatic and test callers may pass a number.
+        // Normalise once so the check below - and the string-only sheet-part comparisons
+        // downstream in sheet-screenshot.js - see a consistent type.
+        options.includesheetpart = String(options.includesheetpart);
+
         // If --includesheetpart has been specifed it should contain a valid value
-        if (
-            options.includesheetpart !== '1' &&
-            options.includesheetpart !== '2' &&
-            options.includesheetpart !== '4' &&
-            options.includesheetpart !== 1 &&
-            options.includesheetpart !== 2 &&
-            options.includesheetpart !== 4
-        ) {
+        if (!['1', '2', '4'].includes(options.includesheetpart)) {
             logger.error(
                 `Invalid --includesheetpart paramater: ${options.includesheetpart}. Aborting`
             );

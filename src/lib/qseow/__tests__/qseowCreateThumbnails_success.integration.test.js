@@ -26,7 +26,7 @@ const options = {
     logonuserdir: process.env.BSI_LOGON_USER_DIR,
     logonuserid: process.env.BSI_LOGON_USER_ID,
     logonpwd: process.env.BSI_LOGON_PWD,
-    includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || 1,
+    includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || '1',
     qliksensetag: process.env.BSI_QLIK_SENSE_TAG || '',
     senseVersion: process.env.BSI_SENSE_VERSION,
     browser: process.env.BSI_BROWSER || 'chrome',
