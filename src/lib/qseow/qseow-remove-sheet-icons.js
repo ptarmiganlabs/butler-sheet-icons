@@ -3,6 +3,7 @@ import qrsInteract from 'qrs-interact';
 
 import { setupEnigmaConnection } from './qseow-enigma.js';
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
 
@@ -10,12 +11,14 @@ import { setupQseowQrsConnection } from './qseow-qrs.js';
  * Removes all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) application.
  *
  * @param {string} appId - The ID of the QSEoW application to process.
- * @param {Object} g - The global object to use with the Enigma.js library.
- * @param {Object} options - Configuration options for processing the application.
+ * @param {object} g - The global object to use with the Enigma.js library.
+ * @param {object} options - Configuration options for processing the application.
  * @param {string} options.host - Host address of the Qlik server.
  * @param {string} options.engineport - Engine port of the Qlik server.
  * @param {string} options.qrsport - Qlik Sense Repository Service (QRS) port of the Qlik server.
  * @param {string} options.senseVersion - The version of Qlik Sense being used.
+ *
+ * @returns {Promise<void>} Resolves once all sheet icons in the app have been cleared.
  */
 const removeSheetIconsQSEoWApp = async (appId, g, options) => {
     try {
@@ -121,7 +124,7 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
 /**
  * Removes all sheet icons from one or more Qlik Sense Enterprise on Windows (QSEoW) applications.
  *
- * @param {Object} options - Configuration options for the command.
+ * @param {object} options - Configuration options for the command.
  * @param {string} options.host - Host address of the Qlik server.
  * @param {string} options.engineport - Engine port of the Qlik server.
  * @param {string} options.qrsport - Qlik Sense Repository Service (QRS) port of the Qlik server.
@@ -130,7 +133,7 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
  * @param {string} options.qliksensetag - The tag for which apps will be processed. If specified, all apps with this tag will be processed.
  * @param {string} options.loglevel - The level of logging to output. Valid values are 'error', 'warn', 'info', 'verbose', 'debug', 'silly'.
  *
- * @returns {Promise<boolean>} - true if thumbnails were created successfully, false otherwise.
+ * @returns {Promise<boolean>} Resolves to `true` if thumbnails were removed successfully, `false` otherwise.
  */
 export const qseowRemoveSheetIcons = async (options) => {
     try {
@@ -143,7 +146,7 @@ export const qseowRemoveSheetIcons = async (options) => {
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
-        logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+        logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
         const appIdsToProcess = [];
 

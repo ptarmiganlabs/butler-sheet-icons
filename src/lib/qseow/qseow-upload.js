@@ -8,7 +8,7 @@ import { setupQseowQrsConnection } from './qseow-qrs.js';
 /**
  * Upload files to a Qlik Sense Enterprise on Windows (QSEoW) content library.
  *
- * @param {array} filesToUpload - Array of files to be uploaded, each file
+ * @param {Array<object>} filesToUpload - Array of files to be uploaded, each file
  *     represented as an object with properties `fileNameShort` (short name of
  *     the file, without path), and `fileNameFull` (full name of the file,
  *     including path).
@@ -23,8 +23,7 @@ import { setupQseowQrsConnection } from './qseow-qrs.js';
  *         located. Must contain a subdirectory named `qseow` with a subdirectory
  *         named after the app ID, which contains the files to be uploaded.
  *
- * @returns {Promise<boolean>} - true if the files were uploaded successfully,
- *     false otherwise.
+ * @returns {Promise<boolean>} Resolves to `true` if the files were uploaded successfully, `false` otherwise.
  */
 export const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
     try {

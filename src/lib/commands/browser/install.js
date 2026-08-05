@@ -5,7 +5,7 @@ import { browserInstall } from '../../browser/browser-install.js';
 /**
  * Commander action that normalizes requested browser defaults and installs the browser.
  *
- * @param {object} [options={}] - CLI options describing target browser and loglevel.
+ * @param {object} [options] - CLI options describing target browser and loglevel. Defaults to `{}`.
  * @param {import('commander').Command} cmd - Commander command object for downstream context.
  *
  * @returns {Promise<void>} Resolves after attempting the install and logging any failures.

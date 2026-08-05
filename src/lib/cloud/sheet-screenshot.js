@@ -5,15 +5,16 @@ import { sleep } from '../../globals.js';
 /**
  * Takes a screenshot of a sheet and creates a blurred version.
  *
- * @param {Object} page Puppeteer page instance.
- * @param {string} appUrl URL of the app.
- * @param {string} imgDir Directory to save images.
- * @param {string} appId App ID.
- * @param {Object} sheet Sheet object.
- * @param {number} iSheetNum Sheet number.
- * @param {Object} options Options object.
- * @param {Object} logger Logger instance.
- * @returns {Promise<Object>} Created file information.
+ * @param {object} page - Puppeteer page instance.
+ * @param {string} appUrl - URL of the app.
+ * @param {string} imgDir - Directory to save images.
+ * @param {string} appId - App ID.
+ * @param {object} sheet - Sheet object.
+ * @param {number} iSheetNum - Sheet number.
+ * @param {object} options - Options object.
+ * @param {object} logger - Logger instance.
+ *
+ * @returns {Promise<{ sheetPos: number, fileNameShort: string, blurred: boolean, fileNameShortBlurred: string }>} Created file information.
  */
 export async function takeSheetScreenshot(
     page,

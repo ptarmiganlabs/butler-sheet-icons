@@ -1,16 +1,16 @@
 /**
  * Determines whether a sheet should be excluded from updates based on various criteria.
  *
- * @param {Object} app - The Qlik Sense application object.
- * @param {Object} sheet - The sheet object containing metadata about the sheet.
- * @param {Object} options - Options object that may contain various exclusion criteria such as status, tag, number, and title.
- * @param {Array} tagSheetAppMetadata - Array of metadata objects used to determine if a sheet should be excluded via tags.
+ * @param {object} app - The Qlik Sense application object.
+ * @param {object} sheet - The sheet object containing metadata about the sheet.
+ * @param {object} options - Options object that may contain various exclusion criteria such as status, tag, number, and title.
+ * @param {Array<object>} tagSheetAppMetadata - Array of metadata objects used to determine if a sheet should be excluded via tags.
  * @param {number} iSheetNum - The index number of the sheet within the application.
  * @param {string} repoDbSheetId - The sheet ID in the repository database.
  * @param {string} engineSheetId - The sheet ID in the engine.
- * @param {Object} logger - Logger object used for logging verbose messages.
+ * @param {object} logger - Logger object used for logging verbose messages.
  *
- * @returns {Promise<Object>} - Returns true if the sheet should be excluded, false otherwise.
+ * @returns {Promise<{ excludeSheet: boolean, sheetIsHidden: boolean }>} Resolves with `excludeSheet` (true if the sheet should be excluded) and `sheetIsHidden` (true if the sheet is hidden via showCondition).
  */
 export const determineSheetExcludeStatus = async (
     app,

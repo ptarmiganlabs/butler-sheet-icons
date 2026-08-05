@@ -6,7 +6,7 @@ import { parsePositiveInteger } from '../helpers.js';
 /**
  * Commander action for generating Qlik Sense Cloud sheet thumbnails via the worker module.
  *
- * @param {object} [options={}] - Parsed CLI options describing tenant, auth, browser and filtering settings.
+ * @param {object} [options] - Parsed CLI options describing tenant, auth, browser and filtering settings. Defaults to `{}`.
  * @param {import('commander').Command} cmd - Commander command reference forwarded to the worker.
  *
  * @returns {Promise<void>} Resolves after delegating to qscloudCreateThumbnails and logging any errors.

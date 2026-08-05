@@ -4,25 +4,25 @@ import { homedir } from 'os';
 import cliProgress from 'cli-progress';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { redactOptions } from '../util/redact-secrets.js';
 import { getMostRecentUsableChromeBuildId } from './browser-list-available.js';
 
 /**
- * Install browser
- * Returns object with browser info if browser installed successfully
- * @param {object} options
- * @param {string} options.browser - Browser to install
- * @param {string} options.browserVersion - Browser version to install
- * @returns {boolean} - True if browser installed successfully
+ * Install a browser into the Puppeteer cache directory.
  *
- * @returns {Promise<Object>} - Browser info if installed successfully
+ * Resolves a build ID (for `'latest'` Chrome this picks the most recent usable stable build),
+ * downloads and unpacks the browser while showing a progress bar, and returns the installed
+ * browser metadata on success.
  *
- * @throws {Error} - If browser not installed successfully
- * @throws {Error} - If browser version not found
- * @throws {Error} - If error installing browser
- * @throws {Error} - If error resolving browser build id
- * @throws {Error} - If error detecting browser platform
- * @throws {Error} - If error getting browser cache path
- * @throws {Error} - If error getting browser executable path
+ * @param {object} options - Options object.
+ * @param {string} options.browser - Browser to install (`chrome` or `firefox`).
+ * @param {string} options.browserVersion - Browser version to install, or `latest` for Chrome to auto-pick the newest stable build.
+ * @param {string} [options.loglevel] - Optional log level override (`error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`).
+ * @param {object} [_command] - Commander command instance (unused, kept for symmetry with other command handlers).
+ *
+ * @returns {Promise<object>} Resolves with the installed browser metadata from `@puppeteer/browsers` (`browser`, `buildId`, `executablePath`, ...).
+ *
+ * @throws {Error} If required options are missing, the version cannot be resolved, the build is unavailable, or the install fails.
  */
 export const browserInstall = async (options, _command) => {
     try {
@@ -39,7 +39,7 @@ export const browserInstall = async (options, _command) => {
         logger.verbose('Starting browser install');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
-        logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+        logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
         // Create a new progress bar instance using cli-progress
         const progressBar = new cliProgress.SingleBar(
@@ -102,20 +102,65 @@ export const browserInstall = async (options, _command) => {
         // start the progress bar with a total value of 100 and start value of 0
         progressBar.start(100, 0);
 
-        const browser = await install({
+        const installOptions = {
             browser: options.browser,
             buildId,
             cacheDir: browserPath,
+            /**
+             * Progress callback used by `@puppeteer/browsers` to report download progress.
+             * Updates the CLI progress bar to reflect the current download percentage.
+             *
+             * @param {number} downloadedBytes - Bytes downloaded so far.
+             * @param {number} totalBytes - Total bytes to download.
+             *
+             * @returns {void}
+             */
             downloadProgressCallback: (downloadedBytes, totalBytes) => {
                 // Update the progress bar.
                 progressBar.update((downloadedBytes / totalBytes) * 100);
             },
             unpack: true,
-        });
+        };
+
+        // `@puppeteer/browsers` v3+ uses the OS `unzip` binary for extraction
+        // (macOS ships a 2009 build that occasionally fails on the Chrome for
+        // Testing archives with "End-of-central-directory signature not found").
+        // Wrap the install in a small retry loop to ride out the transient
+        // failures that were not present with v2's JS-based `extract-zip`.
+        const MAX_INSTALL_ATTEMPTS = 3;
+        const RETRY_DELAY_MS = 2000;
+        let browser;
+        let lastError;
+        for (let attempt = 1; attempt <= MAX_INSTALL_ATTEMPTS; attempt++) {
+            try {
+                browser = await install(installOptions);
+                if (browser) {
+                    break;
+                }
+                throw new Error('install returned no browser metadata');
+            } catch (err) {
+                lastError = err;
+                if (attempt < MAX_INSTALL_ATTEMPTS) {
+                    progressBar.stop();
+                    logger.warn(
+                        `Install attempt ${attempt}/${MAX_INSTALL_ATTEMPTS} failed: ${err.message}. Retrying in ${RETRY_DELAY_MS / 1000}s...`
+                    );
+                    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+                    progressBar.start(100, 0);
+                }
+            }
+        }
 
         // stop the progress bar
         progressBar.update(100);
         progressBar.stop();
+
+        if (!browser) {
+            // All attempts failed. Throw the last error so the outer catch
+            // block logs the diagnostic context and the error propagates to
+            // the caller unchanged.
+            throw lastError;
+        }
 
         logger.info(`Browser "${browser.browser}" version "${browser.buildId}" installed`);
 

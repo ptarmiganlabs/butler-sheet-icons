@@ -47,10 +47,10 @@ function bufferToStream(buffer) {
 /**
  * Makes a request to the Qlik Cloud Repository API.
  *
- * @param {object} config Axios config object
- * @param {array} [data=[]] Accumulated data from previous paginated requests
+ * @param {object} config - Axios config object.
+ * @param {Array} [data] - Accumulated data from previous paginated requests. Defaults to `[]`.
  *
- * @returns {Promise<object|array>} The response data
+ * @returns {Promise<object|Array>} The response data.
  */
 async function makeRequest(config, data = []) {
     let returnData = [...data];
@@ -98,15 +98,15 @@ async function makeRequest(config, data = []) {
 /**
  * Makes a request to the Qlik Cloud Repository API.
  *
- * @param {object} mainConfig Configuration object for Qlik Cloud
- * @param {string} path Path to make the request to
- * @param {string} type HTTP method to use
- * @param {object|Buffer} data Data to send with the request
- * @param {string} [contentType=application/json] Content-Type of the request
- * @param {Buffer} [file] File to send with the request
- * @param {string} [fileName] Name of the file
+ * @param {object} mainConfig - Configuration object for Qlik Cloud.
+ * @param {string} path - Path to make the request to.
+ * @param {string} type - HTTP method to use.
+ * @param {object|Buffer} data - Data to send with the request.
+ * @param {string} [contentType] - Content-Type of the request. Defaults to `application/json`.
+ * @param {Buffer} [file] - File to send with the request.
+ * @param {string} [fileName] - Name of the file.
  *
- * @returns {Promise<object|array>} The response data
+ * @returns {Promise<object|Array>} The response data.
  */
 const request = async (
     mainConfig,

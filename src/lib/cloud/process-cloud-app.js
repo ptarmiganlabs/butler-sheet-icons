@@ -12,6 +12,8 @@ import { browserInstall } from '../browser/browser-install.js';
 import { detectAvailableBrowser } from '../browser/browser-detect.js';
 import { deleteCloudAppThumbnail } from './cloud-delete-thumbnails.js';
 import { takeSheetScreenshot } from './sheet-screenshot.js';
+import { parseHeadlessOption } from '../util/headless-option.js';
+import { CloudError } from '../util/errors.js';
 
 // Selector paths to elements on login page
 const selectorLoginPageUserName = '[id="\u0031-email"]';
@@ -21,11 +23,11 @@ const selectorLoginPageLoginButton = '[id="\u0031-submit"]';
 /**
  * Process a single Qlik Sense Cloud app.
  *
- * @param {string} appId      App ID of the app to process.
- * @param {QlikSaas} saasInstance QlikSaas object.
- * @param {Object}  options    Options object.
+ * @param {string} appId - App ID of the app to process.
+ * @param {import('./cloud-test-connection.js').QlikSaasInstance} saasInstance - QlikSaas object.
+ * @param {object} options - Options object.
  *
- * @returns {Promise<void>}
+ * @returns {Promise<void>} Resolves when thumbnail generation, upload, and property updates for the app have completed (or thrown, which is logged by the caller).
  */
 export const processCloudApp = async (appId, saasInstance, options) => {
     // Get page timeout from options
@@ -168,8 +170,10 @@ export const processCloudApp = async (appId, saasInstance, options) => {
 
                 const browserInstallResult = await browserInstall(options);
                 if (browserInstallResult === false) {
-                    logger.error(`CLOUD: Error installing browser. Exiting.`);
-                    process.exit(1);
+                    logger.error(`CLOUD: Error installing browser for app ${appId}.`);
+                    throw new CloudError(
+                        `Failed to install a browser for Qlik Sense Cloud app ${appId}`
+                    );
                 }
 
                 executablePath = computeExecutablePath({
@@ -185,12 +189,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
             logger.verbose(`Using browser at ${executablePath}`);
 
             // Parse --headless option
-            let headless = true;
-            if (options.headless === 'true' || options.headless === true) {
-                headless = 'new';
-            } else if (options.headless === 'false' || options.headless === false) {
-                headless = false;
-            }
+            const headless = parseHeadlessOption(options.headless);
             // Make sure browser is launched ok
             const browserArgs = [
                 '--proxy-bypass-list=*',
@@ -237,7 +236,6 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                     executablePath,
                     headless,
                     ignoreHTTPSErrors: true,
-                    acceptInsecureCerts: true,
                     args: browserArgs,
                 });
             } catch (err) {
@@ -252,7 +250,10 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 } else {
                     logger.error(`CLOUD APP: Could not launch virtual browser: ${err}. Exiting.`);
                 }
-                process.exit(1);
+                throw new CloudError(
+                    `Failed to launch virtual browser for Qlik Sense Cloud app ${appId}`,
+                    { cause: err }
+                );
             }
             const page = await browser.newPage();
             // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
@@ -281,7 +282,6 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 // User
                 await page.click(selectorLoginPageUserName, {
                     button: 'left',
-                    clickCount: 1,
                     delay: 10,
                 });
                 const user = `${options.logonuserid}`;
@@ -289,7 +289,6 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 // Pwd
                 await page.click(selectorLoginPageUserPwd, {
                     button: 'left',
-                    clickCount: 1,
                     delay: 10,
                 });
                 await page.keyboard.type(options.logonpwd);
@@ -298,7 +297,6 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 await Promise.all([
                     page.click(selectorLoginPageLoginButton, {
                         button: 'left',
-                        clickCount: 1,
                         delay: 10,
                     }),
                     page.waitForNavigation({ waitUntil: 'networkidle2', timeout: pageTimeout }),

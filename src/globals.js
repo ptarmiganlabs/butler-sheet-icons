@@ -4,8 +4,10 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import 'dotenv/config';
+import { redactSensitivePatterns, redactValue } from './lib/util/redact-secrets.js';
 
 const require = createRequire(import.meta.url);
+const LEVEL = Symbol.for('level');
 
 // Load the experimental SEA helpers only when they exist (packaged builds).
 // During tests, Docker, or plain Node runtimes the module is absent, so we
@@ -16,7 +18,20 @@ try {
     sea = require('node:sea');
 } catch (error) {
     sea = {
+        /**
+         * Shim for `node:sea`'s `isSea()`. Always returns `false` because `node:sea`
+         * is only available inside a SEA-built binary.
+         *
+         * @returns {boolean} Always `false` in this fallback shim.
+         */
         isSea: () => false,
+        /**
+         * Shim for `node:sea`'s `getAsset()`. Throws because SEA assets are not
+         * available outside a SEA-built binary.
+         *
+         * @returns {never} Never returns; always throws.
+         * @throws {Error} Always, because SEA assets are unavailable in this shim.
+         */
         getAsset: () => {
             throw new Error('SEA asset access requested outside SEA runtime.');
         },
@@ -54,12 +69,63 @@ if (sea.isSea()) {
 // Set up logger with timestamps and colors, and optional logging to disk file
 const logTransports = [];
 
+/**
+ * Sanitizes a single log payload value before it reaches the logger output.
+ *
+ * String values are pattern-redacted, arrays are sanitized recursively, and
+ * object values are deep-cloned through `redactValue()` so secret-keyed
+ * properties are replaced without mutating the original payload.
+ *
+ * @param {unknown} value - The log payload value to sanitize.
+ *
+ * @returns {unknown} The sanitized value.
+ */
+const sanitizeLogValue = (value) => {
+    if (typeof value === 'string') {
+        return redactSensitivePatterns(value);
+    }
+    if (Array.isArray(value)) {
+        return value.map((entry) => sanitizeLogValue(entry));
+    }
+    if (value && typeof value === 'object') {
+        return redactValue(value);
+    }
+    return value;
+};
+
+/**
+ * Winston format that redacts secrets from log output.
+ *
+ * Runs the regex-based `redactSensitivePatterns` over the message and any
+ * string meta values, and runs the deep-clone `redactValue` over any object
+ * meta values. The intent is to make it impossible to leak secret-bearing
+ * message text or metadata when the caller forgot to redact manually.
+ *
+ * The standard winston level metadata is left untouched, while message text,
+ * stack traces, and splat/meta payloads are sanitized.
+ */
+const sanitizeFormat = winston.format((info) => {
+    try {
+        for (const key of Reflect.ownKeys(info)) {
+            if (key === 'level' || key === 'timestamp' || key === LEVEL) {
+                continue;
+            }
+            info[key] = sanitizeLogValue(info[key]);
+        }
+    } catch {
+        // Never let the sanitizer break logging. If redaction itself throws
+        // (e.g. exotic object with a throwing getter), pass the info through.
+    }
+    return info;
+});
+
 logTransports.push(
     new winston.transports.Console({
         name: 'console',
         level: 'info',
         format: winston.format.combine(
             winston.format.errors({ stack: true }),
+            sanitizeFormat(),
             winston.format.timestamp(),
             winston.format.colorize(),
             winston.format.simple(),
@@ -72,6 +138,7 @@ const logger = winston.createLogger({
     transports: logTransports,
     format: winston.format.combine(
         winston.format.errors({ stack: true }),
+        sanitizeFormat(),
         winston.format.timestamp(),
         winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
     ),
@@ -96,6 +163,8 @@ const SUPPRESSED_DEPRECATION_CODES = [
  * Determine if deprecation warnings should be suppressed.
  * Default: always on (covers both SEA binaries and regular Node.js invocations).
  * Can be overridden with BSI_SUPPRESS_DEPRECATIONS environment variable.
+ *
+ * @returns {boolean} `true` when deprecation warnings should be filtered.
  */
 const shouldSuppressDeprecations = () => {
     const envValue = process.env.BSI_SUPPRESS_DEPRECATIONS;
@@ -158,6 +227,13 @@ const chromiumRevisionWin = '1097664';
 const chromiumRevisionMac = '1097624';
 
 // Inspiration: https://github.com/dtolstyi/node-chromium/blob/master/utils.js
+/**
+ * Returns the bundled Chromium revision number for the current platform.
+ *
+ * @returns {string} Chromium revision number (e.g. `1109227` for Linux, `1097664` for Windows, `1097624` for macOS).
+ *
+ * @throws {Error} When the current platform is not one of `linux`, `win32`, or `darwin`.
+ */
 const getChromiumRevision = () => {
     const { platform } = process;
     let revision = '';
@@ -176,14 +252,16 @@ const getChromiumRevision = () => {
 };
 
 /**
- * Functions to get/set current console logging level
- * @returns
+ * Returns the current console logging level configured on the `winston` console transport.
+ *
+ * @returns {string} The current log level (e.g. `info`, `debug`).
  */
 const getLoggingLevel = () => logTransports.find((transport) => transport.name === 'console').level;
 
 /**
- * Set the console logging level
- * @param {*} newLevel
+ * Sets the console logging level on the `winston` console transport.
+ *
+ * @param {string} newLevel - The new log level (e.g. `info`, `debug`, `silly`).
  */
 const setLoggingLevel = (newLevel) => {
     logTransports.find((transport) => transport.name === 'console').level = newLevel;
@@ -195,6 +273,13 @@ const setLoggingLevel = (newLevel) => {
 const isSea = sea.isSea();
 const bsiExecutablePath = isSea ? path.dirname(process.execPath) : process.cwd();
 
+/**
+ * Resolves after the given number of milliseconds.
+ *
+ * @param {number} ms - Number of milliseconds to wait before resolving.
+ *
+ * @returns {Promise<void>} A promise that resolves after `ms` milliseconds.
+ */
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }

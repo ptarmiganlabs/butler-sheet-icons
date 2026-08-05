@@ -17,6 +17,16 @@ describe('cloud-utils.js', () => {
     });
 
     describe('shouldProcessSheet', () => {
+        /**
+         * Builds a minimal Qlik sheet object for test cases.
+         *
+         * @param {boolean} [published] - Value for `qMeta.published`. Defaults to `false`.
+         * @param {boolean} [approved] - Value for `qMeta.approved`. Defaults to `false`.
+         * @param {string} [title] - Value for `qMeta.title`. Defaults to `'Test Sheet'`.
+         * @param {string|undefined} [showCondition] - Value for `qData.showCondition`. Defaults to `undefined`.
+         *
+         * @returns {object} A sheet-shaped object consumable by `shouldProcessSheet`.
+         */
         const createSheet = (
             published = false,
             approved = false,

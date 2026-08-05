@@ -7,7 +7,7 @@ import QlikSaas from './cloud-repo.js';
 /**
  * Uploads image files to a Qlik Sense Cloud app.
  *
- * @param {array} filesToUpload - Array of objects describing the files to be
+ * @param {Array<object>} filesToUpload - Array of objects describing the files to be
  *     uploaded, each file represented as an object with properties `fileNameShort`
  *     (short name of the file, without path), `fileNameFull` (full name of the
  *     file, including path), and `fileNameShortBlurred` (short name of the blurred file).
@@ -21,8 +21,7 @@ import QlikSaas from './cloud-repo.js';
  *     - `apikey` (string): API key for authentication.
  *     - `imagedir` (string): Directory path for storing image thumbnails.
  *
- * @returns {Promise<void>} A promise that resolves when the files have been
- *     successfully uploaded to the Qlik Sense Cloud app.
+ * @returns {Promise<void>} Resolves when the files have been successfully uploaded to the Qlik Sense Cloud app.
  */
 export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
     try {

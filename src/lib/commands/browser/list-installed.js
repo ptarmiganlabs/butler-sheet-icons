@@ -5,7 +5,7 @@ import { browserInstalled } from '../../browser/browser-installed.js';
 /**
  * Commander action that lists browsers already downloaded into the Butler cache.
  *
- * @param {object} [options={}] - CLI options, currently only used for logging level.
+ * @param {object} [options] - CLI options, currently only used for logging level. Defaults to `{}`.
  * @param {import('commander').Command} cmd - Commander command instance forwarded to the worker.
  *
  * @returns {Promise<void>} Resolves when browserInstalled completes or errors are logged.

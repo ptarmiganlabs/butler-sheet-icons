@@ -4,18 +4,19 @@ import { homedir } from 'os';
 import fs from 'fs-extra';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { redactOptions } from '../util/redact-secrets.js';
 
 /**
  * Uninstall a browser from the Butler Sheet Icons cache.
+ *
  * @param {object} options - An options object.
  * @param {string} options.browser - The browser to uninstall.
  * @param {string} options.browserVersion - The version of the browser to uninstall.
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
  *
- * @returns {Promise<boolean>} - A promise that resolves to true if the browser was uninstalled successfully, false otherwise.
+ * @returns {Promise<boolean>} A promise that resolves to `true` if the browser was uninstalled successfully, `false` if it was not found in the cache.
  *
- * @throws {Error} - If the browser was not found.
- * @throws {Error} - If there was an error uninstalling the browser.
+ * @throws {Error} If there was an error uninstalling the browser.
  */
 export const browserUninstall = async (options) => {
     try {
@@ -28,7 +29,7 @@ export const browserUninstall = async (options) => {
         logger.info('Starting browser uninstallation');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
-        logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+        logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
         const browserPath = path.join(homedir(), '.cache/puppeteer');
 
@@ -78,9 +79,9 @@ export const browserUninstall = async (options) => {
  * @param {object} options - An options object.
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
  *
- * @returns {Promise<boolean>} - A promise that resolves to true when all browsers are uninstalled.
+ * @returns {Promise<boolean>} A promise that resolves to `true` when all browsers are uninstalled.
  *
- * @throws {Error} - If there is an error during the uninstallation process.
+ * @throws {Error} If there is an error during the uninstallation process.
  */
 export const browserUninstallAll = async (options) => {
     try {
@@ -93,7 +94,7 @@ export const browserUninstallAll = async (options) => {
         logger.info('Starting uninstallation of all browsers');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
-        logger.debug(`Options: ${JSON.stringify(options, null, 2)}`);
+        logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
         const browserPath = path.join(homedir(), '.cache/puppeteer');
         logger.debug(`Browser cache path: ${browserPath}`);
@@ -106,19 +107,34 @@ export const browserUninstallAll = async (options) => {
         // Check if any browsers are installed
         if (browsersInstalled.length > 0) {
             logger.info(`Uninstalling ${browsersInstalled.length} browsers:`);
-            browsersInstalled.forEach(async (browser) => {
+
+            // Use a for-of loop so each uninstall is awaited before the next
+            // starts. The previous `.forEach(async ...)` did not await inner
+            // promises, so the subsequent `fs.emptyDir` raced with in-flight
+            // uninstalls and could leave the cache in an inconsistent state
+            // (which then caused the next install to fail with an extraction
+            // error on `@puppeteer/browsers` v3+).
+            for (const browser of browsersInstalled) {
                 logger.info(
                     `    Starting uninstallation of "${browser.browser}", build id "${browser.buildId}", platform "${browser.platform}", path "${browser.path}"`
                 );
 
-                await uninstall({
-                    browser: browser.browser,
-                    buildId: browser.buildId,
-                    cacheDir: browserPath,
-                });
+                try {
+                    await uninstall({
+                        browser: browser.browser,
+                        buildId: browser.buildId,
+                        cacheDir: browserPath,
+                    });
+                } catch (err) {
+                    // Continue with the remaining browsers even if one fails.
+                    logger.warn(
+                        `Failed to uninstall browser "${browser.browser}" (${browser.buildId}): ${err.message}. Continuing with remaining browsers.`
+                    );
+                    continue;
+                }
 
                 logger.info(`Browser "${browser.browser}" (${browser.buildId}) uninstalled.`);
-            });
+            }
 
             // Remove any remaining files and directories in the browser cache directory
             // This is necessary because Puppeteer's uninstall function may not remove all files

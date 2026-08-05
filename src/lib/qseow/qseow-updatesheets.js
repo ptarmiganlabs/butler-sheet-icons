@@ -2,17 +2,17 @@ import enigma from 'enigma.js';
 
 import { setupEnigmaConnection } from './qseow-enigma.js';
 import { logger } from '../../globals.js';
+import { QseowError } from '../util/errors.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Enterprise on Windows (QSEoW) app.
  *
- * @param {Array<Object>} createdFiles - Array of objects describing the files
+ * @param {Array<object>} createdFiles - Array of objects describing the files
  * that were created during the previous step in the process.
  * @param {string} appId - The ID of the QSEoW app to process.
- * @param {Object} options - Configuration options for processing the app.
+ * @param {object} options - Configuration options for processing the app.
  *
- * @returns {Promise<void>} A promise that resolves when the sheet thumbnails have
- * been updated in the QSEoW app.
+ * @returns {Promise<void>} Resolves when the sheet thumbnails have been updated in the QSEoW app.
  */
 export const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
     try {
@@ -24,7 +24,6 @@ export const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) =
         const session = await enigma.create(configEnigma);
         if (options.loglevel === 'silly') {
             session.on('traffic:sent', (data) => console.log('sent:', data));
-
             session.on('traffic:received', (data) => console.log('received:', data));
         }
 
@@ -197,6 +196,6 @@ export const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) =
             logger.error(`QSEOW UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
         }
 
-        process.exit(1);
+        throw new QseowError(`Failed to update sheet thumbnails in app ${appId}`, { cause: err });
     }
 };

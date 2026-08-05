@@ -47,7 +47,13 @@ jest.mock('../lib/browser/browser-list-available.js', () => ({
     browserListAvailable: jest.fn().mockResolvedValue([]),
 }));
 
-// Helper function to execute the CLI with arguments
+/**
+ * Runs the butler-sheet-icons CLI in a child process and returns the result.
+ *
+ * @param {string[]} [args] - CLI arguments to pass to the spawned process. Defaults to `[]`.
+ *
+ * @returns {import('child_process').SpawnSyncReturns<string>} The `spawnSync` result containing `status`, `stdout`, `stderr`, etc.
+ */
 const execCLI = (args = []) => {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);

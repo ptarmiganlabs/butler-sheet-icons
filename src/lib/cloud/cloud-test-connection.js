@@ -1,19 +1,30 @@
 import { logger } from '../../globals.js';
 
 /**
+ * A Qlik SaaS HTTP client, returned by the default export of `cloud-repo.js`.
+ *
+ * @typedef {object} QlikSaasInstance
+ * @property {(path: string) => Promise<object>} Get - Issues a GET request to the given path.
+ * @property {(path: string) => Promise<object>} Delete - Issues a DELETE request to the given path.
+ * @property {(opts: object) => Promise<object>} Patch - Issues a PATCH request.
+ * @property {(opts: object) => Promise<object>} Post - Issues a POST request.
+ * @property {(opts: object) => Promise<object>} Put - Issues a PUT request.
+ */
+
+/**
  * Tests connection to Qlik Sense Cloud by getting info about the user associated with the API key.
  *
  * @param {object} options - Configuration options for the connection test.
  * @param {string} options.tenanturl - URL of Qlik Sense Cloud tenant.
  * @param {string} options.apikey - API key for Qlik Sense Cloud tenant.
- * @param {string} options.logonuserid - user ID for Qlik Sense Cloud tenant.
- * @param {string} options.logonpwd - password for Qlik Sense Cloud tenant.
- * @param {string} options.loglevel - log level for the operation.
- * @param {QlikSaas} saasInstance - Instance of QlikSaas class.
+ * @param {string} options.logonuserid - User ID for Qlik Sense Cloud tenant.
+ * @param {string} options.logonpwd - Password for Qlik Sense Cloud tenant.
+ * @param {string} options.loglevel - Log level for the operation.
+ * @param {QlikSaasInstance} saasInstance - Instance of QlikSaas class.
  *
- * @returns {Promise<boolean>} - Resolves to true if connection is successful, false otherwise.
+ * @returns {Promise<boolean>} Resolves to `true` if connection is successful, `false` otherwise.
  *
- * @throws {Error} - Throws an error if there is an issue during the connection test.
+ * @throws {Error} Throws an error if there is an issue during the connection test.
  */
 export const qscloudTestConnection = async (options, saasInstance) => {
     // Test connection to QS Cloud by getting info about the user associated with the API key

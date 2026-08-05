@@ -166,7 +166,13 @@ describe('qseow command', () => {
 
     test('invokes qseowCreateThumbnails with normalized browser version', async () => {
         const options = { browser: 'chrome', browserVersion: '', appid: 'abc' };
-        const command = { name: () => 'qseow' };
+        /**
+         * Stub of a Commander command whose `name()` always returns `'qseow'`.
+         *
+         * @returns {string} The constant `'qseow'`.
+         */
+        const nameFn = () => 'qseow';
+        const command = { name: nameFn };
 
         await handleQseowCreateSheetThumbnails(options, command);
 
@@ -345,7 +351,13 @@ describe('browser commands', () => {
 
     test('install delegates with command parameter', async () => {
         const options = { browser: 'firefox', browserVersion: 'latest', loglevel: 'debug' };
-        const command = { name: () => 'browser' };
+        /**
+         * Stub of a Commander command whose `name()` always returns `'browser'`.
+         *
+         * @returns {string} The constant `'browser'`.
+         */
+        const nameFn = () => 'browser';
+        const command = { name: nameFn };
 
         await handleBrowserInstall(options, command);
 
