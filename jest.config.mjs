@@ -22,7 +22,16 @@ const config = {
     collectCoverage: true,
     collectCoverageFrom: ['<rootDir>/src/**/*.js'],
     coverageDirectory: 'coverage',
-    coveragePathIgnorePatterns: ['/node_modules/', '/build/', '/dist/'],
+    // import-meta-url.js is a generated SEA shim. It is excluded from ESLint
+    // (eslint.config.js) and from SonarCloud analysis (sonar-project.properties);
+    // keeping it out of the coverage report too stops Sonar warning that it cannot
+    // resolve a path present in lcov.info but absent from the analysed file set.
+    coveragePathIgnorePatterns: [
+        '/node_modules/',
+        '/build/',
+        '/dist/',
+        'src/lib/util/import-meta-url\\.js$',
+    ],
     coverageProvider: 'v8',
     testEnvironment: 'node',
     roots: ['<rootDir>/src'],
