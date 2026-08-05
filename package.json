@@ -14,7 +14,11 @@
         "lint": "npx eslint src/ --max-warnings 0",
         "lint:fix": "npx eslint --fix src/",
         "format": "npx prettier --write \"src/**/*.js\"",
-        "build:macos": "./build-script/build-macos.sh"
+        "build:macos": "./build-script/build-macos.sh",
+        "gitnexus:install": "node scripts/gitnexus.js install",
+        "gitnexus:status": "node scripts/gitnexus.js status",
+        "gitnexus:index": "node scripts/gitnexus.js index",
+        "gitnexus:refresh": "node scripts/gitnexus.js refresh"
     },
     "author": "Göran Sander mountaindude@ptarmiganlabs.com",
     "license": "MIT",
