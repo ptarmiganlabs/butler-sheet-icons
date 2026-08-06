@@ -12,6 +12,7 @@ jest.unstable_mockModule('@puppeteer/browsers', () => ({
     canDownload: jest.fn().mockResolvedValue(true),
     install: jest.fn(),
     resolveBuildId: jest.fn(),
+    uninstall: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../../globals.js', () => ({

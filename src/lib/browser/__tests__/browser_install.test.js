@@ -5,8 +5,9 @@ jest.unstable_mockModule('@puppeteer/browsers', () => ({
     resolveBuildId: jest.fn(),
     detectBrowserPlatform: jest.fn(),
     canDownload: jest.fn(),
+    uninstall: jest.fn(),
 }));
-const { install, resolveBuildId, detectBrowserPlatform, canDownload } =
+const { install, resolveBuildId, detectBrowserPlatform, canDownload, uninstall } =
     await import('@puppeteer/browsers');
 
 jest.unstable_mockModule('../../../globals.js', () => ({
@@ -137,5 +138,92 @@ describe('browserInstall — retry logic', () => {
 
         expect(install).toHaveBeenCalledTimes(3);
         expect(logger.warn).toHaveBeenCalledTimes(2);
+    });
+
+    test('clears the partial install directory before retrying', async () => {
+        const installed = { browser: 'chrome', buildId: '123.0.0.0', executablePath: '/p/chrome' };
+        install
+            .mockImplementationOnce(() => {
+                throw new Error(
+                    'All providers failed: DefaultProvider: Extraction failed: bad zip'
+                );
+            })
+            .mockResolvedValueOnce(installed);
+
+        await browserInstall({ browser: 'chrome', browserVersion: '123.0.0.0', loglevel: 'error' });
+
+        expect(uninstall).toHaveBeenCalledTimes(1);
+        expect(uninstall).toHaveBeenCalledWith({
+            browser: 'chrome',
+            buildId: '123.0.0.0',
+            cacheDir: expect.stringContaining('.cache/puppeteer'),
+        });
+    });
+
+    // The regression this guards against: `install()` treats an existing install directory as an
+    // already-installed browser, so it skips the download and fails validation instead. A retry
+    // that does not first clear the partial directory left by a failed extraction can therefore
+    // never recover, and the misleading validation error replaces the real extraction failure as
+    // the error the caller finally sees. The directory is modelled here the way
+    // `@puppeteer/browsers` treats it - the mocks in the test above always succeed on retry
+    // regardless of cache state, which is why they did not catch this.
+    test('recovers from an extraction failure that left a partial install directory', async () => {
+        const installed = { browser: 'chrome', buildId: '123.0.0.0', executablePath: '/p/chrome' };
+        let partialDirExists = false;
+
+        install
+            .mockImplementationOnce(() => {
+                // Download succeeds, extraction fails part-way through.
+                partialDirExists = true;
+                throw new Error(
+                    'All providers failed: DefaultProvider: Extraction failed: bad zip'
+                );
+            })
+            .mockImplementationOnce(() => {
+                if (partialDirExists) {
+                    throw new Error(
+                        'All providers failed for chrome 123.0.0.0:\n  - DefaultProvider: The browser folder exists but the executable is missing'
+                    );
+                }
+                return installed;
+            });
+        uninstall.mockImplementationOnce(() => {
+            partialDirExists = false;
+        });
+
+        const result = await browserInstall({
+            browser: 'chrome',
+            browserVersion: '123.0.0.0',
+            loglevel: 'error',
+        });
+
+        expect(result).toBe(installed);
+        expect(install).toHaveBeenCalledTimes(2);
+    });
+
+    test('a failing cleanup does not mask the install error', async () => {
+        const lastError = new Error(
+            'All providers failed: DefaultProvider: Extraction failed: bad zip'
+        );
+        install
+            .mockImplementationOnce(() => {
+                throw new Error('attempt 1');
+            })
+            .mockImplementationOnce(() => {
+                throw new Error('attempt 2');
+            })
+            .mockImplementationOnce(() => {
+                throw lastError;
+            });
+        uninstall
+            .mockRejectedValueOnce(new Error('ENOENT: no such file or directory'))
+            .mockRejectedValueOnce(new Error('ENOENT: no such file or directory'));
+
+        await expect(
+            browserInstall({ browser: 'chrome', browserVersion: '123.0.0.0', loglevel: 'error' })
+        ).rejects.toBe(lastError);
+
+        // Cleanup runs before each retry, never after the final attempt.
+        expect(uninstall).toHaveBeenCalledTimes(2);
     });
 });
