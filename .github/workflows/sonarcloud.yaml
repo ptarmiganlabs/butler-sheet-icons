@@ -63,6 +63,16 @@ jobs:
           node-version: 24
           cache: npm
 
+      # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
+      # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
+      # packages and could not resolve jest-circus. Pinning npm here makes the install identical
+      # on every runner, hosted or self-hosted, regardless of machine state. npm 12 is also what
+      # honours min-release-age in .npmrc.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+
       - name: Install dependencies
         run: npm ci
 
