@@ -20,7 +20,18 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
+      # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
+      # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
+      # packages and could not resolve jest-circus. Pinning npm here makes the install identical
+      # on every runner, hosted or self-hosted, regardless of machine state. npm 12 is also what
+      # honours min-release-age in .npmrc.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: npm ci
@@ -31,13 +42,210 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
-  test-on-macos-arm64:
+  # ---------------------------------------------------------------------------------------------
+  # Browser suites - no Qlik back end at all.
+  #
+  # The five browser integration tests read only BSI_LOG_LEVEL and BSI_TEST_TIMEOUT, so these jobs
+  # carry no concurrency group and no ordering constraint. The macOS half runs on a hosted runner;
+  # the Windows half stays on-premise purely to keep Windows platform coverage.
+  # ---------------------------------------------------------------------------------------------
+  test-browser-macos:
+    needs:
+      - unit-tests
+    permissions:
+      contents: read
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+      # See the note on the other jobs: pins npm so the install is identical on every runner.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci --include=dev --include=prod
+
+      - name: Run browser tests
+        run: npm run test:integration:browser
+        env:
+          BSI_LOG_LEVEL: 'info'
+          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+
+  test-browser-win:
+    needs:
+      - unit-tests
+    permissions:
+      contents: read
+    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
+    # runner that holds the signing certificate. Without it they pool across every Windows runner.
+    runs-on:
+      - self-hosted
+      - x64
+      - windows
+      - sp53
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: ''
+
+      # See the note on the other jobs: pins npm so the install is identical on every runner.
+      - name: Pin npm
+        shell: powershell
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
+
+      - name: Install dependencies
+        shell: powershell
+        run: npm ci --include=dev --include=prod
+
+      - name: Run browser tests
+        shell: powershell
+        run: npm run test:integration:browser
+        env:
+          BSI_LOG_LEVEL: 'info'
+          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+
+  # ---------------------------------------------------------------------------------------------
+  # QS Cloud chain - every job here talks to the shared Qlik Sense Cloud tenant.
+  #
+  # None of it needs the on-premise environment, so all four run on hosted runners.
+  # ---------------------------------------------------------------------------------------------
+  test-qscloud-macos:
     needs:
       - unit-tests
     permissions:
       contents: read
     concurrency:
-      group: qs-tests-${{ github.repository }}
+      group: bsi-qscloud-${{ github.repository }}
+      cancel-in-progress: false
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+      # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
+      # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
+      # packages and could not resolve jest-circus. Pinning npm here makes the install identical
+      # on every runner, hosted or self-hosted, regardless of machine state. npm 12 is also what
+      # honours min-release-age in .npmrc.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci --include=dev --include=prod
+
+      - name: Run QS cloud tests
+        run: npm run test:integration:cloud
+        env:
+          BSI_LOG_LEVEL: 'info'
+          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
+
+  test-qscloud-win:
+    # Chained rather than parallel: this is what keeps only one job at a time against the tenant
+    # *within* a run. The concurrency group guards against other runs.
+    needs:
+      - test-qscloud-macos
+    permissions:
+      contents: read
+    concurrency:
+      group: bsi-qscloud-${{ github.repository }}
+      cancel-in-progress: false
+    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
+    # runner that holds the signing certificate. Without it they pool across every Windows runner.
+    runs-on:
+      - self-hosted
+      - x64
+      - windows
+      - sp53
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: ''
+
+      # See the note on the other jobs: pins npm so the install is identical on every runner.
+      - name: Pin npm
+        shell: powershell
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
+
+      - name: Install dependencies
+        shell: powershell
+        run: npm ci --include=dev --include=prod
+
+      - name: Run QS cloud tests
+        shell: powershell
+        run: npm run test:integration:cloud
+        env:
+          BSI_LOG_LEVEL: 'info'
+          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
+
+  # ---------------------------------------------------------------------------------------------
+  # QSEoW chain - every job here talks to the on-premise Qlik Sense environment, which is not
+  # reachable from the internet. All four are therefore self-hosted, and none of them may share a
+  # job with QS Cloud work.
+  # ---------------------------------------------------------------------------------------------
+  test-qseow-macos:
+    needs:
+      - unit-tests
+    permissions:
+      contents: read
+    concurrency:
+      group: bsi-qseow-${{ github.repository }}
       cancel-in-progress: false
     runs-on:
       - self-hosted
@@ -51,27 +259,24 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-      - name: Debugging 1
-        run: pwd && ls -la
-        working-directory: .
-
       - name: Setup node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
+      # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
+      # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
+      # packages and could not resolve jest-circus. Pinning npm here makes the install identical
+      # on every runner, hosted or self-hosted, regardless of machine state. npm 12 is also what
+      # honours min-release-age in .npmrc.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
-        run: |
-          pwd 
-          npm ci --include=dev --include=prod
-
-      - name: Debugging 2
-        run: |
-          pwd
-          ls -la
-          node --version
-          git version
-        working-directory: .
+        run: npm ci --include=dev --include=prod
 
       - name: Prepare QSEoW cert files
         env:
@@ -95,34 +300,8 @@ jobs:
             echo "BSI_CERT_KEY_FILE=$KEY_FILE"
           } >> "$GITHUB_ENV"
 
-      # Each step declares only the variables its own tests read - see the assertEnv() call at the
-      # top of each suite. They used to share one 17-variable block, which handed the browser
-      # tests every Qlik Sense and QS Cloud credential for no reason. Test code can read its own
-      # process.env, so a step's env block is the blast radius of anything that runs in it.
-      - name: Run browser tests
-        run: npm run test:integration:browser
-        working-directory: .
-        env:
-          BSI_LOG_LEVEL: 'info'
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-
-      - name: Run QS cloud tests
-        run: npm run test:integration:cloud
-        working-directory: .
-        env:
-          BSI_LOG_LEVEL: 'info'
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
-
       - name: Run QSEoW tests
         run: npm run test:integration:qseow
-        working-directory: .
         env:
           BSI_LOG_LEVEL: 'info'
           BSI_CONTENT_LIBRARY: 'abc 123'
@@ -136,104 +315,79 @@ jobs:
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
           BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
 
-      # - name: Send job status to MQTT (starting job)
-      #   uses: potaesm/github-actions-mqtt-request@1.0.0
-      #   if: always()
-      #   env:
-      #     JOB_CONCLUSION: ${{ job.status }}
-      #     NODE_VERSION: ${{ matrix.node }}
-      #   with:
-      #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
-      #     topic: control/sp53/mac-build1/action-runner
-      #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
-      #     connectTimeout: 30000
-
-  test-on-winsrv-amd64:
+  test-qseow-win:
     needs:
-      - test-on-macos-arm64
-    concurrency:
-      group: qs-tests-${{ github.repository }}
-      cancel-in-progress: false
+      - test-qseow-macos
     permissions:
       contents: read
+    concurrency:
+      group: bsi-qseow-${{ github.repository }}
+      cancel-in-progress: false
+    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
+    # runner that holds the signing certificate. Without it they pool across every Windows runner.
     runs-on:
       - self-hosted
       - x64
       - windows
       - sp53
-      - win-code-sign
     steps:
-      # - name: Send job status to MQTT (starting job)
-      #   uses: potaesm/github-actions-mqtt-request@1.0.0
-      #   if: always()
-      #   env:
-      #     JOB_CONCLUSION: ${{ job.status }}
-      #     NODE_VERSION: ${{ matrix.node }}
-      #   with:
-      #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
-      #     topic: control/sp53/pro2-win2/action-runner
-      #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "in_progress","conclusion":"${{ env.JOB_CONCLUSION }}" }'
-      #     connectTimeout: 30000
-
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 2
           persist-credentials: false
 
-      - name: Debugging 1
-        shell: powershell
-        run: |
-          Get-Location
-          Get-ChildItem
-
       - name: Setup node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: ''
+
+      # See the note on the other jobs: pins npm so the install is identical on every runner.
+      - name: Pin npm
+        shell: powershell
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         shell: powershell
-        run: |
-          dir
-          npm ci --include=dev --include=prod
+        run: npm ci --include=dev --include=prod
 
-      - name: Debugging 2
+      # Writes the client certificate into RUNNER_TEMP from secrets, the same way the macOS job
+      # does. It previously took BSI_CERT_FILE/BSI_CERT_KEY_FILE from secrets holding *paths* to
+      # files pre-installed on one specific machine, which meant this job only worked on that
+      # runner. Deriving the files here instead makes any Windows runner interchangeable.
+      #
+      # .NET file APIs rather than Set-Content/Out-File: Windows PowerShell would write a BOM and
+      # CRLF line endings, and a PEM with a BOM is rejected when the certificate is parsed.
+      - name: Prepare QSEoW cert files
         shell: powershell
-        run: |
-          dir 
-          node --version
-          git version
-        working-directory: .
-
-      # See the note on the macOS job: each step gets only the variables its own suite reads.
-      - name: Run browser tests
-        shell: powershell
-        run: npm run test:integration:browser
-        working-directory: .
         env:
-          BSI_LOG_LEVEL: 'info'
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
+          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:QS_CLIENT_PEM) -or
+              [string]::IsNullOrWhiteSpace($env:QS_CLIENT_KEY_PEM)) {
+            throw 'Missing QSEoW client certificate secrets'
+          }
+          $certDir = Join-Path $env:RUNNER_TEMP 'bsi-cert'
+          New-Item -ItemType Directory -Force -Path $certDir | Out-Null
+          $certFile = Join-Path $certDir 'client.pem'
+          $keyFile = Join-Path $certDir 'client_key.pem'
+          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+          [System.IO.File]::WriteAllText($certFile, ($env:QS_CLIENT_PEM -replace "`r`n", "`n"), $utf8NoBom)
+          [System.IO.File]::WriteAllText($keyFile, ($env:QS_CLIENT_KEY_PEM -replace "`r`n", "`n"), $utf8NoBom)
+          [System.IO.File]::AppendAllText($env:GITHUB_ENV, "BSI_CERT_FILE=$certFile`nBSI_CERT_KEY_FILE=$keyFile`n", $utf8NoBom)
 
-      - name: Run QS cloud tests
-        shell: powershell
-        run: npm run test:integration:cloud
-        working-directory: .
-        env:
-          BSI_LOG_LEVEL: 'info'
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
-
+      # BSI_CERT_FILE and BSI_CERT_KEY_FILE deliberately absent here - they arrive via GITHUB_ENV
+      # from the step above. A step-level env entry would take precedence over GITHUB_ENV and
+      # silently reinstate the hardcoded paths.
       - name: Run QSEoW tests
         shell: powershell
         run: npm run test:integration:qseow
-        working-directory: .
         env:
           BSI_LOG_LEVEL: 'info'
           BSI_CONTENT_LIBRARY: 'abc 123'
@@ -244,27 +398,19 @@ jobs:
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
           BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
 
-      # - name: Send job status to MQTT when done
-      #   uses: potaesm/github-actions-mqtt-request@1.0.0
-      #   if: always()
-      #   env:
-      #     JOB_CONCLUSION: ${{ job.status }}
-      #     NODE_VERSION: 16
-      #   with:
-      #     url: mqtt://${{ secrets.MQTT_ONPREM_BROKER_IP_PORT }}
-      #     topic: control/sp53/pro2-win2/action-runner
-      #     payload: '{ "type":"ci-test", "repo": "${{ github.repository }}", "job": "${{ github.job }}", "workflow": "${{ github.workflow }}", "nodeVersion": "${{ env.NODE_VERSION }}","status": "completed","conclusion":"${{ env.JOB_CONCLUSION }}" }'
-      #     connectTimeout: 30000
-
+  # ---------------------------------------------------------------------------------------------
+  # Docker image builds - no Qlik back end, so no group, and they only wait on unit-tests.
+  #
+  # The image smoke test and the browser-cache commands need no back end either, so they run here
+  # where the image is already local, rather than paying an artifact round trip in a later job.
+  # ---------------------------------------------------------------------------------------------
   docker-build-arm64:
     name: docker-build-arm64
     needs:
-      - test-on-winsrv-amd64
+      - unit-tests
     if: github.repository_owner == 'ptarmiganlabs'
     timeout-minutes: 60
     permissions:
@@ -284,16 +430,6 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-      - name: Show Docker disk usage (before build)
-        run: docker system df || true
-
-      - name: Verify Docker is responsive
-        run: |
-          docker info
-          docker ps -a
-          docker context ls
-          docker version
-
       - name: Build arm64 Docker image
         run: |
           set -x
@@ -308,6 +444,22 @@ jobs:
               exit 1
             }
 
+      - name: Smoke test arm64 image
+        run: docker run --rm "$IMAGE_NAME" --version
+
+      - name: Run browser cache commands (arm64 image)
+        run: |
+          CACHE_DIR="$RUNNER_TEMP/bsi-browser-cache"
+          mkdir -p "$CACHE_DIR"
+          docker run --rm \
+            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
+            "$IMAGE_NAME" \
+            browser list-available
+          docker run --rm \
+            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
+            "$IMAGE_NAME" \
+            browser uninstall-all
+
       - name: Save Docker image to tarball
         run: docker save "$IMAGE_NAME" -o "$IMAGE_TAR"
 
@@ -318,22 +470,10 @@ jobs:
           path: ${{ env.IMAGE_TAR }}
           retention-days: 1
 
-      - name: Remove local image file
-        run: rm -f "$IMAGE_TAR"
-
-      - name: Remove local Docker image
-        run: docker image rm "$IMAGE_NAME" || true
-
-      - name: Prune dangling images
-        run: docker image prune -af || true
-
-      - name: Show Docker disk usage (after cleanup)
-        run: docker system df || true
-
   docker-build-on-ubuntu-amd64:
     name: docker-build-on-ubuntu-amd64
     needs:
-      - test-on-winsrv-amd64
+      - unit-tests
     if: github.repository_owner == 'ptarmiganlabs'
     permissions:
       contents: read
@@ -349,15 +489,28 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
-      - name: Show Docker disk usage (before build)
-        run: docker system df || true
-
       - name: Build amd64 Docker image
         run: |
           docker build \
             --file src/Dockerfile \
             --tag "$IMAGE_NAME" \
             .
+
+      - name: Smoke test amd64 image
+        run: docker run --rm "$IMAGE_NAME" --version
+
+      - name: Run browser cache commands (amd64 image)
+        run: |
+          CACHE_DIR="$RUNNER_TEMP/bsi-browser-cache"
+          mkdir -p "$CACHE_DIR"
+          docker run --rm \
+            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
+            "$IMAGE_NAME" \
+            browser list-available
+          docker run --rm \
+            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
+            "$IMAGE_NAME" \
+            browser uninstall-all
 
       - name: Save Docker image to tarball
         run: docker save "$IMAGE_NAME" -o "$IMAGE_TAR"
@@ -369,110 +522,43 @@ jobs:
           path: ${{ env.IMAGE_TAR }}
           retention-days: 1
 
-      - name: Remove local image file
-        run: rm -f "$IMAGE_TAR"
-
-      - name: Remove local Docker image
-        run: docker image rm "$IMAGE_NAME" || true
-
-      - name: Prune dangling images
-        run: docker image prune -af || true
-
-      - name: Show Docker disk usage (after cleanup)
-        run: docker system df || true
-
-  docker-test-on-macos-arm64:
-    name: docker-test-on-macos-arm64
+  # ---------------------------------------------------------------------------------------------
+  # Docker image exercised against each back end. Split the same way as the test jobs, and for the
+  # same reason: a job may carry only one concurrency group.
+  # ---------------------------------------------------------------------------------------------
+  docker-qscloud-arm64:
     needs:
       - docker-build-arm64
+      - test-qscloud-win
     if: github.repository_owner == 'ptarmiganlabs'
     concurrency:
-      group: qs-tests-${{ github.repository }}
+      group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
     permissions:
       actions: read
       contents: read
-    runs-on:
-      - self-hosted
-      - macos
-      - arm64
-      - mac-build2
-      - sp53
+    runs-on: ubuntu-24.04-arm
     env:
       IMAGE_NAME: butler-sheet-icons:ci-arm64
       IMAGE_TAR: butler-sheet-icons-ci-arm64.tar
-      BSI_LOG_LEVEL: 'info'
-      BSI_CONTENT_LIBRARY: 'abc 123'
-      BSI_HOST: ${{ secrets.BSI_HOST }}
-      BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-      BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-      BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-      BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-      BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-      BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-      BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
       BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
       BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
       BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
       BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
       BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-      BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-
       - name: Download Docker image artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: butler-sheet-icons-ci-arm64-image
 
-      - name: Show Docker disk usage (before load)
-        run: docker system df || true
-
       - name: Load Docker image
         run: docker load --input "$IMAGE_TAR"
 
-      - name: Remove downloaded tarball
-        run: rm -f "$IMAGE_TAR"
-
-      - name: Smoke test arm64 image
-        run: docker run --rm "$IMAGE_NAME" --version
-
-      - name: Prepare host folders for Docker mounts
-        env:
-          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
-          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
-        run: |
-          set -euo pipefail
-          IMG_DIR="$HOME/bsi-bsi/img"
-          CERT_DIR="$HOME/bsi-bsi/cert"
-          CACHE_DIR="$HOME/bsi-browser-cache"
-          mkdir -p "$IMG_DIR" "$CERT_DIR" "$CACHE_DIR"
-          if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
-            echo 'Missing QSEoW client certificate secrets' >&2
-            exit 1
-          fi
-          printf '%s\n' "$QS_CLIENT_PEM" > "$CERT_DIR/client.pem"
-          printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$CERT_DIR/client_key.pem"
-          chmod 600 "$CERT_DIR"/client*.pem
-
-      - name: Run browser cache commands (arm64 image)
-        run: |
-          CACHE_DIR="$HOME/bsi-browser-cache"
-          docker run --rm \
-            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
-            "$IMAGE_NAME" \
-            browser list-available
-          docker run --rm \
-            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
-            "$IMAGE_NAME" \
-            browser uninstall-all
-
       - name: Run QS Cloud commands (arm64 image)
         run: |
-          IMG_DIR="$HOME/bsi-bsi/img"
+          IMG_DIR="$RUNNER_TEMP/bsi-img"
+          mkdir -p "$IMG_DIR"
           docker run --rm \
             "$IMAGE_NAME" \
             qscloud list-collections \
@@ -491,6 +577,115 @@ jobs:
             --appid "$BSI_CLOUD_APP_ID" \
             --log-level verbose \
             --imagedir ./img
+
+  docker-qscloud-amd64:
+    needs:
+      - docker-build-on-ubuntu-amd64
+      - docker-qscloud-arm64
+    if: github.repository_owner == 'ptarmiganlabs'
+    concurrency:
+      group: bsi-qscloud-${{ github.repository }}
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: read
+    runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: butler-sheet-icons:ci-amd64
+      IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
+      BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
+      BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
+      BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
+      BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
+      BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
+    steps:
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: butler-sheet-icons-ci-amd64-image
+
+      - name: Load Docker image
+        run: docker load --input "$IMAGE_TAR"
+
+      - name: Run QS Cloud commands (amd64 image)
+        run: |
+          IMG_DIR="$RUNNER_TEMP/bsi-img"
+          mkdir -p "$IMG_DIR"
+          docker run --rm \
+            "$IMAGE_NAME" \
+            qscloud list-collections \
+            --tenanturl "$BSI_CLOUD_TENANT_URL" \
+            --apikey "$BSI_CLOUD_API_KEY" \
+            --outputformat table
+
+          docker run --rm \
+            -v "$IMG_DIR:/nodeapp/img" \
+            "$IMAGE_NAME" \
+            qscloud create-sheet-thumbnails \
+            --tenanturl "$BSI_CLOUD_TENANT_URL" \
+            --apikey "$BSI_CLOUD_API_KEY" \
+            --logonuserid "$BSI_CLOUD_LOGON_USERID" \
+            --logonpwd "$BSI_CLOUD_LOGON_PWD" \
+            --appid "$BSI_CLOUD_APP_ID" \
+            --log-level verbose \
+            --imagedir ./img
+
+  docker-qseow-arm64:
+    needs:
+      - docker-build-arm64
+      - test-qseow-win
+    if: github.repository_owner == 'ptarmiganlabs'
+    concurrency:
+      group: bsi-qseow-${{ github.repository }}
+      cancel-in-progress: false
+    permissions:
+      actions: read
+      contents: read
+    runs-on:
+      - self-hosted
+      - macos
+      - arm64
+      - mac-build2
+      - sp53
+    env:
+      IMAGE_NAME: butler-sheet-icons:ci-arm64
+      IMAGE_TAR: butler-sheet-icons-ci-arm64.tar
+      BSI_CONTENT_LIBRARY: 'abc 123'
+      BSI_HOST: ${{ secrets.BSI_HOST }}
+      BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
+      BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
+      BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
+      BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
+      BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
+      BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+    steps:
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: butler-sheet-icons-ci-arm64-image
+
+      - name: Load Docker image
+        run: docker load --input "$IMAGE_TAR"
+
+      - name: Remove downloaded tarball
+        run: rm -f "$IMAGE_TAR"
+
+      - name: Prepare host folders for Docker mounts
+        env:
+          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
+          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
+        run: |
+          set -euo pipefail
+          IMG_DIR="$HOME/bsi-bsi/img"
+          CERT_DIR="$HOME/bsi-bsi/cert"
+          mkdir -p "$IMG_DIR" "$CERT_DIR"
+          if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
+            echo 'Missing QSEoW client certificate secrets' >&2
+            exit 1
+          fi
+          printf '%s\n' "$QS_CLIENT_PEM" > "$CERT_DIR/client.pem"
+          printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$CERT_DIR/client_key.pem"
+          chmod 600 "$CERT_DIR"/client*.pem
 
       - name: Run QSEoW Docker command (arm64 image)
         run: |
@@ -527,17 +722,13 @@ jobs:
       - name: Prune dangling images
         run: docker image prune -af || true
 
-      - name: Show Docker disk usage (after cleanup)
-        run: docker system df || true
-
-  docker-test-on-ubuntu-amd64:
-    name: docker-test-on-ubuntu-amd64
+  docker-qseow-amd64:
     needs:
       - docker-build-on-ubuntu-amd64
-      - docker-test-on-macos-arm64
+      - docker-qseow-arm64
     if: github.repository_owner == 'ptarmiganlabs'
     concurrency:
-      group: qs-tests-${{ github.repository }}
+      group: bsi-qseow-${{ github.repository }}
       cancel-in-progress: false
     permissions:
       actions: read
@@ -551,7 +742,6 @@ jobs:
     env:
       IMAGE_NAME: butler-sheet-icons:ci-amd64
       IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
-      BSI_LOG_LEVEL: 'info'
       BSI_CONTENT_LIBRARY: 'abc 123'
       BSI_HOST: ${{ secrets.BSI_HOST }}
       BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
@@ -560,35 +750,17 @@ jobs:
       BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
       BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
       BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-      BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-      BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-      BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-      BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-      BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-      BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-      BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-
       - name: Download Docker image artifact
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: butler-sheet-icons-ci-amd64-image
-
-      - name: Show Docker disk usage (before load)
-        run: docker system df || true
 
       - name: Load Docker image
         run: docker load --input "$IMAGE_TAR"
 
       - name: Remove downloaded tarball
         run: rm -f "$IMAGE_TAR"
-
-      - name: Smoke test amd64 image
-        run: docker run --rm "$IMAGE_NAME" --version
 
       - name: Prepare host folders for Docker mounts
         env:
@@ -598,8 +770,7 @@ jobs:
           set -euo pipefail
           IMG_DIR="$HOME/bsi-bsi/img"
           CERT_DIR="$HOME/bsi-bsi/cert"
-          CACHE_DIR="$HOME/bsi-browser-cache"
-          mkdir -p "$IMG_DIR" "$CERT_DIR" "$CACHE_DIR"
+          mkdir -p "$IMG_DIR" "$CERT_DIR"
           if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
             echo 'Missing QSEoW client certificate secrets' >&2
             exit 1
@@ -607,40 +778,6 @@ jobs:
           printf '%s\n' "$QS_CLIENT_PEM" > "$CERT_DIR/client.pem"
           printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$CERT_DIR/client_key.pem"
           chmod 600 "$CERT_DIR"/client*.pem
-
-      - name: Run browser cache commands (amd64 image)
-        run: |
-          CACHE_DIR="$HOME/bsi-browser-cache"
-          docker run --rm \
-            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
-            "$IMAGE_NAME" \
-            browser list-available
-          docker run --rm \
-            -v "$CACHE_DIR:/home/nodejs/.cache/puppeteer" \
-            "$IMAGE_NAME" \
-            browser uninstall-all
-
-      - name: Run QS Cloud commands (amd64 image)
-        run: |
-          IMG_DIR="$HOME/bsi-bsi/img"
-          docker run --rm \
-            "$IMAGE_NAME" \
-            qscloud list-collections \
-            --tenanturl "$BSI_CLOUD_TENANT_URL" \
-            --apikey "$BSI_CLOUD_API_KEY" \
-            --outputformat table
-
-          docker run --rm \
-            -v "$IMG_DIR:/nodeapp/img" \
-            "$IMAGE_NAME" \
-            qscloud create-sheet-thumbnails \
-            --tenanturl "$BSI_CLOUD_TENANT_URL" \
-            --apikey "$BSI_CLOUD_API_KEY" \
-            --logonuserid "$BSI_CLOUD_LOGON_USERID" \
-            --logonpwd "$BSI_CLOUD_LOGON_PWD" \
-            --appid "$BSI_CLOUD_APP_ID" \
-            --log-level verbose \
-            --imagedir ./img
 
       - name: Run QSEoW Docker command (amd64 image)
         run: |
@@ -677,13 +814,14 @@ jobs:
       - name: Prune dangling images
         run: docker image prune -af || true
 
-      - name: Show Docker disk usage (after cleanup)
-        run: docker system df || true
-
   release-please:
+    # The tail of each back-end chain, plus both browser jobs - together these transitively
+    # require every test and build job, so nothing is released that has not been exercised.
     needs:
-      - docker-test-on-macos-arm64
-      - docker-test-on-ubuntu-amd64
+      - test-browser-macos
+      - test-browser-win
+      - docker-qscloud-amd64
+      - docker-qseow-amd64
     # release-please targets main, so it must not run for a workflow_dispatch fired from a
     # feature branch. Skipping it here also skips every release-* job, since they gate on its
     # releases_created output - which is what makes the pipeline safe to dry-run from a branch.
@@ -761,8 +899,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
           cache: ''
+
+      # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
+      # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
+      # packages and could not resolve jest-circus. Pinning npm here makes the install identical
+      # on every runner, hosted or self-hosted, regardless of machine state. npm 12 is also what
+      # honours min-release-age in .npmrc.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: |
@@ -829,7 +979,18 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
+      # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
+      # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
+      # packages and could not resolve jest-circus. Pinning npm here makes the install identical
+      # on every runner, hosted or self-hosted, regardless of machine state. npm 12 is also what
+      # honours min-release-age in .npmrc.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: |
@@ -890,7 +1051,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
+      # See the note on the other jobs: pins npm so the install is identical on every runner.
+      - name: Pin npm
+        shell: powershell
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         shell: powershell
@@ -945,7 +1114,18 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
+          node-version-file: .nvmrc
+      # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
+      # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
+      # packages and could not resolve jest-circus. Pinning npm here makes the install identical
+      # on every runner, hosted or self-hosted, regardless of machine state. npm 12 is also what
+      # honours min-release-age in .npmrc.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: |
