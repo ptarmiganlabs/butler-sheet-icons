@@ -12,11 +12,11 @@ import { getEnigmaSchema } from '../util/enigma-util.js';
  * @param {string} options.schemaversion - The version of the Enigma schema to use.
  * @param {string} options.tenanturl - The URL of the Qlik Sense SaaS tenant.
  * @param {string} options.apikey - The API key to use for authentication.
- * @param {object} command - Command options, used for logging.
+ * @param {object} _command - Command options, used for logging. Unused; kept for symmetry with the other handlers.
  *
  * @returns {object} An object with `schema`, `url`, and `createSocket(url)` to be used when creating an Enigma session.
  */
-export const setupEnigmaConnection = (appId, options, command) => {
+export const setupEnigmaConnection = (appId, options, _command) => {
     logger.debug(`Prepping for cloud Enigma connection for app ${appId}`);
 
     // Set up enigma.js configuration

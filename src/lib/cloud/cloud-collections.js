@@ -187,6 +187,6 @@ export const qscloudVerifyCollectionExists = async (options) => {
             logger.error(`CLOUD COLLECTION EXISTS 1: ${err}`);
         }
 
-        throw new Error(`COLLECTION EXISTS 1: ${err}`);
+        throw new Error(`COLLECTION EXISTS 1: ${err}`, { cause: err });
     }
 };

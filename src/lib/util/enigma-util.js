@@ -14,7 +14,7 @@ const require = createRequire(import.meta.url);
 let getSeaAsset;
 try {
     ({ getAsset: getSeaAsset } = require('node:sea'));
-} catch (error) {
+} catch {
     /**
      * Fallback SEA `getAsset` shim used when the `node:sea` module is not available
      * (i.e. in tests and plain Node.js runs). Always throws because SEA assets can

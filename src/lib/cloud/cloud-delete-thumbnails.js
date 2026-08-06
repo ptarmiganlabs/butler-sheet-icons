@@ -27,6 +27,6 @@ export async function deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance,
         } else {
             logger.error(`CREATE THUMBNAILS 3: Error deleting existing thumbnail: ${err}`);
         }
-        throw Error('Error deleting existing thumbnail');
+        throw new Error('Error deleting existing thumbnail', { cause: err });
     }
 }

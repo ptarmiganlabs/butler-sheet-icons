@@ -101,8 +101,8 @@ export const qseowProcessApp = async (appId, options) => {
 
     // Get correct XPaths to UI elements (user menu, logout button etc) in the Sense web UI
     // As Qlik update their Sense web client these xpaths may/will change.
-    let xpathHubUserPageButton = null;
-    let xpathLogoutButton = null;
+    let xpathHubUserPageButton;
+    let xpathLogoutButton;
 
     if (options.senseVersion === 'pre-2022-Nov') {
         xpathHubUserPageButton = xpathHubUserPageButtonPre2022Nov;
@@ -157,7 +157,7 @@ export const qseowProcessApp = async (appId, options) => {
             logger.error(`QSEOW CREATE THUMBNAILS 1 (stack): ${err.stack}`);
         }
 
-        throw Error('Error creating QSEoW image directory');
+        throw new Error('Error creating QSEoW image directory', { cause: err });
     }
 
     try {
@@ -553,6 +553,9 @@ export const qseowProcessApp = async (appId, options) => {
         await qseowUploadToContentLibrary(createdFiles, appId, options);
 
         // Update sheets in app
+        // tagSheetAppMetadata is deliberately not passed: it is queried on options.excludeSheetTag,
+        // so handing it to the blur-by-tag rule would blur sheets carrying the *exclude* tag. See
+        // issue #840 - --blur-sheet-tag needs its own QRS lookup before it can work.
         await qseowUpdateSheetThumbnails(createdFiles, appId, options);
 
         logger.info(`Done processing app ${appId}`);

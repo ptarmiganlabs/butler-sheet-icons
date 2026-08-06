@@ -1,9 +1,14 @@
+import js from '@eslint/js';
 import prettier from 'eslint-plugin-prettier';
 import prettierConfig from 'eslint-config-prettier/flat';
 import globals from 'globals';
 import jsdoc from 'eslint-plugin-jsdoc';
 
 export default [
+    // Correctness rules - no-undef, no-unused-vars and friends. Without these the lint step
+    // checks formatting and JSDoc only, so an undefined variable or a stale import passes
+    // silently; enabling them caught a real crash on `--blur-sheet-tag` (issue #840).
+    js.configs.recommended,
     prettierConfig,
     {
         ignores: ['src/lib/util/import-meta-url.js'],
@@ -32,6 +37,16 @@ export default [
 
         rules: {
             'prettier/prettier': 'error',
+            // Underscore marks a binding that is deliberately unused - typically a Commander
+            // `_command` argument kept for symmetry with the other command handlers.
+            'no-unused-vars': [
+                'error',
+                {
+                    argsIgnorePattern: '^_',
+                    varsIgnorePattern: '^_',
+                    caughtErrorsIgnorePattern: '^_',
+                },
+            ],
             // JSDoc rules
             'jsdoc/tag-lines': ['error', 'any', { startLines: 1 }],
             'jsdoc/require-jsdoc': [

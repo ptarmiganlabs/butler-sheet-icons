@@ -16,7 +16,7 @@ const LEVEL = Symbol.for('level');
 let sea;
 try {
     sea = require('node:sea');
-} catch (error) {
+} catch {
     sea = {
         /**
          * Shim for `node:sea`'s `isSea()`. Always returns `false` because `node:sea`
@@ -236,7 +236,7 @@ const chromiumRevisionMac = '1097624';
  */
 const getChromiumRevision = () => {
     const { platform } = process;
-    let revision = '';
+    let revision;
 
     if (platform === 'linux') {
         revision = chromiumRevisionLinux;

@@ -47,6 +47,6 @@ export const qseowVerifyContentLibraryExists = async (options) => {
             logger.error(`QSEOW CONTENT LIBRARY 1: ${err}`);
         }
 
-        throw new Error(`CONTENT LIBRARY 1: ${err}`);
+        throw new Error(`CONTENT LIBRARY 1: ${err}`, { cause: err });
     }
 };

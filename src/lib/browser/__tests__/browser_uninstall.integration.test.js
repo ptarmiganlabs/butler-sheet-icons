@@ -1,4 +1,4 @@
-import { jest, test, expect, describe } from '@jest/globals';
+import { jest, test, expect, describe, beforeEach } from '@jest/globals';
 import fs from 'fs-extra';
 import 'dotenv/config';
 
@@ -20,7 +20,7 @@ jest.unstable_mockModule('../../../globals', () => ({
     bsiExecutablePath: '/test/path',
     isSea: false,
 }));
-const { logger, setLoggingLevel, bsiExecutablePath, isSea } = await import('../../../globals.js');
+const { logger, setLoggingLevel } = await import('../../../globals.js');
 
 // Import functions under test after mocks are set up
 const { browserUninstall, browserUninstallAll } = await import('../browser-uninstall.js');
@@ -229,7 +229,7 @@ describe('browserUninstallAll function', () => {
 
         // Mock the implementation of the browserUninstallAll function to catch errors
         // by spying on the logger.error method
-        const errorSpy = jest.spyOn(logger, 'error');
+        jest.spyOn(logger, 'error');
 
         // Mock successful emptyDir
         fs.emptyDir.mockResolvedValue(undefined);

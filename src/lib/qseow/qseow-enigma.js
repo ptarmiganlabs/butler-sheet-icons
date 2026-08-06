@@ -30,11 +30,11 @@ const readCert = (filename) => fs.readFileSync(filename);
  * @param {string} options.certkeyfile - Path to the certificate key file to use for authentication.
  * @param {boolean|string} [options.rejectUnauthorized] - Whether to reject unauthorized certificates. Defaults to `false`.
  * @param {string} options.schemaversion - The version of the Enigma schema to use.
- * @param {object} command - Command options, used for logging.
+ * @param {object} _command - Command options, used for logging. Unused; kept for symmetry with the other handlers.
  *
  * @returns {object} An object with `schema`, `url`, and `createSocket(url)` to be used when creating an Enigma session.
  */
-export const setupEnigmaConnection = (appId, options, command) => {
+export const setupEnigmaConnection = (appId, options, _command) => {
     logger.debug(`Prepping for QSEoW Enigma connection for app ${appId}`);
 
     // Set up enigma.js configuration

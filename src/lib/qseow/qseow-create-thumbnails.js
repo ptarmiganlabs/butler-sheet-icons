@@ -1,6 +1,6 @@
 import qrsInteract from 'qrs-interact';
 
-import { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } from '../../globals.js';
+import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyContentLibraryExists } from './qseow-contentlibrary.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
