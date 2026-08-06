@@ -30,7 +30,9 @@ jobs:
       - name: Pin npm
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: npm ci
@@ -69,7 +71,9 @@ jobs:
       - name: Pin npm
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: npm ci --include=dev --include=prod
@@ -109,7 +113,9 @@ jobs:
         shell: powershell
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         shell: powershell
@@ -155,7 +161,9 @@ jobs:
       - name: Pin npm
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: npm ci --include=dev --include=prod
@@ -207,7 +215,9 @@ jobs:
         shell: powershell
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         shell: powershell
@@ -265,7 +275,9 @@ jobs:
       - name: Pin npm
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: npm ci --include=dev --include=prod
@@ -339,7 +351,9 @@ jobs:
         shell: powershell
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         shell: powershell
@@ -900,7 +914,9 @@ jobs:
       - name: Pin npm
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: |
@@ -977,7 +993,9 @@ jobs:
       - name: Pin npm
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: |
@@ -1045,7 +1063,9 @@ jobs:
         shell: powershell
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         shell: powershell
@@ -1110,7 +1130,9 @@ jobs:
       - name: Pin npm
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: npm install -g npm@12.0.2 # zizmor: ignore[adhoc-packages]
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
 
       - name: Install dependencies
         run: |
