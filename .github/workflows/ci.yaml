@@ -69,12 +69,13 @@ jobs:
       - unit-tests
     permissions:
       contents: read
+    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
+    # runner that holds the signing certificate. Without it they pool across every Windows runner.
     runs-on:
       - self-hosted
       - x64
       - windows
       - sp53
-      - win-code-sign
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -149,12 +150,13 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
+    # runner that holds the signing certificate. Without it they pool across every Windows runner.
     runs-on:
       - self-hosted
       - x64
       - windows
       - sp53
-      - win-code-sign
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -263,12 +265,13 @@ jobs:
     concurrency:
       group: bsi-qseow-${{ github.repository }}
       cancel-in-progress: false
+    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
+    # runner that holds the signing certificate. Without it they pool across every Windows runner.
     runs-on:
       - self-hosted
       - x64
       - windows
       - sp53
-      - win-code-sign
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -285,6 +288,36 @@ jobs:
         shell: powershell
         run: npm ci --include=dev --include=prod
 
+      # Writes the client certificate into RUNNER_TEMP from secrets, the same way the macOS job
+      # does. It previously took BSI_CERT_FILE/BSI_CERT_KEY_FILE from secrets holding *paths* to
+      # files pre-installed on one specific machine, which meant this job only worked on that
+      # runner. Deriving the files here instead makes any Windows runner interchangeable.
+      #
+      # .NET file APIs rather than Set-Content/Out-File: Windows PowerShell would write a BOM and
+      # CRLF line endings, and a PEM with a BOM is rejected when the certificate is parsed.
+      - name: Prepare QSEoW cert files
+        shell: powershell
+        env:
+          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
+          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ([string]::IsNullOrWhiteSpace($env:QS_CLIENT_PEM) -or
+              [string]::IsNullOrWhiteSpace($env:QS_CLIENT_KEY_PEM)) {
+            throw 'Missing QSEoW client certificate secrets'
+          }
+          $certDir = Join-Path $env:RUNNER_TEMP 'bsi-cert'
+          New-Item -ItemType Directory -Force -Path $certDir | Out-Null
+          $certFile = Join-Path $certDir 'client.pem'
+          $keyFile = Join-Path $certDir 'client_key.pem'
+          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+          [System.IO.File]::WriteAllText($certFile, ($env:QS_CLIENT_PEM -replace "`r`n", "`n"), $utf8NoBom)
+          [System.IO.File]::WriteAllText($keyFile, ($env:QS_CLIENT_KEY_PEM -replace "`r`n", "`n"), $utf8NoBom)
+          [System.IO.File]::AppendAllText($env:GITHUB_ENV, "BSI_CERT_FILE=$certFile`nBSI_CERT_KEY_FILE=$keyFile`n", $utf8NoBom)
+
+      # BSI_CERT_FILE and BSI_CERT_KEY_FILE deliberately absent here - they arrive via GITHUB_ENV
+      # from the step above. A step-level env entry would take precedence over GITHUB_ENV and
+      # silently reinstate the hardcoded paths.
       - name: Run QSEoW tests
         shell: powershell
         run: npm run test:integration:qseow
@@ -298,8 +331,6 @@ jobs:
           BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
           BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
           BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
 
