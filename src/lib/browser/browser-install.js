@@ -1,4 +1,10 @@
-import { install, resolveBuildId, detectBrowserPlatform, canDownload } from '@puppeteer/browsers';
+import {
+    install,
+    resolveBuildId,
+    detectBrowserPlatform,
+    canDownload,
+    uninstall,
+} from '@puppeteer/browsers';
 import path from 'path';
 import { homedir } from 'os';
 import cliProgress from 'cli-progress';
@@ -127,11 +133,17 @@ export const browserInstall = async (options, _command) => {
             unpack: true,
         };
 
-        // `@puppeteer/browsers` v3+ uses the OS `unzip` binary for extraction
-        // (macOS ships a 2009 build that occasionally fails on the Chrome for
-        // Testing archives with "End-of-central-directory signature not found").
-        // Wrap the install in a small retry loop to ride out the transient
-        // failures that were not present with v2's JS-based `extract-zip`.
+        // `@puppeteer/browsers` v3+ uses the OS `unzip` binary for extraction, which reports a
+        // damaged archive as "End-of-central-directory signature not found". Retry to ride out
+        // the transient failures that were not present with v2's JS-based `extract-zip`.
+        //
+        // Note the archive is usually damaged rather than mis-read: `downloadFile` streams
+        // straight to a deterministic path under the cache dir with no temp file or atomic
+        // rename, `install()` reuses any archive already sitting at that path, and its `finally`
+        // unlinks it. Two Butler Sheet Icons processes sharing the cache therefore race on one
+        // file - and `browserUninstallAll` empties the whole cache directory, so it can delete an
+        // archive another process is still downloading. Retrying does not make concurrent runs
+        // safe; only giving them separate cache directories would.
         const MAX_INSTALL_ATTEMPTS = 3;
         const RETRY_DELAY_MS = 2000;
         let browser;
@@ -150,6 +162,28 @@ export const browserInstall = async (options, _command) => {
                     logger.warn(
                         `Install attempt ${attempt}/${MAX_INSTALL_ATTEMPTS} failed: ${err.message}. Retrying in ${RETRY_DELAY_MS / 1000}s...`
                     );
+
+                    // A failed extraction leaves a partially unpacked install directory behind, and
+                    // `install()` treats an existing install directory as an already-installed
+                    // browser: it skips the download entirely, then fails validation with "The
+                    // browser folder exists but the executable is missing". Without this cleanup
+                    // every retry hit that instead of retrying the download, so the loop could
+                    // never recover - and the misleading validation error replaced the real
+                    // extraction failure as the error the caller finally saw.
+                    try {
+                        await uninstall({
+                            browser: options.browser,
+                            buildId,
+                            cacheDir: browserPath,
+                        });
+                    } catch (cleanupErr) {
+                        // Nothing to clean up is the common case - the attempt may have failed
+                        // before anything was written. Never let cleanup mask the install error.
+                        logger.debug(
+                            `Could not clear partial install directory: ${cleanupErr?.message ?? cleanupErr}`
+                        );
+                    }
+
                     await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
                     progressBar.start(100, 0);
                 }
