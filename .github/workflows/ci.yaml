@@ -339,12 +339,10 @@ jobs:
     permissions:
       contents: read
       actions: write
-    runs-on:
-      - self-hosted
-      - macos
-      - arm64
-      - mac-build2
-      - sp53
+    # Builds a linux/arm64 image, so it needs an arm64 host but not the local Qlik Sense
+    # environment. A hosted arm64 runner builds natively, rather than going through Docker
+    # Desktop on the self-hosted Mac.
+    runs-on: ubuntu-24.04-arm
     env:
       IMAGE_NAME: butler-sheet-icons:ci-arm64
       IMAGE_TAR: butler-sheet-icons-ci-arm64.tar
@@ -409,12 +407,8 @@ jobs:
     permissions:
       contents: read
       actions: write
-    runs-on:
-      - self-hosted
-      - x64
-      - sp53
-      - linux
-      - pve101
+    # Image build only - no Qlik Sense access needed, so this does not have to be on-premise.
+    runs-on: ubuntu-latest
     env:
       IMAGE_NAME: butler-sheet-icons:ci-amd64
       IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
@@ -759,6 +753,10 @@ jobs:
     needs:
       - docker-test-on-macos-arm64
       - docker-test-on-ubuntu-amd64
+    # release-please targets main, so it must not run for a workflow_dispatch fired from a
+    # feature branch. Skipping it here also skips every release-* job, since they gate on its
+    # releases_created output - which is what makes the pipeline safe to dry-run from a branch.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -867,11 +865,10 @@ jobs:
 
   release-macos-arm64:
     needs: release-please
-    runs-on:
-      - self-hosted
-      - arm64
-      - macos
-      - sp53
+    # scripts/release-macos.sh builds its own ephemeral keychain from MACOS_CERTIFICATE and
+    # notarizes via xcrun notarytool, so signing needs no on-premise state. Pinned rather than
+    # macos-latest because the artifact must be arm64.
+    runs-on: macos-15
     # timeout-minutes: 15
     permissions:
       contents: write
