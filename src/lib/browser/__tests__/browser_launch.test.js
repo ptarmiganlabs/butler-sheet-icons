@@ -32,11 +32,11 @@ jest.unstable_mockModule('../browser-install.js', () => ({
 const { browserInstall } = await import('../browser-install.js');
 
 // Docker detection imports fs dynamically; existsSync drives which branch is taken.
-jest.unstable_mockModule('fs', () => ({
+jest.unstable_mockModule('node:fs', () => ({
     default: { existsSync: jest.fn() },
     existsSync: jest.fn().mockReturnValue(false),
 }));
-const fs = await import('fs');
+const fs = await import('node:fs');
 
 const { launchBrowserForApp, buildBrowserArgs, resolveBrowserExecutablePath } =
     await import('../browser-launch.js');

@@ -1,6 +1,6 @@
 import puppeteer from 'puppeteer-core';
-import path from 'path';
-import { homedir } from 'os';
+import path from 'node:path';
+import { homedir } from 'node:os';
 import { computeExecutablePath } from '@puppeteer/browsers';
 
 import { logger } from '../../globals.js';
@@ -41,7 +41,7 @@ const BASE_BROWSER_ARGS = [
  */
 const detectDocker = async () => {
     try {
-        const fs = await import('fs');
+        const fs = await import('node:fs');
         // Check for .dockerenv file (common Docker indicator)
         if (fs.existsSync('/.dockerenv')) return true;
         // Check if running as PID 1 with tini/node (Docker entrypoint pattern)
