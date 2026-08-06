@@ -95,9 +95,13 @@ export const determineSheetExcludeStatus = async (
         excludeSheet = tagSheetAppMetadata.some(
             (element) => element.engineObjectId === sheet.qInfo.qId
         );
-        logger.verbose(
-            `Excluded sheet (via tags): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-        );
+        // Only claim an exclusion that actually happened: this line used to be logged
+        // whether or not the tag matched.
+        if (excludeSheet === true) {
+            logger.verbose(
+                `Excluded sheet (via tags): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+            );
+        }
     }
 
     // Is this sheet on the exclude list via sheet number?

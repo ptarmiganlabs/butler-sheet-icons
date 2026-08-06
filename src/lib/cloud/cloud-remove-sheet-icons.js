@@ -198,12 +198,14 @@ export const qscloudRemoveSheetIcons = async (options) => {
             );
         } catch (err) {
             if (err.stack) {
-                logger.error(`LIST COLLECTIONS 1 (stack): ${err.stack}`);
+                logger.error(`CLOUD REMOVE SHEET ICONS: connection test (stack): ${err.stack}`);
             } else if (err.message) {
-                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
-                logger.error(`LIST COLLECTIONS 1 (error code): ${err.status}="${err.statusText}"`);
+                logger.error(`CLOUD REMOVE SHEET ICONS: connection test (message): ${err.message}`);
+                logger.error(
+                    `CLOUD REMOVE SHEET ICONS: connection test (error code): ${err.status}="${err.statusText}"`
+                );
             } else {
-                logger.error(`LIST COLLECTIONS 1: ${err}`);
+                logger.error(`CLOUD REMOVE SHEET ICONS: connection test: ${err}`);
             }
 
             return false;
