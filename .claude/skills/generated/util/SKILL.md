@@ -1,11 +1,11 @@
 ---
 name: util
-description: "Skill for the Util area of butler-sheet-icons. 30 symbols across 9 files."
+description: "Skill for the Util area of butler-sheet-icons. 34 symbols across 12 files."
 ---
 
 # Util
 
-30 symbols | 9 files | Cohesion: 95%
+34 symbols | 12 files | Cohesion: 91%
 
 ## When to Use
 
@@ -23,6 +23,7 @@ description: "Skill for the Util area of butler-sheet-icons. 30 symbols across 9
 | `src/lib/util/errors.js` | BsiError, CertError, EnigmaError, CloudError |
 | `src/lib/util/redact-secrets.js` | isSecretKey, redactValue, redactOptions, redactSensitivePatterns |
 | `src/globals.js` | sanitizeLogValue, sanitizeFormat |
+| `src/lib/util/error-categorizer.js` | getErrorCategory, getErrorMetadata |
 | `src/lib/cloud/cloud-updatesheets.js` | qscloudUpdateSheetThumbnails |
 | `src/lib/util/cert.js` | getCertFilePaths |
 | `src/lib/util/enigma-util.js` | getEnigmaSchema |
@@ -57,16 +58,20 @@ Start here when exploring this area:
 | `logVerbose` | Function | `src/lib/util/log-error.js` | 110 |
 | `logDebug` | Function | `src/lib/util/log-error.js` | 121 |
 | `writeCrashDump` | Function | `src/lib/util/crash-dump.js` | 161 |
+| `getErrorCategory` | Function | `src/lib/util/error-categorizer.js` | 32 |
+| `getErrorMetadata` | Function | `src/lib/util/error-categorizer.js` | 81 |
+| `markReported` | Function | `src/lib/util/reported-error.js` | 32 |
 | `present` | Function | `src/lib/util/env-check.js` | 167 |
-| `formatSecret` | Function | `src/lib/util/env-check.js` | 106 |
-| `checkEnv` | Function | `src/lib/util/env-check.js` | 129 |
-| `render` | Function | `src/lib/util/env-check.js` | 150 |
 
 ## Execution Flows
 
 | Flow | Type | Steps |
 |------|------|-------|
+| `BrowserInstall → GetErrorCategory` | cross_community | 4 |
+| `BrowserInstall → MarkReported` | cross_community | 4 |
 | `SanitizeFormat → IsSecretKey` | intra_community | 4 |
+| `BrowserListAvailable → GetErrorCategory` | cross_community | 3 |
+| `BrowserListAvailable → MarkReported` | cross_community | 3 |
 | `RedactOptions → IsSecretKey` | intra_community | 3 |
 | `SanitizeFormat → RedactSensitivePatterns` | intra_community | 3 |
 

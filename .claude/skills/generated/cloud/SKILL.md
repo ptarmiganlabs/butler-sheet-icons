@@ -48,10 +48,10 @@ Start here when exploring this area:
 | `browserUninstallAll` | Function | `src/lib/browser/browser-uninstall.js` | 85 |
 | `qscloudListCollections` | Function | `src/lib/cloud/cloud-collections.js` | 19 |
 | `qscloudCreateThumbnails` | Function | `src/lib/cloud/cloud-create-thumbnails.js` | 29 |
-| `qscloudRemoveSheetIcons` | Function | `src/lib/cloud/cloud-remove-sheet-icons.js` | 159 |
+| `qscloudRemoveSheetIcons` | Function | `src/lib/cloud/cloud-remove-sheet-icons.js` | 169 |
 | `qscloudUploadToApp` | Function | `src/lib/cloud/cloud-upload.js` | 25 |
 | `qseowCreateThumbnails` | Function | `src/lib/qseow/qseow-create-thumbnails.js` | 28 |
-| `qseowRemoveSheetIcons` | Function | `src/lib/qseow/qseow-remove-sheet-icons.js` | 133 |
+| `qseowRemoveSheetIcons` | Function | `src/lib/qseow/qseow-remove-sheet-icons.js` | 143 |
 | `qseowUploadToContentLibrary` | Function | `src/lib/qseow/qseow-upload.js` | 27 |
 | `deleteCloudAppThumbnail` | Function | `src/lib/cloud/cloud-delete-thumbnails.js` | 10 |
 | `processCloudApp` | Function | `src/lib/cloud/process-cloud-app.js` | 25 |
