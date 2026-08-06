@@ -213,3 +213,50 @@ describe('interceptor rejection shape is what downstream classification expects'
         expect(rejection.response).toEqual({ status: 403 });
     });
 });
+
+describe('multipart form-data path matching', () => {
+    /**
+     * Issues a multipart request and returns the axios config it produced.
+     *
+     * @param {string} path - Repository API path.
+     *
+     * @returns {Promise<object>} The config axios was called with.
+     */
+    async function multipartConfigFor(path) {
+        axios.mockResolvedValueOnce({ status: 200, data: { data: [] } });
+        await request(
+            MAIN_CONFIG,
+            path,
+            'post',
+            undefined,
+            'multipart/form-data',
+            Buffer.from('zip-bytes'),
+            'ext.zip'
+        );
+        return axios.mock.calls[0][0];
+    }
+
+    test('builds form-data for a path containing "extensions"', async () => {
+        const config = await multipartConfigFor('apps/123/media/extensions');
+
+        // FormData sets its own multipart boundary header.
+        expect(String(config.headers['content-type'] ?? '')).toContain('multipart/form-data');
+    });
+
+    test('builds form-data when "extensions" is at the start of the path', async () => {
+        // indexOf returns 0 here, which is falsy, so the old check skipped the one case it was
+        // written for and sent the raw buffer with a multipart content type.
+        const config = await multipartConfigFor('extensions/upload');
+
+        expect(String(config.headers['content-type'] ?? '')).toContain('multipart/form-data');
+    });
+
+    test('leaves a path without "extensions" alone', async () => {
+        // indexOf returns -1 here, which is truthy, so the old check wrapped unrelated paths in
+        // a FormData body labelled extension.zip.
+        const config = await multipartConfigFor('apps/123/media/list');
+
+        expect(String(config.headers['content-type'] ?? '')).not.toContain('boundary');
+        expect(Buffer.isBuffer(config.data) || config.data === undefined).toBe(true);
+    });
+});

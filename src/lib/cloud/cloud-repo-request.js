@@ -162,7 +162,11 @@ const request = async (
     };
 
     if (contentType === 'multipart/form-data') {
-        if (path.toLowerCase().indexOf('extensions')) {
+        // `.includes` rather than the previous `.indexOf(...)` used as a boolean: indexOf returns
+        // -1 when the substring is absent, which is truthy, and 0 when it is at the very start,
+        // which is falsy. The test was therefore inverted for both edge cases - it ran for paths
+        // with no "extensions" in them, and skipped paths beginning with "extensions".
+        if (path.toLowerCase().includes('extensions')) {
             const formData = new FormData();
             formData.append('file', bufferToStream(file), {
                 contentType: 'application/x-zip-compressed',
