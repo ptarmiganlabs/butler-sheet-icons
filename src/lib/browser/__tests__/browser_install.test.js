@@ -1,4 +1,6 @@
 import { jest, test, expect, describe, beforeEach } from '@jest/globals';
+import path from 'node:path';
+import { homedir } from 'node:os';
 
 jest.unstable_mockModule('@puppeteer/browsers', () => ({
     install: jest.fn(),
@@ -156,7 +158,9 @@ describe('browserInstall — retry logic', () => {
         expect(uninstall).toHaveBeenCalledWith({
             browser: 'chrome',
             buildId: '123.0.0.0',
-            cacheDir: expect.stringContaining('.cache/puppeteer'),
+            // Built with path.join, so the separator is platform-specific - a literal
+            // '.cache/puppeteer' never matches on Windows. Assert the whole path instead.
+            cacheDir: path.join(homedir(), '.cache', 'puppeteer'),
         });
     });
 
