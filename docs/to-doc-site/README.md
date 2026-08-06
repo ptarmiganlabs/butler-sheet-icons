@@ -33,26 +33,35 @@ When in doubt, err on the side of explaining more rather than less. Use plain la
 
 A draft may name a target page and suggest replacement text, but it is a proposal. The publishing pass below decides what actually ships.
 
-## Processing status in file names
+## Processing status
 
-- Files **without a prefix** are pending review or publication.
-- Files starting with **`done_`** have been incorporated into the doc site, or their content has been verified to already exist there.
+- Files **directly in this folder, without a prefix**, are pending review or publication.
+- Files in the **`done/` subfolder, prefixed `done_`**, have been incorporated into the doc site, their content has been verified to already exist there, or they were deliberately judged not worth publishing.
 
-When marking a file as processed, keep the original file name after the prefix: `audit-api-return-codes.md` becomes `done_audit-api-return-codes.md`.
+Marking a file as processed is two steps, both done with `git mv` so history follows the file:
 
-Keep processed files in this folder for traceability until there is a deliberate cleanup pass.
+1. Add the `done_` prefix, keeping the original file name after it: `audit-api-return-codes.md` becomes `done_audit-api-return-codes.md`.
+2. Move it into the `done/` subfolder, so the final path is `docs/to-doc-site/done/done_audit-api-return-codes.md`. Create the folder if it does not exist.
+
+Both steps in one command:
+
+```bash
+git mv docs/to-doc-site/audit-api-return-codes.md docs/to-doc-site/done/done_audit-api-return-codes.md
+```
+
+Processed files stay in `done/` for traceability until there is a deliberate cleanup pass. Relative links between two processed files keep working, since they move together.
 
 ---
 
 ## Publishing to the doc site
 
-This is the standing instruction for "update the doc site from `docs/to-doc-site`". Work through every unprefixed file in this folder.
+This is the standing instruction for "update the doc site from `docs/to-doc-site`". Work through every unprefixed file directly in this folder. Ignore the `done/` subfolder — it is already processed.
 
 ### 1. Review each file critically
 
 For each unprefixed file, answer three questions before writing anything:
 
-1. **Should it be published at all?** Some drafts describe internal refactors, or behaviour that never reaches a user. Some are already covered on the site. Some describe behaviour that has since changed again. Say so and mark the file `done_` without publishing rather than adding noise to the site.
+1. **Should it be published at all?** Some drafts describe internal refactors, or behaviour that never reaches a user. Some are already covered on the site. Some describe behaviour that has since changed again. Say so and process the file into `done/` without publishing rather than adding noise to the site.
 2. **Where does it fit?** See "Site structure" below. Strongly prefer **editing an existing page** over adding a new one — a fact stated in two places drifts out of sync. A draft's suggested target page is a starting point, not a decision.
 3. **What is the right wording and cross-linking?** Rewrite in the doc site's voice rather than pasting the draft. Add cross-links both ways: from the concept page to the reference page, and back.
 
@@ -64,7 +73,7 @@ For each unprefixed file, answer three questions before writing anything:
 - Exact log and error message text — quote it verbatim so admins can search for it
 - What actually triggers a behaviour, including the failure paths
 
-Correct the draft's technical errors in the published page. If a `done_` file is left in this folder with a claim that turned out to be wrong, add a short HTML comment noting the correction so the error does not resurface later.
+Correct the draft's technical errors in the published page. If a processed file is left in `done/` with a claim that turned out to be wrong, add a short HTML comment noting the correction so the error does not resurface later.
 
 ### 3. State the minimum version when behaviour changed
 
@@ -121,13 +130,13 @@ Watch for headings containing typographic characters. Several pages use the non-
 Both repositories follow the same rule: **branch first, implement, verify, then stop and report.**
 
 - Create a feature branch in the doc site repo off an up-to-date `main` before the first edit. Never work on `main`.
-- Do the doc site edits and the `done_` renames in this repo as separate branches — they are separate repositories and separate pull requests.
+- Do the doc site edits and the `done/` moves in this repo as separate branches — they are separate repositories and separate pull requests.
 - **Never commit, push, open a pull request, or merge unless explicitly asked.** Authorisation is per request and does not carry over.
 - Commit messages in both repos use [Conventional Commits](https://www.conventionalcommits.org/). Doc site changes are `docs:`.
 
 ### 7. Mark the drafts as published
 
-Rename each published file with the `done_` prefix (`git mv`, so history follows the file).
+Move each processed file to `docs/to-doc-site/done/` with the `done_` prefix added, using `git mv` so history follows the file. See "Processing status" above. This applies to files that were deliberately skipped as well as to files that were published.
 
 ### 8. Report
 
