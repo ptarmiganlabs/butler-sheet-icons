@@ -61,7 +61,11 @@ printf '%s' "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
 # with a UI dialog asking for the certificate password, which we can't
 # use in a headless CI environment
 security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-security list-keychains -d user -s build.keychain "${ORIGINAL_KEYCHAINS[@]}"
+# GitHub's macOS runners execute this under /bin/bash 3.2, where expanding an empty array under
+# `set -u` is a fatal "unbound variable" - so the ${arr[@]+...} guard is what keeps this working
+# if `security list-keychains` ever comes back empty. cleanup() already guards the same
+# expansion; this line was the one that did not.
+security list-keychains -d user -s build.keychain ${ORIGINAL_KEYCHAINS[@]+"${ORIGINAL_KEYCHAINS[@]}"}
 security default-keychain -d user -s build.keychain
 security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
 security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign -A
