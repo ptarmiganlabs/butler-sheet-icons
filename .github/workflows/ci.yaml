@@ -119,6 +119,21 @@ jobs:
         shell: powershell
         run: npm ci --include=dev --include=prod
 
+      # jest-resolve@30 resolves config paths with unrs-resolver, a Rust/napi-rs native addon,
+      # and its findNodeModule() swallows every error the resolver throws. A .node binding that
+      # cannot be loaded therefore surfaces as "Module <path> in the testRunner option was not
+      # found" - naming a JavaScript file that is present, intact, and resolvable by Node itself.
+      # That misdirection cost a full investigation on PVE-WINSRV19-2, where the binding was on
+      # disk but vcruntime140_1.dll was missing from the host. Fail here instead, naming the
+      # runner and the real cause. Costs about a second.
+      #
+      # unrs-resolver's own message blames an npm optional-dependency bug, which is usually
+      # wrong: check whether the .node file exists before believing it.
+      - name: Verify native module resolver
+        shell: powershell
+        run: |
+          node -e "try { require('unrs-resolver') } catch (e) { console.error('Native module resolver (unrs-resolver) failed to load on runner ' + process.env.RUNNER_NAME + '.'); console.error('This is a runner fault, not a repo fault. Most often the Microsoft VC++ 2015-2022 x64 redistributable is missing (vcruntime140_1.dll), or AV is blocking the .node binary.'); console.error(require('util').inspect(e, {depth: 6})); process.exit(1) }"
+
       - name: Run browser tests
         shell: powershell
         run: npm run test:integration:browser
@@ -219,6 +234,21 @@ jobs:
       - name: Install dependencies
         shell: powershell
         run: npm ci --include=dev --include=prod
+
+      # jest-resolve@30 resolves config paths with unrs-resolver, a Rust/napi-rs native addon,
+      # and its findNodeModule() swallows every error the resolver throws. A .node binding that
+      # cannot be loaded therefore surfaces as "Module <path> in the testRunner option was not
+      # found" - naming a JavaScript file that is present, intact, and resolvable by Node itself.
+      # That misdirection cost a full investigation on PVE-WINSRV19-2, where the binding was on
+      # disk but vcruntime140_1.dll was missing from the host. Fail here instead, naming the
+      # runner and the real cause. Costs about a second.
+      #
+      # unrs-resolver's own message blames an npm optional-dependency bug, which is usually
+      # wrong: check whether the .node file exists before believing it.
+      - name: Verify native module resolver
+        shell: powershell
+        run: |
+          node -e "try { require('unrs-resolver') } catch (e) { console.error('Native module resolver (unrs-resolver) failed to load on runner ' + process.env.RUNNER_NAME + '.'); console.error('This is a runner fault, not a repo fault. Most often the Microsoft VC++ 2015-2022 x64 redistributable is missing (vcruntime140_1.dll), or AV is blocking the .node binary.'); console.error(require('util').inspect(e, {depth: 6})); process.exit(1) }"
 
       - name: Run QS cloud tests
         shell: powershell
@@ -354,6 +384,21 @@ jobs:
       - name: Install dependencies
         shell: powershell
         run: npm ci --include=dev --include=prod
+
+      # jest-resolve@30 resolves config paths with unrs-resolver, a Rust/napi-rs native addon,
+      # and its findNodeModule() swallows every error the resolver throws. A .node binding that
+      # cannot be loaded therefore surfaces as "Module <path> in the testRunner option was not
+      # found" - naming a JavaScript file that is present, intact, and resolvable by Node itself.
+      # That misdirection cost a full investigation on PVE-WINSRV19-2, where the binding was on
+      # disk but vcruntime140_1.dll was missing from the host. Fail here instead, naming the
+      # runner and the real cause. Costs about a second.
+      #
+      # unrs-resolver's own message blames an npm optional-dependency bug, which is usually
+      # wrong: check whether the .node file exists before believing it.
+      - name: Verify native module resolver
+        shell: powershell
+        run: |
+          node -e "try { require('unrs-resolver') } catch (e) { console.error('Native module resolver (unrs-resolver) failed to load on runner ' + process.env.RUNNER_NAME + '.'); console.error('This is a runner fault, not a repo fault. Most often the Microsoft VC++ 2015-2022 x64 redistributable is missing (vcruntime140_1.dll), or AV is blocking the .node binary.'); console.error(require('util').inspect(e, {depth: 6})); process.exit(1) }"
 
       # Writes the client certificate into RUNNER_TEMP from secrets, the same way the macOS job
       # does. It previously took BSI_CERT_FILE/BSI_CERT_KEY_FILE from secrets holding *paths* to
