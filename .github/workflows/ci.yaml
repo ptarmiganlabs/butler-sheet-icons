@@ -119,6 +119,29 @@ jobs:
         shell: powershell
         run: npm ci --include=dev --include=prod
 
+      # TEMPORARY DIAGNOSTIC - remove before merge.
+      # Both Windows runners install 558 packages with identical Node 24.19.0 and npm 12.0.2,
+      # yet jest can only resolve jest-circus on one of them. This dumps the npm config and the
+      # actual node_modules layout so the difference between the two machines is visible.
+      - name: DIAG npm layout
+        shell: powershell
+        continue-on-error: true
+        run: |
+          Write-Host "runner            : $env:RUNNER_NAME"
+          Write-Host "npm               : $(npm --version)"
+          Write-Host "node              : $(node --version)"
+          Write-Host "install-strategy  : $(npm config get install-strategy)"
+          Write-Host "userconfig        : $(npm config get userconfig)"
+          Write-Host "globalconfig      : $(npm config get globalconfig)"
+          Write-Host "omit              : $(npm config get omit)"
+          Write-Host "--- npm config list -l, interesting keys ---"
+          npm config list -l 2>&1 | Select-String -Pattern "^(install-strategy|hoist|legacy-peer-deps|omit|prefix|global-prefix)"
+          Write-Host "--- jest-circus at top level? ---"
+          Write-Host (Test-Path node_modules\jest-circus\build\runner.js)
+          Write-Host "--- every jest-circus copy on disk ---"
+          Get-ChildItem -Path node_modules -Filter jest-circus -Recurse -Directory -ErrorAction SilentlyContinue |
+            Select-Object -First 10 -ExpandProperty FullName
+
       - name: Run browser tests
         shell: powershell
         run: npm run test:integration:browser
@@ -219,6 +242,29 @@ jobs:
       - name: Install dependencies
         shell: powershell
         run: npm ci --include=dev --include=prod
+
+      # TEMPORARY DIAGNOSTIC - remove before merge.
+      # Both Windows runners install 558 packages with identical Node 24.19.0 and npm 12.0.2,
+      # yet jest can only resolve jest-circus on one of them. This dumps the npm config and the
+      # actual node_modules layout so the difference between the two machines is visible.
+      - name: DIAG npm layout
+        shell: powershell
+        continue-on-error: true
+        run: |
+          Write-Host "runner            : $env:RUNNER_NAME"
+          Write-Host "npm               : $(npm --version)"
+          Write-Host "node              : $(node --version)"
+          Write-Host "install-strategy  : $(npm config get install-strategy)"
+          Write-Host "userconfig        : $(npm config get userconfig)"
+          Write-Host "globalconfig      : $(npm config get globalconfig)"
+          Write-Host "omit              : $(npm config get omit)"
+          Write-Host "--- npm config list -l, interesting keys ---"
+          npm config list -l 2>&1 | Select-String -Pattern "^(install-strategy|hoist|legacy-peer-deps|omit|prefix|global-prefix)"
+          Write-Host "--- jest-circus at top level? ---"
+          Write-Host (Test-Path node_modules\jest-circus\build\runner.js)
+          Write-Host "--- every jest-circus copy on disk ---"
+          Get-ChildItem -Path node_modules -Filter jest-circus -Recurse -Directory -ErrorAction SilentlyContinue |
+            Select-Object -First 10 -ExpandProperty FullName
 
       - name: Run QS cloud tests
         shell: powershell
@@ -354,6 +400,29 @@ jobs:
       - name: Install dependencies
         shell: powershell
         run: npm ci --include=dev --include=prod
+
+      # TEMPORARY DIAGNOSTIC - remove before merge.
+      # Both Windows runners install 558 packages with identical Node 24.19.0 and npm 12.0.2,
+      # yet jest can only resolve jest-circus on one of them. This dumps the npm config and the
+      # actual node_modules layout so the difference between the two machines is visible.
+      - name: DIAG npm layout
+        shell: powershell
+        continue-on-error: true
+        run: |
+          Write-Host "runner            : $env:RUNNER_NAME"
+          Write-Host "npm               : $(npm --version)"
+          Write-Host "node              : $(node --version)"
+          Write-Host "install-strategy  : $(npm config get install-strategy)"
+          Write-Host "userconfig        : $(npm config get userconfig)"
+          Write-Host "globalconfig      : $(npm config get globalconfig)"
+          Write-Host "omit              : $(npm config get omit)"
+          Write-Host "--- npm config list -l, interesting keys ---"
+          npm config list -l 2>&1 | Select-String -Pattern "^(install-strategy|hoist|legacy-peer-deps|omit|prefix|global-prefix)"
+          Write-Host "--- jest-circus at top level? ---"
+          Write-Host (Test-Path node_modules\jest-circus\build\runner.js)
+          Write-Host "--- every jest-circus copy on disk ---"
+          Get-ChildItem -Path node_modules -Filter jest-circus -Recurse -Directory -ErrorAction SilentlyContinue |
+            Select-Object -First 10 -ExpandProperty FullName
 
       # Writes the client certificate into RUNNER_TEMP from secrets, the same way the macOS job
       # does. It previously took BSI_CERT_FILE/BSI_CERT_KEY_FILE from secrets holding *paths* to
