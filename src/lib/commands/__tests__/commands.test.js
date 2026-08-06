@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import { describe, test, expect, beforeEach, jest, beforeAll } from '@jest/globals';
 import { InvalidArgumentError } from 'commander';
 
 const loggerMock = {

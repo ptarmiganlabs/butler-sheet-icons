@@ -93,20 +93,11 @@ const mockDetermineSheetExcludeStatus = jest.unstable_mockModule(
 
 let qseowProcessApp;
 let puppeteer;
-let computeExecutablePath;
-let fs;
-let Jimp;
 let enigma;
 let qrsInteract;
 let logger;
-let sleep;
-let setupEnigmaConnection;
-let qseowUploadToContentLibrary;
-let qseowUpdateSheetThumbnails;
-let setupQseowQrsConnection;
 let browserInstall;
 let detectAvailableBrowser;
-let determineSheetExcludeStatus;
 
 beforeAll(async () => {
     await Promise.all([
@@ -127,19 +118,11 @@ beforeAll(async () => {
     ]);
 
     puppeteer = (await import('puppeteer-core')).default;
-    ({ computeExecutablePath } = await import('@puppeteer/browsers'));
-    fs = (await import('fs')).default;
-    ({ Jimp } = await import('jimp'));
     enigma = (await import('enigma.js')).default;
     qrsInteract = (await import('qrs-interact')).default;
-    ({ logger, sleep } = await import('../../../globals.js'));
-    ({ setupEnigmaConnection } = await import('../qseow-enigma.js'));
-    ({ qseowUploadToContentLibrary } = await import('../qseow-upload.js'));
-    ({ qseowUpdateSheetThumbnails } = await import('../qseow-updatesheets.js'));
-    ({ setupQseowQrsConnection } = await import('../qseow-qrs.js'));
+    ({ logger } = await import('../../../globals.js'));
     ({ browserInstall } = await import('../../browser/browser-install.js'));
     ({ detectAvailableBrowser } = await import('../../browser/browser-detect.js'));
-    ({ determineSheetExcludeStatus } = await import('../determine-sheet-exclude-status.js'));
     ({ qseowProcessApp } = await import('../qseow-process-app.js'));
 });
 

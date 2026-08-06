@@ -86,19 +86,10 @@ const mockSheetScreenshot = jest.unstable_mockModule('../sheet-screenshot.js', (
 
 let processCloudApp;
 let puppeteer;
-let computeExecutablePath;
-let fs;
-let Jimp;
 let enigma;
 let logger;
-let sleep;
-let setupEnigmaConnection;
-let qscloudUploadToApp;
-let qscloudUpdateSheetThumbnails;
 let browserInstall;
 let detectAvailableBrowser;
-let deleteCloudAppThumbnail;
-let takeSheetScreenshot;
 
 beforeAll(async () => {
     await Promise.all([
@@ -118,18 +109,10 @@ beforeAll(async () => {
     ]);
 
     puppeteer = (await import('puppeteer-core')).default;
-    ({ computeExecutablePath } = await import('@puppeteer/browsers'));
-    fs = (await import('fs')).default;
-    ({ Jimp } = await import('jimp'));
     enigma = (await import('enigma.js')).default;
-    ({ logger, sleep } = await import('../../../globals.js'));
-    ({ setupEnigmaConnection } = await import('../cloud-enigma.js'));
-    ({ qscloudUploadToApp } = await import('../cloud-upload.js'));
-    ({ qscloudUpdateSheetThumbnails } = await import('../cloud-updatesheets.js'));
+    ({ logger } = await import('../../../globals.js'));
     ({ browserInstall } = await import('../../browser/browser-install.js'));
     ({ detectAvailableBrowser } = await import('../../browser/browser-detect.js'));
-    ({ deleteCloudAppThumbnail } = await import('../cloud-delete-thumbnails.js'));
-    ({ takeSheetScreenshot } = await import('../sheet-screenshot.js'));
     ({ processCloudApp } = await import('../process-cloud-app.js'));
 });
 

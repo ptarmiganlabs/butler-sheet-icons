@@ -42,7 +42,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
         } else {
             logger.error(`CREATE THUMBNAILS 1: Error creating cloud image directory: ${err}`);
         }
-        throw Error('Error creating cloud image directory');
+        throw new Error('Error creating cloud image directory', { cause: err });
     }
     try {
         // Does the app have a thumbnail folder in its media library?
@@ -74,7 +74,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 } else {
                     logger.error(`CREATE THUMBNAILS 2: Error getting existing thumbnails: ${err}`);
                 }
-                throw Error('Error getting existing thumbnails');
+                throw new Error('Error getting existing thumbnails', { cause: err });
             }
 
             for (const thumbnailImg of existingThumbnails) {

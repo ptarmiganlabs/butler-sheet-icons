@@ -1,8 +1,8 @@
 // filepath: /Users/goran/code/butler-sheet-icons/src/__tests__/butler-sheet-icons.test.js
-import { test, expect, describe, jest, beforeEach, afterEach } from '@jest/globals';
+import { test, expect, describe, jest, beforeEach } from '@jest/globals';
 import 'dotenv/config';
-import { Command } from 'commander';
-import { logger } from '../globals.js';
+import {} from 'commander';
+import {} from '../globals.js';
 import childProcess from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';

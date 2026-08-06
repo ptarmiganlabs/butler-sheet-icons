@@ -1,4 +1,4 @@
-import { test, expect, describe } from '@jest/globals';
+import { test, expect } from '@jest/globals';
 import 'dotenv/config';
 
 import { qseowCreateThumbnails } from '../qseow-create-thumbnails.js';

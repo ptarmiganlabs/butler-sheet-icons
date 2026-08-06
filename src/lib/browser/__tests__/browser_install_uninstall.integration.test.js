@@ -1,4 +1,4 @@
-import { test, expect, describe } from '@jest/globals';
+import { test, expect, describe, beforeAll } from '@jest/globals';
 import 'dotenv/config';
 
 import { browserInstalled } from '../browser-installed.js';

@@ -56,6 +56,7 @@ describe('Subclasses', () => {
         expect(ce).not.toBeInstanceOf(QseowError);
         expect(ee).not.toBeInstanceOf(CloudError);
         expect(cle).not.toBeInstanceOf(QseowError);
+        expect(qe).not.toBeInstanceOf(CloudError);
     });
 
     test('subclasses preserve a stack trace', () => {
