@@ -76,15 +76,20 @@ describe('buildBrowserArgs', () => {
         expect(args).toEqual(expect.arrayContaining(['--no-sandbox', '--disable-gpu']));
     });
 
-    test('adds --single-process outside Windows and Docker', async () => {
-        // The unit test hosts (macOS locally, Ubuntu in CI) are both non-Windows.
-        expect(await buildBrowserArgs()).toContain('--single-process');
+    test('adds --single-process on non-Windows hosts outside Docker', async () => {
+        expect(await buildBrowserArgs({ platform: 'linux' })).toContain('--single-process');
+    });
+
+    test('omits --single-process on Windows, where it broke QS Cloud (issue #742)', async () => {
+        expect(await buildBrowserArgs({ platform: 'win32' })).not.toContain('--single-process');
     });
 
     test('omits --single-process in Docker, where it crashes Chromium', async () => {
         fs.existsSync.mockImplementation((p) => p === '/.dockerenv');
 
-        expect(await buildBrowserArgs()).not.toContain('--single-process');
+        // A non-Windows platform, so the Docker check is what omits the flag rather than the
+        // Windows check short-circuiting ahead of it.
+        expect(await buildBrowserArgs({ platform: 'linux' })).not.toContain('--single-process');
     });
 });
 
