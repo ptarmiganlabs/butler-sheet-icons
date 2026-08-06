@@ -1,0 +1,95 @@
+name: macos-signing-canary
+
+# Manually-run smoke test for the macOS release path.
+#
+# release-macos-arm64 in ci.yaml only runs when release-please actually cuts a release, so the
+# signing and notarization path is otherwise exercised for the first time during a live release.
+# This job runs the very same script on the very same runner image, but stops short of publishing:
+# nothing is uploaded to a release and no tag is touched.
+#
+# Run it after changing scripts/release-macos.sh, after changing the runner image in
+# release-macos-arm64, or periodically to catch GitHub retiring the pinned macOS image before a
+# release does.
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  sign-and-notarize:
+    # MUST stay in sync with release-macos-arm64 in ci.yaml - proving that image is the point.
+    runs-on: macos-15
+    permissions:
+      contents: read
+    env:
+      DIST_FILE_NAME: butler-sheet-icons
+      # scripts/release-macos.sh names the archive "${RELEASE_VERSION}-macos-arm64.zip".
+      RELEASE_VERSION: canary-${{ github.run_id }}
+      MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
+      MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
+      MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
+      MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+      PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
+      PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
+      PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+
+      # The release script snapshots the user keychain list and expands it unguarded under
+      # `set -u`. An empty list is the one input that breaks it, so record what this host reports
+      # before the script runs - it turns a confusing mid-script exit into an obvious cause.
+      - name: Report host details
+        run: |
+          sw_vers
+          echo "arch          : $(uname -m)"
+          echo "bash          : ${BASH_VERSION:-unknown} at $(command -v bash)"
+          echo "node          : $(node --version) at $(command -v node)"
+          echo "--- security list-keychains -d user ---"
+          security list-keychains -d user
+
+      - name: Install dependencies
+        run: npm ci --include=dev --include=prod
+
+      - name: Build, sign and notarize
+        run: bash ./scripts/release-macos.sh
+
+      # codesign -dv writes to stderr, hence the redirect. Assert the two properties that actually
+      # matter and that a wrong signing identity would silently get wrong: the Developer ID
+      # authority, and the hardened runtime that notarization requires.
+      - name: Verify the signature
+        run: |
+          set -euo pipefail
+          codesign -dv --verbose=4 "./${DIST_FILE_NAME}" 2> codesign-info.txt
+          cat codesign-info.txt
+
+          if ! grep -q 'Authority=Developer ID Application' codesign-info.txt; then
+            echo "::error::binary is not signed with a Developer ID Application certificate"
+            exit 1
+          fi
+
+          if ! grep -q 'flags=.*runtime' codesign-info.txt; then
+            echo "::error::hardened runtime is not enabled - notarization would be rejected"
+            exit 1
+          fi
+
+          # --deep is for bundles; this is a bare Mach-O executable.
+          codesign --verify --strict --verbose=2 "./${DIST_FILE_NAME}"
+
+          echo "Signature OK. Check the notarization status printed by notarytool in the"
+          echo "'Build, sign and notarize' step above - it must read 'status: Accepted'."
+
+      - name: Upload the signed archive for inspection
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: macos-signing-canary-${{ github.run_id }}
+          path: ./*-macos-arm64.zip
+          retention-days: 3
