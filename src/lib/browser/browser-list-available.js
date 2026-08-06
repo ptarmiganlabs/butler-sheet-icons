@@ -6,6 +6,7 @@ import axios from 'axios';
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import { getErrorCategory } from '../util/error-categorizer.js';
+import { markReported, alreadyReported } from '../util/reported-error.js';
 
 /** Host queried for the list of published Chrome versions. */
 const CHROME_VERSION_HISTORY_HOST = 'versionhistory.googleapis.com';
@@ -22,38 +23,6 @@ const CONNECTIVITY_CATEGORIES = new Set([
     'host_not_found',
     'connection_reset',
 ]);
-
-/**
- * Marks an error whose cause has already been explained to the user.
- *
- * A Symbol rather than a plain property so it never shows up in `JSON.stringify` output or in
- * anything that enumerates the error's own keys.
- */
-const FAILURE_REPORTED = Symbol('butler-sheet-icons.failureReported');
-
-/**
- * Records that a failure has been reported, so outer handlers do not repeat it.
- *
- * @param {Error|unknown} err - The error to mark. Non-objects are ignored.
- *
- * @returns {void}
- */
-function markReported(err) {
-    if (err && typeof err === 'object') {
-        err[FAILURE_REPORTED] = true;
-    }
-}
-
-/**
- * Reports whether an error has already been explained by a more specific handler.
- *
- * @param {Error|unknown} err - The error to test.
- *
- * @returns {boolean} `true` when the failure has already been logged for the user.
- */
-function alreadyReported(err) {
-    return Boolean(err && typeof err === 'object' && err[FAILURE_REPORTED]);
-}
 
 /**
  * Logs an actionable message for a failure returned by the Chrome version history service.
