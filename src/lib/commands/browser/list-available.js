@@ -17,13 +17,12 @@ const handleBrowserListAvailable = async (options = {}, cmd) => {
         const res = await browserListAvailable(options, cmd);
         logger.debug(`Call to browserAvailable succeeded: ${JSON.stringify(res, null, 2)}`);
     } catch (err) {
-        logger.error(`BROWSER MAIN 10: ${err}`);
-        if (err.message) {
-            logger.error(`BROWSER MAIN 10 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`BROWSER MAIN 10 (stack): ${err.stack}`);
-        }
+        // browserListAvailable has already explained the failure - a connectivity problem gets
+        // actionable advice, anything else gets its message. Repeating it here three times over,
+        // stack trace included, is what made an offline run unreadable (issue #785). The stack
+        // stays available at debug level.
+        logger.error('Could not list available browsers.');
+        logger.debug(err?.stack ?? String(err));
     }
 };
 
