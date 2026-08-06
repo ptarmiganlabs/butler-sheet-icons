@@ -1,0 +1,59 @@
+name: pr-unit-tests
+
+# Lint and unit tests on every platform the project ships binaries for, before merge.
+#
+# Until this existed, unit tests ran on pull requests only via sonarcloud.yaml, on ubuntu-latest.
+# insiders-build is the only workflow that runs them on Windows and it fires *after* merge, so a
+# Windows-only test bug could not be caught until it was already on main. That happened twice in
+# quick succession - #839 assumed a non-Windows host, #847 assumed a forward-slash path separator -
+# and each cost a red main plus a wasted insiders cycle.
+#
+# GitHub-hosted runners only, so pull requests from forks never reach the self-hosted machines.
+# This workflow reads no secrets at all, which is what makes it safe to run for any contributor:
+# a job-level secret would be in the environment of the test run, and the test run executes code
+# from the pull request.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pr-unit-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: lint + unit tests (${{ matrix.os }})
+    strategy:
+      # Report both platforms rather than cancelling the sibling on first failure - a Windows
+      # failure should not hide a Linux one, and vice versa.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Safe to run on Windows: .gitattributes pins `* text eol=lf`, so the checkout has Unix
+      # line endings on every platform and prettier's default endOfLine: lf matches.
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test:unit
