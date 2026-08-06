@@ -30,8 +30,12 @@ const BASE_BROWSER_ARGS = [
 /**
  * Detects whether the process is running inside a container.
  *
- * `--single-process` is needed on Windows to avoid crashes but causes crashes in Docker, so the
- * two cases have to be told apart.
+ * `--single-process` helps on native Linux and macOS but crashes Chromium both in containers and
+ * on Windows, so those two cases have to be told apart from a plain native run.
+ *
+ * The Windows half is not theoretical: it caused issue #742, "Updating thumbnails in QS Cloud
+ * fails on Windows, works on macOS", and was fixed in 482559c by skipping the flag there. Do not
+ * reintroduce it for Windows.
  *
  * @returns {Promise<boolean>} `true` when a container environment is detected.
  */
