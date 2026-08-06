@@ -304,7 +304,14 @@ describe('browser commands', () => {
 
         browserListAvailable.mockRejectedValueOnce(new Error('bad'));
         await handleBrowserListAvailable(options, {});
-        expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('BROWSER MAIN 10'));
+
+        // The handler used to log the same failure three times, prefixed "BROWSER MAIN 10",
+        // including a full stack trace. browserListAvailable has already explained the cause by
+        // this point, so the handler now adds one line and puts the stack at debug (issue #785).
+        const errors = logger.error.mock.calls.map((call) => String(call[0]));
+        expect(errors).toContain('Could not list available browsers.');
+        expect(errors.join('\n')).not.toContain('BROWSER MAIN 10');
+        expect(errors.join('\n')).not.toContain('at ');
     });
 
     test('install delegates to browserInstall after normalizing chrome defaults', async () => {

@@ -6,6 +6,7 @@ import cliProgress from 'cli-progress';
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import { getMostRecentUsableChromeBuildId } from './browser-list-available.js';
+import { alreadyReported } from '../util/reported-error.js';
 
 /**
  * Install a browser into the Puppeteer cache directory.
@@ -170,15 +171,19 @@ export const browserInstall = async (options, _command) => {
 
         return browser;
     } catch (err) {
-        // Check if error is due to browser version missing
-        if (err.message.includes('Download failed: server returned code 404.')) {
+        // Optional chaining because a catch cannot assume it was handed an Error. Reading
+        // `.message` unguarded here previously turned a non-Error throw - such as the code-less
+        // TypeError axios has been seen to produce offline - into a second, more confusing
+        // TypeError raised from inside the error handler, losing the original cause (issue #785).
+        if (err?.message?.includes('Download failed: server returned code 404.')) {
             logger.error(`Browser version "${options.browserVersion}" not found`);
-        } else {
-            logger.error(`Error installing browser: ${err.message}`);
-
-            if (err.stack) {
-                logger.error(err.stack);
-            }
+        } else if (!alreadyReported(err)) {
+            // Only report what nothing else has explained. Resolving "latest" goes through
+            // getMostRecentUsableChromeBuildId, which already describes connectivity failures in
+            // detail; repeating the raw message and a stack trace on top is what made an offline
+            // run unreadable. The stack stays available at debug.
+            logger.error(`Error installing browser: ${err?.message ?? err}`);
+            logger.debug(err?.stack ?? String(err));
         }
 
         throw err;

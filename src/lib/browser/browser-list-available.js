@@ -5,6 +5,97 @@ import axios from 'axios';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
+import { getErrorCategory } from '../util/error-categorizer.js';
+import { markReported, alreadyReported } from '../util/reported-error.js';
+
+/** Host queried for the list of published Chrome versions. */
+const CHROME_VERSION_HISTORY_HOST = 'versionhistory.googleapis.com';
+
+/**
+ * Error categories that mean "the request never reached the server".
+ *
+ * Kept separate from HTTP-level failures (4xx/5xx), which indicate the service was reached but
+ * refused or failed the request - a different problem, with different advice.
+ */
+const CONNECTIVITY_CATEGORIES = new Set([
+    'timeout',
+    'connection_refused',
+    'host_not_found',
+    'connection_reset',
+]);
+
+/**
+ * Logs an actionable message for a failure returned by the Chrome version history service.
+ *
+ * Only call this for errors thrown by the HTTP request itself, so that Butler Sheet Icons' own
+ * validation errors are never mistaken for connectivity problems.
+ *
+ * Two shapes have to be handled. A well-formed network failure carries a code such as
+ * `ENOTFOUND`. But an offline run has also been seen to surface as
+ * `TypeError: Cannot read properties of undefined (reading 'status')` thrown from inside axios
+ * itself, with no code at all (issue #785). The reliable signal common to both is the **absence
+ * of an HTTP response**: if there is no `response`, the service was never reached.
+ *
+ * @param {Error|unknown} err - The error thrown while contacting the service.
+ *
+ * @returns {void}
+ */
+function logVersionHistoryFailure(err) {
+    const category = getErrorCategory(err);
+    const gotHttpResponse = Boolean(err?.response);
+
+    if (!gotHttpResponse || CONNECTIVITY_CATEGORIES.has(category)) {
+        logger.error(
+            `Could not reach ${CHROME_VERSION_HISTORY_HOST} to look up available browser versions.`
+        );
+        logger.error(
+            'Butler Sheet Icons needs internet access for this command. If this machine is offline or behind a proxy, use "butler-sheet-icons browser list-installed" to see the browsers already available locally.'
+        );
+        logger.verbose(`Connectivity failure category: ${category}`);
+    } else {
+        // The service answered, but not with success - a different problem, different advice.
+        logger.error(
+            `${CHROME_VERSION_HISTORY_HOST} returned HTTP ${err.response.status} while listing available browser versions.`
+        );
+    }
+
+    logger.debug(err?.stack ?? String(err));
+    markReported(err);
+}
+
+/**
+ * Extracts the version array from a version history response, rejecting anything unexpected.
+ *
+ * The response body is not assumed to be well formed. A captive portal or intercepting proxy can
+ * answer HTTP 200 with an HTML login page, and reading `.versions` off that yields `undefined` -
+ * which then throws `Cannot read properties of undefined (reading 'length')` further down, the
+ * same class of unhelpful error this module already had (issue #785).
+ *
+ * @param {object} response - Axios response for the version history request.
+ *
+ * @returns {Array<object>} The `versions` array from the response body.
+ *
+ * @throws {Error} If the body does not contain a `versions` array.
+ */
+function extractVersions(response) {
+    const versions = response?.data?.versions;
+
+    if (!Array.isArray(versions)) {
+        logger.error(
+            `Unexpected response from ${CHROME_VERSION_HISTORY_HOST} when listing available browser versions.`
+        );
+        logger.error(
+            'This can happen when a proxy or captive portal intercepts the request. Check that this machine can reach the internet directly.'
+        );
+        logger.debug(`Response body: ${JSON.stringify(response?.data)}`);
+
+        const err = new Error(`Unexpected response from ${CHROME_VERSION_HISTORY_HOST}`);
+        markReported(err);
+        throw err;
+    }
+
+    return versions;
+}
 
 /**
  * Maps Puppeteer's platform values to corresponding Chrome version history API platform values.
@@ -125,8 +216,16 @@ export async function browserListAvailable(options) {
                 url: `https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${options.channel}/versions`,
             };
 
-            const response = await axios(axiosConfig);
-            browsersAvailable = response.data.versions;
+            let response;
+            try {
+                response = await axios(axiosConfig);
+            } catch (err) {
+                // Scoped to the request so that this module's own validation errors, thrown
+                // earlier in the same try, are never reported as connectivity problems.
+                logVersionHistoryFailure(err);
+                throw err;
+            }
+            browsersAvailable = extractVersions(response);
             logger.debug(`Chrome versions: ${JSON.stringify(browsersAvailable, null, 2)}`);
 
             // Output Chrome versions and names to info log
@@ -185,7 +284,13 @@ export async function browserListAvailable(options) {
         }
         return browsersAvailable;
     } catch (err) {
-        logger.error(`Error checking for available browsers: ${err}`);
+        // Only report failures nothing else has explained. Request and response problems are
+        // already described in detail above; repeating them here is what left the reported
+        // `Cannot read properties of undefined` text in the output (issue #785).
+        if (!alreadyReported(err)) {
+            logger.error(`Error checking for available browsers: ${err.message ?? err}`);
+            logger.debug(err?.stack ?? String(err));
+        }
         throw err;
     }
 }
@@ -236,8 +341,15 @@ export async function getMostRecentUsableChromeBuildId(channel) {
             url: `https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${channel}/versions`,
         };
 
-        const response = await axios(axiosConfig);
-        const browsersAvailable = response.data.versions;
+        let response;
+        try {
+            response = await axios(axiosConfig);
+        } catch (err) {
+            // Scoped to the request, as in browserListAvailable above.
+            logVersionHistoryFailure(err);
+            throw err;
+        }
+        const browsersAvailable = extractVersions(response);
         logger.debug(`Chrome versions: ${JSON.stringify(browsersAvailable, null, 2)}`);
 
         // Output Chrome versions and names to info log
@@ -260,10 +372,10 @@ export async function getMostRecentUsableChromeBuildId(channel) {
         logger.info('No Chrome versions available');
         return false;
     } catch (err) {
-        logger.error(`Error getting most recent usable Chrome build ID: ${err.message}`);
-
-        if (err.stack) {
-            logger.error(err.stack);
+        // As above: only report what has not already been explained.
+        if (!alreadyReported(err)) {
+            logger.error(`Error getting most recent usable Chrome build ID: ${err.message ?? err}`);
+            logger.debug(err?.stack ?? String(err));
         }
 
         throw err;
