@@ -42,8 +42,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 24
-
+          node-version-file: .nvmrc
       # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
       # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
       # packages and could not resolve jest-circus. Pinning npm here makes the install identical
