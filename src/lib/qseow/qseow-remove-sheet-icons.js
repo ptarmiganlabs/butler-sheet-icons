@@ -80,30 +80,40 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
             let iSheetNum = 1;
 
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                logger.info(
-                    `Removing icon for sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
-                );
+                // One unwritable sheet must not abandon the sheets after it, or skip the
+                // session close below.
+                try {
+                    logger.info(
+                        `Removing icon for sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
+                    );
 
-                // Get properties of current sheet
-                const sheetObj = await app.getObject(sheet.qInfo.qId);
-                const sheetProperties = await sheetObj.getProperties();
+                    // Get properties of current sheet
+                    const sheetObj = await app.getObject(sheet.qInfo.qId);
+                    const sheetProperties = await sheetObj.getProperties();
 
-                // Clear sheet icon
-                sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = '';
+                    // Clear sheet icon
+                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = '';
 
-                const res = await sheetObj.setProperties(sheetProperties);
-                logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
-                await app.doSave();
+                    const res = await sheetObj.setProperties(sheetProperties);
+                    logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
+                    await app.doSave();
+                } catch (err) {
+                    logger.error(
+                        `QSEOW: Failed to remove icon for sheet ${iSheetNum} ('${sheet.qMeta.title}', ID ${sheet.qInfo.qId}) in app ${appId}: ${err.message ?? err}`
+                    );
+                }
 
                 iSheetNum += 1;
             }
-
-            // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
-            await session.close();
-            logger.verbose(
-                `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
-            );
         }
+
+        // Closed outside the sheet-count guard: an app with no sheets still holds an open
+        // engine session that has to be released.
+        // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+        await session.close();
+        logger.verbose(
+            `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
+        );
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
