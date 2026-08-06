@@ -11,12 +11,28 @@ import { QseowError } from '../util/errors.js';
  * that were created during the previous step in the process.
  * @param {string} appId - The ID of the QSEoW app to process.
  * @param {object} options - Configuration options for processing the app.
+ * @param {Array<object>} [tagSheetAppMetadata] - Sheet metadata from QRS for sheets carrying the
+ * tag named by `--blur-sheet-tag`, each entry exposing `engineObjectId`. Defaults to empty so the
+ * tag rule simply matches nothing when the caller has not looked it up.
  *
  * @returns {Promise<void>} Resolves when the sheet thumbnails have been updated in the QSEoW app.
  */
-export const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) => {
+export const qseowUpdateSheetThumbnails = async (
+    createdFiles,
+    appId,
+    options,
+    tagSheetAppMetadata = []
+) => {
     try {
         logger.verbose(`Starting update of sheet icons for app ${appId}`);
+
+        // Warn rather than silently ignore: --blur-sheet-tag is accepted by the CLI but nothing
+        // looks the tag up yet, so the rule below can never match. See issue #840.
+        if (options.blurSheetTag && tagSheetAppMetadata.length === 0) {
+            logger.warn(
+                '--blur-sheet-tag is not yet implemented for QSEoW and will be ignored. See https://github.com/ptarmiganlabs/butler-sheet-icons/issues/840'
+            );
+        }
 
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
@@ -114,17 +130,18 @@ export const qseowUpdateSheetThumbnails = async (createdFiles, appId, options) =
                     }
 
                     // Should this sheet be blurred based on tags?
-                    // options.blurSheetTag is an array of strings
-                    // tagSheetAppMetadata is an array of sheet objects, with the id property being the sheet id
+                    // tagSheetAppMetadata is an array of sheet objects, each exposing engineObjectId.
+                    // It arrives empty unless the caller looked the tag up, which nothing does yet -
+                    // see issue #840. Until then the rule matches nothing rather than throwing.
                     if (options.blurSheetTag && blurSheet === false) {
-                        // Does the sheet id match any of the ids in tagSheetAppMetadata array?
-                        // Set blurSheet to true/false based on the result
                         blurSheet = tagSheetAppMetadata.some(
                             (element) => element.engineObjectId === sheet.qInfo.qId
                         );
-                        logger.verbose(
-                            `Blurred sheet thumbnail (via tags): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                        );
+                        if (blurSheet) {
+                            logger.verbose(
+                                `Blurred sheet thumbnail (via tags): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                            );
+                        }
                     }
 
                     // Should this sheet be blurred based on its position/sheet number?
