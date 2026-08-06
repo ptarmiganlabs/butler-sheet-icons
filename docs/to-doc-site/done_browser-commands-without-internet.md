@@ -30,6 +30,14 @@ Nothing in that output said "this machine cannot reach the internet".
 > | `browser uninstall` / `uninstall-all` | No. Removes browsers from the local cache. |
 > | `browser list-available` | **Yes.** Asks Google's Chrome version history service which versions exist. |
 > | `browser install` | **Yes**, unless the requested version is already in the cache. |
+
+<!--
+Correction made while publishing: the `browser install` row above is wrong. `browserInstall()` calls
+`canDownload()` from `@puppeteer/browsers` before `install()`, and `canDownload()` issues a network
+HEAD request. So `browser install` needs internet access *always*, including when the requested
+build is already cached — offline it fails with "cannot be downloaded" rather than reusing the
+cache. The published page states this correctly.
+-->
 >
 > On a machine with no internet access — an air-gapped server, or one behind a proxy that blocks
 > outbound HTTPS — the two commands that need it will report:
