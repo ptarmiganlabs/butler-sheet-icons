@@ -1,10 +1,6 @@
 import enigma from 'enigma.js';
-import puppeteer from 'puppeteer-core';
 import fs from 'fs';
 import qrsInteract from 'qrs-interact';
-import path from 'path';
-import { homedir } from 'os';
-import { computeExecutablePath } from '@puppeteer/browsers';
 import { Jimp } from 'jimp';
 
 import { setupEnigmaConnection } from './qseow-enigma.js';
@@ -12,11 +8,9 @@ import { logger, sleep } from '../../globals.js';
 import { qseowUploadToContentLibrary } from './qseow-upload.js';
 import { qseowUpdateSheetThumbnails } from './qseow-updatesheets.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
-import { browserInstall } from '../browser/browser-install.js';
-import { detectAvailableBrowser } from '../browser/browser-detect.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
-import { parseHeadlessOption } from '../util/headless-option.js';
 import { QseowError } from '../util/errors.js';
+import { launchBrowserForApp } from '../browser/browser-launch.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -257,113 +251,12 @@ export const qseowProcessApp = async (appId, options) => {
 
             let iSheetNum = 1;
 
-            // Get browser cache path
-            const browserPath = path.join(homedir(), '.cache/puppeteer');
-            logger.debug(`Browser cache path: ${browserPath}`);
-
-            // Detect available browser (system, cached, or download)
-            logger.info(`Checking for available browsers...`);
-            let executablePath;
-            let browserInfo = await detectAvailableBrowser(options);
-
-            if (browserInfo) {
-                // Found system or cached browser
-                executablePath = browserInfo.executablePath;
-                logger.info(
-                    `Browser ready from ${browserInfo.source}: ${browserInfo.browser} ${browserInfo.buildId}`
-                );
-            } else {
-                // No browser found - download required
-                logger.info(`No local browser found. Downloading and installing browser...`);
-
-                let browserInstallResult;
-                try {
-                    browserInstallResult = await browserInstall(options);
-                } catch (err) {
-                    // browserInstall() signals failure by throwing - see its JSDoc.
-                    throw new QseowError(`Failed to install a browser for QSEoW app ${appId}`, {
-                        cause: err,
-                    });
-                }
-
-                executablePath = computeExecutablePath({
-                    browser: browserInstallResult.browser,
-                    buildId: browserInstallResult.buildId,
-                    cacheDir: browserPath,
-                });
-
-                logger.info(`Browser downloaded successfully`);
-            }
-
-            logger.info(`Browser setup complete. Launching browser...`);
-            logger.verbose(`Using browser at ${executablePath}`);
-
-            // Parse --headless option
-            const headless = parseHeadlessOption(options.headless);
-
-            const browserArgs = [
-                '--proxy-bypass-list=*',
-                '--disable-gpu',
-                '--disable-dev-shm-usage',
-                '--disable-setuid-sandbox',
-                '--no-first-run',
-                '--no-sandbox',
-                '--no-zygote',
-                '--ignore-certificate-errors',
-                '--ignore-certificate-errors-spki-list',
-                '--enable-features=NetworkService',
-            ];
-
-            // Detect if running in Docker/Alpine (where --single-process crashes Chromium)
-            const isDocker = await (async () => {
-                try {
-                    const fs = await import('fs');
-                    // Check for .dockerenv file (common Docker indicator)
-                    if (fs.existsSync('/.dockerenv')) return true;
-                    // Check if running as PID 1 with tini/node (Docker entrypoint pattern)
-                    if (process.pid === 1) return true;
-                    // Check for Alpine Linux
-                    if (fs.existsSync('/etc/alpine-release')) return true;
-                    return false;
-                } catch {
-                    return false;
-                }
-            })();
-
-            // --single-process is needed on Windows to avoid crashes, but causes crashes in Docker
-            if (process.platform !== 'win32' && !isDocker) {
-                browserArgs.push('--single-process');
-                logger.debug('Added --single-process flag for non-Windows native environment');
-            } else if (isDocker) {
-                logger.debug('Skipping --single-process flag in Docker/containerized environment');
-            } else {
-                logger.debug('Skipping --single-process flag on Windows to keep Chromium stable');
-            }
-
-            // Make sure browser is launched ok
-            let browser;
-            try {
-                browser = await puppeteer.launch({
-                    executablePath,
-                    headless,
-                    ignoreHTTPSErrors: true,
-                    args: browserArgs,
-                });
-            } catch (err) {
-                if (err.stack) {
-                    logger.error(`QSEOW Could not launch virtual browser (stack): ${err.stack}`);
-                } else if (err.message) {
-                    logger.error(
-                        `QSEOW Could not launch virtual browser (message): ${err.message}`
-                    );
-                } else {
-                    logger.error(`QSEOW Could not launch virtual browser: ${err}. Exiting.`);
-                }
-
-                throw new QseowError(`Failed to launch virtual browser for QSEoW app ${appId}`, {
-                    cause: err,
-                });
-            }
+            const browser = await launchBrowserForApp(options, {
+                appId,
+                logPrefix: 'QSEOW',
+                appLabel: 'QSEoW app',
+                ErrorClass: QseowError,
+            });
 
             const page = await browser.newPage();
 
