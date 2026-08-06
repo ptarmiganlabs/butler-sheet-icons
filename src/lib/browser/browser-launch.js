@@ -55,16 +55,21 @@ const detectDocker = async () => {
 };
 
 /**
- * Builds the Chromium argument list for the current platform.
+ * Builds the Chromium argument list for the given platform.
+ *
+ * @param {object} [options] - Overrides for values normally read from the running process.
+ * @param {string} [options.platform] - Node platform identifier, e.g. `win32` or `linux`.
+ * Defaults to `process.platform`; tests pass it explicitly so every branch is exercised
+ * regardless of which host runs the suite.
  *
  * @returns {Promise<string[]>} Browser arguments, including `--single-process` where safe.
  */
-export const buildBrowserArgs = async () => {
+export const buildBrowserArgs = async ({ platform = process.platform } = {}) => {
     const browserArgs = [...BASE_BROWSER_ARGS];
 
     const isDocker = await detectDocker();
 
-    if (process.platform !== 'win32' && !isDocker) {
+    if (platform !== 'win32' && !isDocker) {
         browserArgs.push('--single-process');
         logger.debug('Added --single-process flag for non-Windows native environment');
     } else if (isDocker) {
