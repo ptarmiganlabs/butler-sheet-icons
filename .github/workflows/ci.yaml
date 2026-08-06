@@ -138,9 +138,15 @@ jobs:
           npm config list -l 2>&1 | Select-String -Pattern "^(install-strategy|hoist|legacy-peer-deps|omit|prefix|global-prefix)"
           Write-Host "--- jest-circus at top level? ---"
           Write-Host (Test-Path node_modules\jest-circus\build\runner.js)
-          Write-Host "--- every jest-circus copy on disk ---"
-          Get-ChildItem -Path node_modules -Filter jest-circus -Recurse -Directory -ErrorAction SilentlyContinue |
-            Select-Object -First 10 -ExpandProperty FullName
+          Write-Host "--- runner.js integrity (Test-Path is true even for a 0-byte file) ---"
+          Get-ChildItem node_modules\jest-circus\build -ErrorAction SilentlyContinue |
+            ForEach-Object { "{0,-24} {1,10} bytes" -f $_.Name, $_.Length }
+          Write-Host "--- what Node's own resolver says (this is what jest actually does) ---"
+          node -e "try { console.log('resolved: ' + require.resolve('jest-circus/runner')) } catch (e) { console.log('RESOLVE FAILED: ' + e.code + ' :: ' + e.message.split('\n')[0]) }"
+          Write-Host "--- jest-circus package.json entry points ---"
+          node -e "const p=require('./node_modules/jest-circus/package.json'); console.log('version', p.version, '| main', p.main, '| exports', JSON.stringify(p.exports))"
+          Write-Host "--- can jest-config be resolved? ---"
+          node -e "try { console.log('jest-config: ' + require.resolve('jest-config')) } catch (e) { console.log('jest-config RESOLVE FAILED: ' + e.code) }" 
 
       - name: Run browser tests
         shell: powershell
@@ -262,9 +268,15 @@ jobs:
           npm config list -l 2>&1 | Select-String -Pattern "^(install-strategy|hoist|legacy-peer-deps|omit|prefix|global-prefix)"
           Write-Host "--- jest-circus at top level? ---"
           Write-Host (Test-Path node_modules\jest-circus\build\runner.js)
-          Write-Host "--- every jest-circus copy on disk ---"
-          Get-ChildItem -Path node_modules -Filter jest-circus -Recurse -Directory -ErrorAction SilentlyContinue |
-            Select-Object -First 10 -ExpandProperty FullName
+          Write-Host "--- runner.js integrity (Test-Path is true even for a 0-byte file) ---"
+          Get-ChildItem node_modules\jest-circus\build -ErrorAction SilentlyContinue |
+            ForEach-Object { "{0,-24} {1,10} bytes" -f $_.Name, $_.Length }
+          Write-Host "--- what Node's own resolver says (this is what jest actually does) ---"
+          node -e "try { console.log('resolved: ' + require.resolve('jest-circus/runner')) } catch (e) { console.log('RESOLVE FAILED: ' + e.code + ' :: ' + e.message.split('\n')[0]) }"
+          Write-Host "--- jest-circus package.json entry points ---"
+          node -e "const p=require('./node_modules/jest-circus/package.json'); console.log('version', p.version, '| main', p.main, '| exports', JSON.stringify(p.exports))"
+          Write-Host "--- can jest-config be resolved? ---"
+          node -e "try { console.log('jest-config: ' + require.resolve('jest-config')) } catch (e) { console.log('jest-config RESOLVE FAILED: ' + e.code) }" 
 
       - name: Run QS cloud tests
         shell: powershell
@@ -420,9 +432,15 @@ jobs:
           npm config list -l 2>&1 | Select-String -Pattern "^(install-strategy|hoist|legacy-peer-deps|omit|prefix|global-prefix)"
           Write-Host "--- jest-circus at top level? ---"
           Write-Host (Test-Path node_modules\jest-circus\build\runner.js)
-          Write-Host "--- every jest-circus copy on disk ---"
-          Get-ChildItem -Path node_modules -Filter jest-circus -Recurse -Directory -ErrorAction SilentlyContinue |
-            Select-Object -First 10 -ExpandProperty FullName
+          Write-Host "--- runner.js integrity (Test-Path is true even for a 0-byte file) ---"
+          Get-ChildItem node_modules\jest-circus\build -ErrorAction SilentlyContinue |
+            ForEach-Object { "{0,-24} {1,10} bytes" -f $_.Name, $_.Length }
+          Write-Host "--- what Node's own resolver says (this is what jest actually does) ---"
+          node -e "try { console.log('resolved: ' + require.resolve('jest-circus/runner')) } catch (e) { console.log('RESOLVE FAILED: ' + e.code + ' :: ' + e.message.split('\n')[0]) }"
+          Write-Host "--- jest-circus package.json entry points ---"
+          node -e "const p=require('./node_modules/jest-circus/package.json'); console.log('version', p.version, '| main', p.main, '| exports', JSON.stringify(p.exports))"
+          Write-Host "--- can jest-config be resolved? ---"
+          node -e "try { console.log('jest-config: ' + require.resolve('jest-config')) } catch (e) { console.log('jest-config RESOLVE FAILED: ' + e.code) }" 
 
       # Writes the client certificate into RUNNER_TEMP from secrets, the same way the macOS job
       # does. It previously took BSI_CERT_FILE/BSI_CERT_KEY_FILE from secrets holding *paths* to
