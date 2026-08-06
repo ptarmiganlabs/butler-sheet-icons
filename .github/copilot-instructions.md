@@ -199,7 +199,7 @@ When making changes, **ALWAYS** check these files:
 - `package.json` - Dependencies and scripts
 - `.github/workflows/ci.yaml` - CI/CD pipeline
 - `eslint.config.js` - Linting configuration
-- `jest.config.js` - Test configuration
+- `jest.config.mjs` - Test configuration
 
 ### Running Specific Test Categories
 

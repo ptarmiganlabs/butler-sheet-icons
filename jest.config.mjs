@@ -26,10 +26,16 @@ const config = {
     // (eslint.config.js) and from SonarCloud analysis (sonar-project.properties);
     // keeping it out of the coverage report too stops Sonar warning that it cannot
     // resolve a path present in lcov.info but absent from the analysed file set.
+    //
+    // `/__tests__/` keeps the test files themselves out of the report. Without it,
+    // `collectCoverageFrom` treats every test file as production source, and the
+    // integration tests — which `test:unit` never runs — show up as 0%-covered code
+    // and drag the reported total well below the real figure for src/.
     coveragePathIgnorePatterns: [
         '/node_modules/',
         '/build/',
         '/dist/',
+        '/__tests__/',
         'src/lib/util/import-meta-url\\.js$',
     ],
     coverageProvider: 'v8',
