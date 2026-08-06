@@ -95,47 +95,24 @@ jobs:
             echo "BSI_CERT_KEY_FILE=$KEY_FILE"
           } >> "$GITHUB_ENV"
 
+      # Each step declares only the variables its own tests read - see the assertEnv() call at the
+      # top of each suite. They used to share one 17-variable block, which handed the browser
+      # tests every Qlik Sense and QS Cloud credential for no reason. Test code can read its own
+      # process.env, so a step's env block is the blast radius of anything that runs in it.
       - name: Run browser tests
-        run: |
-          ls -la
-          npm run test:integration browser -- -i
+        run: npm run test:integration:browser
         working-directory: .
         env:
           BSI_LOG_LEVEL: 'info'
-          BSI_CONTENT_LIBRARY: 'abc 123'
-          BSI_HOST: ${{ secrets.BSI_HOST }}
-          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       - name: Run QS cloud tests
-        run: |
-          ls -la
-          npm run test:integration cloud -- -i
+        run: npm run test:integration:cloud
         working-directory: .
         env:
           BSI_LOG_LEVEL: 'info'
-          BSI_CONTENT_LIBRARY: 'abc 123'
-          BSI_HOST: ${{ secrets.BSI_HOST }}
-          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
           BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
           BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
           BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
@@ -144,9 +121,7 @@ jobs:
           BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       - name: Run QSEoW tests
-        run: |
-          ls -la
-          npm run test:integration qseow -- -i
+        run: npm run test:integration:qseow
         working-directory: .
         env:
           BSI_LOG_LEVEL: 'info'
@@ -160,12 +135,6 @@ jobs:
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
           BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       # - name: Send job status to MQTT (starting job)
       #   uses: potaesm/github-actions-mqtt-request@1.0.0
@@ -237,53 +206,23 @@ jobs:
           git version
         working-directory: .
 
+      # See the note on the macOS job: each step gets only the variables its own suite reads.
       - name: Run browser tests
         shell: powershell
-        run: |
-          dir
-          npm run test:integration browser -- -i
+        run: npm run test:integration:browser
         working-directory: .
         env:
           BSI_LOG_LEVEL: 'info'
-          BSI_CONTENT_LIBRARY: 'abc 123'
-          BSI_HOST: ${{ secrets.BSI_HOST }}
-          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       - name: Run QS cloud tests
         shell: powershell
-        run: |
-          dir
-          npm run test:integration cloud -- -i
+        run: npm run test:integration:cloud
         working-directory: .
         env:
           BSI_LOG_LEVEL: 'info'
-          BSI_CONTENT_LIBRARY: 'abc 123'
-          BSI_HOST: ${{ secrets.BSI_HOST }}
-          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
           BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_CERT_FILE: ${{ secrets.BSI_WIN_CERT_FILE }}
-          BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
           BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
           BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
           BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
@@ -293,9 +232,7 @@ jobs:
 
       - name: Run QSEoW tests
         shell: powershell
-        run: |
-          dir
-          npm run test:integration qseow -- -i
+        run: npm run test:integration:qseow
         working-directory: .
         env:
           BSI_LOG_LEVEL: 'info'
@@ -311,12 +248,6 @@ jobs:
           BSI_CERT_KEY_FILE: ${{ secrets.BSI_WIN_CERT_KEY_FILE }}
           BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
           BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-          BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
-          BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
-          BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
-          BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
-          BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
-          BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
 
       # - name: Send job status to MQTT when done
       #   uses: potaesm/github-actions-mqtt-request@1.0.0
