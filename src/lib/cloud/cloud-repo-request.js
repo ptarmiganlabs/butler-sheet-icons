@@ -22,10 +22,31 @@ axios.interceptors.response.use(
         return response;
     },
     (e) =>
+        // `e.response` is absent whenever the request never reached the server - offline, DNS
+        // failure, connection refused, TLS rejection. Reading `.status` off it unguarded turned
+        // every such failure into `TypeError: Cannot read properties of undefined (reading
+        // 'status')` raised from inside axios, which is the error reported in issue #785.
+        //
+        // This interceptor is registered on the shared axios instance, so it applied to every
+        // HTTP request in the process - including the Chrome version lookup in
+        // browser-list-available.js, which is where the report came from rather than from any
+        // Qlik Cloud call.
+        //
+        // `code` and the response *status* are carried through so callers can still classify the
+        // failure - getErrorCategory reads `err.code` and `err.response?.status`, and without
+        // either it cannot tell "offline" from "the server said no".
+        //
+        // Only the status, never the response object itself: that carries `config`, and
+        // `config.headers.Authorization` is the Qlik Cloud API token. Several callers log errors
+        // with `JSON.stringify(err)`, so attaching the whole response would put the token on the
+        // path to the log. The winston sanitiser would most likely catch it, but there is no
+        // reason to depend on that.
         Promise.reject({
-            status: e.response.status,
-            statusText: e.response.statusText,
-            message: e.message,
+            status: e?.response?.status,
+            statusText: e?.response?.statusText,
+            message: e?.message ?? String(e),
+            code: e?.code,
+            response: e?.response ? { status: e.response.status } : undefined,
         })
 );
 
@@ -68,13 +89,25 @@ async function makeRequest(config, data = []) {
                 `CLOUD Got response 1 (headers): ${JSON.stringify(response.headers, null, 2)}`
             );
 
-        if (response.data.data) returnData = [...returnData, ...response.data.data];
-        if (!response.data.data) returnData = { data: response.data, status: response.status };
+        // `response.data` is optional - the debug logging above already treats it as such - so
+        // reading `.data` off it unguarded would throw on a response with no body.
+        const body = response.data;
 
-        if (response.data.links && (response.data.links.next || response.data.links.Next)) {
-            config.url = response.data.links.next.href
-                ? response.data.links.next.href
-                : response.data.links.Next.Href;
+        if (body?.data) {
+            returnData = [...returnData, ...body.data];
+        } else {
+            returnData = { data: body, status: response.status };
+        }
+
+        // Qlik Cloud has been seen to use both `links.next` and `links.Next`, which is why the
+        // guard here accepts either. Reading `next.href` unconditionally afterwards meant a
+        // response carrying only the capital form threw
+        // `TypeError: Cannot read properties of undefined (reading 'href')` - the guard admitted
+        // a shape the next line could not handle.
+        const nextPageUrl = body?.links?.next?.href || body?.links?.Next?.Href;
+
+        if (nextPageUrl) {
+            config.url = nextPageUrl;
             return makeRequest(config, returnData);
         }
     } catch (err) {
