@@ -740,9 +740,35 @@ Content, all of it copy-pasteable rather than conceptual:
    confirming the executable path; setting `--browser-executable-path`; setting
    `BSI_BROWSER_EXECUTABLE_PATH` instead, for a scheduled task where editing the command line is
    awkward; confirming with `browser check`. Give both a PowerShell example and a scheduled-task
-   example. Mention that Edge is Chromium-based and works, and that Microsoft publishes an offline
-   enterprise MSI for servers that do not have it — that is the customer's normal software-deployment
-   path and needs no BSI-specific handling.
+   example. Mention that Edge is Chromium-based and works with BSI unmodified.
+
+   **Include a subsection on where to obtain offline installers**, for the case where the server has
+   no browser at all. This is the gap that otherwise sends an administrator to a search engine and,
+   too often, to a third-party download mirror — a genuinely bad outcome on a hardened server. Both
+   vendors publish enterprise installers designed for exactly this: downloaded once on a connected
+   machine, then distributed internally.
+
+   | Browser | Where | What you get |
+   | --- | --- | --- |
+   | Microsoft Edge | [Microsoft Edge for Business download](https://www.microsoft.com/en-us/edge/business/download) — also documented under [Microsoft Edge enterprise deployment](https://learn.microsoft.com/en-us/deployedge/) | Standalone MSI per channel and architecture, plus policy templates |
+   | Google Chrome | [Chrome Enterprise download](https://chromeenterprise.google/download/) | Standalone MSI bundle for Windows, plus policy templates |
+   | Chrome for Testing | [Chrome for Testing availability](https://googlechromelabs.github.io/chrome-for-testing/) | The exact versioned builds BSI itself downloads — relevant to Route B, not Route A |
+
+   **Link to these landing pages, never to a versioned installer URL.** Specific versions change
+   constantly and a pinned link rots within weeks; the landing pages are stable and let the
+   administrator pick the channel and architecture their change process requires.
+
+   Two things to verify at publication time rather than trusting this draft: the Edge link currently
+   302-redirects to `explore.microsoft.com` (both hosts are Microsoft's, and the `www.microsoft.com`
+   form is the canonical entry point worth publishing), and Google has used more than one path under
+   `chromeenterprise.google` over the years — confirm the one that resolves.
+
+   Frame this as the customer's normal software-deployment path. An enterprise MSI distributed by
+   Intune, Configuration Manager or Group Policy needs no BSI-specific handling at all; once the
+   browser is installed, Route A is just pointing BSI at it. Do add one caution: BSI does not manage
+   or update a browser installed this way, so the browser's own patching stays the customer's
+   responsibility — worth saying plainly, because a browser on a Sense server is a security-review
+   item.
 
 3. **Route B — stage a browser from a connected machine.** Downloading on the connected machine with
    `browser install`; exactly which directory to copy; where to put it on the target; pointing
