@@ -9,7 +9,7 @@ import path from 'path';
 import { homedir } from 'os';
 import cliProgress from 'cli-progress';
 
-import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import { getMostRecentUsableChromeBuildId } from './browser-list-available.js';
 import { alreadyReported } from '../util/reported-error.js';
@@ -184,7 +184,10 @@ export const browserInstall = async (options, _command) => {
                         );
                     }
 
-                    await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+                    // The shared helper rather than an inline setTimeout promise: it is the
+                    // same implementation, and going through globals.js lets tests mock the
+                    // delay instead of really waiting out every retry.
+                    await sleep(RETRY_DELAY_MS);
                     progressBar.start(100, 0);
                 }
             }

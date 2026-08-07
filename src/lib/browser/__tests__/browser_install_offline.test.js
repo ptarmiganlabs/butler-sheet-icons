@@ -26,6 +26,9 @@ jest.unstable_mockModule('../../../globals.js', () => ({
     setLoggingLevel: jest.fn(),
     bsiExecutablePath: '/test/path',
     isSea: false,
+    // browser-install.js awaits this between retry attempts; mocked so the offline
+    // retry paths do not really wait out the backoff.
+    sleep: jest.fn().mockResolvedValue(undefined),
 }));
 const { logger } = await import('../../../globals.js');
 
