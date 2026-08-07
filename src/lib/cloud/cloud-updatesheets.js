@@ -3,6 +3,7 @@ import enigma from 'enigma.js';
 import { setupEnigmaConnection } from './cloud-enigma.js';
 import { logger } from '../../globals.js';
 import { CloudError } from '../util/errors.js';
+import { sortSheetsByRank } from '../util/sheet-list.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Cloud app.
@@ -69,11 +70,7 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
             logger.info(`Number of sheets: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             // Sort sheets
-            sheetListObj.qAppObjectList.qItems.sort((sheet1, sheet2) => {
-                if (sheet1.qData.rank < sheet2.qData.rank) return -1;
-                if (sheet1.qData.rank > sheet2.qData.rank) return 1;
-                return 0;
-            });
+            sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
             let iSheetNum = 1;
 

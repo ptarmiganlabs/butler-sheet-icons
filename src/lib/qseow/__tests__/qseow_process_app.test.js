@@ -98,6 +98,9 @@ let qrsInteract;
 let logger;
 let browserInstall;
 let detectAvailableBrowser;
+let determineSheetExcludeStatus;
+let qseowUploadToContentLibrary;
+let qseowUpdateSheetThumbnails;
 
 beforeAll(async () => {
     await Promise.all([
@@ -123,6 +126,9 @@ beforeAll(async () => {
     ({ logger } = await import('../../../globals.js'));
     ({ browserInstall } = await import('../../browser/browser-install.js'));
     ({ detectAvailableBrowser } = await import('../../browser/browser-detect.js'));
+    ({ determineSheetExcludeStatus } = await import('../determine-sheet-exclude-status.js'));
+    ({ qseowUploadToContentLibrary } = await import('../qseow-upload.js'));
+    ({ qseowUpdateSheetThumbnails } = await import('../qseow-updatesheets.js'));
     ({ qseowProcessApp } = await import('../qseow-process-app.js'));
 });
 
@@ -360,5 +366,145 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
         expect(logged).toContain('Failed to install a browser for QSEoW app test-app-id');
         expect(puppeteer.launch).not.toHaveBeenCalled();
+    });
+});
+
+describe('qseow-process-app.js — a sheet with no metadata does not abort the app', () => {
+    const options = {
+        senseVersion: '2023-Nov',
+        imagedir: './img',
+        host: 'test-server.example.com',
+        logonuserdir: 'INTERNAL',
+        logonuserid: 'sa_api',
+        logonpwd: 'password',
+        excludeSheetNumber: [],
+        excludeSheetTitle: [],
+        excludeSheetStatus: [],
+        includesheetpart: '1',
+        pagewait: 0,
+        secure: true,
+        prefix: '',
+        headless: true,
+        blurFactor: 5,
+        loglevel: 'info',
+    };
+
+    /**
+     * Builds a well-formed sheet list item.
+     *
+     * @param {string} qId - Engine object id.
+     * @param {number} rank - Sheet rank.
+     *
+     * @returns {object} A sheet list item.
+     */
+    const sheetItem = (qId, rank) => ({
+        qInfo: { qId },
+        qMeta: { title: qId, description: '', approved: false, published: false },
+        qData: { rank, showCondition: null },
+    });
+
+    /**
+     * Wires the full mock stack over a caller-supplied sheet list.
+     *
+     * Everything is re-established here rather than shared with the describe block above,
+     * because that block's last test leaves `detectAvailableBrowser` and `browserInstall`
+     * in a failure state and this file does not reset between tests.
+     *
+     * @param {Array<object>} qItems - Sheets the SheetList session object should report.
+     *
+     * @returns {void}
+     */
+    function setup(qItems) {
+        jest.clearAllMocks();
+
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/test/browser',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+        determineSheetExcludeStatus.mockResolvedValue({
+            excludeSheet: false,
+            sheetIsHidden: false,
+        });
+        qseowUploadToContentLibrary.mockResolvedValue(true);
+        qseowUpdateSheetThumbnails.mockResolvedValue(true);
+
+        const mockGet = jest.fn().mockImplementation((path) => {
+            if (path.includes('app?filter=id eq')) {
+                return Promise.resolve({
+                    body: [{ id: 'test-app-id', name: 'Test App', published: true }],
+                });
+            }
+            return Promise.resolve({ body: [] });
+        });
+        qrsInteract.mockImplementation(() => ({ Get: mockGet }));
+
+        const mockApp = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({ qAppObjectList: { qItems } }),
+            }),
+            getObject: jest.fn().mockResolvedValue({ screenshot: jest.fn() }),
+            evaluateEx: jest.fn().mockResolvedValue({ qIsNumeric: false, qNumber: 1 }),
+        };
+        enigma.create.mockResolvedValue({
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '1.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(mockApp),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        });
+
+        const page = {
+            setViewport: jest.fn().mockResolvedValue(true),
+            setDefaultTimeout: jest.fn().mockResolvedValue(true),
+            goto: jest.fn().mockResolvedValue(true),
+            waitForNavigation: jest.fn().mockResolvedValue(true),
+            screenshot: jest.fn().mockResolvedValue(true),
+            click: jest.fn().mockResolvedValue(true),
+            keyboard: { type: jest.fn().mockResolvedValue(true) },
+            waitForSelector: jest.fn().mockResolvedValue(true),
+            $: jest.fn().mockResolvedValue({ screenshot: jest.fn().mockResolvedValue(true) }),
+            $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
+        };
+        puppeteer.launch.mockResolvedValue({
+            newPage: jest.fn().mockResolvedValue(page),
+            close: jest.fn().mockResolvedValue(true),
+        });
+    }
+
+    test('still examines the well-formed sheets when one sheet has no qData', async () => {
+        // Sorting runs before the per-sheet handling, so an unguarded read of
+        // sheet.qData.rank in the comparator aborted the whole app before a single
+        // sheet was looked at. The rank-less sheet now sorts last.
+        setup([
+            sheetItem('sheet-b', 2),
+            { qInfo: { qId: 'broken' }, qMeta: { title: 'Broken', description: '' } },
+            sheetItem('sheet-a', 1),
+        ]);
+
+        await qseowProcessApp('test-app-id', options);
+
+        const examined = determineSheetExcludeStatus.mock.calls.map((call) => call[1].qInfo.qId);
+        expect(examined).toEqual(['sheet-a', 'sheet-b', 'broken']);
+
+        const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(logged).not.toContain("reading 'rank'");
+    });
+
+    test('does not point sheets at images that failed to upload', async () => {
+        // The upload used to swallow every failure and return normally, so the caller
+        // went straight on to repoint every sheet at files that were never uploaded.
+        // Sheets that had working icons ended up showing broken ones.
+        setup([sheetItem('sheet-a', 1)]);
+        qseowUploadToContentLibrary.mockRejectedValue(
+            new Error('Failed to upload 1 of 1 thumbnail image(s)')
+        );
+
+        await qseowProcessApp('test-app-id', options);
+
+        expect(qseowUploadToContentLibrary).toHaveBeenCalledTimes(1);
+        expect(qseowUpdateSheetThumbnails).not.toHaveBeenCalled();
     });
 });

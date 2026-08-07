@@ -1,7 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
-import { parsePositiveInteger } from '../helpers.js';
+import { parsePositiveInteger, collectPositiveIntegers } from '../helpers.js';
 
 /**
  * Commander action that triggers QSEoW thumbnail creation with normalized options and error logging.
@@ -272,8 +272,8 @@ const buildQseowCommand = () => {
                 '--exclude-sheet-number <number...>',
                 'Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.'
             )
-                .argParser((value) =>
-                    parsePositiveInteger(value, {
+                .argParser(
+                    collectPositiveIntegers({
                         errorMessage: 'Exclude sheet number must be a non-negative integer.',
                     })
                 )
@@ -305,8 +305,8 @@ const buildQseowCommand = () => {
                 '--blur-sheet-number <number...>',
                 'Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.'
             )
-                .argParser((value) =>
-                    parsePositiveInteger(value, {
+                .argParser(
+                    collectPositiveIntegers({
                         errorMessage: 'Blur sheet number must be a non-negative integer.',
                     })
                 )

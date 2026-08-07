@@ -11,6 +11,7 @@ import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
 import { QseowError } from '../util/errors.js';
 import { launchBrowserForApp } from '../browser/browser-launch.js';
+import { sortSheetsByRank } from '../util/sheet-list.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -333,11 +334,7 @@ export const qseowProcessApp = async (appId, options) => {
             await page.screenshot({ path: `${imgDir}/qseow/${appId}/overview-1.png` });
 
             // Sort sheets
-            sheetListObj.qAppObjectList.qItems.sort((sheet1, sheet2) => {
-                if (sheet1.qData.rank < sheet2.qData.rank) return -1;
-                if (sheet1.qData.rank > sheet2.qData.rank) return 1;
-                return 0;
-            });
+            sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
             // Loop over all sheets in app, processing each one unless excluded
             for (const sheet of sheetListObj.qAppObjectList.qItems) {

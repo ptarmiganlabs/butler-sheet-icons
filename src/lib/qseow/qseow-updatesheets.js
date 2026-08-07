@@ -3,6 +3,7 @@ import enigma from 'enigma.js';
 import { setupEnigmaConnection } from './qseow-enigma.js';
 import { logger } from '../../globals.js';
 import { QseowError } from '../util/errors.js';
+import { sortSheetsByRank } from '../util/sheet-list.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Enterprise on Windows (QSEoW) app.
@@ -76,11 +77,7 @@ export const qseowUpdateSheetThumbnails = async (
             logger.info(`Number of sheets: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             // Sort sheets
-            sheetListObj.qAppObjectList.qItems.sort((sheet1, sheet2) => {
-                if (sheet1.qData.rank < sheet2.qData.rank) return -1;
-                if (sheet1.qData.rank > sheet2.qData.rank) return 1;
-                return 0;
-            });
+            sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
             let iSheetNum = 1;
 

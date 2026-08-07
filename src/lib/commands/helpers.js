@@ -44,4 +44,40 @@ const parsePositiveInteger = (value, { min = 0, max, errorMessage, returnNumber 
     return returnNumber ? parsed : stringValue;
 };
 
-export { parsePositiveInteger };
+/**
+ * Builds a Commander `argParser` for a **variadic** integer option (`<number...>`).
+ *
+ * Commander has two ways of producing an array-valued option, and they are mutually
+ * exclusive. Declaring the option variadic makes Commander collect the values itself -
+ * but only for options with no `argParser`. The moment an `argParser` is attached,
+ * Commander switches to calling that parser once per value, passing the accumulated
+ * result so far as the second argument, and stores whatever the parser returns. A
+ * parser that ignores that second argument therefore throws away everything collected
+ * before it, and the option ends up holding a bare string instead of an array.
+ *
+ * That is not a harmless type difference: every consumer of these options asks
+ * `.includes(iSheetNum.toString())`, and `String.prototype.includes` is substring
+ * matching. `--exclude-sheet-number 12` left as the string `'12'` matches sheet 1 and
+ * sheet 2 as well as sheet 12.
+ *
+ * This helper closes over the validation options and accumulates, so a variadic option
+ * keeps its array while still validating each value.
+ *
+ * Values are kept as **strings**, matching `parsePositiveInteger`'s default, because
+ * consumers compare them against `iSheetNum.toString()`.
+ *
+ * @param {object} [parseOptions] - Validation options forwarded to `parsePositiveInteger`.
+ *
+ * @returns {(value: string, previous?: string[]) => string[]} Parser suitable for `Option.argParser()`.
+ *
+ * @throws {InvalidArgumentError} When any single value is not a non-negative integer.
+ *
+ * @example
+ * new Option('--exclude-sheet-number <number...>', '...')
+ *     .argParser(collectPositiveIntegers({ errorMessage: 'Must be a non-negative integer.' }))
+ */
+const collectPositiveIntegers =
+    (parseOptions = {}) =>
+    (value, previous = []) => [...previous, parsePositiveInteger(value, parseOptions)];
+
+export { parsePositiveInteger, collectPositiveIntegers };

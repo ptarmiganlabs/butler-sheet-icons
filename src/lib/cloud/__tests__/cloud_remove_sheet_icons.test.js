@@ -198,6 +198,23 @@ describe('qscloudRemoveSheetIcons', () => {
             ]);
         });
 
+        test('still processes the well-formed sheets when one sheet has no qData', async () => {
+            // Sorting runs before the per-sheet try/catch blocks, so an unguarded read of
+            // sheet.qData.rank in the comparator aborted the whole app before a single
+            // icon was touched. The rank-less sheet now sorts last.
+            const broken = makeSheet('broken', 1);
+            delete broken.item.qData;
+            const { app } = wireEnigma([makeSheet('sheet-b', 2), broken, makeSheet('sheet-a', 1)]);
+
+            await qscloudRemoveSheetIcons({ ...BASE_OPTIONS });
+
+            expect(app.getObject.mock.calls.map((call) => call[0])).toEqual([
+                'sheet-a',
+                'sheet-b',
+                'broken',
+            ]);
+        });
+
         test('closes the engine session when done', async () => {
             const { session } = wireEnigma([makeSheet('sheet-1', 1)]);
 

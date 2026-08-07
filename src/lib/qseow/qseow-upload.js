@@ -3,6 +3,7 @@ import path from 'path';
 import qrsInteract from 'qrs-interact';
 
 import { logger, setLoggingLevel } from '../../globals.js';
+import { QseowError } from '../util/errors.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
 
 /**
@@ -23,9 +24,16 @@ import { setupQseowQrsConnection } from './qseow-qrs.js';
  *         located. Must contain a subdirectory named `qseow` with a subdirectory
  *         named after the app ID, which contains the files to be uploaded.
  *
- * @returns {Promise<boolean>} Resolves to `true` if the files were uploaded successfully, `false` otherwise.
+ * @returns {Promise<void>} Resolves only when every qualifying file was uploaded. This
+ *     previously claimed to resolve to a boolean; it never returned one.
+ *
+ * @throws {QseowError} When any file failed to upload, or the upload could not be set up
+ *     at all. The caller must not go on to point sheets at images that are not there.
  */
 export const qseowUploadToContentLibrary = async (filesToUpload, appId, options) => {
+    let uploadedCount = 0;
+    let failedCount = 0;
+
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -55,43 +63,48 @@ export const qseowUploadToContentLibrary = async (filesToUpload, appId, options)
         filesToUpload.forEach((file) => logger.debug(JSON.stringify(file)));
 
         for (const file of filesToUpload) {
-            logger.verbose(`Uploading file: ${JSON.stringify(file)}`);
+            // Each file is isolated so one bad image does not skip the ones after it.
+            // Failures are counted rather than ignored - see the throw below the loop.
+            try {
+                logger.verbose(`Uploading file: ${JSON.stringify(file)}`);
 
-            // Get complete path for file
-            const fileFullPath = path.join(iconFolderAbsolute, file.fileNameShort);
-            logger.debug(`fileFullPath: ${fileFullPath}`);
+                // Get complete path for file
+                const fileFullPath = path.join(iconFolderAbsolute, file.fileNameShort);
+                logger.debug(`fileFullPath: ${fileFullPath}`);
 
-            const fileStat = fs.statSync(fileFullPath);
-            logger.silly(`fileStat: ${JSON.stringify(fileStat, null, 2)}`);
+                const fileStat = fs.statSync(fileFullPath);
+                logger.silly(`fileStat: ${JSON.stringify(fileStat, null, 2)}`);
 
-            if (
-                fileStat.isFile() &&
-                file.fileNameShort.substring(0, 10) === 'thumbnail-' &&
-                path.extname(file.fileNameShort) === '.png'
-            ) {
-                const apiUrl = `/contentlibrary/${encodeURIComponent(
-                    contentlibrary
-                )}/uploadfile?externalpath=${file.fileNameShort}&overwrite=true`;
+                if (
+                    fileStat.isFile() &&
+                    file.fileNameShort.substring(0, 10) === 'thumbnail-' &&
+                    path.extname(file.fileNameShort) === '.png'
+                ) {
+                    const apiUrl = `/contentlibrary/${encodeURIComponent(
+                        contentlibrary
+                    )}/uploadfile?externalpath=${file.fileNameShort}&overwrite=true`;
 
-                logger.debug(`Thumbnail imague upload URL: ${apiUrl}`);
+                    logger.debug(`Thumbnail imague upload URL: ${apiUrl}`);
 
-                try {
                     const fileData = fs.readFileSync(fileFullPath);
 
                     const result = await qrsInteractInstance.Post(apiUrl, fileData, 'image/png');
                     logger.debug(`QSEoW image upload result=${JSON.stringify(result)}`);
                     logger.verbose(`QSEoW image upload done: ${JSON.stringify(file)}`);
-                } catch (err) {
-                    if (err.stack) {
-                        logger.error(`QSEOW UPLOAD 1 (stack): ${err.stack}`);
-                    } else if (err.message) {
-                        logger.error(`QSEOW UPLOAD 1 (message): ${err.message}`);
-                    } else {
-                        logger.error(`QSEOW UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
-                    }
+
+                    uploadedCount += 1;
+                } else if (fileStat.isDirectory()) {
+                    logger.verbose(`${fileFullPath} is a directory, skipping.`);
                 }
-            } else if (fileStat.isDirectory()) {
-                logger.verbose(`${fileFullPath} is a directory, skipping.`);
+            } catch (err) {
+                failedCount += 1;
+                if (err.stack) {
+                    logger.error(`QSEOW UPLOAD 1 (stack): ${err.stack}`);
+                } else if (err.message) {
+                    logger.error(`QSEOW UPLOAD 1 (message): ${err.message}`);
+                } else {
+                    logger.error(`QSEOW UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
+                }
             }
         }
     } catch (err) {
@@ -102,5 +115,20 @@ export const qseowUploadToContentLibrary = async (filesToUpload, appId, options)
         } else {
             logger.error(`QSEOW UPLOAD 2: ${JSON.stringify(err, null, 2)}`);
         }
+
+        // Rethrow: returning normally here told the caller every image was in place, and
+        // it went on to point every sheet at files that had never been uploaded.
+        throw new QseowError(
+            `Failed to upload sheet thumbnails to content library ${options.contentlibrary}`,
+            { cause: err }
+        );
+    }
+
+    // Individual failures were logged above but must still fail the app. Sheets that had
+    // working icons keep them, rather than being pointed at images that are not there.
+    if (failedCount > 0) {
+        throw new QseowError(
+            `Failed to upload ${failedCount} of ${failedCount + uploadedCount} thumbnail image(s) to content library ${options.contentlibrary}`
+        );
     }
 };

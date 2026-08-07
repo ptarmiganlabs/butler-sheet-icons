@@ -22,7 +22,7 @@ import { processCloudApp } from './process-cloud-app.js';
  * @param {string} options.browserVersion - Version of browser to use for rendering thumbnails.
  * @param {string} options.blurSheetStatus - Which sheet statuses should be blurred.
  * @param {string} options.blurSheetTag - Which sheet tags should be blurred.
- * @param {string} options.blurSheetNumber - Number of sheets to blur.
+ * @param {Array<string>} options.blurSheetNumber - Sheet numbers (1=first sheet) to blur.
  * @param {string} options.blurFactor - Blur factor.
  *
  * @returns {Promise<boolean>} Resolves to `true` if thumbnails were created successfully, `false` otherwise.

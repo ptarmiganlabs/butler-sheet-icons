@@ -173,6 +173,35 @@ describe('qscloudUpdateSheetThumbnails', () => {
         ]);
     });
 
+    test('still processes the well-formed sheets when one sheet has no qData', async () => {
+        // Sorting runs before any per-sheet handling, so an unguarded read of
+        // sheet.qData.rank in the comparator discarded every update for the app.
+        // The rank-less sheet now sorts last.
+        const broken = makeSheet({ qId: 'broken', rank: 1 });
+        delete broken.item.qData;
+        const { app } = wireEnigma([
+            makeSheet({ qId: 'sheet-b', rank: 2 }),
+            broken,
+            makeSheet({ qId: 'sheet-a', rank: 1 }),
+        ]);
+
+        await qscloudUpdateSheetThumbnails(
+            [
+                { sheetPos: 1, fileNameShort: 'thumbnail-1.png' },
+                { sheetPos: 2, fileNameShort: 'thumbnail-2.png' },
+                { sheetPos: 3, fileNameShort: 'thumbnail-3.png' },
+            ],
+            APP_ID,
+            BASE_OPTIONS
+        );
+
+        expect(app.getObject.mock.calls.map((call) => call[0])).toEqual([
+            'sheet-a',
+            'sheet-b',
+            'broken',
+        ]);
+    });
+
     test('skips a sheet that has no created file', async () => {
         const sheets = [
             makeSheet({ qId: 'sheet-a', rank: 1 }),

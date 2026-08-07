@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { logger, setLoggingLevel } from '../../globals.js';
+import { CloudError } from '../util/errors.js';
 import QlikSaas from './cloud-repo.js';
 
 /**
@@ -21,9 +22,15 @@ import QlikSaas from './cloud-repo.js';
  *     - `apikey` (string): API key for authentication.
  *     - `imagedir` (string): Directory path for storing image thumbnails.
  *
- * @returns {Promise<void>} Resolves when the files have been successfully uploaded to the Qlik Sense Cloud app.
+ * @returns {Promise<void>} Resolves only when every qualifying file was uploaded.
+ *
+ * @throws {CloudError} When any file failed to upload, or the upload could not be set up
+ *     at all. The caller must not go on to point sheets at images that are not there.
  */
 export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
+    let uploadedCount = 0;
+    let failedCount = 0;
+
     try {
         // Set log level
         if (options.loglevel === undefined || options.logLevel) {
@@ -51,24 +58,26 @@ export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
         filesToUpload.forEach((file) => logger.debug(JSON.stringify(file)));
 
         for (const file of filesToUpload) {
-            logger.info(`Uploading file: ${file.fileNameShort}`);
+            // Each file is isolated so one bad image does not skip the ones after it.
+            // Failures are counted rather than ignored - see the throw below the loop.
+            try {
+                logger.info(`Uploading file: ${file.fileNameShort}`);
 
-            // Get complete path for file
-            const fileFullPath = path.join(iconFolderAbsolute, file.fileNameShort);
-            logger.debug(`fileFullPath: ${fileFullPath}`);
+                // Get complete path for file
+                const fileFullPath = path.join(iconFolderAbsolute, file.fileNameShort);
+                logger.debug(`fileFullPath: ${fileFullPath}`);
 
-            const fileStat = fs.statSync(fileFullPath);
-            logger.silly(`fileStat: ${JSON.stringify(fileStat, null, 2)}`);
+                const fileStat = fs.statSync(fileFullPath);
+                logger.silly(`fileStat: ${JSON.stringify(fileStat, null, 2)}`);
 
-            if (
-                fileStat.isFile() &&
-                file.fileNameShort.substring(0, 10) === 'thumbnail-' &&
-                path.extname(file.fileNameShort) === '.png'
-            ) {
-                const apiUrl = `apps/${appId}/media/files/thumbnails/${file.fileNameShort}`;
-                logger.debug(`Thumbnail image upload URL: ${apiUrl}`);
+                if (
+                    fileStat.isFile() &&
+                    file.fileNameShort.substring(0, 10) === 'thumbnail-' &&
+                    path.extname(file.fileNameShort) === '.png'
+                ) {
+                    const apiUrl = `apps/${appId}/media/files/thumbnails/${file.fileNameShort}`;
+                    logger.debug(`Thumbnail image upload URL: ${apiUrl}`);
 
-                try {
                     const fileData = fs.readFileSync(fileFullPath);
 
                     const result = await saasInstance.Put({
@@ -100,26 +109,43 @@ export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
                         );
                         logger.verbose(`Blurred image upload done.`);
                     }
-                } catch (err) {
-                    logger.error(`CLOUD UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
-                    if (err.message) {
-                        logger.error(`CLOUD UPLOAD 1 (stack): ${err.message}`);
-                    }
-                    if (err.stack) {
-                        logger.error(`CLOUD UPLOAD 1 (stack): ${err.stack}`);
-                    }
+
+                    uploadedCount += 1;
+                } else if (fileStat.isDirectory()) {
+                    logger.verbose(`${fileFullPath} is a directory, skipping.`);
                 }
-            } else if (fileStat.isDirectory()) {
-                logger.verbose(`${fileFullPath} is a directory, skipping.`);
+            } catch (err) {
+                failedCount += 1;
+                logger.error(`CLOUD UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
+                if (err.message) {
+                    logger.error(`CLOUD UPLOAD 1 (message): ${err.message}`);
+                }
+                if (err.stack) {
+                    logger.error(`CLOUD UPLOAD 1 (stack): ${err.stack}`);
+                }
             }
         }
     } catch (err) {
         if (err.stack) {
             logger.error(`CLOUD UPLOAD 2 (stack): ${err.stack}`);
         } else if (err.message) {
-            logger.error(`CLOUD UPLOAD 2 (stack): ${err.message}`);
+            logger.error(`CLOUD UPLOAD 2 (message): ${err.message}`);
         } else {
             logger.error(`CLOUD UPLOAD 2: ${JSON.stringify(err, null, 2)}`);
         }
+
+        // Rethrow: returning normally here told the caller every image was in place, and
+        // it went on to point every sheet at files that had never been uploaded.
+        throw new CloudError(`Failed to upload sheet thumbnails to Qlik Sense Cloud app ${appId}`, {
+            cause: err,
+        });
+    }
+
+    // Individual failures were logged above but must still fail the app. Sheets that had
+    // working icons keep them, rather than being pointed at images that are not there.
+    if (failedCount > 0) {
+        throw new CloudError(
+            `Failed to upload ${failedCount} of ${failedCount + uploadedCount} thumbnail image(s) to Qlik Sense Cloud app ${appId}`
+        );
     }
 };

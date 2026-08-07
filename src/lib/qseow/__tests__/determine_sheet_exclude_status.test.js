@@ -167,6 +167,19 @@ describe('determineSheetExcludeStatus', () => {
     });
 
     describe('hidden sheets', () => {
+        test('does not throw for a sheet the engine returned without qData', async () => {
+            // The line above this read already used `sheet?.qData?.showCondition`, but the
+            // hidden check itself did not - so a sheet with no qData threw
+            // `TypeError: Cannot read properties of undefined (reading 'showCondition')`
+            // and took the whole app down with it.
+            const sheet = { qInfo: { qId: 'broken' }, qMeta: { title: 'Broken' } };
+
+            await expect(run({ sheet })).resolves.toEqual({
+                excludeSheet: false,
+                sheetIsHidden: false,
+            });
+        });
+
         test('treats a literal "false" showCondition as hidden', async () => {
             const sheet = createSheet({ showCondition: 'false' });
 

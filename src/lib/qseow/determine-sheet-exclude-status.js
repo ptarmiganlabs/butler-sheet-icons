@@ -73,7 +73,7 @@ export const determineSheetExcludeStatus = async (
 
     const showConditionEval = await app.evaluateEx(showConditionCall);
     const sheetIsHidden =
-        sheet.qData.showCondition &&
+        sheet?.qData?.showCondition &&
         (sheet.qData.showCondition.toLowerCase() === 'false' ||
             (showConditionEval?.qIsNumeric === true && showConditionEval?.qNumber === 0))
             ? true
