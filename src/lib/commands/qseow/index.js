@@ -2,6 +2,7 @@ import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
 import { parsePositiveInteger, collectPositiveIntegers } from '../helpers.js';
+import { runCommand } from '../run-command.js';
 
 /**
  * Commander action that triggers QSEoW thumbnail creation with normalized options and error logging.
@@ -16,7 +17,7 @@ const handleQseowCreateSheetThumbnails = async (options = {}, command) => {
 
     logger.verbose(`appid=${options.appid}`);
     logger.verbose(`itemid=${options.itemid}`);
-    try {
+    return runCommand('QSEOW MAIN 1', () => {
         const resolvedOptions = { ...options };
         if (!resolvedOptions.browserVersion || resolvedOptions.browserVersion === '') {
             if (resolvedOptions.browser === 'chrome') {
@@ -26,17 +27,8 @@ const handleQseowCreateSheetThumbnails = async (options = {}, command) => {
             }
         }
 
-        const res = await qseowCreateThumbnails(resolvedOptions, command);
-        logger.debug(`Call to qseowCreateThumbnails succeeded: ${res}`);
-    } catch (err) {
-        logger.error(`QSEOW MAIN 1: ${err}`);
-        if (err.message) {
-            logger.error(`QSEOW MAIN 1 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`QSEOW MAIN 1 (stack): ${err.stack}`);
-        }
-    }
+        return qseowCreateThumbnails(resolvedOptions, command);
+    });
 };
 
 /**

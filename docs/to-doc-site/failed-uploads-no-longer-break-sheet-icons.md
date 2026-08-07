@@ -44,4 +44,4 @@ If earlier runs left apps showing broken sheet icons, re-running `create-sheet-t
 
 ## A note on exit codes
 
-Butler Sheet Icons still exits with code 0 in this situation. If you run it from a scheduled job or pipeline, **checking the exit code will not tell you that an app failed** — check the log for the lines above instead. Making the exit code reflect failures is a separate change that has not shipped yet.
+An app that fails this way now makes Butler Sheet Icons exit with code 1, so a scheduled job or pipeline sees the failure rather than passing silently. See *Butler Sheet Icons now exits with a non-zero code when something fails* for what that means for existing automation.

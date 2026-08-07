@@ -1,6 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qscloudRemoveSheetIcons } from '../../cloud/cloud-remove-sheet-icons.js';
+import { runCommand } from '../run-command.js';
 
 /**
  * Commander action that removes sheet icons from specified Qlik Sense Cloud apps.
@@ -13,18 +14,7 @@ import { qscloudRemoveSheetIcons } from '../../cloud/cloud-remove-sheet-icons.js
 const handleCloudRemoveSheetIcons = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
-    try {
-        const res = await qscloudRemoveSheetIcons(options, cmd);
-        logger.debug(`Call to qscloudRemoveSheetIcons succeeded: ${res}`);
-    } catch (err) {
-        logger.error(`CLOUD MAIN 5: ${err}`);
-        if (err.message) {
-            logger.error(`CLOUD MAIN 5 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`CLOUD MAIN 5 (stack): ${err.stack}`);
-        }
-    }
+    return runCommand('CLOUD MAIN 5', () => qscloudRemoveSheetIcons(options, cmd));
 };
 
 /**

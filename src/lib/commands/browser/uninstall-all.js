@@ -1,6 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserUninstallAll } from '../../browser/browser-uninstall.js';
+import { runCommand } from '../run-command.js';
 
 /**
  * Commander action that removes every cached browser managed by Butler Sheet Icons.
@@ -13,18 +14,7 @@ import { browserUninstallAll } from '../../browser/browser-uninstall.js';
 const handleBrowserUninstallAll = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
-    try {
-        const res = await browserUninstallAll(options, cmd);
-        logger.debug(`Call to browserUninstallAll succeeded: ${res}`);
-    } catch (err) {
-        logger.error(`BROWSER MAIN 8: ${err}`);
-        if (err.message) {
-            logger.error(`BROWSER MAIN 8 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`BROWSER MAIN 8 (stack): ${err.stack}`);
-        }
-    }
+    return runCommand('BROWSER MAIN 8', () => browserUninstallAll(options, cmd));
 };
 
 /**

@@ -359,9 +359,10 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         detectAvailableBrowser.mockResolvedValue(null);
         browserInstall.mockRejectedValue(new Error('network unreachable'));
 
-        // qseowProcessApp catches and logs rather than rethrowing, so callers can continue
-        // to the next app. Assert it resolves; `rejects.toThrow` would fail here.
-        await qseowProcessApp('test-app-id', defaultOptions);
+        // qseowProcessApp logs in detail and then rethrows, so the app loop above it can
+        // count this app as failed. Isolation between apps is the loop's job, not this
+        // function's - it used to swallow here, and the run reported success.
+        await expect(qseowProcessApp('test-app-id', defaultOptions)).rejects.toThrow();
 
         const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
         expect(logged).toContain('Failed to install a browser for QSEoW app test-app-id');
@@ -502,7 +503,7 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
             new Error('Failed to upload 1 of 1 thumbnail image(s)')
         );
 
-        await qseowProcessApp('test-app-id', options);
+        await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow();
 
         expect(qseowUploadToContentLibrary).toHaveBeenCalledTimes(1);
         expect(qseowUpdateSheetThumbnails).not.toHaveBeenCalled();

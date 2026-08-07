@@ -3,6 +3,7 @@ import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { processCloudApp } from './process-cloud-app.js';
+import { runOverApps } from '../util/run-over-apps.js';
 
 /**
  * Create thumbnails for Qlik Sense Cloud (QSC).
@@ -128,36 +129,18 @@ export const qscloudCreateThumbnails = async (options) => {
             }
         }
 
-        // Remove duplicates (if any) from list of app IDs that will be processed
-        const uniqueAppIds = [...new Set(appIdsToProcess)];
+        const { total, failed } = await runOverApps(
+            appIdsToProcess,
+            {
+                logPrefix: 'CLOUD PROCESS APP',
+                emptySelectionHint: 'Check the --appid and --collectionid options.',
+            },
+            (appId) => processCloudApp(appId, saasInstance, options)
+        );
 
-        // Debug output of apps that will be processed
-        logger.debug('Will process these app IDs:');
-        uniqueAppIds.forEach((appId) => {
-            logger.debug(appId);
-        });
-
-        // Process all apps
-        for (const appId of uniqueAppIds) {
-            try {
-                logger.info(`--------------------------------------------------`);
-                logger.info(`About to process app ${appId}`);
-
-                await processCloudApp(appId, saasInstance, options);
-
-                logger.verbose(`Done processing app ${appId}`);
-            } catch (err) {
-                if (err.stack) {
-                    logger.error(`CLOUD PROCESS APP (stack): ${err.stack}`);
-                } else if (err.message) {
-                    logger.error(`CLOUD PROCESS APP (message): ${err.message}`);
-                } else {
-                    logger.error(`CLOUD PROCESS APP: ${err}`);
-                }
-            }
-        }
-
-        return true;
+        // An app the worker could not finish, or a selection that resolved to no
+        // apps at all, is a failed run - not a successful one with error text in it.
+        return total > 0 && failed === 0;
     } catch (err) {
         if (err.stack) {
             logger.error(`CLOUD CREATE THUMBNAILS 2 (stack): ${err.stack}`);

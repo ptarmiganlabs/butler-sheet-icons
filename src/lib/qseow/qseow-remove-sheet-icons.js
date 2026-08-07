@@ -7,6 +7,7 @@ import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { sortSheetsByRank } from '../util/sheet-list.js';
+import { runOverApps } from '../util/run-over-apps.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) application.
@@ -121,6 +122,9 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
         } else {
             logger.error(`QSEOW: removeSheetIconsQSEoWApp: ${err}`);
         }
+        // Rethrow so the app loop can count this app as failed. Logging and returning
+        // normally made a run in which every app failed look exactly like a clean run.
+        throw err;
     }
 };
 
@@ -188,37 +192,18 @@ export const qseowRemoveSheetIcons = async (options) => {
             }
         }
 
-        // Remove duplicates (if any) from list of app IDs that will be processed
-        const uniqueAppIds = [...new Set(appIdsToProcess)];
+        const { total, failed } = await runOverApps(
+            appIdsToProcess,
+            {
+                logPrefix: 'QSEOW PROCESS APP: Remove sheet icons',
+                emptySelectionHint: 'Check the --appid and --qliksensetag options.',
+            },
+            (appId) => removeSheetIconsQSEoWApp(appId, global, options)
+        );
 
-        // Debug output of apps that will be processed
-        logger.debug('Will process these app IDs:');
-        uniqueAppIds.forEach((appId) => {
-            logger.debug(appId);
-        });
-
-        // Process all apps
-
-        for (const appId of uniqueAppIds) {
-            try {
-                logger.info(`--------------------------------------------------`);
-                logger.info(`About to process app ${appId}`);
-
-                await removeSheetIconsQSEoWApp(appId, global, options);
-
-                logger.verbose(`Done processing app ${appId}`);
-            } catch (err) {
-                logger.error(`QSEOW PROCESS APP: Remove sheet icons: ${err}`);
-                if (err.message) {
-                    logger.error(`QSEOW PROCESS APP: Remove sheet icons (message): ${err.message}`);
-                }
-                if (err.stack) {
-                    logger.error(`QSEOW PROCESS APP: Remove sheet icons (stack): ${err.stack}`);
-                }
-            }
-        }
-
-        return true;
+        // An app the worker could not finish, or a selection that resolved to no
+        // apps at all, is a failed run - not a successful one with error text in it.
+        return total > 0 && failed === 0;
     } catch (err) {
         logger.error(`QSEOW REMOVE THUMBNAILS 2: ${err}`);
         if (err.message) {

@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, jest, beforeAll } from '@jest/globals';
+import { describe, test, expect, beforeEach, afterEach, jest, beforeAll } from '@jest/globals';
 import { Command, InvalidArgumentError } from 'commander';
 
 const loggerMock = {
@@ -445,7 +445,9 @@ describe('browser commands', () => {
     });
 
     test('install handles null options gracefully', async () => {
-        await expect(handleBrowserInstall(null)).resolves.toBeUndefined();
+        // Reports failure rather than throwing. It used to resolve undefined, which the
+        // caller could not distinguish from success.
+        await expect(handleBrowserInstall(null)).resolves.toBe(false);
         expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('BROWSER MAIN 9'));
     });
 
@@ -462,5 +464,73 @@ describe('browser commands', () => {
         await handleBrowserInstall(options, command);
 
         expect(browserInstall).toHaveBeenCalledWith(options, command);
+    });
+});
+
+describe('exit code reflects whether the command succeeded', () => {
+    // process.exitCode is global to the worker, and a stray 1 left behind here would make
+    // Jest itself report failure. Every test restores it.
+    let originalExitCode;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        originalExitCode = process.exitCode;
+        process.exitCode = undefined;
+    });
+
+    afterEach(() => {
+        process.exitCode = originalExitCode;
+    });
+
+    test('leaves the exit code alone when the command succeeds', async () => {
+        qscloudCreateThumbnails.mockResolvedValue(true);
+
+        await handleCloudCreateSheetThumbnails({ browser: 'chrome' }, {});
+
+        expect(process.exitCode).toBeUndefined();
+    });
+
+    test('sets exit code 1 when the command reports failure', async () => {
+        // The whole point of the change: a run in which nothing worked used to exit 0, so
+        // no scheduler or CI job could tell it apart from a clean run.
+        qscloudCreateThumbnails.mockResolvedValue(false);
+
+        await handleCloudCreateSheetThumbnails({ browser: 'chrome' }, {});
+
+        expect(process.exitCode).toBe(1);
+    });
+
+    test('sets exit code 1 when the command throws', async () => {
+        qscloudCreateThumbnails.mockRejectedValue(new Error('tenant unreachable'));
+
+        await handleCloudCreateSheetThumbnails({ browser: 'chrome' }, {});
+
+        expect(process.exitCode).toBe(1);
+    });
+
+    test('does not let a command failure escape as an unhandled rejection', async () => {
+        // Throwing on out of the handler would reach the process-level unhandledRejection
+        // handler, which writes a crash dump - the wrong response to an unreachable server.
+        qscloudCreateThumbnails.mockRejectedValue(new Error('tenant unreachable'));
+
+        await expect(handleCloudCreateSheetThumbnails({ browser: 'chrome' }, {})).resolves.toBe(
+            false
+        );
+    });
+
+    test('applies to the QSEoW command too', async () => {
+        qseowCreateThumbnails.mockResolvedValue(false);
+
+        await handleQseowCreateSheetThumbnails({ browser: 'chrome' }, {});
+
+        expect(process.exitCode).toBe(1);
+    });
+
+    test('applies to the cloud remove-sheet-icons command too', async () => {
+        qscloudRemoveSheetIcons.mockResolvedValue(false);
+
+        await handleCloudRemoveSheetIcons({}, {});
+
+        expect(process.exitCode).toBe(1);
     });
 });

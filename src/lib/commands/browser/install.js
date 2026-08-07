@@ -1,6 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserInstall } from '../../browser/browser-install.js';
+import { runCommand } from '../run-command.js';
 
 /**
  * Commander action that normalizes requested browser defaults and installs the browser.
@@ -13,7 +14,7 @@ import { browserInstall } from '../../browser/browser-install.js';
 const handleBrowserInstall = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
-    try {
+    return runCommand('BROWSER MAIN 9', () => {
         // Normalize browser version defaults
         if (!options.browserVersion || options.browserVersion === '') {
             if (options.browser === 'chrome') {
@@ -24,17 +25,8 @@ const handleBrowserInstall = async (options = {}, cmd) => {
         }
 
         // Install the browser
-        const res = await browserInstall(options, cmd);
-        logger.debug(`Call to browserInstall succeeded: ${JSON.stringify(res)}`);
-    } catch (err) {
-        logger.error(`BROWSER MAIN 9: ${err}`);
-        if (err.message) {
-            logger.error(`BROWSER MAIN 9 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`BROWSER MAIN 9 (stack): ${err.stack}`);
-        }
-    }
+        return browserInstall(options, cmd);
+    });
 };
 
 /**

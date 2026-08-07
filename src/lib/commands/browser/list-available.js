@@ -1,6 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserListAvailable } from '../../browser/browser-list-available.js';
+import { runCommand } from '../run-command.js';
 
 /**
  * Commander action that queries which browsers are available for download.
@@ -13,17 +14,18 @@ import { browserListAvailable } from '../../browser/browser-list-available.js';
 const handleBrowserListAvailable = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
-    try {
-        const res = await browserListAvailable(options, cmd);
-        logger.debug(`Call to browserAvailable succeeded: ${JSON.stringify(res, null, 2)}`);
-    } catch (err) {
-        // browserListAvailable has already explained the failure - a connectivity problem gets
-        // actionable advice, anything else gets its message. Repeating it here three times over,
-        // stack trace included, is what made an offline run unreadable (issue #785). The stack
-        // stays available at debug level.
-        logger.error('Could not list available browsers.');
-        logger.debug(err?.stack ?? String(err));
-    }
+    return runCommand(
+        'BROWSER MAIN 10',
+        () => browserListAvailable(options, cmd),
+        (err) => {
+            // browserListAvailable has already explained the failure - a connectivity problem
+            // gets actionable advice, anything else gets its message. Repeating it here three
+            // times over, stack trace included, is what made an offline run unreadable
+            // (issue #785). The stack stays available at debug level.
+            logger.error('Could not list available browsers.');
+            logger.debug(err?.stack ?? String(err));
+        }
+    );
 };
 
 /**

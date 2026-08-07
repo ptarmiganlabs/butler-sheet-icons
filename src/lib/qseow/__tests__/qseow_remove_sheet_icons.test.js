@@ -331,17 +331,23 @@ describe('qseowRemoveSheetIcons', () => {
             enigmaCreate.mockRejectedValueOnce(new Error('engine unreachable'));
             Get.mockResolvedValue({ body: [{ id: 'app-a' }, { id: 'app-b' }] });
 
+            // The other app is still attempted - but the run as a whole is a failure now,
+            // not a success with error text buried in the log.
             await expect(
                 qseowRemoveSheetIcons({ ...BASE_OPTIONS, appid: '', qliksensetag: 'BSI' })
-            ).resolves.toBe(true);
+            ).resolves.toBe(false);
 
             expect(enigmaCreate).toHaveBeenCalledTimes(2);
+
+            const errors = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(errors).toContain('Failed to process 1 of 2 app(s)');
         });
 
-        test('logs an engine failure instead of rejecting', async () => {
+        test('reports failure instead of rejecting when the engine is unreachable', async () => {
             enigmaCreate.mockRejectedValue(new Error('engine unreachable'));
 
-            await expect(qseowRemoveSheetIcons(BASE_OPTIONS)).resolves.toBe(true);
+            // Reports false rather than throwing: the caller sets the exit code from it.
+            await expect(qseowRemoveSheetIcons(BASE_OPTIONS)).resolves.toBe(false);
 
             expect(logger.error).toHaveBeenCalled();
         });

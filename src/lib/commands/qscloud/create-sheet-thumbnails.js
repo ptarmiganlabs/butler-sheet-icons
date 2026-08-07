@@ -2,6 +2,7 @@ import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qscloudCreateThumbnails } from '../../cloud/cloud-create-thumbnails.js';
 import { parsePositiveInteger, collectPositiveIntegers } from '../helpers.js';
+import { runCommand } from '../run-command.js';
 
 /**
  * Commander action for generating Qlik Sense Cloud sheet thumbnails via the worker module.
@@ -15,7 +16,7 @@ const handleCloudCreateSheetThumbnails = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
     logger.verbose(`appid=${options.appid}`);
-    try {
+    return runCommand('CLOUD MAIN 3', () => {
         const resolvedOptions = { ...options };
         if (!resolvedOptions.browserVersion || resolvedOptions.browserVersion === '') {
             if (resolvedOptions.browser === 'chrome') {
@@ -25,17 +26,8 @@ const handleCloudCreateSheetThumbnails = async (options = {}, cmd) => {
             }
         }
 
-        const res = await qscloudCreateThumbnails(resolvedOptions, cmd);
-        logger.debug(`Call to qscloudCreateThumbnails succeeded: ${res}`);
-    } catch (err) {
-        logger.error(`CLOUD MAIN 3: ${err}`);
-        if (err.message) {
-            logger.error(`CLOUD MAIN 3 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`CLOUD MAIN 3 (stack): ${err.stack}`);
-        }
-    }
+        return qscloudCreateThumbnails(resolvedOptions, cmd);
+    });
 };
 
 /**

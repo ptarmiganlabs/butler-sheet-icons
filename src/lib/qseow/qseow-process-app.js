@@ -564,5 +564,8 @@ export const qseowProcessApp = async (appId, options) => {
         } else {
             logger.error(`QSEOW: qseowProcessApp: ${err}`);
         }
+        // Rethrow so the app loop can count this app as failed. Logging and returning
+        // normally made a run in which every app failed look exactly like a clean run.
+        throw err;
     }
 };
