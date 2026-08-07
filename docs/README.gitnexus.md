@@ -69,6 +69,18 @@ That second one is worth knowing about: those files still tell agents to run a b
 
 Until that is fixed upstream, the authoritative instruction is the one in this file and in the managed block: re-index through the npm scripts.
 
+## The Claude Code hook is a separate case, and *has* been corrected
+
+The paragraph above applies to the generated skill files only. The Claude Code hook is not generated and is not reverted, so the same bad advice there was fixable — and has been fixed.
+
+The hook lives at `~/.claude/hooks/gitnexus/gitnexus-hook.cjs`, wired up in `~/.claude/settings.json`. It began as a copy of `hooks/claude/gitnexus-hook.cjs` from the GitNexus package, but is now a hand-maintained fork: it adds `hook-lock.cjs` and `hook-db-lock-probe.cjs` — two files that do not exist in the package at all — to keep the hook off the database while the MCP server owns it. Nothing regenerates it; `gitnexus:refresh` does not touch it.
+
+On a stale index after a `git commit`, `merge`, `rebase`, `cherry-pick` or `pull`, it used to tell the agent to run a bare `npx gitnexus analyze` — the one command this file forbids, recommended to the agent by the tooling itself. It now recommends `npm run gitnexus:index` whenever the repository's `package.json` exposes a `gitnexus:index` script, and falls back to the generic command everywhere else. Detection is by that script's presence rather than by repository name, so butler-sos is covered by the same logic with nothing to keep in sync.
+
+It is also worktree-aware. A linked worktree under `.claude/worktrees/` never carries its own `.gitnexus/`, so the hook resolves the index to the canonical checkout — and therefore reads `HEAD` from that checkout too, not from the worktree. Comparing a worktree branch's `HEAD` against an index built from the canonical checkout marked the index stale on every commit made on a branch, and re-indexing would not have cleared it, because the index describes the canonical checkout either way. The warning now fires when the index is genuinely behind what it indexes, and names the canonical directory so the suggested command is runnable as written.
+
+**This fix is machine-local.** The hook sits outside the repository, so a fresh clone on another machine gets a stock hook and the old advice with it. Re-apply it there, or set `GITNEXUS_HOOK_CLI_PATH` and copy the fork across.
+
 ## Version pinning
 
 The version is pinned deliberately. An unpinned `npx gitnexus` executes whatever the registry serves at that moment — a new major, or a compromised release — with no repository change and no review. That matters more once re-indexing runs from a git hook (issue #829).
