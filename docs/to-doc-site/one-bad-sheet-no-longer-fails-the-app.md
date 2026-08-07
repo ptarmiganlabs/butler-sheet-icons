@@ -1,6 +1,6 @@
 # Fixed: a single sheet with missing layout data no longer fails the whole app
 
-**Applies to:** all commands that read an app's sheets — `create-sheet-thumbnails` and `remove-sheet-icons`, on both Qlik Sense Enterprise on Windows and Qlik Sense Cloud
+**Applies to:** `create-sheet-thumbnails` on both Qlik Sense Enterprise on Windows and Qlik Sense Cloud, and `remove-sheet-icons` on Qlik Sense Cloud
 
 ::: warning Requires BSI 3.12.0 or later
 In earlier versions, one sheet with missing layout data stopped Butler Sheet Icons from processing the app at all.
@@ -29,7 +29,8 @@ Search your logs for `reading 'rank'` — that phrase is the same in every case.
 | Qlik Sense Cloud | Removing sheet icons | `CLOUD REMOVE SHEET ICONS 1 (stack):` |
 | Enterprise on Windows | Creating thumbnails | `QSEOW: qseowProcessApp (stack):` |
 | Enterprise on Windows | Applying thumbnails to sheets | `QSEOW UPDATE SHEETS (stack):` |
-| Enterprise on Windows | Removing sheet icons | `QSEOW: removeSheetIconsQSEoWApp (stack):` |
+
+There is no `remove-sheet-icons` command for Qlik Sense Enterprise on Windows — it exists only for Qlik Sense Cloud.
 
 A closely related failure, `reading 'showCondition'`, is fixed by the same change and is worth searching for too. It struck slightly later in the run — after thumbnails had been generated but before they were uploaded, so the work was still discarded.
 
