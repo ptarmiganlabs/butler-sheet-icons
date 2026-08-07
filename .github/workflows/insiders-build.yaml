@@ -79,7 +79,7 @@ jobs:
         if: |
           github.repository_owner == 'ptarmiganlabs' &&
           matrix.target == 'linux'
-        uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # master
+        uses: snyk/actions/node@9adf32b1121593767fc3c057af55b55db032dc04 # v1.0.0
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
