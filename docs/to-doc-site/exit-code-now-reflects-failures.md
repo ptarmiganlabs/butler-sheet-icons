@@ -82,3 +82,9 @@ Failed to update 1 of 2 sheet(s) in app 97089caf
 The count is of sheets Butler Sheet Icons **tried** to update. Sheets deliberately left alone — because you excluded them, or because no thumbnail was generated for them — are not counted in either figure. So "1 of 2" means two sheets were attempted and one of them failed, regardless of how many sheets the app has in total.
 
 The per-sheet line names the sheet by title and ID, which is what you need to find it in Qlik Sense. The number is the sheet's position in the app, counting from 1.
+
+## App versions
+
+Butler Sheet Icons saves each app **once** at the end of processing it, rather than once per sheet. An app with forty sheets used to gain forty versions in Qlik Sense on every run; it now gains one. An app where nothing needed changing gains none at all.
+
+The save happens only after every sheet has been dealt with, so if it fails — a published app, or one the account running Butler Sheet Icons cannot write — **nothing is changed at all** and the sheets keep the icons they had. Previously the sheets processed before the failure had already been written, leaving the app with a mix of old and new icons. Re-running after a failure is therefore now a clean retry rather than a resume.

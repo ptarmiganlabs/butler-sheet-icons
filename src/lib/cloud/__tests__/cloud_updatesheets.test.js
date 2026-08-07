@@ -471,3 +471,28 @@ describe('qscloudUpdateSheetThumbnails', () => {
         });
     });
 });
+
+describe('qscloudUpdateSheetThumbnails — saving the app', () => {
+    test('saves before closing the engine session', async () => {
+        const { app, session } = wireEnigma([makeSheet()]);
+        const order = [];
+        app.doSave.mockImplementation(async () => order.push('save'));
+        session.close.mockImplementation(async () => order.push('close'));
+
+        await qscloudUpdateSheetThumbnails(CREATED_FILES, APP_ID, BASE_OPTIONS);
+
+        expect(order).toEqual(['save', 'close']);
+    });
+
+    test('releases the engine session even when the save fails', async () => {
+        // Without a finally around save-and-close the websocket leaked once per failing app.
+        const { app, session } = wireEnigma([makeSheet()]);
+        app.doSave.mockRejectedValue(new Error('app is locked'));
+
+        await expect(
+            qscloudUpdateSheetThumbnails(CREATED_FILES, APP_ID, BASE_OPTIONS)
+        ).rejects.toThrow();
+
+        expect(session.close).toHaveBeenCalledTimes(1);
+    });
+});

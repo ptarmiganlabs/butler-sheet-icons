@@ -7,7 +7,7 @@ import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { QseowError } from '../util/errors.js';
-import { runOverSheets, sortSheetsByRank } from '../util/sheet-list.js';
+import { runOverSheets, sortSheetsByRank, saveIfChanged } from '../util/sheet-list.js';
 import { runOverApps } from '../util/run-over-apps.js';
 
 /**
@@ -105,15 +105,25 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
 
                     const res = await sheetObj.setProperties(sheetProperties);
                     logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
-                    await app.doSave();
                 }
             );
         }
 
-        // Closed outside the sheet-count guard: an app with no sheets still holds an open
-        // engine session that has to be released.
-        // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
-        await session.close();
+        // The close sits in a finally: the save can reject - a published app, or one the
+        // service account may not write - and without this the engine websocket would be
+        // left open for the life of the process, once per failing app.
+        try {
+            // Closed outside the sheet-count guard: an app with no sheets still holds an open
+            // engine session that has to be released.
+            await saveIfChanged(
+                app,
+                { logPrefix: 'QSEOW REMOVE SHEET ICONS', appId },
+                sheetRun?.changed ?? 0
+            );
+        } finally {
+            // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+            await session.close();
+        }
         logger.verbose(
             `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
         );

@@ -8,6 +8,7 @@ import {
     runOverSheets,
     SHEET_SKIPPED,
     sortSheetsByRank,
+    saveIfChanged,
 } from '../util/sheet-list.js';
 
 /**
@@ -211,14 +212,24 @@ export const qseowUpdateSheetThumbnails = async (
                         // Set & save new sheet thumbnail
                         const res = await sheetObj.setProperties(sheetProperties);
                         logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
-                        await app.doSave();
                     }
                 }
             );
         }
 
-        // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
-        await session.close();
+        // The close sits in a finally: the save can reject - a published app, or one the
+        // service account may not write - and without this the engine websocket would be
+        // left open for the life of the process, once per failing app.
+        try {
+            await saveIfChanged(
+                app,
+                { logPrefix: 'QSEOW UPDATE SHEETS', appId },
+                sheetRun?.changed ?? 0
+            );
+        } finally {
+            // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+            await session.close();
+        }
         logger.verbose(
             `Closed session after updating sheet thumbnail images in QSEoW app ${appId} on host ${options.host}`
         );

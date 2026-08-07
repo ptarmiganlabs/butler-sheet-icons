@@ -11,8 +11,14 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 }));
 
 const { logger } = await import('../../../globals.js');
-const { isSessionLevelFailure, isSheetTagged, runOverSheets, SHEET_SKIPPED, sortSheetsByRank } =
-    await import('../sheet-list.js');
+const {
+    isSessionLevelFailure,
+    isSheetTagged,
+    runOverSheets,
+    saveIfChanged,
+    SHEET_SKIPPED,
+    sortSheetsByRank,
+} = await import('../sheet-list.js');
 
 /**
  * Joins everything logged at error level, for substring assertions.
@@ -393,5 +399,80 @@ describe('runOverSheets — requireAttempt', () => {
         );
 
         expect(() => result.assertAllProcessed()).not.toThrow();
+    });
+});
+
+describe('saveIfChanged', () => {
+    const CTX = { logPrefix: 'TEST PREFIX', appId: 'app-1' };
+
+    test('saves when at least one sheet was changed', async () => {
+        const app = { doSave: jest.fn().mockResolvedValue(true) };
+
+        await expect(saveIfChanged(app, CTX, 3)).resolves.toBe(true);
+        expect(app.doSave).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not save when nothing was changed', async () => {
+        // A run that changed nothing must not produce a new app version.
+        const app = { doSave: jest.fn().mockResolvedValue(true) };
+
+        await expect(saveIfChanged(app, CTX, 0)).resolves.toBe(false);
+        expect(app.doSave).not.toHaveBeenCalled();
+    });
+
+    test('saves once regardless of how many sheets changed', async () => {
+        const app = { doSave: jest.fn().mockResolvedValue(true) };
+
+        await saveIfChanged(app, CTX, 40);
+
+        expect(app.doSave).toHaveBeenCalledTimes(1);
+    });
+
+    test.each([
+        ['undefined', undefined],
+        ['null', null],
+        ['NaN', NaN],
+        ['a negative count', -1],
+    ])('does not save for %s', async (_label, count) => {
+        // `changedCount === 0` let every one of these through to doSave. Unreachable from
+        // the four current callers, but free to rule out.
+        const app = { doSave: jest.fn().mockResolvedValue(true) };
+
+        await expect(saveIfChanged(app, CTX, count)).resolves.toBe(false);
+        expect(app.doSave).not.toHaveBeenCalled();
+    });
+
+    test('lets a failed save reach the caller', async () => {
+        const app = { doSave: jest.fn().mockRejectedValue(new Error('app is locked')) };
+
+        await expect(saveIfChanged(app, CTX, 1)).rejects.toThrow('app is locked');
+    });
+});
+
+describe('runOverSheets — changed count', () => {
+    const CTX = {
+        logPrefix: 'TEST PREFIX',
+        appId: 'app-1',
+        action: 'update',
+        ErrorClass: class TestError extends Error {},
+    };
+    const sheet = (id) => ({ qInfo: { qId: id }, qMeta: { title: `Sheet ${id}` } });
+
+    test('counts sheets whose properties were actually written', async () => {
+        const worker = jest.fn(async (s, n) => {
+            if (n === 1) throw new Error('read-only');
+            if (n === 2) return SHEET_SKIPPED;
+            return undefined;
+        });
+
+        const result = await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+
+        expect(result).toMatchObject({ attempted: 2, failed: 1, skipped: 1, changed: 1 });
+    });
+
+    test('reports nothing changed when every sheet was skipped', async () => {
+        const result = await runOverSheets([sheet('a')], CTX, async () => SHEET_SKIPPED);
+
+        expect(result.changed).toBe(0);
     });
 });
