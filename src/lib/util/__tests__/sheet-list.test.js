@@ -1,6 +1,29 @@
-import { describe, test, expect } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 
-import { isSheetTagged, sortSheetsByRank } from '../sheet-list.js';
+jest.unstable_mockModule('../../../globals.js', () => ({
+    logger: {
+        info: jest.fn(),
+        error: jest.fn(),
+        verbose: jest.fn(),
+        debug: jest.fn(),
+        warn: jest.fn(),
+    },
+}));
+
+const { logger } = await import('../../../globals.js');
+const { isSheetTagged, runOverSheets, SHEET_SKIPPED, sortSheetsByRank } =
+    await import('../sheet-list.js');
+
+/**
+ * Joins everything logged at error level, for substring assertions.
+ *
+ * @returns {string} All error lines, newline separated.
+ */
+const errorLog = () => logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+
+beforeEach(() => {
+    jest.clearAllMocks();
+});
 
 /**
  * Builds a sheet shaped like an entry in the engine's `qAppObjectList.qItems`.
@@ -126,5 +149,130 @@ describe('isSheetTagged', () => {
     test('treats a missing or empty tag list as no match', () => {
         expect(isSheetTagged(undefined, { qInfo: { qId: 'sheet-a' } })).toBe(false);
         expect(isSheetTagged([], { qInfo: { qId: 'sheet-a' } })).toBe(false);
+    });
+});
+
+describe('runOverSheets', () => {
+    const CTX = {
+        logPrefix: 'TEST PREFIX',
+        appId: 'app-1',
+        action: 'update',
+        ErrorClass: class TestError extends Error {},
+    };
+
+    /**
+     * Builds a sheet with the metadata the error line reads back.
+     *
+     * @param {string} id - Engine object id, also used as the title suffix.
+     *
+     * @returns {object} A sheet object.
+     */
+    const sheet = (id) => ({ qInfo: { qId: id }, qMeta: { title: `Sheet ${id}` } });
+
+    test('runs the worker once per sheet, with 1-based numbering', async () => {
+        const worker = jest.fn();
+
+        await runOverSheets([sheet('a'), sheet('b')], CTX, worker);
+
+        expect(worker.mock.calls.map((call) => call[1])).toEqual([1, 2]);
+    });
+
+    test('counts a sheet the worker acted on as attempted', async () => {
+        const result = await runOverSheets([sheet('a'), sheet('b')], CTX, jest.fn());
+
+        expect(result).toMatchObject({ attempted: 2, failed: 0, skipped: 0 });
+    });
+
+    test('does not count a skipped sheet as attempted', async () => {
+        // Reporting "1 of 5" for an app where four sheets were deliberately left alone
+        // reads as mostly-fine when nothing actually succeeded.
+        const worker = jest.fn(async (s, n) => (n === 1 ? undefined : SHEET_SKIPPED));
+
+        const result = await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+
+        expect(result).toMatchObject({ attempted: 1, skipped: 2 });
+    });
+
+    test('treats a worker that returns nothing as having attempted the sheet', async () => {
+        // The safe default: forgetting to return must not silently mark everything skipped.
+        const result = await runOverSheets([sheet('a')], CTX, async () => {});
+
+        expect(result).toMatchObject({ attempted: 1, skipped: 0 });
+    });
+
+    describe('a failing sheet', () => {
+        const failOn = (n) =>
+            jest.fn(async (s, i) => {
+                if (i === n) throw new Error('sheet is read-only');
+            });
+
+        test('does not stop the sheets after it', async () => {
+            const worker = failOn(1);
+
+            await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+
+            expect(worker).toHaveBeenCalledTimes(3);
+        });
+
+        test('is counted as both attempted and failed', async () => {
+            const result = await runOverSheets([sheet('a'), sheet('b')], CTX, failOn(1));
+
+            expect(result).toMatchObject({ attempted: 2, failed: 1 });
+        });
+
+        test('is identified in the log by title and engine id, not just position', async () => {
+            // Position is a rank-order number that appears nowhere in the Qlik Sense UI.
+            // Without the title and id an admin cannot find the sheet that failed.
+            await runOverSheets([sheet('abc-123')], CTX, failOn(1));
+
+            expect(errorLog()).toContain('TEST PREFIX');
+            expect(errorLog()).toContain('Sheet abc-123');
+            expect(errorLog()).toContain('abc-123');
+            expect(errorLog()).toContain('app-1');
+            expect(errorLog()).toContain('sheet is read-only');
+        });
+
+        test('survives a sheet with no metadata to name it', async () => {
+            await runOverSheets([{}], CTX, failOn(1));
+
+            expect(errorLog()).toContain('sheet is read-only');
+        });
+    });
+
+    describe('assertAllProcessed', () => {
+        test('passes when every attempted sheet succeeded', async () => {
+            const result = await runOverSheets([sheet('a')], CTX, jest.fn());
+
+            expect(() => result.assertAllProcessed()).not.toThrow();
+        });
+
+        test('passes when every sheet was skipped', async () => {
+            const result = await runOverSheets([sheet('a')], CTX, async () => SHEET_SKIPPED);
+
+            expect(() => result.assertAllProcessed()).not.toThrow();
+        });
+
+        test('counts against sheets attempted, not sheets present', async () => {
+            const worker = jest.fn(async (s, n) => {
+                if (n === 1) throw new Error('boom');
+                return SHEET_SKIPPED;
+            });
+            const result = await runOverSheets(
+                [sheet('a'), sheet('b'), sheet('c'), sheet('d')],
+                CTX,
+                worker
+            );
+
+            expect(() => result.assertAllProcessed()).toThrow('Failed to update 1 of 1 sheet(s)');
+        });
+
+        test('names the app and uses the caller-supplied error type', async () => {
+            const result = await runOverSheets([sheet('a')], CTX, async () => {
+                throw new Error('boom');
+            });
+
+            expect(() => result.assertAllProcessed()).toThrow(CTX.ErrorClass);
+            expect(() => result.assertAllProcessed()).toThrow('app-1');
+        });
     });
 });

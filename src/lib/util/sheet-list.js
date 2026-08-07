@@ -79,29 +79,14 @@ export const isSheetTagged = (taggedSheets, sheet) => {
 };
 
 /**
- * Fails the app when any of its sheets could not be processed.
+ * Sentinel a `runOverSheets` worker returns to say it did no work for this sheet.
  *
- * Exported for direct use only where a caller counts sheets itself; the usual route is
- * the `assertAllProcessed` handle returned by `runOverSheets`.
- *
- * @param {number} failed - How many sheets failed.
- * @param {number} total - How many sheets were attempted.
- * @param {object} ctx - Message context.
- * @param {string} ctx.appId - App the sheets belong to.
- * @param {string} ctx.action - Verb for the message, e.g. `'update'` or `'remove icons for'`.
- * @param {new (message: string) => Error} ctx.ErrorClass - Platform error type to throw.
- *
- * @returns {void}
- *
- * @throws {Error} An instance of `ErrorClass` when `failed` is non-zero.
+ * A symbol rather than a falsy value on purpose: a worker that forgets to return anything
+ * yields `undefined`, and treating that as "skipped" would silently report an app in which
+ * every sheet was updated as one in which nothing was attempted. The safe default is to
+ * count a sheet as attempted unless the worker says otherwise.
  */
-export const assertAllSheetsProcessed = (failed, total, { appId, action, ErrorClass }) => {
-    if (failed === 0) {
-        return;
-    }
-
-    throw new ErrorClass(`Failed to ${action} ${failed} of ${total} sheet(s) in app ${appId}`);
-};
+export const SHEET_SKIPPED = Symbol('sheet skipped');
 
 /**
  * Runs a per-sheet worker over an app's sheets, isolating each sheet from the others and
@@ -110,6 +95,12 @@ export const assertAllSheetsProcessed = (failed, total, { appId, action, ErrorCl
  * The counting is the point. Per-sheet isolation exists so one bad sheet does not abandon
  * the ones after it, but on its own it also swallows the outcome: an app in which every
  * sheet failed used to resolve normally and be counted a success.
+ *
+ * Counts are over sheets **attempted**, not sheets present. A worker that returns
+ * `SHEET_SKIPPED` - the thumbnail-update paths do this for sheets no screenshot was taken
+ * for - is not counted in either figure. Reporting "1 of 5" for an app where four sheets
+ * were deliberately left alone and the fifth failed reads as mostly-fine when in fact
+ * nothing succeeded.
  *
  * The verdict is deliberately *not* thrown from here. Every caller has an engine session to
  * close first, so they call `assertAllProcessed()` on the result after closing. Returning a
@@ -123,34 +114,52 @@ export const assertAllSheetsProcessed = (failed, total, { appId, action, ErrorCl
  * @param {string} ctx.action - Verb for messages, e.g. `'update'` or `'remove icons for'`.
  * @param {new (message: string) => Error} ctx.ErrorClass - Platform error type to throw.
  * @param {(sheet: object, iSheetNum: number) => Promise<unknown>} processSheet - Worker
- *     invoked once per sheet, with the 1-based sheet number.
+ *     invoked once per sheet, with the 1-based sheet number. Returns `SHEET_SKIPPED` to
+ *     record that it did nothing for that sheet.
  *
- * @returns {Promise<{failed: number, total: number, assertAllProcessed: () => void}>} The
- *     counts, plus a check to call once the engine session has been released.
+ * @returns {Promise<{attempted: number, failed: number, skipped: number, assertAllProcessed: () => void}>}
+ *     The counts, plus a check to call once the engine session has been released.
  */
 export const runOverSheets = async (sheets, ctx, processSheet) => {
-    const { logPrefix, appId, action } = ctx;
+    const { logPrefix, appId, action, ErrorClass } = ctx;
+    let attempted = 0;
     let failed = 0;
+    let skipped = 0;
     let iSheetNum = 1;
 
     for (const sheet of sheets) {
         try {
-            await processSheet(sheet, iSheetNum);
+            const outcome = await processSheet(sheet, iSheetNum);
+
+            if (outcome === SHEET_SKIPPED) {
+                skipped += 1;
+            } else {
+                attempted += 1;
+            }
         } catch (err) {
+            // A sheet that threw was attempted, whatever it was about to return.
+            attempted += 1;
             failed += 1;
             logger.error(
-                `${logPrefix}: Failed to ${action} sheet ${iSheetNum} in app ${appId}: ${err?.message ?? err}`
+                `${logPrefix}: Failed to ${action} sheet ${iSheetNum} ('${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}) in app ${appId}: ${err?.message ?? err}`
             );
         }
 
         iSheetNum += 1;
     }
 
-    const total = sheets.length;
-
     return {
+        attempted,
         failed,
-        total,
-        assertAllProcessed: () => assertAllSheetsProcessed(failed, total, ctx),
+        skipped,
+        assertAllProcessed: () => {
+            if (failed === 0) {
+                return;
+            }
+
+            throw new ErrorClass(
+                `Failed to ${action} ${failed} of ${attempted} sheet(s) in app ${appId}`
+            );
+        },
     };
 };

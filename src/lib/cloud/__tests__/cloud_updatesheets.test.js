@@ -384,6 +384,26 @@ describe('qscloudUpdateSheetThumbnails', () => {
             expect(session.close).toHaveBeenCalledTimes(1);
         });
 
+        test('counts only the sheets it tried to update, not the ones it skipped', async () => {
+            // Only sheet 1 has a thumbnail; 2 and 3 are deliberately left alone. Reporting
+            // "1 of 3" would read as mostly-fine when in fact nothing was updated.
+            const sheets = [
+                makeSheet({ qId: 'sheet-a', rank: 1 }),
+                makeSheet({ qId: 'sheet-b', rank: 2 }),
+                makeSheet({ qId: 'sheet-c', rank: 3 }),
+            ];
+            sheets[0].obj.setProperties.mockRejectedValue(new Error('sheet is read-only'));
+            wireEnigma(sheets);
+
+            await expect(
+                qscloudUpdateSheetThumbnails(
+                    [{ sheetPos: 1, fileNameShort: 'thumbnail-1.png' }],
+                    APP_ID,
+                    BASE_OPTIONS
+                )
+            ).rejects.toThrow('Failed to update 1 of 1 sheet(s)');
+        });
+
         test('fails the app, naming how many sheets could not be updated', async () => {
             const sheets = [
                 makeSheet({ qId: 'sheet-a', rank: 1 }),

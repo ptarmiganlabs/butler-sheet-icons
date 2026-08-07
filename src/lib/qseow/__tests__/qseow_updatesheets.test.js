@@ -21,6 +21,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 const { logger } = await import('../../../globals.js');
 
 const { qseowUpdateSheetThumbnails } = await import('../qseow-updatesheets.js');
+const { QseowError } = await import('../../util/errors.js');
 
 const BLUR_TAG_WARNING = '--blur-sheet-tag is not yet implemented';
 
@@ -256,5 +257,112 @@ describe('qseowUpdateSheetThumbnails — sheets with missing metadata', () => {
             'sheet-b',
             'broken',
         ]);
+    });
+});
+
+describe('qseowUpdateSheetThumbnails — a sheet that cannot be updated', () => {
+    const THREE_FILES = [
+        { sheetPos: 1, fileNameShort: 'thumbnail-1.png' },
+        { sheetPos: 2, fileNameShort: 'thumbnail-2.png' },
+        { sheetPos: 3, fileNameShort: 'thumbnail-3.png' },
+    ];
+
+    /**
+     * Wires the enigma chain with three sheets, failing `setProperties` on the first.
+     *
+     * @returns {{app: object, session: object}} The mock app and session.
+     */
+    function wireThreeSheetsFirstUnwritable() {
+        const objects = ['sheet-a', 'sheet-b', 'sheet-c'].map((qId) => ({
+            qId,
+            getProperties: jest
+                .fn()
+                .mockResolvedValue({ thumbnail: { qStaticContentUrlDef: { qUrl: '' } } }),
+            setProperties:
+                qId === 'sheet-a'
+                    ? jest.fn().mockRejectedValue(new Error('sheet is read-only'))
+                    : jest.fn().mockResolvedValue({ ok: true }),
+        }));
+
+        const app = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({
+                    qAppObjectList: {
+                        qItems: objects.map((o, i) => ({
+                            qInfo: { qId: o.qId },
+                            qMeta: { title: o.qId, description: '' },
+                            qData: { rank: i + 1 },
+                        })),
+                    },
+                }),
+            }),
+            getObject: jest.fn(async (qId) => objects.find((o) => o.qId === qId)),
+            doSave: jest.fn().mockResolvedValue(true),
+        };
+
+        const session = {
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '12.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(app),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        };
+        enigma.create.mockResolvedValue(session);
+
+        return { app, session, objects };
+    }
+
+    test('does not stop the sheets after it', async () => {
+        const { objects } = wireThreeSheetsFirstUnwritable();
+
+        await expect(
+            qseowUpdateSheetThumbnails(THREE_FILES, 'test-app-id', { ...BASE_OPTIONS })
+        ).rejects.toThrow();
+
+        expect(objects[1].setProperties).toHaveBeenCalledTimes(1);
+        expect(objects[2].setProperties).toHaveBeenCalledTimes(1);
+    });
+
+    test('still closes the engine session', async () => {
+        const { session } = wireThreeSheetsFirstUnwritable();
+
+        await expect(
+            qseowUpdateSheetThumbnails(THREE_FILES, 'test-app-id', { ...BASE_OPTIONS })
+        ).rejects.toThrow();
+
+        expect(session.close).toHaveBeenCalledTimes(1);
+    });
+
+    test('fails the app, naming how many sheets could not be updated', async () => {
+        wireThreeSheetsFirstUnwritable();
+
+        await expect(
+            qseowUpdateSheetThumbnails(THREE_FILES, 'test-app-id', { ...BASE_OPTIONS })
+        ).rejects.toThrow('Failed to update 1 of 3 sheet(s)');
+    });
+
+    test('counts only the sheets it tried to update, not the ones it skipped', async () => {
+        // Only sheet 1 has a thumbnail; 2 and 3 are deliberately left alone. Reporting
+        // "1 of 3" would read as mostly-fine when in fact nothing was updated.
+        wireThreeSheetsFirstUnwritable();
+
+        await expect(
+            qseowUpdateSheetThumbnails(
+                [{ sheetPos: 1, fileNameShort: 'thumbnail-1.png' }],
+                'test-app-id',
+                {
+                    ...BASE_OPTIONS,
+                }
+            )
+        ).rejects.toThrow('Failed to update 1 of 1 sheet(s)');
+    });
+
+    test('reports failure with the QSEoW error type', async () => {
+        wireThreeSheetsFirstUnwritable();
+
+        await expect(
+            qseowUpdateSheetThumbnails(THREE_FILES, 'test-app-id', { ...BASE_OPTIONS })
+        ).rejects.toThrow(QseowError);
     });
 });

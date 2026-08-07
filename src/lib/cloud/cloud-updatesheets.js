@@ -3,7 +3,7 @@ import enigma from 'enigma.js';
 import { setupEnigmaConnection } from './cloud-enigma.js';
 import { logger } from '../../globals.js';
 import { CloudError } from '../util/errors.js';
-import { runOverSheets, sortSheetsByRank } from '../util/sheet-list.js';
+import { runOverSheets, SHEET_SKIPPED, sortSheetsByRank } from '../util/sheet-list.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Cloud app.
@@ -87,9 +87,14 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
                         (element) => element.sheetPos === iSheetNum
                     );
                     if (!createdFile) {
+                        // Guarded: this line is inside the counted region, so an unguarded
+                        // dereference here would fail the app over a sheet nobody was
+                        // going to touch.
                         logger.info(
-                            `Skipping update of sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                            `Skipping update of sheet ${iSheetNum}: Name '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}'`
                         );
+
+                        return SHEET_SKIPPED;
                     } else {
                         // Should blurred sheet thumbnail be used?
                         // Options are
