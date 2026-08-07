@@ -10,6 +10,11 @@ This folder is a **staging area, not the published source**. The published site 
 | Source repo | <https://github.com/ptarmiganlabs/butler-sheet-icons-docs> |
 | Local clone | `/Users/goran/code/butler-sheet-icons-docs` |
 | Site generator | [VitePress](https://vitepress.dev) |
+| Hosting | Cloudflare Pages — builds and publishes automatically on every push |
+| `main` branch | Documents the **currently released** BSI version. Public. |
+| `next` branch | Documents the **upcoming, unreleased** BSI version. Preview URL only. |
+
+The doc site is **single-version**: one copy of the docs, no per-release archive. Anything merged to its `main` is published to the public site within minutes and is presented as documentation for the current release, whatever version it actually describes. Choosing the right branch is therefore part of publishing — see "Git workflow" below.
 
 ## Audience
 
@@ -75,7 +80,14 @@ For each unprefixed file, answer three questions before writing anything:
 
 Correct the draft's technical errors in the published page. If a processed file is left in `done/` with a claim that turned out to be wrong, add a short HTML comment noting the correction so the error does not resurface later.
 
-### 3. State the minimum version when behaviour changed
+### 3. Establish which BSI version the behaviour ships in
+
+Two later decisions depend on this: the version gate on the page, and **which doc site branch the change goes to**. Determine it before writing.
+
+- **Already released** — the behaviour is in the latest published GitHub release of this repo.
+- **Not released yet** — the change is merged to `main` here but still sits in the open `release-please` PR. That PR's title states the upcoming version (`chore(main): release butler-sheet-icons X.Y.Z`), which follows from the unreleased commit types. Do not guess a bump, and do not invent a version number.
+
+Most drafts in this folder are written right after the feature is implemented, so **"not released yet" is the common case.**
 
 The doc site describes the released product, and readers may be several versions behind. When a page documents behaviour that changed, gate it:
 
@@ -84,8 +96,6 @@ The doc site describes the released product, and readers may be several versions
 In earlier versions ...
 :::
 ```
-
-Check what the next version number will actually be — the open `release-please` PR title on this repo states it (`chore(main): release butler-sheet-icons X.Y.Z`), and it follows from the unreleased commit types, not from guessing a bump.
 
 ### 4. Site structure
 
@@ -129,10 +139,27 @@ Watch for headings containing typographic characters. Several pages use the non-
 
 Both repositories follow the same rule: **branch first, implement, verify, then stop and report.**
 
-- Create a feature branch in the doc site repo off an up-to-date `main` before the first edit. Never work on `main`.
+#### Which doc site branch to target
+
+Decided by step 3, not by convenience:
+
+| Behaviour being documented | Branch off | PR into |
+|---|---|---|
+| Already in the latest BSI release | `main` | `main` |
+| Not released yet (still in the open `release-please` PR) | `next` | `next` |
+
+Getting this wrong has a real consequence in one direction: the doc site is single-version and Cloudflare Pages publishes `main` automatically, so unreleased documentation merged to `main` goes live on the public site immediately — labelled with the *previous* version number, describing a version nobody can download yet. `next` publishes to a preview URL instead and is merged into `main` when the BSI release actually ships.
+
+If a draft mixes released and unreleased material, split it: the released part can go to `main`, the rest to `next`. Do not hold back a correction to shipped documentation because it happens to sit next to a new feature.
+
+#### Rules
+
+- Create a feature branch in the doc site repo off an up-to-date `main` **or** `next` before the first edit. Never work directly on either.
 - Do the doc site edits and the `done/` moves in this repo as separate branches — they are separate repositories and separate pull requests.
 - **Never commit, push, open a pull request, or merge unless explicitly asked.** Authorisation is per request and does not carry over.
 - Commit messages in both repos use [Conventional Commits](https://www.conventionalcommits.org/). Doc site changes are `docs:`.
+
+Merging `next` into `main` at release time is a separate maintenance step owned by the doc site repo, not part of a publishing pass. It is documented in that repo's `README_DEPLOY.md`.
 
 ### 7. Mark the drafts as published
 
@@ -140,7 +167,7 @@ Move each processed file to `docs/to-doc-site/done/` with the `done_` prefix add
 
 ### 8. Report
 
-State per file: published or skipped, which pages changed, what was corrected against the implementation, and that the build passed. Then weigh what is left — rough cost, value, and one recommended next step.
+State per file: published or skipped, which pages changed, **which doc site branch it went to and why**, what was corrected against the implementation, and that the build passed. Then weigh what is left — rough cost, value, and one recommended next step.
 
 ## Ownership
 
