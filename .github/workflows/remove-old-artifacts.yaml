@@ -2,22 +2,70 @@ name: Remove old artifacts
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'List what would be deleted without deleting anything'
+        type: boolean
+        default: false
   schedule:
     # Every Sunday at 1am
     - cron: '0 1 * * 0'
+
+permissions: {}
 
 jobs:
   remove-old-artifacts:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      actions: write
+      actions: write # delete artifacts
+      contents: read # list tags, so tagged runs can be skipped
 
     steps:
-      - name: Remove old artifacts
-        uses: c-hive/gha-remove-artifacts@44fc7acaf1b3d0987da0e8d4707a989d80e9554b # v1
-        with:
-          age: '3 days' # '<number> <unit>', e.g. 5 days, 2 years, 90 seconds, parsed by Moment.js
-          # Optional inputs
-          skip-tags: true
-          # skip-recent: 5
+      # This replaces c-hive/gha-remove-artifacts, which was abandoned in 2024 and never moved off
+      # the Node.js 20 action runtime. Same behaviour as before: delete artifacts older than 3 days,
+      # but keep anything produced by a run on a tag.
+      - name: Remove artifacts older than 3 days
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          # Empty on the scheduled run, which is what we want - only a manual dispatch can ask for
+          # a dry run.
+          DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          cutoff=$(date -u -d '3 days ago' +%s)
+          echo "Deleting unexpired artifacts created before $(date -u -d @"$cutoff" '+%Y-%m-%d %H:%M:%SZ')"
+
+          gh api --paginate "repos/$REPO/tags" --jq '.[].name' > /tmp/tags.txt
+
+          kept=0
+          removed=0
+
+          while IFS=$'\t' read -r id created name branch; do
+            if [ "$(date -u -d "$created" +%s)" -ge "$cutoff" ]; then
+              kept=$((kept + 1))
+              continue
+            fi
+            if [ -n "$branch" ] && grep -qxF "$branch" /tmp/tags.txt; then
+              echo "skip (tag $branch): $name"
+              kept=$((kept + 1))
+              continue
+            fi
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "would delete: $name (created $created)"
+            else
+              echo "delete: $name (created $created)"
+              gh api -X DELETE "repos/$REPO/actions/artifacts/$id"
+            fi
+            removed=$((removed + 1))
+          done < <(gh api --paginate "repos/$REPO/actions/artifacts" \
+            --jq '.artifacts[] | select(.expired == false)
+                  | [.id, .created_at, .name, (.workflow_run.head_branch // "")] | @tsv')
+
+          if [ "$DRY_RUN" = "true" ]; then
+            echo "kept $kept, would have removed $removed"
+          else
+            echo "kept $kept, removed $removed"
+          fi
