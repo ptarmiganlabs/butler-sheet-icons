@@ -254,7 +254,7 @@ export const qscloudRemoveSheetIcons = async (options) => {
             }
         }
 
-        const { total, failed } = await runOverApps(
+        return await runOverApps(
             appIdsToProcess,
             {
                 logPrefix: 'CLOUD PROCESS APP 2',
@@ -262,10 +262,6 @@ export const qscloudRemoveSheetIcons = async (options) => {
             },
             (appId) => removeSheetIconsCloudApp(appId, saasInstance, options)
         );
-
-        // An app the worker could not finish, or a selection that resolved to no
-        // apps at all, is a failed run - not a successful one with error text in it.
-        return total > 0 && failed === 0;
     } catch (err) {
         if (err.stack) {
             logger.error(`CLOUD REMOVE THUMBNAILS 3 (stack): ${err.stack}`);

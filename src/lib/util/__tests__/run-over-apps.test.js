@@ -35,10 +35,10 @@ describe('runOverApps', () => {
         expect(worker.mock.calls.map((call) => call[0])).toEqual(['a', 'b', 'c']);
     });
 
-    test('reports how many apps were processed', async () => {
+    test('reports success when every app was processed', async () => {
         const result = await runOverApps(['a', 'b'], CTX, jest.fn().mockResolvedValue(true));
 
-        expect(result).toEqual({ total: 2, failed: 0 });
+        expect(result).toBe(true);
     });
 
     test('processes an app named twice only once', async () => {
@@ -48,7 +48,20 @@ describe('runOverApps', () => {
         const result = await runOverApps(['a', 'b', 'a'], CTX, worker);
 
         expect(worker).toHaveBeenCalledTimes(2);
-        expect(result.total).toBe(2);
+        expect(result).toBe(true);
+    });
+
+    test('counts the deduplicated apps, not the raw input, in the summary', async () => {
+        // The summary line is the only place the count reaches the operator. Without a
+        // failing app the line never fires, so a duplicate-only test cannot pin it - and
+        // `uniqueAppIds.length` could silently become `appIds.length`.
+        const worker = jest.fn(async (appId) => {
+            if (appId === 'b') throw new Error('engine unreachable');
+        });
+
+        await runOverApps(['a', 'b', 'a'], CTX, worker);
+
+        expect(errorLog()).toContain('Failed to process 1 of 2 app(s)');
     });
 
     describe('a failing app', () => {
@@ -71,7 +84,8 @@ describe('runOverApps', () => {
 
             const result = await runOverApps(['a', 'b', 'c'], CTX, worker);
 
-            expect(result).toEqual({ total: 3, failed: 2 });
+            expect(result).toBe(false);
+            expect(errorLog()).toContain('Failed to process 2 of 3 app(s)');
         });
 
         test('is named in the log, with the reason', async () => {
@@ -100,10 +114,7 @@ describe('runOverApps', () => {
                 throw new Error('engine unreachable');
             });
 
-            await expect(runOverApps(['a'], CTX, worker)).resolves.toEqual({
-                total: 1,
-                failed: 1,
-            });
+            await expect(runOverApps(['a'], CTX, worker)).resolves.toBe(false);
         });
     });
 
@@ -140,11 +151,10 @@ describe('runOverApps', () => {
             expect(errorLog()).not.toContain('undefined');
         });
 
-        test('reports zero total, which the caller reads as failure', async () => {
-            await expect(runOverApps([], CTX, jest.fn())).resolves.toEqual({
-                total: 0,
-                failed: 0,
-            });
+        test('reports failure, not a vacuous success', async () => {
+            // An empty selection resolves to false: the operator asked for apps and got
+            // none, which must not be reported as a clean run.
+            await expect(runOverApps([], CTX, jest.fn())).resolves.toBe(false);
         });
     });
 
@@ -161,7 +171,7 @@ describe('runOverApps', () => {
 
         const result = await runOverApps(['a'], CTX, worker);
 
-        expect(result.failed).toBe(1);
+        expect(result).toBe(false);
         expect(errorLog()).toContain('just a string');
     });
 });
