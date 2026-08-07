@@ -6,6 +6,7 @@ import { qseowVerifyContentLibraryExists } from './qseow-contentlibrary.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { qseowProcessApp } from './qseow-process-app.js';
+import { runOverApps } from '../util/run-over-apps.js';
 
 /**
  * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW).
@@ -99,37 +100,18 @@ export const qseowCreateThumbnails = async (options) => {
             }
         }
 
-        // Remove duplicates (if any) from list of app IDs that will be processed
-        const uniqueAppIds = [...new Set(appIdsToProcess)];
+        const { total, failed } = await runOverApps(
+            appIdsToProcess,
+            {
+                logPrefix: 'QSEOW PROCESS APP',
+                emptySelectionHint: 'Check the --appid and --qliksensetag options.',
+            },
+            (appId) => qseowProcessApp(appId, options)
+        );
 
-        // Debug output of apps that will be processed
-        logger.debug('Will process these app IDs:');
-        uniqueAppIds.forEach((appId) => {
-            logger.debug(appId);
-        });
-
-        // Process all apps
-
-        for (const appId of uniqueAppIds) {
-            try {
-                logger.info(`--------------------------------------------------`);
-                logger.info(`About to process app ${appId}`);
-
-                await qseowProcessApp(appId, options);
-
-                logger.verbose(`Done processing app ${appId}`);
-            } catch (err) {
-                if (err.stack) {
-                    logger.error(`QSEOW PROCESS APP (stack): ${err.stack}`);
-                } else if (err.message) {
-                    logger.error(`QSEOW PROCESS APP (message): ${err.message}`);
-                } else {
-                    logger.error(`QSEOW PROCESS APP: ${err}`);
-                }
-            }
-        }
-
-        return true;
+        // An app the worker could not finish, or a selection that resolved to no
+        // apps at all, is a failed run - not a successful one with error text in it.
+        return total > 0 && failed === 0;
     } catch (err) {
         if (err.stack) {
             logger.error(`QSEOW CREATE THUMBNAILS 2 (stack): ${err.stack}`);

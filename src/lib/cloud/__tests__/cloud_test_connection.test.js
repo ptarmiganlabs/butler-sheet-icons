@@ -67,12 +67,35 @@ describe('qscloudTestConnection', () => {
         expect(info).toContain('tenant.eu.qlikcloud.com');
     });
 
-    test('tolerates a response missing the user fields', async () => {
-        await expect(qscloudTestConnection(OPTIONS, saasReturning({}))).resolves.toBe(true);
+    test('rejects a response with no user in it', async () => {
+        // This used to resolve true, and the operator saw "Connection to tenant ...
+        // successful." followed by four lines of `undefined`.
+        await expect(qscloudTestConnection(OPTIONS, saasReturning({}))).rejects.toThrow(
+            /no user in it/
+        );
     });
 
-    test('tolerates a response of undefined', async () => {
-        await expect(qscloudTestConnection(OPTIONS, saasReturning(undefined))).resolves.toBe(true);
+    test('rejects a response of undefined', async () => {
+        await expect(qscloudTestConnection(OPTIONS, saasReturning(undefined))).rejects.toThrow(
+            /no user in it/
+        );
+    });
+
+    test('does not claim the connection was successful when it could not be read', async () => {
+        await expect(qscloudTestConnection(OPTIONS, saasReturning({}))).rejects.toThrow();
+
+        const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(info).not.toContain('successful');
+        expect(info).not.toContain('undefined');
+    });
+
+    test('tells the operator which options to check, not to check an id they never gave', async () => {
+        // Routing this through a generic object reader produced "Check the id is correct"
+        // for users/me, where the operator supplied no id at all.
+        await expect(qscloudTestConnection(OPTIONS, saasReturning({}))).rejects.toThrow(
+            /--tenanturl/
+        );
+        await expect(qscloudTestConnection(OPTIONS, saasReturning({}))).rejects.toThrow(/--apikey/);
     });
 
     test('rejects when the API call fails', async () => {

@@ -338,9 +338,12 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         detectAvailableBrowser.mockResolvedValue(null);
         browserInstall.mockRejectedValue(new Error('network unreachable'));
 
-        // processCloudApp catches and logs rather than rethrowing, so callers can continue to
-        // the next app. Assert it resolves; `rejects.toThrow` would fail here.
-        await processCloudApp('test-app-id', defaultSaasInstance, defaultOptions);
+        // processCloudApp logs in detail and then rethrows, so the app loop above it can
+        // count this app as failed. Isolation between apps is the loop's job, not this
+        // function's - it used to swallow here, and the run reported success.
+        await expect(
+            processCloudApp('test-app-id', defaultSaasInstance, defaultOptions)
+        ).rejects.toThrow();
 
         const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
         expect(logged).toContain(
@@ -564,24 +567,26 @@ describe('process-cloud-app.js — a failed upload must not update the sheets', 
         const saasInstance = setupToUploadStep();
         qscloudUploadToApp.mockRejectedValue(new Error('Failed to upload 1 of 1 image(s)'));
 
-        await processCloudApp('test-app-id', saasInstance, {
-            tenanturl: 'test-tenant.eu.qlikcloud.com',
-            apikey: 'test-api-key',
-            imagedir: './img',
-            logonuserid: 'test-user',
-            logonpwd: 'password',
-            appid: 'test-app-id',
-            includesheetpart: '1',
-            schemaversion: '12.612.0',
-            browser: 'chrome',
-            browserVersion: 'latest',
-            headless: true,
-            pagewait: 0,
-            loglevel: 'info',
-            excludeSheetStatus: [],
-            excludeSheetNumber: [],
-            excludeSheetTitle: [],
-        });
+        await expect(
+            processCloudApp('test-app-id', saasInstance, {
+                tenanturl: 'test-tenant.eu.qlikcloud.com',
+                apikey: 'test-api-key',
+                imagedir: './img',
+                logonuserid: 'test-user',
+                logonpwd: 'password',
+                appid: 'test-app-id',
+                includesheetpart: '1',
+                schemaversion: '12.612.0',
+                browser: 'chrome',
+                browserVersion: 'latest',
+                headless: true,
+                pagewait: 0,
+                loglevel: 'info',
+                excludeSheetStatus: [],
+                excludeSheetNumber: [],
+                excludeSheetTitle: [],
+            })
+        ).rejects.toThrow('Failed to upload 1 of 1 image(s)');
 
         expect(qscloudUploadToApp).toHaveBeenCalledTimes(1);
         expect(qscloudUpdateSheetThumbnails).not.toHaveBeenCalled();

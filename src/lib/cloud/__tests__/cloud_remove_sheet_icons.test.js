@@ -359,6 +359,67 @@ describe('qscloudRemoveSheetIcons', () => {
             expect(enigmaCreate).toHaveBeenCalledTimes(2);
         });
 
+        test('reports failure when the collection resolves to no apps at all', async () => {
+            // An unresolvable collection is not the same as "nothing to do". This used to
+            // return true, so a --collectionid typo looked like a clean run.
+            Get.mockImplementation(async (path) => {
+                if (path === 'collections') return [{ id: 'collection-1' }];
+                if (path === 'collections/collection-1/items') return [];
+                return [];
+            });
+
+            await expect(
+                qscloudRemoveSheetIcons({
+                    ...BASE_OPTIONS,
+                    appid: '',
+                    collectionid: 'collection-1',
+                })
+            ).resolves.toBe(false);
+
+            const errors = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(errors).toContain('No apps to process');
+        });
+
+        test('a collection with only non-app items counts as no apps', async () => {
+            Get.mockImplementation(async (path) => {
+                if (path === 'collections') return [{ id: 'collection-1' }];
+                if (path === 'collections/collection-1/items') {
+                    return [{ resourceType: 'dataset', id: 'ds-1' }];
+                }
+                return [];
+            });
+
+            await expect(
+                qscloudRemoveSheetIcons({
+                    ...BASE_OPTIONS,
+                    appid: '',
+                    collectionid: 'collection-1',
+                })
+            ).resolves.toBe(false);
+        });
+
+        test('an explicitly named --appid still runs when the collection is empty', async () => {
+            // An earlier attempt at the empty check threw from inside the collection
+            // resolver, which discarded an --appid that had already been queued.
+            wireEnigma([makeSheet('sheet-1', 1)]);
+            Get.mockImplementation(async (path) => {
+                if (path === 'collections') return [{ id: 'collection-1' }];
+                if (path === 'collections/collection-1/items') return [];
+                if (path.endsWith('/media/list')) return [];
+                return [];
+            });
+
+            await expect(
+                qscloudRemoveSheetIcons({
+                    ...BASE_OPTIONS,
+                    appid: 'test-app-id',
+                    collectionid: 'collection-1',
+                })
+            ).resolves.toBe(true);
+
+            expect(enigmaCreate).toHaveBeenCalledTimes(1);
+        });
+
         test('returns false when the collection does not exist', async () => {
             Get.mockImplementation(async (path) => {
                 if (path === 'collections') return [{ id: 'a-different-collection' }];
@@ -415,21 +476,27 @@ describe('qscloudRemoveSheetIcons', () => {
                 return [];
             });
 
+            // The other app is still attempted - but the run as a whole is a failure now,
+            // not a success with error text buried in the log.
             await expect(
                 qscloudRemoveSheetIcons({
                     ...BASE_OPTIONS,
                     appid: '',
                     collectionid: 'collection-1',
                 })
-            ).resolves.toBe(true);
+            ).resolves.toBe(false);
 
             expect(enigmaCreate).toHaveBeenCalledTimes(2);
+
+            const errors = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(errors).toContain('Failed to process 1 of 2 app(s)');
         });
 
-        test('logs an engine failure instead of rejecting', async () => {
+        test('reports failure instead of rejecting when the engine is unreachable', async () => {
             enigmaCreate.mockRejectedValue(new Error('engine unreachable'));
 
-            await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS })).resolves.toBe(true);
+            // Reports false rather than throwing: the caller sets the exit code from it.
+            await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS })).resolves.toBe(false);
 
             expect(logger.error).toHaveBeenCalled();
         });

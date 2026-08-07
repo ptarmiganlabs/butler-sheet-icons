@@ -1,6 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserUninstall } from '../../browser/browser-uninstall.js';
+import { runCommand } from '../run-command.js';
 
 /**
  * Commander action that uninstalls a single browser build from the local cache.
@@ -13,18 +14,7 @@ import { browserUninstall } from '../../browser/browser-uninstall.js';
 const handleBrowserUninstall = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
-    try {
-        const res = await browserUninstall(options, cmd);
-        logger.debug(`Call to browserUninstall succeeded: ${res}`);
-    } catch (err) {
-        logger.error(`BROWSER MAIN 7: ${err}`);
-        if (err.message) {
-            logger.error(`BROWSER MAIN 7 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`BROWSER MAIN 7 (stack): ${err.stack}`);
-        }
-    }
+    return runCommand('BROWSER MAIN 7', () => browserUninstall(options, cmd));
 };
 
 /**

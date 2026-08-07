@@ -381,5 +381,8 @@ export const processCloudApp = async (appId, saasInstance, options) => {
         } else {
             logger.error(`CLOUD APP: ${err.stack}`);
         }
+        // Rethrow so the app loop can count this app as failed. Logging and returning
+        // normally made a run in which every app failed look exactly like a clean run.
+        throw err;
     }
 };

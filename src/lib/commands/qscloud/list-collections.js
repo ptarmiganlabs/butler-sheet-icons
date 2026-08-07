@@ -1,6 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qscloudListCollections } from '../../cloud/cloud-collections.js';
+import { runCommand } from '../run-command.js';
 
 /**
  * Commander action that lists available Qlik Sense Cloud collections through the worker module.
@@ -14,18 +15,7 @@ const handleCloudListCollections = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
     logger.verbose(`collection=${options.collection}`);
-    try {
-        const res = await qscloudListCollections(options, cmd);
-        logger.debug(`Call to qscloudListCollections succeeded: ${res}`);
-    } catch (err) {
-        logger.error(`CLOUD MAIN 4: ${err}`);
-        if (err.message) {
-            logger.error(`CLOUD MAIN 4 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`CLOUD MAIN 4 (stack): ${err.stack}`);
-        }
-    }
+    return runCommand('CLOUD MAIN 4', () => qscloudListCollections(options, cmd));
 };
 
 /**
