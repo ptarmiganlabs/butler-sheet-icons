@@ -21,7 +21,13 @@ import { runOverSheets, SHEET_SKIPPED, sortSheetsByRank } from '../util/sheet-li
  * @param {Array<string>} [options.blurSheetNumber] - Array of sheet numbers to be blurred.
  * @param {Array<string>} [options.blurSheetTitle] - Array of sheet titles to be blurred.
  *
- * @returns {Promise<void>} Resolves when the sheet thumbnails have been successfully updated in the Qlik Sense Cloud app.
+ * @returns {Promise<void>} Resolves when every sheet that had a generated thumbnail was
+ *     updated.
+ *
+ * @throws {CloudError} When any sheet could not be updated, or when thumbnails were created
+ *     but no sheet matched one. Other sheets are still attempted first and the engine
+ *     session is always released.
+ * @throws {Error} Whatever the engine threw, if the session itself was lost.
  */
 export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
     let sheetRun;
@@ -80,6 +86,7 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
                     logPrefix: 'CLOUD UPDATE SHEETS',
                     appId,
                     action: 'update',
+                    requireAttempt: createdFiles.length > 0,
                     ErrorClass: CloudError,
                 },
                 async (sheet, iSheetNum) => {

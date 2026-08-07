@@ -21,9 +21,16 @@ import { runOverApps } from '../util/run-over-apps.js';
  * @param {string} options.qrsport - Qlik Sense Repository Service (QRS) port of the Qlik server.
  * @param {string} options.senseVersion - The version of Qlik Sense being used.
  *
- * @returns {Promise<void>} Resolves once all sheet icons in the app have been cleared.
+ * @returns {Promise<void>} Resolves once every sheet's icon has been cleared, or the app has
+ *     no sheets.
+ *
+ * @throws {QseowError} When any sheet's icon could not be cleared. Other sheets are still
+ *     attempted first and the engine session is always released.
+ * @throws {Error} Whatever the engine threw, if the session itself was lost.
  */
 const removeSheetIconsQSEoWApp = async (appId, g, options) => {
+    let sheetRun;
+
     try {
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
@@ -65,8 +72,6 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
                 },
             },
         };
-
-        let sheetRun;
 
         const genericListObj = await app.createSessionObject(appSheetsCall);
         const sheetListObj = await genericListObj.getLayout();
@@ -113,8 +118,6 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
             `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
         );
 
-        sheetRun?.assertAllProcessed();
-
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
         if (err.stack) {
@@ -128,6 +131,8 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;
     }
+
+    sheetRun?.assertAllProcessed();
 };
 
 /**

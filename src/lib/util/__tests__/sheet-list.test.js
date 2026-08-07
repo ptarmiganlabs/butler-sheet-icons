@@ -11,7 +11,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 }));
 
 const { logger } = await import('../../../globals.js');
-const { isSheetTagged, runOverSheets, SHEET_SKIPPED, sortSheetsByRank } =
+const { isSessionLevelFailure, isSheetTagged, runOverSheets, SHEET_SKIPPED, sortSheetsByRank } =
     await import('../sheet-list.js');
 
 /**
@@ -274,5 +274,124 @@ describe('runOverSheets', () => {
             expect(() => result.assertAllProcessed()).toThrow(CTX.ErrorClass);
             expect(() => result.assertAllProcessed()).toThrow('app-1');
         });
+    });
+});
+
+describe('isSessionLevelFailure', () => {
+    test.each([
+        ['a dropped enigma socket', new Error('Socket closed')],
+        ['a closed CDP session', new Error('Protocol error: Session closed.')],
+        [
+            'a closed puppeteer target',
+            new Error('Protocol error (Browser.getVersion): Target closed'),
+        ],
+        ['a websocket error', new Error('WebSocket connection failed')],
+    ])('treats %s as session-level', (_label, err) => {
+        expect(isSessionLevelFailure(err)).toBe(true);
+    });
+
+    test.each([
+        [
+            'a refused connection',
+            Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }),
+        ],
+        ['a reset connection', Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })],
+    ])('delegates %s to getErrorCategory', (_label, err) => {
+        expect(isSessionLevelFailure(err)).toBe(true);
+    });
+
+    test.each([
+        ['a read-only sheet', new Error('sheet is read-only')],
+        ['a missing object', new Error('Object not found')],
+        ['a non-Error', 'just a string'],
+        ['nothing', undefined],
+    ])('treats %s as sheet-level', (_label, err) => {
+        expect(isSessionLevelFailure(err)).toBe(false);
+    });
+});
+
+describe('runOverSheets — a lost engine session', () => {
+    const CTX = {
+        logPrefix: 'TEST PREFIX',
+        appId: 'app-1',
+        action: 'update',
+        ErrorClass: class TestError extends Error {},
+    };
+    const sheet = (id) => ({ qInfo: { qId: id }, qMeta: { title: `Sheet ${id}` } });
+
+    test('abandons the remaining sheets instead of failing each one', async () => {
+        // A dropped websocket used to be caught 38 times and reported as 38 broken sheets.
+        const worker = jest.fn(async (s, n) => {
+            if (n >= 2) throw new Error('Socket closed');
+        });
+
+        const result = await runOverSheets(
+            [sheet('a'), sheet('b'), sheet('c'), sheet('d')],
+            CTX,
+            worker
+        );
+
+        expect(worker).toHaveBeenCalledTimes(2);
+        expect(result.failed).toBe(0);
+    });
+
+    test('rethrows the original cause, not a sheet count', async () => {
+        const boom = new Error('Socket closed');
+        const result = await runOverSheets([sheet('a')], CTX, async () => {
+            throw boom;
+        });
+
+        expect(() => result.assertAllProcessed()).toThrow(boom);
+    });
+
+    test('says the session was lost rather than blaming the sheet', async () => {
+        await runOverSheets([sheet('a')], CTX, async () => {
+            throw new Error('Socket closed');
+        });
+
+        expect(errorLog()).toContain('Lost the engine session');
+        expect(errorLog()).not.toContain("Failed to update sheet 1 ('Sheet a'");
+    });
+});
+
+describe('runOverSheets — requireAttempt', () => {
+    const base = {
+        logPrefix: 'TEST PREFIX',
+        appId: 'app-1',
+        action: 'update',
+        ErrorClass: class TestError extends Error {},
+    };
+    const sheet = (id) => ({ qInfo: { qId: id }, qMeta: { title: `Sheet ${id}` } });
+
+    test('fails when work was expected but every sheet was skipped', async () => {
+        // Thumbnails were generated but no sheet matched one - nothing was applied, and
+        // that used to report success.
+        const result = await runOverSheets(
+            [sheet('a'), sheet('b')],
+            { ...base, requireAttempt: true },
+            async () => SHEET_SKIPPED
+        );
+
+        expect(() => result.assertAllProcessed()).toThrow(/no icon was updated/i);
+    });
+
+    test('passes when every sheet was skipped and no work was expected', async () => {
+        const result = await runOverSheets(
+            [sheet('a')],
+            { ...base, requireAttempt: false },
+            async () => SHEET_SKIPPED
+        );
+
+        expect(() => result.assertAllProcessed()).not.toThrow();
+    });
+
+    test('does not fire when at least one sheet was attempted', async () => {
+        const result = await runOverSheets(
+            [sheet('a'), sheet('b')],
+            { ...base, requireAttempt: true },
+            async (s, n) => (n === 1 ? undefined : SHEET_SKIPPED)
+        );
+
+        expect(() => result.assertAllProcessed()).not.toThrow();
     });
 });

@@ -21,7 +21,13 @@ import {
  * tag named by `--blur-sheet-tag`, each entry exposing `engineObjectId`. Defaults to empty so the
  * tag rule simply matches nothing when the caller has not looked it up.
  *
- * @returns {Promise<void>} Resolves when the sheet thumbnails have been updated in the QSEoW app.
+ * @returns {Promise<void>} Resolves when every sheet that had a generated thumbnail was
+ *     updated.
+ *
+ * @throws {QseowError} When any sheet could not be updated, or when thumbnails were created
+ *     but no sheet matched one. Other sheets are still attempted first and the engine
+ *     session is always released.
+ * @throws {Error} Whatever the engine threw, if the session itself was lost.
  */
 export const qseowUpdateSheetThumbnails = async (
     createdFiles,
@@ -92,6 +98,7 @@ export const qseowUpdateSheetThumbnails = async (
                     logPrefix: 'QSEOW UPDATE SHEETS',
                     appId,
                     action: 'update',
+                    requireAttempt: createdFiles.length > 0,
                     ErrorClass: QseowError,
                 },
                 async (sheet, iSheetNum) => {

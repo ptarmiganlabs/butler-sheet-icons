@@ -19,9 +19,16 @@ import { runOverSheets, sortSheetsByRank } from '../util/sheet-list.js';
  * @param {string} options.apikey - API key for the Qlik Sense Cloud tenant.
  * @param {string} options.loglevel - The level of logging to output. Valid values are 'error', 'warn', 'info', 'verbose', 'debug', 'silly'.
  *
- * @returns {Promise<void>} Resolves once all sheet icons in the app have been removed (or the app has no sheets).
+ * @returns {Promise<void>} Resolves once every sheet's icon has been removed, or the app has
+ *     no sheets.
+ *
+ * @throws {CloudError} When any sheet's icon could not be removed. Other sheets are still
+ *     attempted first and the engine session is always released.
+ * @throws {Error} Whatever the engine or media API threw, if the session itself was lost.
  */
 const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
+    let sheetRun;
+
     try {
         // Does the app have a thumbnail folder in its media library?
         const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
@@ -94,8 +101,6 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
             },
         };
 
-        let sheetRun;
-
         const genericListObj = await app.createSessionObject(appSheetsCall);
         const sheetListObj = await genericListObj.getLayout();
 
@@ -141,8 +146,6 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
             `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
         );
 
-        sheetRun?.assertAllProcessed();
-
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
         if (err.stack) {
@@ -156,6 +159,8 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;
     }
+
+    sheetRun?.assertAllProcessed();
 };
 
 /**
