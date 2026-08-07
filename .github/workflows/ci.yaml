@@ -18,7 +18,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
       # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
@@ -62,7 +62,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
       # See the note on the other jobs: pins npm so the install is identical on every runner.
@@ -101,7 +101,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: ''
@@ -147,7 +147,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
       # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
@@ -202,7 +202,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: ''
@@ -260,7 +260,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
       # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
@@ -337,7 +337,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup node
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: ''
@@ -464,7 +464,7 @@ jobs:
         run: docker save "$IMAGE_NAME" -o "$IMAGE_TAR"
 
       - name: Upload Docker image artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: butler-sheet-icons-ci-arm64-image
           path: ${{ env.IMAGE_TAR }}
@@ -516,7 +516,7 @@ jobs:
         run: docker save "$IMAGE_NAME" -o "$IMAGE_TAR"
 
       - name: Upload Docker image artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: butler-sheet-icons-ci-amd64-image
           path: ${{ env.IMAGE_TAR }}
@@ -548,7 +548,7 @@ jobs:
       BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
     steps:
       - name: Download Docker image artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: butler-sheet-icons-ci-arm64-image
 
@@ -600,7 +600,7 @@ jobs:
       BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
     steps:
       - name: Download Docker image artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: butler-sheet-icons-ci-amd64-image
 
@@ -660,7 +660,7 @@ jobs:
       BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
     steps:
       - name: Download Docker image artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: butler-sheet-icons-ci-arm64-image
 
@@ -752,7 +752,7 @@ jobs:
       BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
     steps:
       - name: Download Docker image artifact
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: butler-sheet-icons-ci-amd64-image
 
@@ -842,7 +842,7 @@ jobs:
       - name: Show github.ref
         run: echo "$GITHUB_REF"
 
-      - uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
         if: |
           github.repository_owner == 'ptarmiganlabs'
@@ -897,7 +897,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: ''
@@ -927,7 +927,7 @@ jobs:
           $RUNNER_TEMP/sbom-tool generate -b ./build/sbom -bc . -pn ${DIST_FILE_NAME} -pv ${{ needs.release-please.outputs.release_version }} -ps "Ptarmigan Labs" -nsb https://sbom.ptarmiganlabs.com -V verbose
 
       - name: Upload SBOM to Release
-        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           allowUpdates: true
           omitBodyDuringUpdate: true
@@ -938,7 +938,7 @@ jobs:
           token: ${{ github.token }}
 
       - name: Upload SBOM as Workflow Artifact (backup)
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom-${{ needs.release-please.outputs.release_version }}
           path: ./build/sbom/
@@ -972,12 +972,12 @@ jobs:
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
       # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
@@ -1003,7 +1003,7 @@ jobs:
         run: bash ./scripts/release-macos.sh
 
       - name: Upload to existing release
-        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           allowUpdates: true
           omitBodyDuringUpdate: true
@@ -1044,12 +1044,12 @@ jobs:
           Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
 
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
       # See the note on the other jobs: pins npm so the install is identical on every runner.
@@ -1073,7 +1073,7 @@ jobs:
         run: ./scripts/release-win.ps1
 
       - name: Upload to existing release
-        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           allowUpdates: true
           omitBodyDuringUpdate: true
@@ -1107,12 +1107,12 @@ jobs:
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
       # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
@@ -1146,7 +1146,7 @@ jobs:
           ls -la
 
       - name: Upload to existing release
-        uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b # v1
+        uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:
           allowUpdates: true
           omitBodyDuringUpdate: true
