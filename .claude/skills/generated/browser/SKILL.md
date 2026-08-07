@@ -5,7 +5,7 @@ description: "Skill for the Browser area of butler-sheet-icons. 14 symbols acros
 
 # Browser
 
-14 symbols | 10 files | Cohesion: 90%
+14 symbols | 10 files | Cohesion: 88%
 
 ## When to Use
 
@@ -72,8 +72,8 @@ Start here when exploring this area:
 
 | Area | Connections |
 |------|-------------|
+| Cloud | 3 calls |
 | Util | 3 calls |
-| Cloud | 2 calls |
 
 ## How to Explore
 

@@ -5,7 +5,7 @@ description: "Skill for the Cloud area of butler-sheet-icons. 24 symbols across 
 
 # Cloud
 
-24 symbols | 18 files | Cohesion: 94%
+24 symbols | 18 files | Cohesion: 92%
 
 ## When to Use
 
