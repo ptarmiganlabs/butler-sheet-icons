@@ -1,7 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qscloudCreateThumbnails } from '../../cloud/cloud-create-thumbnails.js';
-import { parsePositiveInteger } from '../helpers.js';
+import { parsePositiveInteger, collectPositiveIntegers } from '../helpers.js';
 
 /**
  * Commander action for generating Qlik Sense Cloud sheet thumbnails via the worker module.
@@ -185,8 +185,8 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 '--exclude-sheet-number <number...>',
                 'Sheet numbers (1=first sheet in an app) that will be excluded from sheet icon update.'
             )
-                .argParser((value) =>
-                    parsePositiveInteger(value, {
+                .argParser(
+                    collectPositiveIntegers({
                         errorMessage: 'Exclude sheet number must be a non-negative integer.',
                     })
                 )
@@ -218,8 +218,8 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 '--blur-sheet-number <number...>',
                 'Sheet numbers (1=first sheet in an app) that will be blurred in the sheet icon update.'
             )
-                .argParser((value) =>
-                    parsePositiveInteger(value, {
+                .argParser(
+                    collectPositiveIntegers({
                         errorMessage: 'Blur sheet number must be a non-negative integer.',
                     })
                 )

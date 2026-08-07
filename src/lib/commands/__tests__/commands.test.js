@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, jest, beforeAll } from '@jest/globals';
-import { InvalidArgumentError } from 'commander';
+import { Command, InvalidArgumentError } from 'commander';
 
 const loggerMock = {
     info: jest.fn(),
@@ -80,6 +80,7 @@ let browserUninstall;
 let browserUninstallAll;
 let browserListAvailable;
 let parsePositiveInteger;
+let collectPositiveIntegers;
 let buildQseowCommand;
 let handleQseowCreateSheetThumbnails;
 let handleCloudCreateSheetThumbnails;
@@ -115,7 +116,7 @@ beforeAll(async () => {
     ({ browserUninstall, browserUninstallAll } =
         await import('../../browser/browser-uninstall.js'));
     ({ browserListAvailable } = await import('../../browser/browser-list-available.js'));
-    ({ parsePositiveInteger } = await import('../helpers.js'));
+    ({ parsePositiveInteger, collectPositiveIntegers } = await import('../helpers.js'));
     ({ buildQseowCommand, handleQseowCreateSheetThumbnails } = await import('../qseow/index.js'));
     ({ handleCloudCreateSheetThumbnails } = await import('../qscloud/create-sheet-thumbnails.js'));
     ({ handleCloudListCollections } = await import('../qscloud/list-collections.js'));
@@ -149,6 +150,98 @@ describe('parsePositiveInteger', () => {
     test('enforces configured boundaries', () => {
         expect(() => parsePositiveInteger('1', { min: 2 })).toThrow(InvalidArgumentError);
         expect(() => parsePositiveInteger('10', { max: 5 })).toThrow(InvalidArgumentError);
+    });
+});
+
+describe('collectPositiveIntegers', () => {
+    test('accumulates onto the previous value instead of replacing it', () => {
+        const parser = collectPositiveIntegers();
+        expect(parser('1')).toEqual(['1']);
+        expect(parser('2', ['1'])).toEqual(['1', '2']);
+        expect(parser('12', ['1', '2'])).toEqual(['1', '2', '12']);
+    });
+
+    test('does not mutate the accumulator it is given', () => {
+        const previous = ['1'];
+        collectPositiveIntegers()('2', previous);
+        expect(previous).toEqual(['1']);
+    });
+
+    test('validates each value with the configured message', () => {
+        const parser = collectPositiveIntegers({ errorMessage: 'nope' });
+        expect(() => parser('abc')).toThrow(InvalidArgumentError);
+        expect(() => parser('abc')).toThrow('nope');
+    });
+});
+
+/**
+ * Drives a single real `Option` instance, taken from a real command builder, through
+ * Commander. A bare parent `Command` is used so no action handler fires - the point is
+ * to observe exactly what Commander stores for that option, with the option's real
+ * variadic declaration and real `argParser` in place.
+ *
+ * @param {import('commander').Command} command - Command owning the option.
+ * @param {string} flag - Long flag to exercise, e.g. `'--exclude-sheet-number'`.
+ * @param {string[]} argv - Argument words to parse, excluding the flag itself.
+ *
+ * @returns {object} The parsed options object.
+ */
+const parseOptionInIsolation = (command, flag, argv) => {
+    const option = command.options.find((opt) => opt.long === flag);
+    if (!option) {
+        throw new Error(`Option ${flag} not found on command ${command.name()}`);
+    }
+    const parent = new Command();
+    parent.exitOverride();
+    parent.addOption(option);
+    parent.parse(['node', 'test', flag, ...argv]);
+    return parent.opts();
+};
+
+describe('variadic sheet-number options collect into arrays', () => {
+    // A variadic option that also has an argParser takes Commander's parser branch, not
+    // its array-collecting branch. A parser ignoring the accumulator leaves the option a
+    // bare string - and the consumers all use `.includes()`, which on a string means
+    // substring matching. `--exclude-sheet-number 12` then also excludes sheets 1 and 2.
+    const cases = [
+        ['qseow', () => buildQseowCommand(), 'excludeSheetNumber', '--exclude-sheet-number'],
+        ['qseow', () => buildQseowCommand(), 'blurSheetNumber', '--blur-sheet-number'],
+        ['qscloud', () => buildQscloudCommand(), 'excludeSheetNumber', '--exclude-sheet-number'],
+        ['qscloud', () => buildQscloudCommand(), 'blurSheetNumber', '--blur-sheet-number'],
+    ];
+
+    describe.each(cases)('%s %s', (platform, build, optionKey, flag) => {
+        /**
+         * Resolves the `create-sheet-thumbnails` subcommand for the platform under test.
+         *
+         * @returns {import('commander').Command} The subcommand carrying the sheet-number options.
+         */
+        const subcommand = () =>
+            build().commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails');
+
+        test('keeps every value when several are supplied', () => {
+            const opts = parseOptionInIsolation(subcommand(), flag, ['1', '2', '12']);
+            expect(opts[optionKey]).toEqual(['1', '2', '12']);
+        });
+
+        test('yields a one-element array for a single value', () => {
+            const opts = parseOptionInIsolation(subcommand(), flag, ['12']);
+            expect(opts[optionKey]).toEqual(['12']);
+        });
+
+        test('does not substring-match other sheet numbers', () => {
+            const opts = parseOptionInIsolation(subcommand(), flag, ['12']);
+            // The regression this guards: as the string '12' both of these were true.
+            expect(opts[optionKey].includes('1')).toBe(false);
+            expect(opts[optionKey].includes('2')).toBe(false);
+            expect(opts[optionKey].includes('12')).toBe(true);
+        });
+
+        test('still rejects a non-integer value', () => {
+            expect(() => parseOptionInIsolation(subcommand(), flag, ['abc'])).toThrow(
+                /must be a non-negative integer/i
+            );
+        });
     });
 });
 
