@@ -1,3 +1,5 @@
+import { isSheetTagged } from '../util/sheet-list.js';
+
 /**
  * Determines whether a sheet should be excluded from updates based on various criteria.
  *
@@ -92,9 +94,7 @@ export const determineSheetExcludeStatus = async (
     if (options.excludeSheetTag && excludeSheet === false) {
         // Does the sheet id match any of the ids in tagSheetAppMetadata array?
         // Set excludeSheet to true/false based on the result
-        excludeSheet = tagSheetAppMetadata.some(
-            (element) => element.engineObjectId === sheet.qInfo.qId
-        );
+        excludeSheet = isSheetTagged(tagSheetAppMetadata, sheet);
         // Only claim an exclusion that actually happened: this line used to be logged
         // whether or not the tag matched.
         if (excludeSheet === true) {

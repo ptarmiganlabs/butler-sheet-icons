@@ -32,6 +32,61 @@
  *
  * @returns {Array<object>} The same array, sorted, so the call can be chained.
  */
+/**
+ * Fails the app when any of its sheets could not be processed.
+ *
+ * Per-sheet isolation exists so one bad sheet does not abandon the ones after it. Without
+ * this check that isolation also swallowed the outcome: an app in which every single sheet
+ * failed resolved normally, the app loop counted it as a success, and the run exited 0.
+ *
+ * Call it after the sheet loop and after the engine session has been closed, so a failing
+ * app still releases its session.
+ *
+ * @param {number} failed - How many sheets failed.
+ * @param {number} total - How many sheets were attempted.
+ * @param {object} ctx - Message context.
+ * @param {string} ctx.appId - App the sheets belong to.
+ * @param {string} ctx.action - Verb for the message, e.g. `'update'` or `'remove icons for'`.
+ * @param {new (message: string) => Error} ctx.ErrorClass - Platform error type to throw.
+ *
+ * @returns {void}
+ *
+ * @throws {Error} An instance of `ErrorClass` when `failed` is non-zero.
+ */
+export const assertAllSheetsProcessed = (failed, total, { appId, action, ErrorClass }) => {
+    if (failed === 0) {
+        return;
+    }
+
+    throw new ErrorClass(`Failed to ${action} ${failed} of ${total} sheet(s) in app ${appId}`);
+};
+
+/**
+ * Reports whether a sheet appears in a list of sheets carrying some QRS tag.
+ *
+ * Both sides of the identity comparison are guarded, and that matters more than it looks.
+ * `element.engineObjectId === sheet.qInfo.qId` throws when a sheet arrives without
+ * `qInfo`; adding optional chaining to only the right-hand side replaces the crash with
+ * `undefined === undefined`, which is `true` - so every sheet missing its id would match
+ * the tag list and be silently excluded or blurred. A sheet with no id matches nothing.
+ *
+ * @param {Array<object>} taggedSheets - Sheets carrying the tag, each exposing
+ *     `engineObjectId`. May be undefined or empty, in which case nothing matches.
+ * @param {object} sheet - Sheet from `qAppObjectList.qItems`.
+ *
+ * @returns {boolean} `true` only when the sheet has an engine id and that id is present in
+ *     the tagged list.
+ */
+export const isSheetTagged = (taggedSheets, sheet) => {
+    const engineObjectId = sheet?.qInfo?.qId;
+
+    if (engineObjectId === undefined || engineObjectId === null) {
+        return false;
+    }
+
+    return (taggedSheets ?? []).some((element) => element?.engineObjectId === engineObjectId);
+};
+
 export const sortSheetsByRank = (sheets) =>
     sheets.sort((sheet1, sheet2) => {
         const rank1 = sheet1?.qData?.rank;

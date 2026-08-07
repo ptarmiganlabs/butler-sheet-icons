@@ -1,6 +1,6 @@
 import { describe, test, expect } from '@jest/globals';
 
-import { sortSheetsByRank } from '../sheet-list.js';
+import { isSheetTagged, sortSheetsByRank } from '../sheet-list.js';
 
 /**
  * Builds a sheet shaped like an entry in the engine's `qAppObjectList.qItems`.
@@ -92,5 +92,39 @@ describe('sortSheetsByRank', () => {
         // which is not transitive - the good sheets could come out in any order.
         const sheets = [sheet('c', 3), sheetWithoutQData('broken'), sheet('a', 1), sheet('b', 2)];
         expect(ids(sortSheetsByRank(sheets))).toEqual(['a', 'b', 'c', 'broken']);
+    });
+});
+
+describe('isSheetTagged', () => {
+    test('matches a sheet whose engine id is in the tagged list', () => {
+        const tagged = [{ engineObjectId: 'sheet-a' }, { engineObjectId: 'sheet-b' }];
+
+        expect(isSheetTagged(tagged, { qInfo: { qId: 'sheet-b' } })).toBe(true);
+    });
+
+    test('does not match a sheet absent from the tagged list', () => {
+        const tagged = [{ engineObjectId: 'sheet-a' }];
+
+        expect(isSheetTagged(tagged, { qInfo: { qId: 'sheet-z' } })).toBe(false);
+    });
+
+    test('does not throw for a sheet with no qInfo', () => {
+        // `element.engineObjectId === sheet.qInfo.qId` threw here.
+        expect(() => isSheetTagged([{ engineObjectId: 'sheet-a' }], { qMeta: {} })).not.toThrow();
+        expect(isSheetTagged([{ engineObjectId: 'sheet-a' }], { qMeta: {} })).toBe(false);
+    });
+
+    test('a sheet with no id does not match a tag entry that also has no id', () => {
+        // The documented trap: guarding only the right-hand side turns the crash into
+        // `undefined === undefined`, which is true - so every sheet missing its id would
+        // silently be treated as carrying the tag.
+        expect(isSheetTagged([{ engineObjectId: undefined }], { qInfo: {} })).toBe(false);
+        expect(isSheetTagged([{}], { qMeta: {} })).toBe(false);
+        expect(isSheetTagged([{ engineObjectId: null }], { qInfo: { qId: null } })).toBe(false);
+    });
+
+    test('treats a missing or empty tag list as no match', () => {
+        expect(isSheetTagged(undefined, { qInfo: { qId: 'sheet-a' } })).toBe(false);
+        expect(isSheetTagged([], { qInfo: { qId: 'sheet-a' } })).toBe(false);
     });
 });

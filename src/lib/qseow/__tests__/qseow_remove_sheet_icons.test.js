@@ -352,14 +352,32 @@ describe('qseowRemoveSheetIcons', () => {
             expect(logger.error).toHaveBeenCalled();
         });
 
-        test('logs a per-sheet failure instead of rejecting', async () => {
+        test('reports failure when a sheet could not be updated, without rejecting', async () => {
+            // Isolation is not the same as success. This used to resolve true, so an app in
+            // which no icon at all was removed looked identical to a clean run and the
+            // process exited 0.
             const sheet = makeSheet('sheet-1', 1);
             sheet.obj.setProperties.mockRejectedValue(new Error('sheet is read-only'));
             wireEnigma([sheet]);
 
-            await expect(qseowRemoveSheetIcons(BASE_OPTIONS)).resolves.toBe(true);
+            await expect(qseowRemoveSheetIcons(BASE_OPTIONS)).resolves.toBe(false);
 
             expect(logger.error).toHaveBeenCalled();
+        });
+
+        test('says how many sheets failed', async () => {
+            const sheets = [
+                makeSheet('sheet-1', 1),
+                makeSheet('sheet-2', 2),
+                makeSheet('sheet-3', 3),
+            ];
+            sheets[0].obj.setProperties.mockRejectedValue(new Error('sheet is read-only'));
+            wireEnigma(sheets);
+
+            await qseowRemoveSheetIcons(BASE_OPTIONS);
+
+            const errors = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(errors).toContain('Failed to remove icons for 1 of 3 sheet(s)');
         });
 
         test('a failing sheet does not stop the sheets after it', async () => {

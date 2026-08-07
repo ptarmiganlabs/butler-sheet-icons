@@ -6,7 +6,8 @@ import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { runOverApps } from '../util/run-over-apps.js';
-import { sortSheetsByRank } from '../util/sheet-list.js';
+import { CloudError } from '../util/errors.js';
+import { assertAllSheetsProcessed, sortSheetsByRank } from '../util/sheet-list.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Cloud app.
@@ -93,12 +94,16 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
             },
         };
 
+        let failedSheets = 0;
+        let totalSheets = 0;
+
         const genericListObj = await app.createSessionObject(appSheetsCall);
         const sheetListObj = await genericListObj.getLayout();
 
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
+            totalSheets = sheetListObj.qAppObjectList.qItems.length;
 
             // Sort sheets
             sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
@@ -124,6 +129,7 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
                     logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
                     await app.doSave();
                 } catch (err) {
+                    failedSheets += 1;
                     logger.error(
                         `CLOUD: Failed to remove icon for sheet ${iSheetNum} ('${sheet.qMeta.title}', ID ${sheet.qInfo.qId}) in app ${appId}: ${err.message ?? err}`
                     );
@@ -140,6 +146,12 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
         logger.verbose(
             `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
         );
+
+        assertAllSheetsProcessed(failedSheets, totalSheets, {
+            appId,
+            action: 'remove icons for',
+            ErrorClass: CloudError,
+        });
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
