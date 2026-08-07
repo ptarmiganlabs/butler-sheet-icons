@@ -99,6 +99,7 @@ let logger;
 let browserInstall;
 let detectAvailableBrowser;
 let determineSheetExcludeStatus;
+let Jimp;
 let qseowUploadToContentLibrary;
 let qseowUpdateSheetThumbnails;
 
@@ -127,6 +128,7 @@ beforeAll(async () => {
     ({ browserInstall } = await import('../../browser/browser-install.js'));
     ({ detectAvailableBrowser } = await import('../../browser/browser-detect.js'));
     ({ determineSheetExcludeStatus } = await import('../determine-sheet-exclude-status.js'));
+    ({ Jimp } = await import('jimp'));
     ({ qseowUploadToContentLibrary } = await import('../qseow-upload.js'));
     ({ qseowUpdateSheetThumbnails } = await import('../qseow-updatesheets.js'));
     ({ qseowProcessApp } = await import('../qseow-process-app.js'));
@@ -507,5 +509,134 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
 
         expect(qseowUploadToContentLibrary).toHaveBeenCalledTimes(1);
         expect(qseowUpdateSheetThumbnails).not.toHaveBeenCalled();
+    });
+});
+
+describe('qseow-process-app.js — a blurred thumbnail that cannot be created', () => {
+    const options = {
+        senseVersion: '2023-Nov',
+        imagedir: './img',
+        host: 'test-server.example.com',
+        logonuserdir: 'INTERNAL',
+        logonuserid: 'sa_api',
+        logonpwd: 'password',
+        excludeSheetNumber: [],
+        excludeSheetTitle: [],
+        excludeSheetStatus: [],
+        includesheetpart: '1',
+        pagewait: 0,
+        secure: true,
+        prefix: '',
+        headless: true,
+        blurFactor: 5,
+        loglevel: 'info',
+    };
+
+    /**
+     * Wires the stack with one sheet and a Jimp that fails to write the blurred image.
+     *
+     * @returns {void}
+     */
+    function setupBlurFailure() {
+        jest.clearAllMocks();
+
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/test/browser',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+        determineSheetExcludeStatus.mockResolvedValue({
+            excludeSheet: false,
+            sheetIsHidden: false,
+        });
+        qseowUploadToContentLibrary.mockResolvedValue(true);
+        qseowUpdateSheetThumbnails.mockResolvedValue(true);
+
+        const mockGet = jest.fn().mockImplementation((path) => {
+            if (path.includes('app?filter=id eq')) {
+                return Promise.resolve({
+                    body: [{ id: 'test-app-id', name: 'Test App', published: true }],
+                });
+            }
+            return Promise.resolve({ body: [] });
+        });
+        qrsInteract.mockImplementation(() => ({ Get: mockGet }));
+
+        const mockApp = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({
+                    qAppObjectList: {
+                        qItems: [
+                            {
+                                qInfo: { qId: 'sheet-a' },
+                                qMeta: {
+                                    title: 'Sheet A',
+                                    description: '',
+                                    approved: false,
+                                    published: false,
+                                },
+                                qData: { rank: 1, showCondition: null },
+                            },
+                        ],
+                    },
+                }),
+            }),
+            getObject: jest.fn().mockResolvedValue({ screenshot: jest.fn() }),
+            evaluateEx: jest.fn().mockResolvedValue({ qIsNumeric: false, qNumber: 1 }),
+        };
+        enigma.create.mockResolvedValue({
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '1.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(mockApp),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        });
+
+        puppeteer.launch.mockResolvedValue({
+            newPage: jest.fn().mockResolvedValue({
+                setViewport: jest.fn().mockResolvedValue(true),
+                setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                goto: jest.fn().mockResolvedValue(true),
+                waitForNavigation: jest.fn().mockResolvedValue(true),
+                screenshot: jest.fn().mockResolvedValue(true),
+                click: jest.fn().mockResolvedValue(true),
+                keyboard: { type: jest.fn().mockResolvedValue(true) },
+                waitForSelector: jest.fn().mockResolvedValue(true),
+                $: jest.fn().mockResolvedValue({ screenshot: jest.fn().mockResolvedValue(true) }),
+                $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+        });
+    }
+
+    test('does not leave the unblurred screenshot behind for that sheet', async () => {
+        // The blur decision is made later, from the CLI options alone, so leaving the
+        // unblurred entry meant the sheet was repointed at a `-blurred.png` that was never
+        // created - a broken icon. Falling back to the plain image is not an option either:
+        // --blur-sheet-* is a redaction control.
+        setupBlurFailure();
+        Jimp.read.mockResolvedValue({
+            blur: jest.fn().mockReturnThis(),
+            write: jest.fn().mockRejectedValue(new Error('disk full')),
+        });
+
+        await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow();
+
+        const uploaded = qseowUploadToContentLibrary.mock.calls[0][0];
+        expect(uploaded.filter((f) => f.sheetPos === 1)).toEqual([]);
+    });
+
+    test('reports the app as failed', async () => {
+        setupBlurFailure();
+        Jimp.read.mockResolvedValue({
+            blur: jest.fn().mockReturnThis(),
+            write: jest.fn().mockRejectedValue(new Error('disk full')),
+        });
+
+        await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow(
+            'Failed to create a blurred thumbnail for 1 sheet(s)'
+        );
     });
 });
