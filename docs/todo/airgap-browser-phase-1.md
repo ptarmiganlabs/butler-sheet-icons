@@ -74,6 +74,9 @@ broken. It is fixed but, at the time of writing, unreleased.
 5. A `browser check` command that reports what BSI would do, and proves it by launching the browser.
 6. `browser install` succeeding offline when the requested build is already staged.
 7. Two latent bugs that become user-visible as a direct result of the above (§8).
+8. The **check contract and registry** from §15.3–§15.4, with `browser check` built on it. Only the
+   contract itself is phase-1 work; it is here because retrofitting it onto a shipped `browser check`
+   is the expensive path.
 
 **Explicitly out of scope**
 
@@ -84,6 +87,8 @@ broken. It is fixed but, at the time of writing, unreleased.
   That is phase 2.
 - An internal download mirror (`--browser-download-base-url`). Phase 3, demand-driven.
 - Auto-detecting system-installed Chrome or Edge. Phase 3.
+- The `doctor` command itself — `doctor check`, `doctor analyze`, `doctor explain`. Designed in §15
+  so that phase 1 builds towards it, but only the contract it rests on is built now.
 
 ---
 
@@ -403,6 +408,13 @@ The doctor. It answers "will a real run work on this machine?" without touching 
 safe to hand to a customer as the first troubleshooting step, and safe to script into a deployment
 check.
 
+> **Build this on the check contract in §15.3, not as a standalone command.** Everything specified
+> below — the options, the output, the exit codes — stays exactly as written; what changes is that
+> the facts come from registered checks and the formatting from a shared renderer. That costs
+> roughly a third more than a bespoke implementation and is the difference between the *second*
+> diagnostic being nearly free and requiring a rewrite of a command users already depend on. §15.1
+> explains the reasoning.
+
 **Files**
 
 - `src/lib/commands/browser/check.js` — `buildBrowserCheckCommand()` and `handleBrowserCheck()`,
@@ -508,6 +520,11 @@ error:        Icons at it with --browser-cache-dir or BSI_BROWSER_CACHE_DIR.
 error:     3. Or, if Chrome or Edge is already installed here, point at it with
 error:        --browser-executable-path or BSI_BROWSER_EXECUTABLE_PATH.
 ```
+
+Both the success and failure output end with the **best-effort disclaimer** specified in §15.7,
+immediately before the `Result:` line, in exactly the wording given there. `browser check` ships
+before `doctor` does, so it is the first command to give an administrator advice — the disclaimer
+cannot wait for the doctor to arrive.
 
 ### 7.4 Exit code
 
@@ -630,7 +647,18 @@ was given); the default rebuilt with the real `homedir()` (this repo never mocks
 `src/lib/browser/__tests__/browser_check.test.js` — `ok: true` when the override exists and launch
 succeeds; `ok: false, wouldDownload: true` with **`browserInstall` and `canDownload` never called**;
 `browser.close()` called even when `version()` throws; `--skip-launch` never calls `puppeteer.launch`;
-a wrong-platform cached build listed as `usable: false` with a reason.
+a wrong-platform cached build listed as `usable: false` with a reason; and **the best-effort
+disclaimer is emitted on both the success and the failure path**. That last one guards a requirement
+that is otherwise invisible — nothing breaks if the line quietly disappears in a refactor, which is
+exactly why it needs a test rather than a code comment.
+
+`src/lib/doctor/__tests__/checks.test.js` — the check contract (§15.3). Each check is pure: given a
+fabricated `ctx`, it returns the expected findings without touching the filesystem or the network.
+Plus three runner-level guarantees that are cheap now and expensive to retrofit: a check that throws
+becomes an `error` finding naming that check rather than taking down the report; a check with
+`needsNetwork: true` is skipped unless `--allow-network` is passed; and every finding ID in the
+registry is unique. That last one is a one-line test that prevents the ID collisions §15.4 warns
+about, at the moment they are introduced rather than after they have shipped in someone's logs.
 
 Optional `browser_cache_dir.integration.test.js` — install into a temp directory via
 `--browser-cache-dir`, list it back, uninstall. The `.integration.test.js` suffix is mandatory because
@@ -793,7 +821,7 @@ makes the failure more confusing. If only one thing can ship, ship the detection
 | 3 | `feat: choose the browser cache directory with --browser-cache-dir` | The option on 6 commands, `PUPPETEER_CACHE_DIR` fallback, the `uninstall-all` safety fix, doc draft. |
 | 4 | `feat: point Butler Sheet Icons at a browser with --browser-executable-path` | The option on 2 commands, precedence, `BrowserNotFoundError`, the `launchBrowserForApp` message change, doc draft. |
 | 5 | `fix: let browser install succeed offline when the build is already staged` | §8.1. |
-| 6 | `feat: add a browser check command` | The doctor, including both new options. Lands last; its output becomes the standard bug report for air-gapped issues. |
+| 6 | `feat: add a browser check command` | The check contract, registry and renderer (§15.3–§15.4), the four browser checks, and the command built on them, including both new options. Lands last; its output becomes the standard bug report for air-gapped issues. |
 | 7 | `fix: uninstall the browser build that was actually found` | The `platform` bug, §8.2. Independent of everything else. |
 
 Documentation drafts go **inside** commits 3–6, not in a separate `docs:` commit.
@@ -827,6 +855,8 @@ Conventional Commit types configured in `release-please-config.json`: `feat` (mi
 - `browser check` on a machine with no browser and no internet exits `1` and prints the three next
   steps — no network timeout, no stack trace.
 - `browser check` on a machine with a staged browser exits `0` and reports the launched version.
+- **`browser check` prints the best-effort disclaimer (§15.7) on both the success and failure paths**,
+  in the agreed wording, with no flag that suppresses it.
 - A cache staged from a different operating system produces the platform-mismatch warning naming both
   platforms, and detection returns `null` rather than a broken path.
 - An existing standalone user with a browser in `~/.cache/puppeteer` and nothing beside the binary
@@ -834,6 +864,271 @@ Conventional Commit types configured in `release-please-config.json`: `feat` (mi
 - Drafts for §11.1–11.4 exist in `docs/to-doc-site/`, unprefixed.
 - `docs/browser-detection-environment-variables.md`'s detection pseudo-code and
   `detectAvailableBrowser`'s JSDoc both describe the new order.
+- **A fifth diagnostic check can be added with one new file and one registry line**, with no change
+  to the runner, the renderer or any command. This is the acceptance test for §15.3 — if it does not
+  hold, the contract is wrong and the next diagnostic will be as expensive as the first.
 
 Note that markdown in this repository is **not** Prettier-formatted — existing files under `docs/` do
 not pass `prettier --check`, and the `format` script covers `src/**/*.js` only. Do not reformat them.
+
+---
+
+## 15. Beyond phase 1: the `doctor` command
+
+`browser check` (§7) answers one question about one subsystem. The same machinery, generalised,
+answers the question administrators actually arrive with: *"BSI failed — why, and what do I do?"*
+
+This section designs that generalisation. **Only §15.3 and §15.4 are phase-1 work**; the rest is
+designed now so that phase 1 builds towards it instead of away from it. §15.8 sets out what to build
+when.
+
+### 15.1 Why this belongs in a phase 1 document
+
+If `browser check` ships as a bespoke command that gathers facts and formats them inline, then the
+first additional diagnostic — a Qlik connectivity check, a certificate check — either duplicates that
+structure or triggers a rewrite of a command users already depend on. Both outcomes are avoidable at
+a cost of maybe a third more work now.
+
+So the constraint on phase 1 is narrow but firm: **`browser check` must be a consumer of the check
+contract, not a standalone implementation.** Its command, its output and its exit codes stay exactly
+as designed in §7. What changes is that the facts come from registered checks rather than from a
+single function, and the formatting comes from a shared renderer.
+
+### 15.2 Command surface
+
+BSI's established shape is `namespace subcommand`, so `doctor` becomes a namespace:
+
+| Command | Purpose |
+| --- | --- |
+| `doctor check` | Run diagnostic checks against this machine and report findings. Commander's `isDefault` makes it what bare `doctor` runs. |
+| `doctor analyze` | Investigate a specific failure — a crash dump, a log file, or a pasted error message — and say what probably caused it. |
+| `doctor explain <finding-id>` | Print the full explanation and remediation for one finding ID. |
+
+`browser check` stays. It is discoverable where a user with a browser problem is already looking, and
+after §15.3 it is a thin alias for `doctor check --area browser`. Keeping both costs one small file
+and makes neither redundant, because they are found by different people at different moments.
+
+`doctor explain` is not a nicety. An air-gapped administrator cannot open
+butler-sheet-icons.ptarmiganlabs.com, so a finding that says "see the documentation" is useless to
+exactly the audience this whole document is about. Shipping the explanations in the binary is what
+makes the diagnostics self-sufficient offline.
+
+### 15.3 The check contract
+
+A check is a module that gathers facts and returns findings. It does not log, does not format, and
+does not touch process state — the same pure-core/logging-shell split already proven by `checkEnv()`
+in `src/lib/util/env-check.js`.
+
+```js
+export const check = {
+    id: 'browser-cache-platform',          // stable, kebab-case, unique
+    title: 'Cached browsers match this machine',
+    area: 'browser',                       // browser | environment | config | qseow | qscloud
+    needsNetwork: false,                   // true checks are skipped unless --allow-network
+    appliesTo: (ctx) => true,              // cheap predicate; skip irrelevant checks
+    run: async (ctx) => [ /* Finding[] */ ],
+};
+```
+
+`ctx` is a plain object assembled once per run and handed to every check: the resolved options, a
+snapshot of the relevant environment variables, the platform facts from §7.3, the resolved cache
+directory and executable override from §3, and a `logger` for `debug` only. Passing facts in rather
+than letting checks read the world is what makes them unit-testable without mocking the filesystem.
+
+`src/lib/doctor/checks/index.js` is a flat registry — an array of imported checks. **Adding a check
+is one new file plus one array entry, with no change to the runner.** That property is the whole
+point; anything that erodes it (a check that needs a special case in the runner, a finding that needs
+bespoke formatting) is a signal that the contract is wrong, not that the check is special.
+
+Two rules the runner enforces rather than trusting:
+
+- **A check may not mutate anything.** No installs, no file writes, no `process.exitCode`.
+- **A check may not reach the network or Qlik Sense unless `needsNetwork` is set and
+  `--allow-network` was passed.** The default must be safe to run on a production Sense server at any
+  time, and — per §7.1 — must never hang on a DNS timeout on an air-gapped host.
+
+The four browser checks that fall out of phase 1 directly: executable override resolves and exists;
+cached builds match the host platform; cached builds have present executables; the browser actually
+launches (`needsNetwork: false` — it is a local process).
+
+### 15.4 Findings and stable IDs
+
+```js
+{
+    id: 'BSI-BROWSER-003',            // stable, documented, searchable
+    severity: 'error',                // error | warning | info | ok
+    title: 'Cached browsers were built for a different operating system',
+    detail: 'The cache holds 2 chrome build(s), all for mac_arm. This machine is win64.',
+    evidence: { cacheDir: '...', hostPlatform: 'win64', cachedPlatforms: ['mac_arm'] },
+    remediation: [
+        {
+            text: 'Stage the browser from a machine running the same operating system.',
+            command: {
+                powershell: 'butler-sheet-icons.exe browser install --browser chrome --browser-version latest',
+                bash: './butler-sheet-icons browser install --browser chrome --browser-version latest',
+            },
+        },
+    ],
+    docs: 'guide/advanced/air-gapped-installation#platform-must-match',
+}
+```
+
+Design rules, in order of how expensive they are to get wrong:
+
+- **Finding IDs are permanent and append-only.** They will appear in logs, in GitHub issues, in the
+  doc site's troubleshooting entries, and in `doctor explain`. Never reuse an ID, never renumber, and
+  retire one by marking it obsolete rather than deleting it. Reserve a block per area
+  (`BSI-BROWSER-*`, `BSI-ENV-*`, `BSI-QSEOW-*`) so areas can grow independently.
+- **`severity: 'ok'` findings are emitted, not omitted.** "I checked this and it is fine" is what
+  lets an administrator rule a cause out, and it is what makes the output usable as a bug report.
+- **`detail` states what was observed, with the actual values.** "No browser found" helps nobody;
+  "the cache at `D:\bsi\cache` holds 2 chrome builds, all for mac_arm, and this machine is win64"
+  ends the investigation.
+- **`remediation` is ordered and concrete, and commands are platform-keyed.** The renderer prints the
+  one matching the host. BSI's primary platform is Windows Server, where a bash snippet is noise.
+- **`docs` is a relative doc-site path**, resolved to a URL by the renderer and printed as a bare
+  path when offline.
+
+The §6.3 warnings and these findings must not drift into two separate wordings of the same fact.
+Where a detection warning and a finding describe the same condition, the finding's `title` and
+`detail` are the source of truth and the log line quotes them.
+
+### 15.5 `doctor analyze`: from symptom to confirmed cause
+
+Inputs, in the order they are most likely to be used:
+
+| Input | Notes |
+| --- | --- |
+| `--log <file>` | A BSI log file. The common case — most BSI failures are caught and logged, not crashes. |
+| `--error <text>` | A pasted error message, for the administrator who has a terminal scrollback and nothing else. |
+| `--crash-dump <file>` | BSI's own crash dump JSON. Well-defined (`version: '1.0'`, `error.{type,message,stack}`, `runtime`, `context.source`) and **already redacted at write time**. |
+| *(none)* | Defaults to the newest crash dump in `BSI_CRASH_DUMP_DIR`. |
+
+Be honest in the documentation about the crash-dump limitation: `writeCrashDump()` fires only from
+the top-level `uncaughtException` / `unhandledRejection` handlers, so most BSI failures never produce
+one. `--log` is the primary input.
+
+Analysis has two stages, and the second is what makes this worth building:
+
+1. **Match.** Compare the input against a *symptom catalogue* — one entry per known failure mode,
+   holding match rules (substring, regex, or an `error_category` from `getErrorCategory()`) and the
+   candidate causes each implies. For structured errors, prefer `getErrorCategory()` and
+   `getErrorMetadata()` from `src/lib/util/error-categorizer.js` over pattern-matching the message
+   text; they already classify timeouts, refused connections, unresolved hosts, auth failures,
+   certificate errors and HTTP status classes.
+2. **Confirm.** For each candidate cause, run the checks that would prove or disprove it *on this
+   machine*, and report accordingly.
+
+Stage 2 is the difference between a lookup table and an investigator. "Your error matches
+`cannot be downloaded`, which usually means no internet access" is a guess. "Your error matches
+`cannot be downloaded`; I checked, and this machine has a usable chrome 138.0.7204.94 staged at
+`D:\bsi\cache`, so the problem is the pinned `--browser-version`, not connectivity" is an answer.
+
+A symptom entry is data, not code:
+
+```js
+{
+    id: 'browser-download-blocked',
+    match: { anyOf: [{ contains: 'cannot be downloaded' }, { errorCategory: 'host_not_found' }] },
+    causes: ['no-internet-access', 'version-pin-miss', 'proxy-intercepts-https'],
+    confirmWith: ['browser-cache-platform', 'browser-cache-executable'],
+}
+```
+
+### 15.6 How this evolves
+
+The requirement is that the command keeps pace with BSI and with what users report. That reduces to
+making the response to a hard support question mechanical:
+
+1. Add a symptom entry (data) so the failure is recognised.
+2. Add or extend a check (one file, one registry line) if confirming the cause needs a new fact.
+3. Allocate the next finding ID in that area's block and write its explanation.
+4. Add the matching troubleshooting entry to the doc site, quoting the finding verbatim.
+
+No runner changes, no renderer changes, no command changes. **If a new diagnostic cannot be added
+without touching the runner, that is a defect in the contract** — fix the contract rather than
+special-casing the check.
+
+Two things this must not become: a remote-fetched rule set (air-gapped hosts cannot fetch, and a
+diagnostic that silently changes is unsupportable), and a catalogue of speculative entries. Every
+symptom entry should trace to a real reported issue, and carry that issue number in a comment — an
+entry nobody has ever hit is a maintenance cost with no reader.
+
+### 15.7 Output, redaction and exit codes
+
+Human output groups findings by severity, worst first, and prints the platform-appropriate
+remediation command ready to paste. `--output json` emits the findings array for scripting — and,
+more usefully, gives support a complete machine-readable picture to ask for in a GitHub issue.
+
+#### The best-effort disclaimer
+
+**Every command in this family states, in its own output, that its suggestions are best-effort.** This
+is the primary mitigation for the "wrong advice is worse than none" risk in §15.9, and it is a
+requirement rather than a courtesy: BSI is reasoning from what it can observe on one machine, and it
+cannot see group policy, antivirus rules, proxy configuration, filesystem permissions it did not
+happen to test, or anything about the Qlik Sense installation itself.
+
+Rules:
+
+- **It is not suppressible in human output.** There is no `--no-disclaimer`. A flag to hide it would
+  be used by exactly the automated contexts where a human later reads the output without knowing it
+  was hidden.
+- **It appears once**, immediately before the `Result:` line, so it is the last thing read and sits
+  next to the advice rather than scrolled away above it.
+- **It is a field in JSON output**, not just prose, so it survives into anything that reformats the
+  report:
+
+  ```json
+  { "disclaimer": "Findings are best-effort ...", "findings": [ ... ] }
+  ```
+
+- **It pairs with per-finding confidence.** The disclaimer covers the general case; the renderer must
+  additionally distinguish a finding *confirmed on this machine* from a *possible cause* inferred
+  from a symptom match (§15.5). A blanket disclaimer is not a licence to present guesses as facts.
+
+Proposed wording, to be used verbatim by `doctor check`, `doctor analyze` and `browser check` alike:
+
+```
+Note: these findings are best-effort. Butler Sheet Icons reports what it can observe on this
+machine, and cannot see everything about your environment - group policy, antivirus, proxy rules
+and Qlik Sense itself are all invisible to it. Review suggested commands before running them on a
+production server.
+```
+
+Keep the wording identical across the three commands. An administrator who has read it once should
+recognise it and skip it, rather than having to re-read a variant.
+
+**Redaction is a hard requirement, not a nicety.** The entire value of the JSON output is that people
+will paste it into public issues, and `doctor analyze --log` reads files that may contain passwords,
+API keys and certificates. Every finding — `detail`, `evidence` and any quoted input — must pass
+through `redactSensitivePatterns()` / `redactValue()` from `src/lib/util/redact-secrets.js` before it
+reaches any output. Test that explicitly, with a log fixture containing a known secret pattern; this
+is the one place in the design where a bug is a disclosure rather than an inconvenience.
+
+Exit codes follow §7.4 with the same reasoning:
+
+- `doctor check` — `0` when no `error`-severity finding, `1` otherwise. Scriptable as a deployment
+  gate.
+- `doctor analyze` — always `0` unless its input could not be read. It reports; it does not gate.
+  Exiting non-zero because it *found* something would break its use inside troubleshooting scripts.
+
+### 15.8 What to build when
+
+| Stage | Scope | Cost |
+| --- | --- | --- |
+| **Phase 1** | The check contract, the registry, the renderer, and the four browser checks. `browser check` built on them, behaving exactly as §7 specifies. | ~⅓ more than a bespoke `browser check`; avoids a rewrite later. |
+| **Next** | `doctor check` running every registered check, `--area` filtering, `--output json`. | Small — the runner already exists; this is a command plus a renderer mode. |
+| **Later** | `doctor explain`, the symptom catalogue, and `doctor analyze`. Environment and Qlik connectivity checks as demand appears. | The largest piece, and the one that should be driven by real reported issues rather than designed up front. |
+
+The staging matters because the value is back-loaded but the cost is front-loaded. Phase 1 buys the
+structure; the payoff arrives when the second and third checks cost almost nothing to add.
+
+### 15.9 Risks
+
+| Risk | Mitigation |
+| --- | --- |
+| **Wrong advice is worse than none.** An administrator who follows a confident, incorrect remediation on a production Sense server loses trust permanently. | Three layers. (1) The non-suppressible best-effort disclaimer in §15.7, in every command in this family. (2) Every remediation verified against a real reproduction before it ships. (3) The renderer distinguishes "confirmed on this machine" from "possible cause", so a symptom match is never presented as a diagnosis. The disclaimer sets expectations; it does not excuse an unverified remediation. |
+| Secret disclosure via `--output json` or `analyze --log` | §15.7. Mandatory redaction, with a dedicated test. |
+| Catalogue rot — entries describing behaviour that has since changed | Tie every entry to a real issue number; review the catalogue when the code it describes changes. Prefer confirming with a live check over asserting from a pattern, because a check fails visibly when the code moves. |
+| Scope creep into a general Qlik Sense diagnostic tool | The boundary is BSI's own operation. Checking that BSI can reach the Sense host is in scope; diagnosing the Sense installation is not. |
+| A diagnostic command that itself crashes | The runner isolates each check in `try/catch` and turns a thrown check into an `error` finding naming the check. One broken check must never take down the report. |
