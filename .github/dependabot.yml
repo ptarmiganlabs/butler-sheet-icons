@@ -9,3 +9,19 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+
+  # Workflow action pins. Without this the SHAs never move on their own, which is how they
+  # drifted 1-3 majors behind and ended up on the deprecated Node.js 20 runtime.
+  # Grouped so this arrives as one PR a week rather than one per action.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    # Same 7-day supply-chain quarantine that .npmrc applies to npm packages: a freshly
+    # published action release is the most likely to be a compromised one, so let it age first.
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns:
+          - "*"
