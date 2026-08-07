@@ -99,6 +99,8 @@ let logger;
 let browserInstall;
 let detectAvailableBrowser;
 let determineSheetExcludeStatus;
+let qseowUploadToContentLibrary;
+let qseowUpdateSheetThumbnails;
 
 beforeAll(async () => {
     await Promise.all([
@@ -125,6 +127,8 @@ beforeAll(async () => {
     ({ browserInstall } = await import('../../browser/browser-install.js'));
     ({ detectAvailableBrowser } = await import('../../browser/browser-detect.js'));
     ({ determineSheetExcludeStatus } = await import('../determine-sheet-exclude-status.js'));
+    ({ qseowUploadToContentLibrary } = await import('../qseow-upload.js'));
+    ({ qseowUpdateSheetThumbnails } = await import('../qseow-updatesheets.js'));
     ({ qseowProcessApp } = await import('../qseow-process-app.js'));
 });
 
@@ -423,6 +427,8 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
             excludeSheet: false,
             sheetIsHidden: false,
         });
+        qseowUploadToContentLibrary.mockResolvedValue(true);
+        qseowUpdateSheetThumbnails.mockResolvedValue(true);
 
         const mockGet = jest.fn().mockImplementation((path) => {
             if (path.includes('app?filter=id eq')) {
@@ -485,5 +491,20 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
 
         const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
         expect(logged).not.toContain("reading 'rank'");
+    });
+
+    test('does not point sheets at images that failed to upload', async () => {
+        // The upload used to swallow every failure and return normally, so the caller
+        // went straight on to repoint every sheet at files that were never uploaded.
+        // Sheets that had working icons ended up showing broken ones.
+        setup([sheetItem('sheet-a', 1)]);
+        qseowUploadToContentLibrary.mockRejectedValue(
+            new Error('Failed to upload 1 of 1 thumbnail image(s)')
+        );
+
+        await qseowProcessApp('test-app-id', options);
+
+        expect(qseowUploadToContentLibrary).toHaveBeenCalledTimes(1);
+        expect(qseowUpdateSheetThumbnails).not.toHaveBeenCalled();
     });
 });

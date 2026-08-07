@@ -92,6 +92,7 @@ let browserInstall;
 let detectAvailableBrowser;
 let takeSheetScreenshot;
 let qscloudUploadToApp;
+let qscloudUpdateSheetThumbnails;
 
 beforeAll(async () => {
     await Promise.all([
@@ -117,6 +118,7 @@ beforeAll(async () => {
     ({ detectAvailableBrowser } = await import('../../browser/browser-detect.js'));
     ({ takeSheetScreenshot } = await import('../sheet-screenshot.js'));
     ({ qscloudUploadToApp } = await import('../cloud-upload.js'));
+    ({ qscloudUpdateSheetThumbnails } = await import('../cloud-updatesheets.js'));
     ({ processCloudApp } = await import('../process-cloud-app.js'));
 });
 
@@ -404,6 +406,7 @@ describe('process-cloud-app.js — a sheet with no metadata does not abort the a
         });
         takeSheetScreenshot.mockResolvedValue(true);
         qscloudUploadToApp.mockResolvedValue(true);
+        qscloudUpdateSheetThumbnails.mockResolvedValue(true);
 
         const mockApp = {
             createSessionObject: jest.fn().mockResolvedValue({
@@ -480,5 +483,107 @@ describe('process-cloud-app.js — a sheet with no metadata does not abort the a
 
         const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
         expect(logged).not.toContain("reading 'showCondition'");
+    });
+});
+
+describe('process-cloud-app.js — a failed upload must not update the sheets', () => {
+    /**
+     * Wires just enough of the stack to reach the upload step with one sheet.
+     *
+     * @returns {object} The mock SaaS instance to pass to `processCloudApp`.
+     */
+    function setupToUploadStep() {
+        jest.clearAllMocks();
+
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/test/browser',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+        takeSheetScreenshot.mockResolvedValue(true);
+        qscloudUpdateSheetThumbnails.mockResolvedValue(true);
+
+        const mockApp = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({
+                    qAppObjectList: {
+                        qItems: [
+                            {
+                                qInfo: { qId: 'sheet-a' },
+                                qMeta: {
+                                    title: 'Sheet A',
+                                    description: '',
+                                    approved: false,
+                                    published: false,
+                                },
+                                qData: { rank: 1, showCondition: null },
+                            },
+                        ],
+                    },
+                }),
+            }),
+            evaluateEx: jest.fn().mockResolvedValue({ qIsNumeric: false, qNumber: 1 }),
+        };
+        enigma.create.mockResolvedValue({
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '1.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(mockApp),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        });
+
+        puppeteer.launch.mockResolvedValue({
+            newPage: jest.fn().mockResolvedValue({
+                setViewport: jest.fn().mockResolvedValue(true),
+                setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                goto: jest.fn().mockResolvedValue(true),
+                waitForNavigation: jest.fn().mockResolvedValue(true),
+                screenshot: jest.fn().mockResolvedValue(true),
+                click: jest.fn().mockResolvedValue(true),
+                keyboard: { type: jest.fn().mockResolvedValue(true) },
+            }),
+            close: jest.fn().mockResolvedValue(true),
+        });
+
+        const saasInstance = { Get: jest.fn() };
+        saasInstance.Get.mockImplementation((p) => {
+            if (p.includes('media/list')) return Promise.resolve([]);
+            return Promise.resolve({
+                attributes: { name: 'Test App', published: false, publishTime: null },
+            });
+        });
+        return saasInstance;
+    }
+
+    test('does not point sheets at images that failed to upload', async () => {
+        // The upload used to swallow every failure and return normally, so the caller
+        // went straight on to repoint every sheet at files that were never uploaded.
+        // Sheets that had working icons ended up showing broken ones.
+        const saasInstance = setupToUploadStep();
+        qscloudUploadToApp.mockRejectedValue(new Error('Failed to upload 1 of 1 image(s)'));
+
+        await processCloudApp('test-app-id', saasInstance, {
+            tenanturl: 'test-tenant.eu.qlikcloud.com',
+            apikey: 'test-api-key',
+            imagedir: './img',
+            logonuserid: 'test-user',
+            logonpwd: 'password',
+            appid: 'test-app-id',
+            includesheetpart: '1',
+            schemaversion: '12.612.0',
+            browser: 'chrome',
+            browserVersion: 'latest',
+            headless: true,
+            pagewait: 0,
+            loglevel: 'info',
+            excludeSheetStatus: [],
+            excludeSheetNumber: [],
+            excludeSheetTitle: [],
+        });
+
+        expect(qscloudUploadToApp).toHaveBeenCalledTimes(1);
+        expect(qscloudUpdateSheetThumbnails).not.toHaveBeenCalled();
     });
 });

@@ -1,6 +1,8 @@
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 import path from 'path';
 
+import { QseowError } from '../../util/errors.js';
+
 const statSync = jest.fn();
 const readFileSync = jest.fn().mockReturnValue(Buffer.from('png-bytes'));
 
@@ -227,37 +229,63 @@ describe('qseowUploadToContentLibrary', () => {
     });
 
     describe('error handling', () => {
+        // A resolved promise from this function is the caller's signal that every image is
+        // in place, and the caller then points the app's sheets at those images. Anything
+        // that did not upload has to surface as a rejection, or sheets that had working
+        // icons end up showing broken ones while the run reports success.
+
         test('a failed upload does not stop the remaining files', async () => {
             withFiles(['thumbnail-1.png', 'thumbnail-2.png', 'thumbnail-3.png']);
             Post.mockRejectedValueOnce(new Error('QRS rejected the upload'));
 
-            await qseowUploadToContentLibrary(
-                [
-                    { fileNameShort: 'thumbnail-1.png' },
-                    { fileNameShort: 'thumbnail-2.png' },
-                    { fileNameShort: 'thumbnail-3.png' },
-                ],
-                APP_ID,
-                BASE_OPTIONS
-            );
+            await expect(
+                qseowUploadToContentLibrary(
+                    [
+                        { fileNameShort: 'thumbnail-1.png' },
+                        { fileNameShort: 'thumbnail-2.png' },
+                        { fileNameShort: 'thumbnail-3.png' },
+                    ],
+                    APP_ID,
+                    BASE_OPTIONS
+                )
+            ).rejects.toThrow(QseowError);
 
             expect(Post).toHaveBeenCalledTimes(3);
+        });
+
+        test('rejects when a single file failed to upload', async () => {
+            withFiles(['thumbnail-1.png', 'thumbnail-2.png', 'thumbnail-3.png']);
+            Post.mockRejectedValueOnce(new Error('QRS rejected the upload'));
+
+            await expect(
+                qseowUploadToContentLibrary(
+                    [
+                        { fileNameShort: 'thumbnail-1.png' },
+                        { fileNameShort: 'thumbnail-2.png' },
+                        { fileNameShort: 'thumbnail-3.png' },
+                    ],
+                    APP_ID,
+                    BASE_OPTIONS
+                )
+            ).rejects.toThrow('Failed to upload 1 of 3 thumbnail image(s)');
         });
 
         test('logs a failed upload rather than swallowing it silently', async () => {
             withFiles(['thumbnail-1.png']);
             Post.mockRejectedValue(new Error('QRS rejected the upload'));
 
-            await qseowUploadToContentLibrary(
-                [{ fileNameShort: 'thumbnail-1.png' }],
-                APP_ID,
-                BASE_OPTIONS
-            );
+            await expect(
+                qseowUploadToContentLibrary(
+                    [{ fileNameShort: 'thumbnail-1.png' }],
+                    APP_ID,
+                    BASE_OPTIONS
+                )
+            ).rejects.toThrow(QseowError);
 
             expect(logger.error).toHaveBeenCalled();
         });
 
-        test('does not reject when a file cannot be stat-ed', async () => {
+        test('rejects when a file cannot be stat-ed', async () => {
             statSync.mockImplementation(() => {
                 throw new Error('ENOENT: no such file or directory');
             });
@@ -268,17 +296,38 @@ describe('qseowUploadToContentLibrary', () => {
                     APP_ID,
                     BASE_OPTIONS
                 )
-            ).resolves.toBeUndefined();
+            ).rejects.toThrow(QseowError);
 
             expect(logger.error).toHaveBeenCalled();
         });
 
-        test('does not reject when the file list is not iterable', async () => {
+        test('names the content library whose upload failed', async () => {
+            withFiles(['thumbnail-1.png']);
+            Post.mockRejectedValue(new Error('QRS rejected the upload'));
+
+            await expect(
+                qseowUploadToContentLibrary(
+                    [{ fileNameShort: 'thumbnail-1.png' }],
+                    APP_ID,
+                    BASE_OPTIONS
+                )
+            ).rejects.toThrow(BASE_OPTIONS.contentlibrary);
+        });
+
+        test('rejects when the file list is not iterable', async () => {
             await expect(
                 qseowUploadToContentLibrary(undefined, APP_ID, BASE_OPTIONS)
-            ).resolves.toBeUndefined();
+            ).rejects.toThrow(QseowError);
 
             expect(logger.error).toHaveBeenCalled();
+        });
+
+        test('keeps the underlying failure as the cause when setup itself fails', async () => {
+            // Only the setup path wraps a single underlying error. A per-file failure is
+            // reported as a count, so there is no one cause to attach.
+            await expect(
+                qseowUploadToContentLibrary(undefined, APP_ID, BASE_OPTIONS)
+            ).rejects.toMatchObject({ cause: expect.any(TypeError) });
         });
     });
 

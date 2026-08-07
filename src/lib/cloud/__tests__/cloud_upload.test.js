@@ -1,6 +1,8 @@
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 import path from 'path';
 
+import { CloudError } from '../../util/errors.js';
+
 const statSync = jest.fn();
 // Bytes derived from the path, so an upload that reads the wrong file is detectable.
 // A constant buffer here would let the blurred upload silently ship the unblurred image.
@@ -196,46 +198,87 @@ describe('qscloudUploadToApp', () => {
     });
 
     describe('error handling', () => {
+        // A resolved promise from this function is the caller's signal that every image is
+        // in place, and the caller then points the app's sheets at those images. Anything
+        // that did not upload has to surface as a rejection, or sheets that had working
+        // icons end up showing broken ones while the run reports success.
+
         test('a failed upload does not stop the remaining files', async () => {
             withFiles(['thumbnail-1.png', 'thumbnail-2.png']);
             Put.mockRejectedValueOnce(new Error('413 Payload Too Large'));
 
-            await qscloudUploadToApp(
-                [{ fileNameShort: 'thumbnail-1.png' }, { fileNameShort: 'thumbnail-2.png' }],
-                APP_ID,
-                BASE_OPTIONS
-            );
+            await expect(
+                qscloudUploadToApp(
+                    [{ fileNameShort: 'thumbnail-1.png' }, { fileNameShort: 'thumbnail-2.png' }],
+                    APP_ID,
+                    BASE_OPTIONS
+                )
+            ).rejects.toThrow(CloudError);
 
             expect(Put).toHaveBeenCalledTimes(2);
+        });
+
+        test('rejects when a single file failed to upload', async () => {
+            withFiles(['thumbnail-1.png', 'thumbnail-2.png']);
+            Put.mockRejectedValueOnce(new Error('413 Payload Too Large'));
+
+            await expect(
+                qscloudUploadToApp(
+                    [{ fileNameShort: 'thumbnail-1.png' }, { fileNameShort: 'thumbnail-2.png' }],
+                    APP_ID,
+                    BASE_OPTIONS
+                )
+            ).rejects.toThrow('Failed to upload 1 of 2 thumbnail image(s)');
         });
 
         test('logs a failed upload rather than swallowing it silently', async () => {
             withFiles(['thumbnail-1.png']);
             Put.mockRejectedValue(new Error('413 Payload Too Large'));
 
-            await qscloudUploadToApp([{ fileNameShort: 'thumbnail-1.png' }], APP_ID, BASE_OPTIONS);
+            await expect(
+                qscloudUploadToApp([{ fileNameShort: 'thumbnail-1.png' }], APP_ID, BASE_OPTIONS)
+            ).rejects.toThrow(CloudError);
 
             expect(logger.error).toHaveBeenCalled();
         });
 
-        test('does not reject when a file cannot be stat-ed', async () => {
+        test('rejects when a file cannot be stat-ed', async () => {
             statSync.mockImplementation(() => {
                 throw new Error('ENOENT: no such file or directory');
             });
 
             await expect(
                 qscloudUploadToApp([{ fileNameShort: 'thumbnail-1.png' }], APP_ID, BASE_OPTIONS)
-            ).resolves.toBeUndefined();
+            ).rejects.toThrow(CloudError);
 
             expect(logger.error).toHaveBeenCalled();
         });
 
-        test('does not reject when the file list is not iterable', async () => {
+        test('names the app whose upload failed', async () => {
+            withFiles(['thumbnail-1.png']);
+            Put.mockRejectedValue(new Error('413 Payload Too Large'));
+
             await expect(
-                qscloudUploadToApp(undefined, APP_ID, BASE_OPTIONS)
-            ).resolves.toBeUndefined();
+                qscloudUploadToApp([{ fileNameShort: 'thumbnail-1.png' }], APP_ID, BASE_OPTIONS)
+            ).rejects.toThrow(APP_ID);
+        });
+
+        test('rejects when the file list is not iterable', async () => {
+            await expect(qscloudUploadToApp(undefined, APP_ID, BASE_OPTIONS)).rejects.toThrow(
+                CloudError
+            );
 
             expect(logger.error).toHaveBeenCalled();
+        });
+
+        test('keeps the underlying failure as the cause when setup itself fails', async () => {
+            // Only the setup path wraps a single underlying error. A per-file failure is
+            // reported as a count, so there is no one cause to attach.
+            await expect(qscloudUploadToApp(undefined, APP_ID, BASE_OPTIONS)).rejects.toMatchObject(
+                {
+                    cause: expect.any(TypeError),
+                }
+            );
         });
     });
 
