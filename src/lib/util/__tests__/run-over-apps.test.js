@@ -51,6 +51,19 @@ describe('runOverApps', () => {
         expect(result).toBe(true);
     });
 
+    test('counts the deduplicated apps, not the raw input, in the summary', async () => {
+        // The summary line is the only place the count reaches the operator. Without a
+        // failing app the line never fires, so a duplicate-only test cannot pin it - and
+        // `uniqueAppIds.length` could silently become `appIds.length`.
+        const worker = jest.fn(async (appId) => {
+            if (appId === 'b') throw new Error('engine unreachable');
+        });
+
+        await runOverApps(['a', 'b', 'a'], CTX, worker);
+
+        expect(errorLog()).toContain('Failed to process 1 of 2 app(s)');
+    });
+
     describe('a failing app', () => {
         test('does not stop the apps after it', async () => {
             const worker = jest.fn(async (appId) => {

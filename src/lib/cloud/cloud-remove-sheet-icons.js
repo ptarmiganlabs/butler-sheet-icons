@@ -254,7 +254,7 @@ export const qscloudRemoveSheetIcons = async (options) => {
             }
         }
 
-        return runOverApps(
+        return await runOverApps(
             appIdsToProcess,
             {
                 logPrefix: 'CLOUD PROCESS APP 2',

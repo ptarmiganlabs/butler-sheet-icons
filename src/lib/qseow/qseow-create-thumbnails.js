@@ -100,7 +100,7 @@ export const qseowCreateThumbnails = async (options) => {
             }
         }
 
-        return runOverApps(
+        return await runOverApps(
             appIdsToProcess,
             {
                 logPrefix: 'QSEOW PROCESS APP',

@@ -192,7 +192,7 @@ export const qseowRemoveSheetIcons = async (options) => {
             }
         }
 
-        return runOverApps(
+        return await runOverApps(
             appIdsToProcess,
             {
                 logPrefix: 'QSEOW PROCESS APP: Remove sheet icons',

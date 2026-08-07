@@ -18,6 +18,10 @@ import { logger } from '../../globals.js';
  * The per-app worker is expected to log its own failure in detail before rethrowing; the
  * line logged here names the app and the reason, without repeating the stack.
  *
+ * Callers must `return await` this, never a bare `return`. All four sit inside a
+ * `try`/`catch`, and returning the promise unawaited hands it back before it settles - so
+ * a rejection would skip the caller's own catch entirely rather than being logged there.
+ *
  * @param {string[]} appIds - App IDs to process. Duplicates are removed, so an app named
  *     by both `--appid` and a collection is processed once.
  * @param {object} ctx - Logging context.
