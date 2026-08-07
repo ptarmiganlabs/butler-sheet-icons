@@ -6,6 +6,7 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
 import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
+import { sortSheetsByRank } from '../util/sheet-list.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) application.
@@ -71,11 +72,7 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             // Sort sheets
-            sheetListObj.qAppObjectList.qItems.sort((sheet1, sheet2) => {
-                if (sheet1.qData.rank < sheet2.qData.rank) return -1;
-                if (sheet1.qData.rank > sheet2.qData.rank) return 1;
-                return 0;
-            });
+            sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
             let iSheetNum = 1;
 

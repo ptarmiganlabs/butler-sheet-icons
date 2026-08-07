@@ -90,6 +90,8 @@ let enigma;
 let logger;
 let browserInstall;
 let detectAvailableBrowser;
+let takeSheetScreenshot;
+let qscloudUploadToApp;
 
 beforeAll(async () => {
     await Promise.all([
@@ -113,6 +115,8 @@ beforeAll(async () => {
     ({ logger } = await import('../../../globals.js'));
     ({ browserInstall } = await import('../../browser/browser-install.js'));
     ({ detectAvailableBrowser } = await import('../../browser/browser-detect.js'));
+    ({ takeSheetScreenshot } = await import('../sheet-screenshot.js'));
+    ({ qscloudUploadToApp } = await import('../cloud-upload.js'));
     ({ processCloudApp } = await import('../process-cloud-app.js'));
 });
 
@@ -341,5 +345,140 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
             'Failed to install a browser for Qlik Sense Cloud app test-app-id'
         );
         expect(puppeteer.launch).not.toHaveBeenCalled();
+    });
+});
+
+describe('process-cloud-app.js — a sheet with no metadata does not abort the app', () => {
+    const options = {
+        tenanturl: 'test-tenant.eu.qlikcloud.com',
+        apikey: 'test-api-key',
+        imagedir: './img',
+        logonuserid: 'test-user',
+        logonpwd: 'password',
+        appid: 'test-app-id',
+        includesheetpart: '1',
+        schemaversion: '12.612.0',
+        browser: 'chrome',
+        browserVersion: 'latest',
+        headless: true,
+        pagewait: 0,
+        loglevel: 'info',
+        excludeSheetStatus: [],
+        excludeSheetNumber: [],
+        excludeSheetTitle: [],
+    };
+
+    /**
+     * Builds a well-formed sheet as the engine's `SheetList` returns it.
+     *
+     * @param {string} id - Engine object id for the sheet.
+     * @param {number} rank - Sheet rank.
+     *
+     * @returns {object} A sheet object with complete metadata.
+     */
+    const goodSheet = (id, rank) => ({
+        qInfo: { qId: id },
+        qMeta: { title: id, description: '', approved: false, published: false },
+        qData: { rank, showCondition: null },
+    });
+
+    /**
+     * Wires the full mock stack, with a caller-supplied sheet list.
+     *
+     * The whole stack is re-established here rather than shared with the describe block
+     * above, because that block's last test leaves `detectAvailableBrowser` and
+     * `browserInstall` in a failure state and this file does not reset between tests.
+     *
+     * @param {Array<object>} qItems - Sheets to return from the SheetList session object.
+     *
+     * @returns {object} The mock SaaS instance to pass to `processCloudApp`.
+     */
+    function setup(qItems) {
+        jest.clearAllMocks();
+
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/test/browser',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+        takeSheetScreenshot.mockResolvedValue(true);
+        qscloudUploadToApp.mockResolvedValue(true);
+
+        const mockApp = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({ qAppObjectList: { qItems } }),
+            }),
+            evaluateEx: jest.fn().mockResolvedValue({ qIsNumeric: false, qNumber: 1 }),
+        };
+        enigma.create.mockResolvedValue({
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '1.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(mockApp),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        });
+
+        const page = {
+            setViewport: jest.fn().mockResolvedValue(true),
+            setDefaultTimeout: jest.fn().mockResolvedValue(true),
+            goto: jest.fn().mockResolvedValue(true),
+            waitForNavigation: jest.fn().mockResolvedValue(true),
+            screenshot: jest.fn().mockResolvedValue(true),
+            click: jest.fn().mockResolvedValue(true),
+            keyboard: { type: jest.fn().mockResolvedValue(true) },
+        };
+        puppeteer.launch.mockResolvedValue({
+            newPage: jest.fn().mockResolvedValue(page),
+            close: jest.fn().mockResolvedValue(true),
+        });
+
+        const saasInstance = { Get: jest.fn() };
+        saasInstance.Get.mockImplementation((path) => {
+            if (path.includes('media/list')) return Promise.resolve([]);
+            return Promise.resolve({
+                attributes: { name: 'Test App', published: false, publishTime: null },
+            });
+        });
+        return saasInstance;
+    }
+
+    test('sorts the rank-less sheet last instead of throwing from the comparator', async () => {
+        // Sorting happens before any per-sheet handling, so an unguarded read of
+        // sheet.qData.rank inside the comparator aborted the app before a single
+        // screenshot was taken.
+        const saasInstance = setup([
+            goodSheet('sheet-b', 2),
+            { qInfo: { qId: 'broken' }, qMeta: { title: 'Broken' } },
+            goodSheet('sheet-a', 1),
+        ]);
+
+        await processCloudApp('test-app-id', saasInstance, options);
+
+        // The rank-less sheet sorts last but is still a real sheet, with an id and a
+        // title, so it is processed like any other once the comparator stops throwing.
+        const screenshotted = takeSheetScreenshot.mock.calls.map((call) => call[4].qInfo.qId);
+        expect(screenshotted).toEqual(['sheet-a', 'sheet-b', 'broken']);
+
+        const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(logged).not.toContain("reading 'rank'");
+    });
+
+    test('finishes the app, uploading the thumbnails it managed to create', async () => {
+        // Getting past the sort is not enough on its own: the show-condition read a few
+        // lines further down was unguarded too, so the app still died before the upload
+        // and every screenshot taken was discarded.
+        const saasInstance = setup([
+            goodSheet('sheet-a', 1),
+            { qInfo: { qId: 'broken' }, qMeta: { title: 'Broken' } },
+        ]);
+
+        await processCloudApp('test-app-id', saasInstance, options);
+
+        expect(qscloudUploadToApp).toHaveBeenCalledTimes(1);
+
+        const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(logged).not.toContain("reading 'showCondition'");
     });
 });

@@ -182,3 +182,79 @@ describe('qseowUpdateSheetThumbnails — --blur-sheet-tag handling (issue #840)'
         expect(verbose).not.toContain('via tags');
     });
 });
+
+describe('qseowUpdateSheetThumbnails — sheets with missing metadata', () => {
+    /**
+     * Wires the enigma mock chain over a caller-supplied list of sheet list items.
+     *
+     * @param {Array<object>} qItems - Sheet list items to return from the SheetList object.
+     *
+     * @returns {object} The mock app, so tests can inspect `getObject` call order.
+     */
+    function wireEnigmaWithSheets(qItems) {
+        const app = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({ qAppObjectList: { qItems } }),
+            }),
+            getObject: jest.fn().mockImplementation(async () => ({
+                getProperties: jest
+                    .fn()
+                    .mockResolvedValue({ thumbnail: { qStaticContentUrlDef: { qUrl: '' } } }),
+                setProperties: jest.fn().mockResolvedValue({ ok: true }),
+            })),
+            doSave: jest.fn().mockResolvedValue(true),
+        };
+
+        enigma.create.mockResolvedValue({
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '12.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(app),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        });
+
+        return app;
+    }
+
+    /**
+     * Builds a well-formed sheet list item.
+     *
+     * @param {string} qId - Engine object id.
+     * @param {number} rank - Sheet rank.
+     *
+     * @returns {object} A sheet list item.
+     */
+    const sheetItem = (qId, rank) => ({
+        qInfo: { qId },
+        qMeta: { title: qId, description: '' },
+        qData: { rank },
+    });
+
+    test('still processes the well-formed sheets when one sheet has no qData', async () => {
+        // Sorting runs before any per-sheet handling, so an unguarded read of
+        // sheet.qData.rank in the comparator discarded every update for the app.
+        // The rank-less sheet now sorts last.
+        const app = wireEnigmaWithSheets([
+            sheetItem('sheet-b', 2),
+            { qInfo: { qId: 'broken' }, qMeta: { title: 'Broken', description: '' } },
+            sheetItem('sheet-a', 1),
+        ]);
+
+        await qseowUpdateSheetThumbnails(
+            [
+                { sheetPos: 1, fileNameShort: 'thumbnail-1.png' },
+                { sheetPos: 2, fileNameShort: 'thumbnail-2.png' },
+                { sheetPos: 3, fileNameShort: 'thumbnail-3.png' },
+            ],
+            'test-app-id',
+            BASE_OPTIONS
+        );
+
+        expect(app.getObject.mock.calls.map((call) => call[0])).toEqual([
+            'sheet-a',
+            'sheet-b',
+            'broken',
+        ]);
+    });
+});

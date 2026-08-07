@@ -5,6 +5,7 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
 import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
+import { sortSheetsByRank } from '../util/sheet-list.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Cloud app.
@@ -99,11 +100,7 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
 
             // Sort sheets
-            sheetListObj.qAppObjectList.qItems.sort((sheet1, sheet2) => {
-                if (sheet1.qData.rank < sheet2.qData.rank) return -1;
-                if (sheet1.qData.rank > sheet2.qData.rank) return 1;
-                return 0;
-            });
+            sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
             let iSheetNum = 1;
 
