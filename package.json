@@ -51,7 +51,7 @@
         "puppeteer-core": "^25.0.0",
         "qrs-interact": "^6.3.1",
         "table": "^6.9.0",
-        "upath": "^3.0.7",
+        "upath": "^3.0.8",
         "winston": "^3.19.0",
         "ws": "^8.21.0"
     },
