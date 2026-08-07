@@ -6,7 +6,8 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
 import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
-import { sortSheetsByRank } from '../util/sheet-list.js';
+import { QseowError } from '../util/errors.js';
+import { runOverSheets, sortSheetsByRank } from '../util/sheet-list.js';
 import { runOverApps } from '../util/run-over-apps.js';
 
 /**
@@ -20,9 +21,16 @@ import { runOverApps } from '../util/run-over-apps.js';
  * @param {string} options.qrsport - Qlik Sense Repository Service (QRS) port of the Qlik server.
  * @param {string} options.senseVersion - The version of Qlik Sense being used.
  *
- * @returns {Promise<void>} Resolves once all sheet icons in the app have been cleared.
+ * @returns {Promise<void>} Resolves once every sheet's icon has been cleared, or the app has
+ *     no sheets.
+ *
+ * @throws {QseowError} When any sheet's icon could not be cleared. Other sheets are still
+ *     attempted first and the engine session is always released.
+ * @throws {Error} Whatever the engine threw, if the session itself was lost.
  */
 const removeSheetIconsQSEoWApp = async (appId, g, options) => {
+    let sheetRun;
+
     try {
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
@@ -75,12 +83,15 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
             // Sort sheets
             sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
-            let iSheetNum = 1;
-
-            for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                // One unwritable sheet must not abandon the sheets after it, or skip the
-                // session close below.
-                try {
+            sheetRun = await runOverSheets(
+                sheetListObj.qAppObjectList.qItems,
+                {
+                    logPrefix: 'QSEOW REMOVE SHEET ICONS',
+                    appId,
+                    action: 'remove icons for',
+                    ErrorClass: QseowError,
+                },
+                async (sheet, iSheetNum) => {
                     logger.info(
                         `Removing icon for sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
                     );
@@ -95,14 +106,8 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
                     const res = await sheetObj.setProperties(sheetProperties);
                     logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
                     await app.doSave();
-                } catch (err) {
-                    logger.error(
-                        `QSEOW: Failed to remove icon for sheet ${iSheetNum} ('${sheet.qMeta.title}', ID ${sheet.qInfo.qId}) in app ${appId}: ${err.message ?? err}`
-                    );
                 }
-
-                iSheetNum += 1;
-            }
+            );
         }
 
         // Closed outside the sheet-count guard: an app with no sheets still holds an open
@@ -126,6 +131,8 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;
     }
+
+    sheetRun?.assertAllProcessed();
 };
 
 /**

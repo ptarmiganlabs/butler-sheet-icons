@@ -24,6 +24,7 @@ Butler Sheet Icons now exits with:
 - **Any app that could not be processed.** Other apps in the same run are still attempted — one bad app does not stop the rest — but the run as a whole reports failure at the end.
 - **A connection that could not be established** to the Qlik Sense server or Qlik Sense Cloud tenant.
 - **A selection that matched no apps at all** — for example a `--collectionid` that exists but contains no apps, or a `--qliksensetag` that no app carries. Previously this finished silently and reported success.
+- **Any sheet within an app that could not be updated, or whose icon could not be removed.** The other sheets are still attempted; the app is reported as failed at the end.
 - **A Qlik Sense Cloud connection test that returns a response with no user in it.** This used to print `Connection to tenant … successful.` followed by four lines reading `undefined`, and the run then failed later for reasons that looked unrelated.
 
 ## New messages in the log
@@ -67,6 +68,17 @@ Connection test to tenant mytenant.eu.qlikcloud.com returned a response with no 
 
 3. If you need the job to keep going for now while you investigate, most schedulers let you ignore the exit code of a step. Treat that as temporary: the exit code is telling you that sheet icons are not being updated the way you asked.
 
-## What is still not covered
+## Individual sheets count too
 
-A sheet that could not be updated **within** an otherwise successful app does not by itself make the run report failure. Those failures are logged, but the exit code stays 0 if every app was otherwise processed. Per-sheet failure reporting is a separate change that has not shipped yet.
+A sheet that could not be updated within an app now fails that app, and therefore the run.
+
+Butler Sheet Icons still tries every other sheet first — one read-only sheet does not stop the ones after it — and the engine session is always released. Only at the end is the app reported as failed:
+
+```
+CLOUD UPDATE SHEETS: Failed to update sheet 1 ('Sales overview', ID abc-123) in app 97089caf: Sheet is read-only
+Failed to update 1 of 2 sheet(s) in app 97089caf
+```
+
+The count is of sheets Butler Sheet Icons **tried** to update. Sheets deliberately left alone — because you excluded them, or because no thumbnail was generated for them — are not counted in either figure. So "1 of 2" means two sheets were attempted and one of them failed, regardless of how many sheets the app has in total.
+
+The per-sheet line names the sheet by title and ID, which is what you need to find it in Qlik Sense. The number is the sheet's position in the app, counting from 1.

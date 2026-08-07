@@ -3,6 +3,9 @@
  * session object, shared by the Qlik Sense Cloud and QSEoW code paths.
  */
 
+import { logger } from '../../globals.js';
+import { getErrorCategory } from './error-categorizer.js';
+
 /**
  * Sorts a list of app sheets by their engine rank, in place.
  *
@@ -49,3 +52,182 @@ export const sortSheetsByRank = (sheets) =>
         if (rank1 > rank2) return 1;
         return 0;
     });
+
+/**
+ * Reports whether a sheet appears in a list of sheets carrying some QRS tag.
+ *
+ * Both sides of the identity comparison are guarded, and that matters more than it looks.
+ * `element.engineObjectId === sheet.qInfo.qId` throws when a sheet arrives without
+ * `qInfo`; adding optional chaining to only the right-hand side replaces the crash with
+ * `undefined === undefined`, which is `true` - so every sheet missing its id would match
+ * the tag list and be silently excluded or blurred. A sheet with no id matches nothing.
+ *
+ * @param {Array<object>} taggedSheets - Sheets carrying the tag, each exposing
+ *     `engineObjectId`. May be undefined or empty, in which case nothing matches.
+ * @param {object} sheet - Sheet from `qAppObjectList.qItems`.
+ *
+ * @returns {boolean} `true` only when the sheet has an engine id and that id is present in
+ *     the tagged list.
+ */
+export const isSheetTagged = (taggedSheets, sheet) => {
+    const engineObjectId = sheet?.qInfo?.qId;
+
+    if (engineObjectId === undefined || engineObjectId === null) {
+        return false;
+    }
+
+    return (taggedSheets ?? []).some((element) => element?.engineObjectId === engineObjectId);
+};
+
+/**
+ * Sentinel a `runOverSheets` worker returns to say it did no work for this sheet.
+ *
+ * A symbol rather than a falsy value on purpose: a worker that forgets to return anything
+ * yields `undefined`, and treating that as "skipped" would silently report an app in which
+ * every sheet was updated as one in which nothing was attempted. The safe default is to
+ * count a sheet as attempted unless the worker says otherwise.
+ */
+export const SHEET_SKIPPED = Symbol('sheet skipped');
+
+/**
+ * Decides whether a failure belongs to one sheet or to the whole app.
+ *
+ * Per-sheet isolation is right for a sheet that cannot be written - read-only, deleted
+ * mid-run, owned by someone else. It is wrong for a dead engine session: every remaining
+ * sheet then fails for the same reason, and the run reports "38 of 40 sheets failed" when
+ * what actually happened is one dropped websocket.
+ *
+ * Net-level classification is delegated to `getErrorCategory`, which already knows about
+ * refused connections, timeouts and resets. The message checks cover enigma.js and the
+ * Chrome DevTools Protocol, whose session deaths carry no `code`.
+ *
+ * @param {Error|unknown} err - Error thrown by a per-sheet worker.
+ *
+ * @returns {boolean} `true` when the failure is session- or connection-level, so continuing
+ *     to the next sheet would only repeat it.
+ */
+export const isSessionLevelFailure = (err) => {
+    if (
+        ['timeout', 'connection_refused', 'host_not_found', 'connection_reset'].includes(
+            getErrorCategory(err)
+        )
+    ) {
+        return true;
+    }
+
+    const message = typeof err?.message === 'string' ? err.message.toLowerCase() : '';
+
+    return (
+        message.includes('socket closed') ||
+        message.includes('session closed') ||
+        message.includes('connection closed') ||
+        message.includes('target closed') ||
+        message.includes('websocket')
+    );
+};
+
+/**
+ * Runs a per-sheet worker over an app's sheets, isolating each sheet from the others and
+ * keeping count of the ones that failed.
+ *
+ * The counting is the point. Per-sheet isolation exists so one bad sheet does not abandon
+ * the ones after it, but on its own it also swallows the outcome: an app in which every
+ * sheet failed used to resolve normally and be counted a success.
+ *
+ * Counts are over sheets **attempted**, not sheets present. A worker that returns
+ * `SHEET_SKIPPED` - the thumbnail-update paths do this for sheets no screenshot was taken
+ * for - is not counted in either figure. Reporting "1 of 5" for an app where four sheets
+ * were deliberately left alone and the fifth failed reads as mostly-fine when in fact
+ * nothing succeeded.
+ *
+ * A session-level failure stops the loop rather than being isolated, and is re-thrown by
+ * `assertAllProcessed()` unchanged - so the operator sees the dropped connection once,
+ * rather than the same message repeated per remaining sheet under a count that blames the
+ * sheets. The loop stops but does not throw immediately, so the caller still closes its
+ * engine session first.
+ *
+ * The verdict is deliberately *not* thrown from here. Every caller has an engine session to
+ * close first, so they call `assertAllProcessed()` on the result after closing. Returning a
+ * bare count instead would put the same assertion at every call site - which is exactly the
+ * duplication this helper exists to remove.
+ *
+ * @param {Array<object>} sheets - Sheets from `qAppObjectList.qItems`, already sorted.
+ * @param {object} ctx - Logging and error context.
+ * @param {string} ctx.logPrefix - Prefix for per-sheet failure lines, e.g. `'CLOUD UPDATE SHEETS'`.
+ * @param {string} ctx.appId - App the sheets belong to.
+ * @param {string} ctx.action - Verb for messages, e.g. `'update'` or `'remove icons for'`.
+ * @param {new (message: string) => Error} ctx.ErrorClass - Platform error type to throw.
+ * @param {boolean} [ctx.requireAttempt] - When true, finishing without attempting a single
+ *     sheet is itself a failure. Callers set this when they know work was expected - the
+ *     update paths pass it when thumbnails were created, since every sheet skipping means
+ *     no icon was applied at all.
+ * @param {(sheet: object, iSheetNum: number) => Promise<unknown>} processSheet - Worker
+ *     invoked once per sheet, with the 1-based sheet number. Returns `SHEET_SKIPPED` to
+ *     record that it did nothing for that sheet.
+ *
+ * @returns {Promise<{attempted: number, failed: number, skipped: number, assertAllProcessed: () => void}>}
+ *     The counts, plus a check to call once the engine session has been released.
+ */
+export const runOverSheets = async (sheets, ctx, processSheet) => {
+    const { logPrefix, appId, action, ErrorClass, requireAttempt = false } = ctx;
+    let attempted = 0;
+    let failed = 0;
+    let skipped = 0;
+    let iSheetNum = 1;
+    let sessionFailure;
+
+    for (const sheet of sheets) {
+        try {
+            const outcome = await processSheet(sheet, iSheetNum);
+
+            if (outcome === SHEET_SKIPPED) {
+                skipped += 1;
+            } else {
+                attempted += 1;
+            }
+        } catch (err) {
+            // A sheet that threw was attempted, whatever it was about to return.
+            attempted += 1;
+
+            if (isSessionLevelFailure(err)) {
+                // Not this sheet's fault, and every sheet after it would fail identically.
+                sessionFailure = err;
+                logger.error(
+                    `${logPrefix}: Lost the engine session while processing app ${appId} at sheet ${iSheetNum}, abandoning the remaining sheets: ${err?.message ?? err}`
+                );
+                break;
+            }
+
+            failed += 1;
+            logger.error(
+                `${logPrefix}: Failed to ${action} sheet ${iSheetNum} ('${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}) in app ${appId}: ${err?.message ?? err}`
+            );
+        }
+
+        iSheetNum += 1;
+    }
+
+    return {
+        attempted,
+        failed,
+        skipped,
+        assertAllProcessed: () => {
+            // Surface the real cause, not a sheet count that would blame the sheets.
+            if (sessionFailure) {
+                throw sessionFailure;
+            }
+
+            if (failed > 0) {
+                throw new ErrorClass(
+                    `Failed to ${action} ${failed} of ${attempted} sheet(s) in app ${appId}`
+                );
+            }
+
+            if (requireAttempt && attempted === 0) {
+                throw new ErrorClass(
+                    `No sheet in app ${appId} could be matched to a generated thumbnail, so no icon was ${action}d. All ${skipped} sheet(s) were skipped.`
+                );
+            }
+        },
+    };
+};

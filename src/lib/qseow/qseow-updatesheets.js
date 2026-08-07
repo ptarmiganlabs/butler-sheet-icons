@@ -3,7 +3,12 @@ import enigma from 'enigma.js';
 import { setupEnigmaConnection } from './qseow-enigma.js';
 import { logger } from '../../globals.js';
 import { QseowError } from '../util/errors.js';
-import { sortSheetsByRank } from '../util/sheet-list.js';
+import {
+    isSheetTagged,
+    runOverSheets,
+    SHEET_SKIPPED,
+    sortSheetsByRank,
+} from '../util/sheet-list.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Enterprise on Windows (QSEoW) app.
@@ -16,7 +21,13 @@ import { sortSheetsByRank } from '../util/sheet-list.js';
  * tag named by `--blur-sheet-tag`, each entry exposing `engineObjectId`. Defaults to empty so the
  * tag rule simply matches nothing when the caller has not looked it up.
  *
- * @returns {Promise<void>} Resolves when the sheet thumbnails have been updated in the QSEoW app.
+ * @returns {Promise<void>} Resolves when every sheet that had a generated thumbnail was
+ *     updated.
+ *
+ * @throws {QseowError} When any sheet could not be updated, or when thumbnails were created
+ *     but no sheet matched one. Other sheets are still attempted first and the engine
+ *     session is always released.
+ * @throws {Error} Whatever the engine threw, if the session itself was lost.
  */
 export const qseowUpdateSheetThumbnails = async (
     createdFiles,
@@ -24,6 +35,8 @@ export const qseowUpdateSheetThumbnails = async (
     options,
     tagSheetAppMetadata = []
 ) => {
+    let sheetRun;
+
     try {
         logger.verbose(`Starting update of sheet icons for app ${appId}`);
 
@@ -79,119 +92,129 @@ export const qseowUpdateSheetThumbnails = async (
             // Sort sheets
             sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
-            let iSheetNum = 1;
+            sheetRun = await runOverSheets(
+                sheetListObj.qAppObjectList.qItems,
+                {
+                    logPrefix: 'QSEOW UPDATE SHEETS',
+                    appId,
+                    action: 'update',
+                    requireAttempt: createdFiles.length > 0,
+                    ErrorClass: QseowError,
+                },
+                async (sheet, iSheetNum) => {
+                    // Is this sheet among those that should be updated?
 
-            for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                // Is this sheet among those that should be updated?
-
-                if (createdFiles.find((element) => element.sheetPos === iSheetNum) === undefined) {
-                    // No thumbnail for this sheet, skip
-                    logger.info(
-                        `Skipping update of sheet sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                    );
-                } else {
-                    // Should blurred sheet thumbnail be used?
-                    // Options are
-                    // --blur-sheet-tag <value>
-                    // --blur-sheet-number <number...>
-                    // --blur-sheet-title <title...>
-                    // --blur-sheet-status <status...>
-
-                    let blurSheet = false;
-
-                    // Should this sheet be blurred based on its published status?
-                    // Public sheets
                     if (
-                        sheet.qMeta.approved === true &&
-                        sheet.qMeta.published === true &&
-                        options.blurSheetStatus &&
-                        options.blurSheetStatus.includes('public')
+                        createdFiles.find((element) => element.sheetPos === iSheetNum) === undefined
                     ) {
-                        blurSheet = true;
-                        logger.verbose(
-                            `Blurred sheet thumbnail (status public): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                        );
-                    }
-
-                    // Published sheets
-                    if (
-                        sheet.qMeta.approved === false &&
-                        sheet.qMeta.published === true &&
-                        options.blurSheetStatus &&
-                        options.blurSheetStatus.includes('published')
-                    ) {
-                        blurSheet = true;
-                        logger.verbose(
-                            `Blurred sheet thumbnail (status published): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                        );
-                    }
-
-                    // Should this sheet be blurred based on tags?
-                    // tagSheetAppMetadata is an array of sheet objects, each exposing engineObjectId.
-                    // It arrives empty unless the caller looked the tag up, which nothing does yet -
-                    // see issue #840. Until then the rule matches nothing rather than throwing.
-                    if (options.blurSheetTag && blurSheet === false) {
-                        blurSheet = tagSheetAppMetadata.some(
-                            (element) => element.engineObjectId === sheet.qInfo.qId
-                        );
-                        if (blurSheet) {
-                            logger.verbose(
-                                `Blurred sheet thumbnail (via tags): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                            );
-                        }
-                    }
-
-                    // Should this sheet be blurred based on its position/sheet number?
-                    if (options.blurSheetNumber && blurSheet === false) {
-                        // Does the sheet number match any of the numbers in options.blurSheetNumber array?
-                        // Take into account that iSheetNum is an integer, so we need to convert it to a string
-                        if (options.blurSheetNumber.includes(iSheetNum.toString())) {
-                            blurSheet = true;
-                            logger.verbose(
-                                `Blurred sheet thumbnail (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                            );
-                        }
-                    }
-
-                    // Should this sheet be blurred based on its title?
-                    if (options.blurSheetTitle && blurSheet === false) {
-                        // Does the sheet title match any of the titles options.blurSheetTitle array?
-                        if (options.blurSheetTitle.includes(sheet.qMeta.title)) {
-                            blurSheet = true;
-                            logger.verbose(
-                                `Blurred sheet thumbnail (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                            );
-                        }
-                    }
-
-                    // Get properties of current sheet
-                    const sheetObj = await app.getObject(sheet.qInfo.qId);
-                    const sheetProperties = await sheetObj.getProperties();
-
-                    if (blurSheet === true) {
+                        // No thumbnail for this sheet, skip. Guarded: this line is inside
+                        // the counted region, so an unguarded dereference here would fail
+                        // the app over a sheet nobody was going to touch.
                         logger.info(
-                            `Using blurred thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                            `Skipping update of sheet sheet ${iSheetNum}: Name '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}'`
                         );
 
-                        // Set new sheet thumbnail
-                        sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}-blurred.png`;
+                        return SHEET_SKIPPED;
                     } else {
-                        logger.info(
-                            `Using regular thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                        );
+                        // Should blurred sheet thumbnail be used?
+                        // Options are
+                        // --blur-sheet-tag <value>
+                        // --blur-sheet-number <number...>
+                        // --blur-sheet-title <title...>
+                        // --blur-sheet-status <status...>
 
-                        // Set new sheet thumbnail
-                        sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}.png`;
+                        let blurSheet = false;
+
+                        // Should this sheet be blurred based on its published status?
+                        // Public sheets
+                        if (
+                            sheet.qMeta.approved === true &&
+                            sheet.qMeta.published === true &&
+                            options.blurSheetStatus &&
+                            options.blurSheetStatus.includes('public')
+                        ) {
+                            blurSheet = true;
+                            logger.verbose(
+                                `Blurred sheet thumbnail (status public): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                            );
+                        }
+
+                        // Published sheets
+                        if (
+                            sheet.qMeta.approved === false &&
+                            sheet.qMeta.published === true &&
+                            options.blurSheetStatus &&
+                            options.blurSheetStatus.includes('published')
+                        ) {
+                            blurSheet = true;
+                            logger.verbose(
+                                `Blurred sheet thumbnail (status published): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                            );
+                        }
+
+                        // Should this sheet be blurred based on tags?
+                        // tagSheetAppMetadata is an array of sheet objects, each exposing engineObjectId.
+                        // It arrives empty unless the caller looked the tag up, which nothing does yet -
+                        // see issue #840. Until then the rule matches nothing rather than throwing.
+                        if (options.blurSheetTag && blurSheet === false) {
+                            blurSheet = isSheetTagged(tagSheetAppMetadata, sheet);
+                            if (blurSheet) {
+                                logger.verbose(
+                                    `Blurred sheet thumbnail (via tags): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                                );
+                            }
+                        }
+
+                        // Should this sheet be blurred based on its position/sheet number?
+                        if (options.blurSheetNumber && blurSheet === false) {
+                            // Does the sheet number match any of the numbers in options.blurSheetNumber array?
+                            // Take into account that iSheetNum is an integer, so we need to convert it to a string
+                            if (options.blurSheetNumber.includes(iSheetNum.toString())) {
+                                blurSheet = true;
+                                logger.verbose(
+                                    `Blurred sheet thumbnail (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                                );
+                            }
+                        }
+
+                        // Should this sheet be blurred based on its title?
+                        if (options.blurSheetTitle && blurSheet === false) {
+                            // Does the sheet title match any of the titles options.blurSheetTitle array?
+                            if (options.blurSheetTitle.includes(sheet.qMeta.title)) {
+                                blurSheet = true;
+                                logger.verbose(
+                                    `Blurred sheet thumbnail (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                                );
+                            }
+                        }
+
+                        // Get properties of current sheet
+                        const sheetObj = await app.getObject(sheet.qInfo.qId);
+                        const sheetProperties = await sheetObj.getProperties();
+
+                        if (blurSheet === true) {
+                            logger.info(
+                                `Using blurred thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                            );
+
+                            // Set new sheet thumbnail
+                            sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}-blurred.png`;
+                        } else {
+                            logger.info(
+                                `Using regular thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                            );
+
+                            // Set new sheet thumbnail
+                            sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}.png`;
+                        }
+
+                        // Set & save new sheet thumbnail
+                        const res = await sheetObj.setProperties(sheetProperties);
+                        logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
+                        await app.doSave();
                     }
-
-                    // Set & save new sheet thumbnail
-                    const res = await sheetObj.setProperties(sheetProperties);
-                    logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
-                    await app.doSave();
                 }
-
-                iSheetNum += 1;
-            }
+            );
         }
 
         // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
@@ -210,4 +233,6 @@ export const qseowUpdateSheetThumbnails = async (
 
         throw new QseowError(`Failed to update sheet thumbnails in app ${appId}`, { cause: err });
     }
+
+    sheetRun?.assertAllProcessed();
 };

@@ -1,6 +1,29 @@
-import { describe, test, expect } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 
-import { sortSheetsByRank } from '../sheet-list.js';
+jest.unstable_mockModule('../../../globals.js', () => ({
+    logger: {
+        info: jest.fn(),
+        error: jest.fn(),
+        verbose: jest.fn(),
+        debug: jest.fn(),
+        warn: jest.fn(),
+    },
+}));
+
+const { logger } = await import('../../../globals.js');
+const { isSessionLevelFailure, isSheetTagged, runOverSheets, SHEET_SKIPPED, sortSheetsByRank } =
+    await import('../sheet-list.js');
+
+/**
+ * Joins everything logged at error level, for substring assertions.
+ *
+ * @returns {string} All error lines, newline separated.
+ */
+const errorLog = () => logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+
+beforeEach(() => {
+    jest.clearAllMocks();
+});
 
 /**
  * Builds a sheet shaped like an entry in the engine's `qAppObjectList.qItems`.
@@ -92,5 +115,283 @@ describe('sortSheetsByRank', () => {
         // which is not transitive - the good sheets could come out in any order.
         const sheets = [sheet('c', 3), sheetWithoutQData('broken'), sheet('a', 1), sheet('b', 2)];
         expect(ids(sortSheetsByRank(sheets))).toEqual(['a', 'b', 'c', 'broken']);
+    });
+});
+
+describe('isSheetTagged', () => {
+    test('matches a sheet whose engine id is in the tagged list', () => {
+        const tagged = [{ engineObjectId: 'sheet-a' }, { engineObjectId: 'sheet-b' }];
+
+        expect(isSheetTagged(tagged, { qInfo: { qId: 'sheet-b' } })).toBe(true);
+    });
+
+    test('does not match a sheet absent from the tagged list', () => {
+        const tagged = [{ engineObjectId: 'sheet-a' }];
+
+        expect(isSheetTagged(tagged, { qInfo: { qId: 'sheet-z' } })).toBe(false);
+    });
+
+    test('does not throw for a sheet with no qInfo', () => {
+        // `element.engineObjectId === sheet.qInfo.qId` threw here.
+        expect(() => isSheetTagged([{ engineObjectId: 'sheet-a' }], { qMeta: {} })).not.toThrow();
+        expect(isSheetTagged([{ engineObjectId: 'sheet-a' }], { qMeta: {} })).toBe(false);
+    });
+
+    test('a sheet with no id does not match a tag entry that also has no id', () => {
+        // The documented trap: guarding only the right-hand side turns the crash into
+        // `undefined === undefined`, which is true - so every sheet missing its id would
+        // silently be treated as carrying the tag.
+        expect(isSheetTagged([{ engineObjectId: undefined }], { qInfo: {} })).toBe(false);
+        expect(isSheetTagged([{}], { qMeta: {} })).toBe(false);
+        expect(isSheetTagged([{ engineObjectId: null }], { qInfo: { qId: null } })).toBe(false);
+    });
+
+    test('treats a missing or empty tag list as no match', () => {
+        expect(isSheetTagged(undefined, { qInfo: { qId: 'sheet-a' } })).toBe(false);
+        expect(isSheetTagged([], { qInfo: { qId: 'sheet-a' } })).toBe(false);
+    });
+});
+
+describe('runOverSheets', () => {
+    const CTX = {
+        logPrefix: 'TEST PREFIX',
+        appId: 'app-1',
+        action: 'update',
+        ErrorClass: class TestError extends Error {},
+    };
+
+    /**
+     * Builds a sheet with the metadata the error line reads back.
+     *
+     * @param {string} id - Engine object id, also used as the title suffix.
+     *
+     * @returns {object} A sheet object.
+     */
+    const sheet = (id) => ({ qInfo: { qId: id }, qMeta: { title: `Sheet ${id}` } });
+
+    test('runs the worker once per sheet, with 1-based numbering', async () => {
+        const worker = jest.fn();
+
+        await runOverSheets([sheet('a'), sheet('b')], CTX, worker);
+
+        expect(worker.mock.calls.map((call) => call[1])).toEqual([1, 2]);
+    });
+
+    test('counts a sheet the worker acted on as attempted', async () => {
+        const result = await runOverSheets([sheet('a'), sheet('b')], CTX, jest.fn());
+
+        expect(result).toMatchObject({ attempted: 2, failed: 0, skipped: 0 });
+    });
+
+    test('does not count a skipped sheet as attempted', async () => {
+        // Reporting "1 of 5" for an app where four sheets were deliberately left alone
+        // reads as mostly-fine when nothing actually succeeded.
+        const worker = jest.fn(async (s, n) => (n === 1 ? undefined : SHEET_SKIPPED));
+
+        const result = await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+
+        expect(result).toMatchObject({ attempted: 1, skipped: 2 });
+    });
+
+    test('treats a worker that returns nothing as having attempted the sheet', async () => {
+        // The safe default: forgetting to return must not silently mark everything skipped.
+        const result = await runOverSheets([sheet('a')], CTX, async () => {});
+
+        expect(result).toMatchObject({ attempted: 1, skipped: 0 });
+    });
+
+    describe('a failing sheet', () => {
+        const failOn = (n) =>
+            jest.fn(async (s, i) => {
+                if (i === n) throw new Error('sheet is read-only');
+            });
+
+        test('does not stop the sheets after it', async () => {
+            const worker = failOn(1);
+
+            await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+
+            expect(worker).toHaveBeenCalledTimes(3);
+        });
+
+        test('is counted as both attempted and failed', async () => {
+            const result = await runOverSheets([sheet('a'), sheet('b')], CTX, failOn(1));
+
+            expect(result).toMatchObject({ attempted: 2, failed: 1 });
+        });
+
+        test('is identified in the log by title and engine id, not just position', async () => {
+            // Position is a rank-order number that appears nowhere in the Qlik Sense UI.
+            // Without the title and id an admin cannot find the sheet that failed.
+            await runOverSheets([sheet('abc-123')], CTX, failOn(1));
+
+            expect(errorLog()).toContain('TEST PREFIX');
+            expect(errorLog()).toContain('Sheet abc-123');
+            expect(errorLog()).toContain('abc-123');
+            expect(errorLog()).toContain('app-1');
+            expect(errorLog()).toContain('sheet is read-only');
+        });
+
+        test('survives a sheet with no metadata to name it', async () => {
+            await runOverSheets([{}], CTX, failOn(1));
+
+            expect(errorLog()).toContain('sheet is read-only');
+        });
+    });
+
+    describe('assertAllProcessed', () => {
+        test('passes when every attempted sheet succeeded', async () => {
+            const result = await runOverSheets([sheet('a')], CTX, jest.fn());
+
+            expect(() => result.assertAllProcessed()).not.toThrow();
+        });
+
+        test('passes when every sheet was skipped', async () => {
+            const result = await runOverSheets([sheet('a')], CTX, async () => SHEET_SKIPPED);
+
+            expect(() => result.assertAllProcessed()).not.toThrow();
+        });
+
+        test('counts against sheets attempted, not sheets present', async () => {
+            const worker = jest.fn(async (s, n) => {
+                if (n === 1) throw new Error('boom');
+                return SHEET_SKIPPED;
+            });
+            const result = await runOverSheets(
+                [sheet('a'), sheet('b'), sheet('c'), sheet('d')],
+                CTX,
+                worker
+            );
+
+            expect(() => result.assertAllProcessed()).toThrow('Failed to update 1 of 1 sheet(s)');
+        });
+
+        test('names the app and uses the caller-supplied error type', async () => {
+            const result = await runOverSheets([sheet('a')], CTX, async () => {
+                throw new Error('boom');
+            });
+
+            expect(() => result.assertAllProcessed()).toThrow(CTX.ErrorClass);
+            expect(() => result.assertAllProcessed()).toThrow('app-1');
+        });
+    });
+});
+
+describe('isSessionLevelFailure', () => {
+    test.each([
+        ['a dropped enigma socket', new Error('Socket closed')],
+        ['a closed CDP session', new Error('Protocol error: Session closed.')],
+        [
+            'a closed puppeteer target',
+            new Error('Protocol error (Browser.getVersion): Target closed'),
+        ],
+        ['a websocket error', new Error('WebSocket connection failed')],
+    ])('treats %s as session-level', (_label, err) => {
+        expect(isSessionLevelFailure(err)).toBe(true);
+    });
+
+    test.each([
+        [
+            'a refused connection',
+            Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }),
+        ],
+        ['a reset connection', Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' })],
+    ])('delegates %s to getErrorCategory', (_label, err) => {
+        expect(isSessionLevelFailure(err)).toBe(true);
+    });
+
+    test.each([
+        ['a read-only sheet', new Error('sheet is read-only')],
+        ['a missing object', new Error('Object not found')],
+        ['a non-Error', 'just a string'],
+        ['nothing', undefined],
+    ])('treats %s as sheet-level', (_label, err) => {
+        expect(isSessionLevelFailure(err)).toBe(false);
+    });
+});
+
+describe('runOverSheets — a lost engine session', () => {
+    const CTX = {
+        logPrefix: 'TEST PREFIX',
+        appId: 'app-1',
+        action: 'update',
+        ErrorClass: class TestError extends Error {},
+    };
+    const sheet = (id) => ({ qInfo: { qId: id }, qMeta: { title: `Sheet ${id}` } });
+
+    test('abandons the remaining sheets instead of failing each one', async () => {
+        // A dropped websocket used to be caught 38 times and reported as 38 broken sheets.
+        const worker = jest.fn(async (s, n) => {
+            if (n >= 2) throw new Error('Socket closed');
+        });
+
+        const result = await runOverSheets(
+            [sheet('a'), sheet('b'), sheet('c'), sheet('d')],
+            CTX,
+            worker
+        );
+
+        expect(worker).toHaveBeenCalledTimes(2);
+        expect(result.failed).toBe(0);
+    });
+
+    test('rethrows the original cause, not a sheet count', async () => {
+        const boom = new Error('Socket closed');
+        const result = await runOverSheets([sheet('a')], CTX, async () => {
+            throw boom;
+        });
+
+        expect(() => result.assertAllProcessed()).toThrow(boom);
+    });
+
+    test('says the session was lost rather than blaming the sheet', async () => {
+        await runOverSheets([sheet('a')], CTX, async () => {
+            throw new Error('Socket closed');
+        });
+
+        expect(errorLog()).toContain('Lost the engine session');
+        expect(errorLog()).not.toContain("Failed to update sheet 1 ('Sheet a'");
+    });
+});
+
+describe('runOverSheets — requireAttempt', () => {
+    const base = {
+        logPrefix: 'TEST PREFIX',
+        appId: 'app-1',
+        action: 'update',
+        ErrorClass: class TestError extends Error {},
+    };
+    const sheet = (id) => ({ qInfo: { qId: id }, qMeta: { title: `Sheet ${id}` } });
+
+    test('fails when work was expected but every sheet was skipped', async () => {
+        // Thumbnails were generated but no sheet matched one - nothing was applied, and
+        // that used to report success.
+        const result = await runOverSheets(
+            [sheet('a'), sheet('b')],
+            { ...base, requireAttempt: true },
+            async () => SHEET_SKIPPED
+        );
+
+        expect(() => result.assertAllProcessed()).toThrow(/no icon was updated/i);
+    });
+
+    test('passes when every sheet was skipped and no work was expected', async () => {
+        const result = await runOverSheets(
+            [sheet('a')],
+            { ...base, requireAttempt: false },
+            async () => SHEET_SKIPPED
+        );
+
+        expect(() => result.assertAllProcessed()).not.toThrow();
+    });
+
+    test('does not fire when at least one sheet was attempted', async () => {
+        const result = await runOverSheets(
+            [sheet('a'), sheet('b')],
+            { ...base, requireAttempt: true },
+            async (s, n) => (n === 1 ? undefined : SHEET_SKIPPED)
+        );
+
+        expect(() => result.assertAllProcessed()).not.toThrow();
     });
 });
