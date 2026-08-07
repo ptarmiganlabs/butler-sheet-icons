@@ -100,7 +100,7 @@ export const qseowCreateThumbnails = async (options) => {
             }
         }
 
-        const { total, failed } = await runOverApps(
+        return runOverApps(
             appIdsToProcess,
             {
                 logPrefix: 'QSEOW PROCESS APP',
@@ -108,10 +108,6 @@ export const qseowCreateThumbnails = async (options) => {
             },
             (appId) => qseowProcessApp(appId, options)
         );
-
-        // An app the worker could not finish, or a selection that resolved to no
-        // apps at all, is a failed run - not a successful one with error text in it.
-        return total > 0 && failed === 0;
     } catch (err) {
         if (err.stack) {
             logger.error(`QSEOW CREATE THUMBNAILS 2 (stack): ${err.stack}`);

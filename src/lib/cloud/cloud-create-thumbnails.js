@@ -129,7 +129,7 @@ export const qscloudCreateThumbnails = async (options) => {
             }
         }
 
-        const { total, failed } = await runOverApps(
+        return runOverApps(
             appIdsToProcess,
             {
                 logPrefix: 'CLOUD PROCESS APP',
@@ -137,10 +137,6 @@ export const qscloudCreateThumbnails = async (options) => {
             },
             (appId) => processCloudApp(appId, saasInstance, options)
         );
-
-        // An app the worker could not finish, or a selection that resolved to no
-        // apps at all, is a failed run - not a successful one with error text in it.
-        return total > 0 && failed === 0;
     } catch (err) {
         if (err.stack) {
             logger.error(`CLOUD CREATE THUMBNAILS 2 (stack): ${err.stack}`);

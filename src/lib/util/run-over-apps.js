@@ -8,8 +8,12 @@ import { logger } from '../../globals.js';
  * drifted - four different log prefixes, and none of them counted anything - so a run in
  * which every app failed was indistinguishable from a run in which every app succeeded.
  *
- * Callers decide what a failure means by reading the returned counts. Nothing is thrown
- * for a failed app: the point of the loop is that one bad app does not stop the rest.
+ * Nothing is thrown for a failed app: the point of the loop is that one bad app does not
+ * stop the rest. The overall verdict comes back as the return value instead.
+ *
+ * That verdict is decided here rather than by each caller. All four callers applied the
+ * identical rule, and four copies of it - destructure, comment and all - was itself enough
+ * duplicated code to fail the quality gate on the very PR that introduced this helper.
  *
  * The per-app worker is expected to log its own failure in detail before rethrowing; the
  * line logged here names the app and the reason, without repeating the stack.
@@ -23,8 +27,8 @@ import { logger } from '../../globals.js';
  *     the operator asked for work that did not happen.
  * @param {(appId: string) => Promise<unknown>} processApp - Worker invoked once per app.
  *
- * @returns {Promise<{total: number, failed: number}>} How many apps were processed and how
- *     many of those failed.
+ * @returns {Promise<boolean>} `true` only when at least one app was selected and every one
+ *     of them was processed without error. An empty selection is a failure, not a no-op.
  */
 export const runOverApps = async (appIds, { logPrefix, emptySelectionHint }, processApp) => {
     // An app named by both --appid and a collection must still be processed once.
@@ -39,7 +43,7 @@ export const runOverApps = async (appIds, { logPrefix, emptySelectionHint }, pro
         // Not the same as "nothing to do": the operator asked for apps and got none. An
         // unresolvable collection used to end here reporting success.
         logger.error(`No apps to process.${emptySelectionHint ? ` ${emptySelectionHint}` : ''}`);
-        return { total: 0, failed: 0 };
+        return false;
     }
 
     let failed = 0;
@@ -62,5 +66,5 @@ export const runOverApps = async (appIds, { logPrefix, emptySelectionHint }, pro
         logger.error(`Failed to process ${failed} of ${uniqueAppIds.length} app(s)`);
     }
 
-    return { total: uniqueAppIds.length, failed };
+    return failed === 0;
 };
