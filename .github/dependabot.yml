@@ -9,6 +9,11 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+    # Mirrors `min-release-age=7` in .npmrc. Without it Dependabot proposes bumps that npm then
+    # refuses to resolve, so the PR sits until the version ages out anyway - see the fast-uri
+    # 3.1.5 bump opened one day after that version was published.
+    cooldown:
+      default-days: 7
 
   # Workflow action pins. Without this the SHAs never move on their own, which is how they
   # drifted 1-3 majors behind and ended up on the deprecated Node.js 20 runtime.
