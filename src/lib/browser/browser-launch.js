@@ -171,7 +171,7 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
         // Falls back to the value itself so a non-Error throw still logs something useful
         // rather than "undefined".
         logger.error(
-            `${logPrefix} Could not launch virtual browser: ${err.stack ?? err.message ?? err}`
+            `${logPrefix} Could not launch virtual browser: ${err?.stack || err?.message || err}`
         );
 
         throw new ErrorClass(`Failed to launch virtual browser for ${appLabel} ${appId}`, {

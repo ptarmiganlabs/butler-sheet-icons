@@ -18,8 +18,8 @@ import request from './cloud-repo-request.js';
  * @property {Function} Put - Makes a PUT request with the provided data or file.
  */
 const qlikSaas = function QlikSaas(config) {
-    if (!config.url) throw Error({ message: 'URL parameter is required' });
-    if (!config.token) throw Error({ message: 'API token parameter is required' });
+    if (!config.url) throw new Error('URL parameter is required');
+    if (!config.token) throw new Error('API token parameter is required');
     if (!config.version) config.version = 1;
 
     // Does the URL start with "http://" or "https://"?
@@ -38,7 +38,7 @@ const qlikSaas = function QlikSaas(config) {
      * @returns {Promise<object>} The parsed response payload.
      */
     this.Get = async (path) => {
-        if (!path) throw Error({ message: `"path" parameter is missing` });
+        if (!path) throw new Error('"path" parameter is missing');
 
         return request(config, path, 'get');
     };
@@ -51,7 +51,7 @@ const qlikSaas = function QlikSaas(config) {
      * @returns {Promise<object>} The parsed response payload.
      */
     this.Delete = async (path) => {
-        if (!path) throw Error({ message: `"path" parameter is missing` });
+        if (!path) throw new Error('"path" parameter is missing');
 
         return request(config, path, 'delete');
     };
@@ -75,8 +75,8 @@ const qlikSaas = function QlikSaas(config) {
         file = '',
         fileName = '',
     }) => {
-        if (!path) throw Error({ message: `"path" parameter is missing` });
-        if (!data && !file) throw Error({ message: `"data" and/or "file" parameter is missing` });
+        if (!path) throw new Error('"path" parameter is missing');
+        if (!data && !file) throw new Error('"data" and/or "file" parameter is missing');
 
         return request(config, path, 'patch', data, contentType, file, fileName);
     };
@@ -100,7 +100,7 @@ const qlikSaas = function QlikSaas(config) {
         file = '',
         fileName = '',
     }) => {
-        if (!path) throw Error({ message: `"path" parameter is missing` });
+        if (!path) throw new Error('"path" parameter is missing');
 
         return request(config, path, 'post', data, contentType, file, fileName);
     };
@@ -117,7 +117,7 @@ const qlikSaas = function QlikSaas(config) {
      * @returns {Promise<object>} The parsed response payload.
      */
     this.Put = async ({ path, data = {}, contentType = 'application/json', file = '' }) => {
-        if (!path) throw Error({ message: `"path" parameter is missing` });
+        if (!path) throw new Error('"path" parameter is missing');
 
         return request(config, path, 'put', data, contentType, file);
     };

@@ -1,11 +1,11 @@
 ---
 name: browser
-description: "Skill for the Browser area of butler-sheet-icons. 18 symbols across 10 files."
+description: "Skill for the Browser area of butler-sheet-icons. 14 symbols across 10 files."
 ---
 
 # Browser
 
-18 symbols | 10 files | Cohesion: 96%
+14 symbols | 10 files | Cohesion: 88%
 
 ## When to Use
 
@@ -17,10 +17,10 @@ description: "Skill for the Browser area of butler-sheet-icons. 18 symbols acros
 
 | File | Symbols |
 |------|---------|
-| `src/lib/browser/browser-list-available.js` | markReported, alreadyReported, logVersionHistoryFailure, extractVersions, mapPlatformToChrome (+2) |
-| `src/lib/util/error-categorizer.js` | getErrorCategory, getErrorMetadata |
+| `src/lib/browser/browser-list-available.js` | extractVersions, mapPlatformToChrome, browserListAvailable, getMostRecentUsableChromeBuildId |
 | `src/lib/browser/browser-launch.js` | detectDocker, buildBrowserArgs |
 | `src/lib/browser/browser-install.js` | browserInstall |
+| `src/lib/util/reported-error.js` | alreadyReported |
 | `src/lib/commands/browser/index.js` | buildBrowserCommand |
 | `src/lib/commands/browser/install.js` | buildBrowserInstallCommand |
 | `src/lib/commands/browser/list-available.js` | buildBrowserListAvailableCommand |
@@ -32,27 +32,23 @@ description: "Skill for the Browser area of butler-sheet-icons. 18 symbols acros
 
 Start here when exploring this area:
 
-- **`browserInstall`** (Function) — `src/lib/browser/browser-install.js:30`
-- **`browserListAvailable`** (Function) — `src/lib/browser/browser-list-available.js:168`
-- **`getMostRecentUsableChromeBuildId`** (Function) — `src/lib/browser/browser-list-available.js:335`
-- **`getErrorCategory`** (Function) — `src/lib/util/error-categorizer.js:32`
-- **`getErrorMetadata`** (Function) — `src/lib/util/error-categorizer.js:81`
+- **`browserInstall`** (Function) — `src/lib/browser/browser-install.js:37`
+- **`browserListAvailable`** (Function) — `src/lib/browser/browser-list-available.js:137`
+- **`getMostRecentUsableChromeBuildId`** (Function) — `src/lib/browser/browser-list-available.js:304`
+- **`alreadyReported`** (Function) — `src/lib/util/reported-error.js:47`
+- **`buildBrowserArgs`** (Function) — `src/lib/browser/browser-launch.js:66`
 
 ## Key Symbols
 
 | Symbol | Type | File | Line |
 |--------|------|------|------|
-| `browserInstall` | Function | `src/lib/browser/browser-install.js` | 30 |
-| `browserListAvailable` | Function | `src/lib/browser/browser-list-available.js` | 168 |
-| `getMostRecentUsableChromeBuildId` | Function | `src/lib/browser/browser-list-available.js` | 335 |
-| `getErrorCategory` | Function | `src/lib/util/error-categorizer.js` | 32 |
-| `getErrorMetadata` | Function | `src/lib/util/error-categorizer.js` | 81 |
-| `buildBrowserArgs` | Function | `src/lib/browser/browser-launch.js` | 61 |
-| `markReported` | Function | `src/lib/browser/browser-list-available.js` | 40 |
-| `alreadyReported` | Function | `src/lib/browser/browser-list-available.js` | 53 |
-| `logVersionHistoryFailure` | Function | `src/lib/browser/browser-list-available.js` | 73 |
-| `extractVersions` | Function | `src/lib/browser/browser-list-available.js` | 110 |
-| `mapPlatformToChrome` | Function | `src/lib/browser/browser-list-available.js` | 139 |
+| `browserInstall` | Function | `src/lib/browser/browser-install.js` | 37 |
+| `browserListAvailable` | Function | `src/lib/browser/browser-list-available.js` | 137 |
+| `getMostRecentUsableChromeBuildId` | Function | `src/lib/browser/browser-list-available.js` | 304 |
+| `alreadyReported` | Function | `src/lib/util/reported-error.js` | 47 |
+| `buildBrowserArgs` | Function | `src/lib/browser/browser-launch.js` | 66 |
+| `extractVersions` | Function | `src/lib/browser/browser-list-available.js` | 79 |
+| `mapPlatformToChrome` | Function | `src/lib/browser/browser-list-available.js` | 108 |
 | `buildBrowserCommand` | Function | `src/lib/commands/browser/index.js` | 12 |
 | `buildBrowserInstallCommand` | Function | `src/lib/commands/browser/install.js` | 44 |
 | `buildBrowserListAvailableCommand` | Function | `src/lib/commands/browser/list-available.js` | 33 |
@@ -65,10 +61,10 @@ Start here when exploring this area:
 
 | Flow | Type | Steps |
 |------|------|-------|
-| `BrowserInstall → GetErrorCategory` | intra_community | 4 |
-| `BrowserInstall → MarkReported` | intra_community | 4 |
-| `BrowserListAvailable → GetErrorCategory` | intra_community | 3 |
-| `BrowserListAvailable → MarkReported` | intra_community | 3 |
+| `BrowserInstall → GetErrorCategory` | cross_community | 4 |
+| `BrowserInstall → MarkReported` | cross_community | 4 |
+| `BrowserListAvailable → GetErrorCategory` | cross_community | 3 |
+| `BrowserListAvailable → MarkReported` | cross_community | 3 |
 | `BrowserInstall → MapPlatformToChrome` | intra_community | 3 |
 | `BrowserInstall → AlreadyReported` | intra_community | 3 |
 
@@ -76,7 +72,8 @@ Start here when exploring this area:
 
 | Area | Connections |
 |------|-------------|
-| Cloud | 2 calls |
+| Cloud | 3 calls |
+| Util | 3 calls |
 
 ## How to Explore
 

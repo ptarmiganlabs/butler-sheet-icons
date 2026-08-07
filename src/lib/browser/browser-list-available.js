@@ -288,7 +288,7 @@ export async function browserListAvailable(options) {
         // already described in detail above; repeating them here is what left the reported
         // `Cannot read properties of undefined` text in the output (issue #785).
         if (!alreadyReported(err)) {
-            logger.error(`Error checking for available browsers: ${err.message ?? err}`);
+            logger.error(`Error checking for available browsers: ${err?.message || err}`);
             logger.debug(err?.stack ?? String(err));
         }
         throw err;
@@ -374,7 +374,9 @@ export async function getMostRecentUsableChromeBuildId(channel) {
     } catch (err) {
         // As above: only report what has not already been explained.
         if (!alreadyReported(err)) {
-            logger.error(`Error getting most recent usable Chrome build ID: ${err.message ?? err}`);
+            logger.error(
+                `Error getting most recent usable Chrome build ID: ${err?.message || err}`
+            );
             logger.debug(err?.stack ?? String(err));
         }
 

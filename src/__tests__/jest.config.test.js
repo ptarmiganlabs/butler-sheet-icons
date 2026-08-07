@@ -26,3 +26,10 @@ describe('Jest Configuration', () => {
         expect(jestConfig.testMatch).toBeUndefined();
     });
 });
+
+// Deliberately not asserting the contents of `collectCoverageFrom`. An assertion that
+// restates a config literal only fails when someone edits the config and forgets the copy,
+// so it tracks the config rather than constraining it. The property worth protecting — that
+// no test file or shared fixture lands in the coverage denominator — is a property of the
+// generated report, not of the config object, and is verified by running the suite and
+// checking coverage/lcov.info.

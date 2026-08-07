@@ -10,7 +10,7 @@
 snyk.sarif export-ignore
 src/__tests__ export-ignore
 src/test/* export-ignore
-src/.dockerignore export-ignore
+.dockerignore export-ignore
 src/.eslintrc.yml export-ignore
 src/.jshintrc export-ignore
 src/.prettierignore export-ignore
@@ -18,7 +18,6 @@ src/.prettierrc.yaml export-ignore
 src/.prettierrc export-ignore
 src/.snyk export-ignore
 src/Dockerfile export-ignore
-src/jest.config.js export-ignore 
 
 .codeclimate.yml export-ignore
 .jshintrc export-ignore

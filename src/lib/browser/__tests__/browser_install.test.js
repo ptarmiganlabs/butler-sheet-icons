@@ -23,8 +23,11 @@ jest.unstable_mockModule('../../../globals.js', () => ({
     setLoggingLevel: jest.fn(),
     bsiExecutablePath: '/test/path',
     isSea: false,
+    // Mocked so the retry tests do not really wait out 3 x 2s of backoff. This suite was
+    // 16.1s of the unit suite's 27s, and 16.0s of that was real sleeping.
+    sleep: jest.fn().mockResolvedValue(undefined),
 }));
-const { logger } = await import('../../../globals.js');
+const { logger, sleep } = await import('../../../globals.js');
 
 jest.unstable_mockModule('../browser-list-available.js', () => ({
     getMostRecentUsableChromeBuildId: jest.fn(),
@@ -117,6 +120,21 @@ describe('browserInstall — retry logic', () => {
         expect(logger.warn).toHaveBeenCalledTimes(2);
         expect(logger.warn.mock.calls[0][0]).toMatch(/Install attempt 1\/3 failed/);
         expect(logger.warn.mock.calls[1][0]).toMatch(/Install attempt 2\/3 failed/);
+    });
+
+    test('backs off between retries rather than hammering the download', async () => {
+        // The delay is mocked so this suite runs fast; without this assertion the mock
+        // would also hide the backoff being dropped altogether.
+        install
+            .mockImplementationOnce(() => {
+                throw new Error('Extraction failed: bad zip');
+            })
+            .mockResolvedValueOnce({ browser: 'chrome', buildId: '1', executablePath: '/p' });
+
+        await browserInstall({ browser: 'chrome', browserVersion: '1', loglevel: 'error' });
+
+        expect(sleep).toHaveBeenCalledTimes(1);
+        expect(sleep).toHaveBeenCalledWith(2000);
     });
 
     test('throws the last error after all three attempts fail', async () => {

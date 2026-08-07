@@ -108,30 +108,40 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
             let iSheetNum = 1;
 
             for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                logger.info(
-                    `Removing icon for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                );
+                // One unwritable sheet must not abandon the sheets after it, or skip the
+                // session close below.
+                try {
+                    logger.info(
+                        `Removing icon for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                    );
 
-                // Get properties of current sheet
-                const sheetObj = await app.getObject(sheet.qInfo.qId);
-                const sheetProperties = await sheetObj.getProperties();
+                    // Get properties of current sheet
+                    const sheetObj = await app.getObject(sheet.qInfo.qId);
+                    const sheetProperties = await sheetObj.getProperties();
 
-                // Clear sheet icon
-                sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = '';
+                    // Clear sheet icon
+                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = '';
 
-                const res = await sheetObj.setProperties(sheetProperties);
-                logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
-                await app.doSave();
+                    const res = await sheetObj.setProperties(sheetProperties);
+                    logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
+                    await app.doSave();
+                } catch (err) {
+                    logger.error(
+                        `CLOUD: Failed to remove icon for sheet ${iSheetNum} ('${sheet.qMeta.title}', ID ${sheet.qInfo.qId}) in app ${appId}: ${err.message ?? err}`
+                    );
+                }
 
                 iSheetNum += 1;
             }
-
-            // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
-            await session.close();
-            logger.verbose(
-                `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
-            );
         }
+
+        // Closed outside the sheet-count guard: an app with no sheets still holds an open
+        // engine session that has to be released.
+        // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+        await session.close();
+        logger.verbose(
+            `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
+        );
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
@@ -188,12 +198,14 @@ export const qscloudRemoveSheetIcons = async (options) => {
             );
         } catch (err) {
             if (err.stack) {
-                logger.error(`LIST COLLECTIONS 1 (stack): ${err.stack}`);
+                logger.error(`CLOUD REMOVE SHEET ICONS: connection test (stack): ${err.stack}`);
             } else if (err.message) {
-                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
-                logger.error(`LIST COLLECTIONS 1 (error code): ${err.status}="${err.statusText}"`);
+                logger.error(`CLOUD REMOVE SHEET ICONS: connection test (message): ${err.message}`);
+                logger.error(
+                    `CLOUD REMOVE SHEET ICONS: connection test (error code): ${err.status}="${err.statusText}"`
+                );
             } else {
-                logger.error(`LIST COLLECTIONS 1: ${err}`);
+                logger.error(`CLOUD REMOVE SHEET ICONS: connection test: ${err}`);
             }
 
             return false;
