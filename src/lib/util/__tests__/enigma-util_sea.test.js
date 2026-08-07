@@ -1,9 +1,12 @@
 /**
  * The SEA (single-executable application) branch of `getEnigmaSchema`.
  *
- * This lives in its own file because `isSea` is imported from `globals.js` and Jest
- * fixes a mocked module's namespace at import time — a mutable flag or getter shared
- * with enigma-util.test.js would always read back as its initial value.
+ * Kept in its own file for simplicity, not because it has to be. `isSea` is fixed in the
+ * module namespace at import time, so a flag shared with enigma-util.test.js would always
+ * read back as its initial value — but `jest.resetModules()` plus a re-registered mock and
+ * a fresh import does work (log-error.test.js does exactly that). Merging was tried and
+ * reverted: it cost one net line and introduced a second `EnigmaError` class identity,
+ * so `toBeInstanceOf` in the merged block silently compared against the wrong class.
  */
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 

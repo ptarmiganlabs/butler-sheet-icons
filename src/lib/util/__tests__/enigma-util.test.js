@@ -8,9 +8,9 @@ jest.unstable_mockModule('node:fs', () => ({
     readFileSync,
 }));
 
-// Native Node.js run, i.e. not a packaged SEA binary. The SEA branch is covered
-// separately in enigma-util_sea.test.js — `isSea` is read from the module namespace,
-// which Jest fixes at import time, so the two cases cannot share one mock.
+// Native Node.js run, i.e. not a packaged SEA binary. `isSea` is read from the module
+// namespace, which Jest fixes at import time, so the SEA branch cannot share this mock —
+// it is covered in enigma-util_sea.test.js.
 jest.unstable_mockModule('../../../globals.js', () => ({
     logger: {
         info: jest.fn(),
