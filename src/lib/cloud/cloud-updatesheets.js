@@ -3,7 +3,7 @@ import enigma from 'enigma.js';
 import { setupEnigmaConnection } from './cloud-enigma.js';
 import { logger } from '../../globals.js';
 import { CloudError } from '../util/errors.js';
-import { assertAllSheetsProcessed, sortSheetsByRank } from '../util/sheet-list.js';
+import { runOverSheets, sortSheetsByRank } from '../util/sheet-list.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Cloud app.
@@ -24,8 +24,7 @@ import { assertAllSheetsProcessed, sortSheetsByRank } from '../util/sheet-list.j
  * @returns {Promise<void>} Resolves when the sheet thumbnails have been successfully updated in the Qlik Sense Cloud app.
  */
 export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options) => {
-    let failedSheets = 0;
-    let totalSheets = 0;
+    let sheetRun;
 
     try {
         logger.verbose(`Starting update of sheet icons for app ${appId}`);
@@ -71,18 +70,19 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // dimObj.qAppObjectList.qItems[] now contains array of app sheets.
             logger.info(`Number of sheets: ${sheetListObj.qAppObjectList.qItems.length}`);
-            totalSheets = sheetListObj.qAppObjectList.qItems.length;
 
             // Sort sheets
             sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
-            let iSheetNum = 1;
-
-            for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                // One unwritable sheet must not discard the updates already made, nor skip
-                // the session close below. Failures are counted, not ignored - see the
-                // assertion after the loop.
-                try {
+            sheetRun = await runOverSheets(
+                sheetListObj.qAppObjectList.qItems,
+                {
+                    logPrefix: 'CLOUD UPDATE SHEETS',
+                    appId,
+                    action: 'update',
+                    ErrorClass: CloudError,
+                },
+                async (sheet, iSheetNum) => {
                     const createdFile = createdFiles.find(
                         (element) => element.sheetPos === iSheetNum
                     );
@@ -191,14 +191,8 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
                         logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
                         await app.doSave();
                     }
-                } catch (err) {
-                    failedSheets += 1;
-                    logger.error(
-                        `CLOUD UPDATE SHEETS: Failed to update sheet ${iSheetNum} in app ${appId}: ${err?.message ?? err}`
-                    );
                 }
-                iSheetNum += 1;
-            }
+            );
         }
 
         // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
@@ -218,9 +212,5 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
         throw new CloudError(`Failed to update sheet thumbnails in app ${appId}`, { cause: err });
     }
 
-    assertAllSheetsProcessed(failedSheets, totalSheets, {
-        appId,
-        action: 'update',
-        ErrorClass: CloudError,
-    });
+    sheetRun?.assertAllProcessed();
 };

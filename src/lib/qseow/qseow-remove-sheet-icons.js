@@ -7,7 +7,7 @@ import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { QseowError } from '../util/errors.js';
-import { assertAllSheetsProcessed, sortSheetsByRank } from '../util/sheet-list.js';
+import { runOverSheets, sortSheetsByRank } from '../util/sheet-list.js';
 import { runOverApps } from '../util/run-over-apps.js';
 
 /**
@@ -66,8 +66,7 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
             },
         };
 
-        let failedSheets = 0;
-        let totalSheets = 0;
+        let sheetRun;
 
         const genericListObj = await app.createSessionObject(appSheetsCall);
         const sheetListObj = await genericListObj.getLayout();
@@ -75,17 +74,19 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
-            totalSheets = sheetListObj.qAppObjectList.qItems.length;
 
             // Sort sheets
             sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
-            let iSheetNum = 1;
-
-            for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                // One unwritable sheet must not abandon the sheets after it, or skip the
-                // session close below.
-                try {
+            sheetRun = await runOverSheets(
+                sheetListObj.qAppObjectList.qItems,
+                {
+                    logPrefix: 'QSEOW REMOVE SHEET ICONS',
+                    appId,
+                    action: 'remove icons for',
+                    ErrorClass: QseowError,
+                },
+                async (sheet, iSheetNum) => {
                     logger.info(
                         `Removing icon for sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
                     );
@@ -100,15 +101,8 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
                     const res = await sheetObj.setProperties(sheetProperties);
                     logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
                     await app.doSave();
-                } catch (err) {
-                    failedSheets += 1;
-                    logger.error(
-                        `QSEOW: Failed to remove icon for sheet ${iSheetNum} ('${sheet.qMeta.title}', ID ${sheet.qInfo.qId}) in app ${appId}: ${err.message ?? err}`
-                    );
                 }
-
-                iSheetNum += 1;
-            }
+            );
         }
 
         // Closed outside the sheet-count guard: an app with no sheets still holds an open
@@ -119,11 +113,7 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
             `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
         );
 
-        assertAllSheetsProcessed(failedSheets, totalSheets, {
-            appId,
-            action: 'remove icons for',
-            ErrorClass: QseowError,
-        });
+        sheetRun?.assertAllProcessed();
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {

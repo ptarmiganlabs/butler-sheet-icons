@@ -3,7 +3,7 @@ import enigma from 'enigma.js';
 import { setupEnigmaConnection } from './qseow-enigma.js';
 import { logger } from '../../globals.js';
 import { QseowError } from '../util/errors.js';
-import { assertAllSheetsProcessed, isSheetTagged, sortSheetsByRank } from '../util/sheet-list.js';
+import { isSheetTagged, runOverSheets, sortSheetsByRank } from '../util/sheet-list.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Enterprise on Windows (QSEoW) app.
@@ -24,8 +24,7 @@ export const qseowUpdateSheetThumbnails = async (
     options,
     tagSheetAppMetadata = []
 ) => {
-    let failedSheets = 0;
-    let totalSheets = 0;
+    let sheetRun;
 
     try {
         logger.verbose(`Starting update of sheet icons for app ${appId}`);
@@ -78,18 +77,19 @@ export const qseowUpdateSheetThumbnails = async (
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // dimObj.qAppObjectList.qItems[] now contains array of app sheets.
             logger.info(`Number of sheets: ${sheetListObj.qAppObjectList.qItems.length}`);
-            totalSheets = sheetListObj.qAppObjectList.qItems.length;
 
             // Sort sheets
             sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
-            let iSheetNum = 1;
-
-            for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                // One unwritable sheet must not discard the updates already made, nor skip
-                // the session close below. Failures are counted, not ignored - see the
-                // assertion after the loop.
-                try {
+            sheetRun = await runOverSheets(
+                sheetListObj.qAppObjectList.qItems,
+                {
+                    logPrefix: 'QSEOW UPDATE SHEETS',
+                    appId,
+                    action: 'update',
+                    ErrorClass: QseowError,
+                },
+                async (sheet, iSheetNum) => {
                     // Is this sheet among those that should be updated?
 
                     if (
@@ -197,15 +197,8 @@ export const qseowUpdateSheetThumbnails = async (
                         logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
                         await app.doSave();
                     }
-                } catch (err) {
-                    failedSheets += 1;
-                    logger.error(
-                        `QSEOW UPDATE SHEETS: Failed to update sheet ${iSheetNum} in app ${appId}: ${err?.message ?? err}`
-                    );
                 }
-
-                iSheetNum += 1;
-            }
+            );
         }
 
         // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
@@ -225,9 +218,5 @@ export const qseowUpdateSheetThumbnails = async (
         throw new QseowError(`Failed to update sheet thumbnails in app ${appId}`, { cause: err });
     }
 
-    assertAllSheetsProcessed(failedSheets, totalSheets, {
-        appId,
-        action: 'update',
-        ErrorClass: QseowError,
-    });
+    sheetRun?.assertAllProcessed();
 };
