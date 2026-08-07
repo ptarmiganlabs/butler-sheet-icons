@@ -22,20 +22,33 @@ const config = {
     collectCoverage: true,
     collectCoverageFrom: ['<rootDir>/src/**/*.js'],
     coverageDirectory: 'coverage',
-    // import-meta-url.js is a generated SEA shim. It is excluded from ESLint
-    // (eslint.config.js) and from SonarCloud analysis (sonar-project.properties);
-    // keeping it out of the coverage report too stops Sonar warning that it cannot
-    // resolve a path present in lcov.info but absent from the analysed file set.
+    // Every coverage exclusion lives here rather than being split between negative globs in
+    // `collectCoverageFrom` and this list. The two forms were measured as producing an
+    // identical report (same 53 files, same percentages), so one list is preferred simply
+    // because there is then one place to look.
     //
-    // `/__tests__/` keeps the test files themselves out of the report. Without it,
-    // `collectCoverageFrom` treats every test file as production source, and the
-    // integration tests — which `test:unit` never runs — show up as 0%-covered code
-    // and drag the reported total well below the real figure for src/.
+    // Each entry is load-bearing; measured, not assumed:
+    //
+    // `/__tests__/` — Jest skips instrumenting a test file it RUNS, but `test:unit` filters
+    // the `*.integration.test.js` files out of the run, so they are neither run nor skipped
+    // and land in the report as 0%-covered source. Removing this entry puts those 8 files
+    // back and drops the reported total by roughly nine points — measured at 87.2% with it
+    // against 78.3% without. Treat the gap as the point, not the absolute figures: those
+    // move with every test added.
+    //
+    // `/test-helpers/` — shared fixtures are plain .js, so `src/**/*.js` would otherwise
+    // count them as production source at 0%.
+    //
+    // `import-meta-url.js` is a generated SEA shim. It is excluded from ESLint
+    // (eslint.config.js) and from SonarCloud analysis (sonar-project.properties); keeping it
+    // out of the coverage report too stops Sonar warning that it cannot resolve a path
+    // present in lcov.info but absent from the analysed file set.
     coveragePathIgnorePatterns: [
         '/node_modules/',
         '/build/',
         '/dist/',
         '/__tests__/',
+        '/test-helpers/',
         'src/lib/util/import-meta-url\\.js$',
     ],
     coverageProvider: 'v8',

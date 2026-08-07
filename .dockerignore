@@ -1,0 +1,24 @@
+# Docker build context exclusions.
+#
+# This file must live at the CONTEXT ROOT to take effect. The image is built with
+# `context: .` and `file: src/Dockerfile` (.github/workflows/docker-image-build.yaml),
+# and BuildKit looks for `<dockerfile>.dockerignore` then `<context>/.dockerignore` —
+# never `src/.dockerignore`. An earlier ignore file lived at src/.dockerignore and was
+# therefore never read, which is why test files were shipping inside the image.
+#
+# Deliberately minimal. The Dockerfile already copies only the three things it needs
+# (src/butler-sheet-icons.js, src/globals.js, src/lib/), so a broad exclusion list adds
+# no value and adds risk: the old src/.dockerignore excluded package-lock.json, which
+# would have broken `npm ci` in the deps stage had it ever been read.
+#
+# Keep in step with `COPY src/lib/ ./src/lib/` in src/Dockerfile — that line is the only
+# reason anything under src/lib/ needs excluding at all.
+
+# Unit and integration tests: ~48 files with no purpose at runtime.
+**/__tests__/
+**/*.test.js
+
+# Shared test fixtures. These live outside __tests__/ so Jest's default discovery does not
+# claim them as suites, which means neither rule above catches them — and engine-mocks.js
+# imports @jest/globals, a devDependency `npm ci --omit=dev` never installs.
+**/test-helpers/
