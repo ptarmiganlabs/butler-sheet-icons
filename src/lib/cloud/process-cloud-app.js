@@ -108,179 +108,193 @@ export const processCloudApp = async (appId, saasInstance, options) => {
             );
         }
 
-        const global = await session.open();
-        const engineVersion = await global.engineVersion();
-        logger.info(
-            `Created session to Qlik Sense Cloud tenant ${options.tenanturl}, engine version is ${engineVersion.qComponentVersion}`
-        );
-        const app = await global.openDoc(appId, '', '', '', false);
-        logger.info(`Opened app ${appId}`);
-        logger.info(`App name: "${appMetadata.attributes.name}"`);
-        logger.info(`App is published: ${appMetadata.attributes.published}`);
-
-        // Get list of app sheets
-        const appSheetsCall = {
-            qInfo: {
-                qId: 'SheetList',
-                qType: 'SheetList',
-            },
-            qAppObjectListDef: {
-                qType: 'sheet',
-                qData: {
-                    title: '/qMetaDef/title',
-                    description: '/qMetaDef/description',
-                    thumbnail: '/thumbnail',
-                    cells: '/cells',
-                    rank: '/rank',
-                    columns: '/columns',
-                    rows: '/rows',
-                    showCondition: '/showCondition',
-                },
-            },
-        };
-        const genericListObj = await app.createSessionObject(appSheetsCall);
-        const sheetListObj = await genericListObj.getLayout();
         const createdFiles = [];
 
-        if (sheetListObj.qAppObjectList.qItems.length > 0) {
-            // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
-            logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
+        try {
+            const global = await session.open();
+            const engineVersion = await global.engineVersion();
+            logger.info(
+                `Created session to Qlik Sense Cloud tenant ${options.tenanturl}, engine version is ${engineVersion.qComponentVersion}`
+            );
+            const app = await global.openDoc(appId, '', '', '', false);
+            logger.info(`Opened app ${appId}`);
+            logger.info(`App name: "${appMetadata.attributes.name}"`);
+            logger.info(`App is published: ${appMetadata.attributes.published}`);
 
-            const browser = await launchBrowserForApp(options, {
-                appId,
-                logPrefix: 'CLOUD APP:',
-                appLabel: 'Qlik Sense Cloud app',
-                ErrorClass: CloudError,
-            });
+            // Get list of app sheets
+            const appSheetsCall = {
+                qInfo: {
+                    qId: 'SheetList',
+                    qType: 'SheetList',
+                },
+                qAppObjectListDef: {
+                    qType: 'sheet',
+                    qData: {
+                        title: '/qMetaDef/title',
+                        description: '/qMetaDef/description',
+                        thumbnail: '/thumbnail',
+                        cells: '/cells',
+                        rank: '/rank',
+                        columns: '/columns',
+                        rows: '/rows',
+                        showCondition: '/showCondition',
+                    },
+                },
+            };
+            const genericListObj = await app.createSessionObject(appSheetsCall);
+            const sheetListObj = await genericListObj.getLayout();
 
-            const page = await browser.newPage();
-            // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
-            await page.setViewport({
-                width: 1230,
-                height: 810,
-                deviceScaleFactor: 1,
-            });
-            // Set default timeout for all page operations to 90 seconds
-            await page.setDefaultTimeout(pageTimeout);
+            if (sheetListObj.qAppObjectList.qItems.length > 0) {
+                // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
+                logger.info(
+                    `Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`
+                );
 
-            // Qlik Sense cloud URL format:
-            // https://<tenant FQDN>/sense/app/<app ID>>
-            const appUrl = `https://${options.tenanturl}/sense/app/${appId}`;
-            logger.debug(`App URL: ${appUrl}`);
-            await Promise.all([
-                page.goto(appUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
-            ]);
-            await sleep(options.pagewait * 1000);
-            await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-1.png` });
-            // Should login be skipped?
-            if (options.skiplogin === true) {
-                logger.info('Skipping login as --skip-login is set to true');
-            } else {
-                // Enter credentials
-                // User
-                await page.click(selectorLoginPageUserName, {
-                    button: 'left',
-                    delay: 10,
+                const browser = await launchBrowserForApp(options, {
+                    appId,
+                    logPrefix: 'CLOUD APP:',
+                    appLabel: 'Qlik Sense Cloud app',
+                    ErrorClass: CloudError,
                 });
-                const user = `${options.logonuserid}`;
-                await page.keyboard.type(user);
-                // Pwd
-                await page.click(selectorLoginPageUserPwd, {
-                    button: 'left',
-                    delay: 10,
+
+                const page = await browser.newPage();
+                // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
+                await page.setViewport({
+                    width: 1230,
+                    height: 810,
+                    deviceScaleFactor: 1,
                 });
-                await page.keyboard.type(options.logonpwd);
-                await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-2.png` });
-                // Click login button and wait for page to load
+                // Set default timeout for all page operations to 90 seconds
+                await page.setDefaultTimeout(pageTimeout);
+
+                // Qlik Sense cloud URL format:
+                // https://<tenant FQDN>/sense/app/<app ID>>
+                const appUrl = `https://${options.tenanturl}/sense/app/${appId}`;
+                logger.debug(`App URL: ${appUrl}`);
                 await Promise.all([
-                    page.click(selectorLoginPageLoginButton, {
-                        button: 'left',
-                        delay: 10,
-                    }),
-                    page.waitForNavigation({ waitUntil: 'networkidle2', timeout: pageTimeout }),
+                    page.goto(appUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
                 ]);
                 await sleep(options.pagewait * 1000);
-            }
-            // Take screenshot of app overview page
-            await page.screenshot({ path: `${imgDir}/cloud/${appId}/overview-1.png` });
-            // Sort sheets
-            sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
+                await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-1.png` });
+                // Should login be skipped?
+                if (options.skiplogin === true) {
+                    logger.info('Skipping login as --skip-login is set to true');
+                } else {
+                    // Enter credentials
+                    // User
+                    await page.click(selectorLoginPageUserName, {
+                        button: 'left',
+                        delay: 10,
+                    });
+                    const user = `${options.logonuserid}`;
+                    await page.keyboard.type(user);
+                    // Pwd
+                    await page.click(selectorLoginPageUserPwd, {
+                        button: 'left',
+                        delay: 10,
+                    });
+                    await page.keyboard.type(options.logonpwd);
+                    await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-2.png` });
+                    // Click login button and wait for page to load
+                    await Promise.all([
+                        page.click(selectorLoginPageLoginButton, {
+                            button: 'left',
+                            delay: 10,
+                        }),
+                        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: pageTimeout }),
+                    ]);
+                    await sleep(options.pagewait * 1000);
+                }
+                // Take screenshot of app overview page
+                await page.screenshot({ path: `${imgDir}/cloud/${appId}/overview-1.png` });
+                // Sort sheets
+                sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
-            // Loop over all sheets in app
-            sheetRun = await runOverSheets(
-                sheetListObj.qAppObjectList.qItems,
-                {
-                    logPrefix: 'CLOUD APP',
-                    appId,
-                    action: 'create a thumbnail for',
-                    ErrorClass: CloudError,
-                },
-                async (sheet, iSheetNum) => {
-                    // Should this sheet be processed, or is it on exclude list?
-                    // Options are
-                    // --exclude-sheet-number <number...>
-                    // --exclude-sheet-title <title...>
-                    // --exclude-sheet-status <status...>
-                    const { excludeSheet, sheetIsHidden } = await determineSheetExcludeStatus(
-                        app,
-                        sheet,
-                        options,
-                        appIsPublished,
-                        iSheetNum,
-                        logger
-                    );
-
-                    if (excludeSheet === true) {
-                        logger.info(
-                            `Excluded sheet: ${iSheetNum}: '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}', approved '${sheet?.qMeta?.approved === true}', published '${sheet?.qMeta?.published === true}', hidden '${sheetIsHidden}'`
+                // Loop over all sheets in app
+                sheetRun = await runOverSheets(
+                    sheetListObj.qAppObjectList.qItems,
+                    {
+                        logPrefix: 'CLOUD APP',
+                        appId,
+                        action: 'create a thumbnail for',
+                        ErrorClass: CloudError,
+                    },
+                    async (sheet, iSheetNum) => {
+                        // Should this sheet be processed, or is it on exclude list?
+                        // Options are
+                        // --exclude-sheet-number <number...>
+                        // --exclude-sheet-title <title...>
+                        // --exclude-sheet-status <status...>
+                        const { excludeSheet, sheetIsHidden } = await determineSheetExcludeStatus(
+                            app,
+                            sheet,
+                            options,
+                            appIsPublished,
+                            iSheetNum,
+                            logger
                         );
 
-                        return SHEET_SKIPPED;
+                        if (excludeSheet === true) {
+                            logger.info(
+                                `Excluded sheet: ${iSheetNum}: '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}', approved '${sheet?.qMeta?.approved === true}', published '${sheet?.qMeta?.published === true}', hidden '${sheetIsHidden}'`
+                            );
+
+                            return SHEET_SKIPPED;
+                        }
+
+                        logger.info(
+                            `Processing sheet ${iSheetNum}: '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}', approved '${sheet?.qMeta?.approved === true}', published '${sheet?.qMeta?.published === true}', hidden '${sheetIsHidden}'`
+                        );
+
+                        const createdFile = await takeSheetScreenshot(
+                            page,
+                            appUrl,
+                            imgDir,
+                            appId,
+                            sheet,
+                            iSheetNum,
+                            options,
+                            logger
+                        );
+
+                        // Only reached when the screenshot, and any blur of it, succeeded. A
+                        // sheet whose thumbnail could not be produced is left out of
+                        // createdFiles entirely, so nothing later repoints it at an image that
+                        // does not exist - it keeps the icon it already had.
+                        createdFiles.push(createdFile);
+
+                        return undefined;
                     }
-
-                    logger.info(
-                        `Processing sheet ${iSheetNum}: '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}', approved '${sheet?.qMeta?.approved === true}', published '${sheet?.qMeta?.published === true}', hidden '${sheetIsHidden}'`
-                    );
-
-                    const createdFile = await takeSheetScreenshot(
-                        page,
-                        appUrl,
-                        imgDir,
-                        appId,
-                        sheet,
-                        iSheetNum,
-                        options,
-                        logger
-                    );
-
-                    // Only reached when the screenshot, and any blur of it, succeeded. A
-                    // sheet whose thumbnail could not be produced is left out of
-                    // createdFiles entirely, so nothing later repoints it at an image that
-                    // does not exist - it keeps the icon it already had.
-                    createdFiles.push(createdFile);
-
-                    return undefined;
-                }
-            );
-            try {
-                await browser.close();
-                logger.verbose('Closed virtual browser');
-            } catch (err) {
-                if (err.stack) {
-                    logger.error(
-                        `CLOUD APP: Could not close virtual browser (stack): ${err.stack}`
-                    );
-                } else if (err.message) {
-                    logger.error(
-                        `CLOUD APP: Could not close virtual browser (message): ${err.message}`
-                    );
-                } else {
-                    logger.error(`CLOUD APP: Could not close virtual browser: ${err}`);
+                );
+                try {
+                    await browser.close();
+                    logger.verbose('Closed virtual browser');
+                } catch (err) {
+                    if (err.stack) {
+                        logger.error(
+                            `CLOUD APP: Could not close virtual browser (stack): ${err.stack}`
+                        );
+                    } else if (err.message) {
+                        logger.error(
+                            `CLOUD APP: Could not close virtual browser (message): ${err.message}`
+                        );
+                    } else {
+                        logger.error(`CLOUD APP: Could not close virtual browser: ${err}`);
+                    }
                 }
             }
+        } finally {
+            // Everything above it - browser launch, login, navigation, screenshots, image
+            // processing - can throw, and without this the engine websocket was left open for
+            // the life of the process, once per failing app. The other four session-holding
+            // modules got this in #885; these two were missed.
+            //
+            // Closed here rather than at the end of the function: the update step below opens
+            // its own session to the same app, and overlapping them would hold two engine
+            // sessions per app.
+            // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+            await session.close();
         }
-        // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
-        await session.close();
         logger.verbose(
             `Closed session after generating sheet thumbnail images for all sheets in QS Cloud app ${appId} on tenant ${options.tenanturl}`
         );

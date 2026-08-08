@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, jest } from '@jest/globals';
+import { describe, test, expect, beforeAll, beforeEach, jest } from '@jest/globals';
 
 // Mock every dependency of qseowProcessApp using the ESM-native
 // jest.unstable_mockModule + dynamic import pattern. This mirrors the pattern
@@ -287,6 +287,8 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             on: jest.fn(),
         };
         enigma.create.mockResolvedValue(mockSession);
+
+        return mockSession;
     }
 
     /**
@@ -443,6 +445,93 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
         expect(logged).toContain('Failed to install a browser for QSEoW app test-app-id');
         expect(puppeteer.launch).not.toHaveBeenCalled();
+    });
+
+    describe('the engine session is released when the app fails', () => {
+        beforeEach(() => {
+            // The enclosing describe has no beforeEach, so both call counts and mock
+            // implementations accumulate across its tests - the failing browser install above
+            // otherwise leaks into every test declared after it. clearAllMocks resets the counts
+            // but deliberately keeps implementations, so the browser mocks are restored by hand.
+            jest.clearAllMocks();
+            detectAvailableBrowser.mockResolvedValue({
+                executablePath: '/test/browser',
+                source: 'system',
+                browser: 'chrome',
+                buildId: 'system-installed',
+            });
+            browserInstall.mockReset();
+            qseowUploadToContentLibrary.mockResolvedValue(true);
+            qseowUpdateSheetThumbnails.mockResolvedValue(true);
+        });
+
+        /**
+         * Resolves the session object handed back by the mocked `enigma.create`.
+         *
+         * @returns {Promise<object>} The mock session.
+         */
+        const createdSession = async () => enigma.create.mock.results[0].value;
+
+        test('releases the session when the browser cannot be installed', async () => {
+            // The session is opened before the browser is launched and was closed ~360 lines
+            // later on the happy path only, with no finally. Every failure in between left the
+            // engine websocket open for the life of the process, once per failing app.
+            setupHappyPath();
+            detectAvailableBrowser.mockResolvedValue(null);
+            browserInstall.mockRejectedValue(new Error('network unreachable'));
+
+            await expect(qseowProcessApp('test-app-id', defaultOptions)).rejects.toThrow();
+
+            expect((await createdSession()).close).toHaveBeenCalledTimes(1);
+        });
+
+        test('releases the session when opening the app fails', async () => {
+            // A failure on the engine side rather than the browser side, so the guard is not
+            // pinned to one specific throw site.
+            const browser = setupHappyPath();
+            browser.newPage.mockRejectedValue(new Error('page could not be created'));
+
+            await expect(qseowProcessApp('test-app-id', defaultOptions)).rejects.toThrow();
+
+            expect((await createdSession()).close).toHaveBeenCalledTimes(1);
+        });
+
+        test('closes the session before the thumbnails are uploaded and applied', async () => {
+            // Ordering, not just occurrence. qseowUpdateSheetThumbnails opens its own session to
+            // the same app - if the close drifted below it, QSEoW would hold two engine sessions
+            // per app, doubling licence consumption and failing at a per-user session ceiling
+            // after the screenshots were already taken.
+            const order = [];
+            const mockGet = jest.fn();
+            qrsInteract.mockImplementation(() => ({ Get: mockGet }));
+            wireQrsGetSequence(mockGet);
+            const session = wireEnigmaSession();
+            puppeteer.launch.mockResolvedValue(buildMockBrowser());
+            session.close.mockImplementation(async () => {
+                order.push('session-close');
+                return true;
+            });
+            qseowUploadToContentLibrary.mockImplementation(async () => {
+                order.push('upload');
+                return true;
+            });
+            qseowUpdateSheetThumbnails.mockImplementation(async () => {
+                order.push('update');
+                return true;
+            });
+
+            await qseowProcessApp('test-app-id', defaultOptions);
+
+            expect(order).toEqual(['session-close', 'upload', 'update']);
+        });
+
+        test('opens exactly one engine session per app', async () => {
+            setupHappyPath();
+
+            await qseowProcessApp('test-app-id', defaultOptions);
+
+            expect(enigma.create).toHaveBeenCalledTimes(1);
+        });
     });
 });
 
