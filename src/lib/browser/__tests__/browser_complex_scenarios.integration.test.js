@@ -44,10 +44,10 @@ describe('complex scenarios', () => {
 
             // Install four different browsers
 
-            // Latest Chrome from stable channel
+            // The Chrome build this Butler Sheet Icons release is tested with
             const browserInstallRes1 = await browserInstall({
                 browser: 'chrome',
-                browserVersion: 'latest',
+                browserVersion: 'recommended',
             });
             expect(browserInstallRes1).toBeTruthy();
 
@@ -67,8 +67,8 @@ describe('complex scenarios', () => {
 
             const browserInstallRes4 = await browserInstall({
                 browser: 'firefox',
-                browserVersion: 'latest',
-            }); // Same as previous, should not install another browser
+                browserVersion: 'recommended',
+            });
             expect(browserInstallRes4).toBeTruthy();
 
             // There should now be four installed browsers

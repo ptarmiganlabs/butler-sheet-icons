@@ -30,7 +30,10 @@ const options = {
     qliksensetag: process.env.BSI_QLIK_SENSE_TAG || '',
     senseVersion: process.env.BSI_SENSE_VERSION,
     browser: process.env.BSI_BROWSER || 'chrome',
-    browserVersion: process.env.BSI_BROWSER_VERSION || 'latest',
+    // These options bypass Commander, so the CLI default is not applied for them - the fallback
+    // here is the default. It read 'latest', which is how this suite came to run against a Chrome
+    // build that could not be driven while reporting no configuration difference (issue #878).
+    browserVersion: process.env.BSI_BROWSER_VERSION || 'recommended',
     blurSheetStatus: process.env.BSI_BLUR_SHEET_STATUS || [],
     blurSheetTag: process.env.BSI_BLUR_SHEET_TAG || '',
     blurSheetNumber: process.env.BSI_BLUR_SHEET_NUMBER || '5',
