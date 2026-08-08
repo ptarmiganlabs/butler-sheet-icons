@@ -29,6 +29,18 @@ export const SHEET_LIST_FIELDS_EXTENDED = {
 };
 
 /**
+ * What the screenshot paths ask for: the wider projection plus the sheet's show condition.
+ *
+ * Only these two callers evaluate show conditions, so the field is not folded into
+ * {@link SHEET_LIST_FIELDS_EXTENDED} - spelled as an extension of it, because that is the
+ * relationship, and a hand-copied superset is how the three variants drifted apart originally.
+ */
+export const SHEET_LIST_FIELDS_WITH_SHOW_CONDITION = {
+    ...SHEET_LIST_FIELDS_EXTENDED,
+    showCondition: '/showCondition',
+};
+
+/**
  * Fetches an app's sheets through a `SheetList` session object.
  *
  * The same ~15-line session-object literal was written out in all six modules that walk an app's

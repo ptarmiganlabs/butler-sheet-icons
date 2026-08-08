@@ -262,6 +262,7 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
             on: jest.fn(),
         };
         enigma.create.mockResolvedValue(mockSession);
+        mockSession._app = mockApp;
 
         return mockSession;
     }
@@ -331,6 +332,111 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         // resolves close() truthy, so it only ever fired on a misreading of the contract.
         const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
         expect(logged).not.toContain('Error closing session');
+    });
+
+    describe('session and sheet-list wiring', () => {
+        beforeEach(() => {
+            jest.clearAllMocks();
+            detectAvailableBrowser.mockResolvedValue({
+                executablePath: '/test/browser',
+                source: 'system',
+                browser: 'chrome',
+                buildId: 'system-installed',
+            });
+            browserInstall.mockReset();
+        });
+
+        test('asks the engine for showCondition, which sheet exclusion depends on', async () => {
+            // The screenshot paths need a wider projection than the other callers. Requesting the
+            // default set would leave qData.showCondition undefined on every sheet, which reads as
+            // "no show condition" rather than as an error - silently disabling that exclusion rule.
+            const session = wireEnigmaSession();
+            wireSaasGet();
+            puppeteer.launch.mockResolvedValue(buildMockBrowser());
+
+            await processCloudApp('test-app-id', defaultSaasInstance, defaultOptions);
+
+            const qData = session._app.createSessionObject.mock.calls[0][0].qAppObjectListDef.qData;
+            expect(qData).toHaveProperty('showCondition', '/showCondition');
+            expect(qData).toHaveProperty('rank', '/rank');
+            expect(qData).toHaveProperty('title', '/qMetaDef/title');
+        });
+
+        test('logs the created session at info, the level operators see by default', async () => {
+            // The four non-screenshot callers log this at verbose; these two always logged it at
+            // info, and the default log level is info. Letting the shared helper demote it would
+            // remove a line from every run.
+            wireEnigmaSession();
+            wireSaasGet();
+            puppeteer.launch.mockResolvedValue(buildMockBrowser());
+
+            await processCloudApp('test-app-id', defaultSaasInstance, defaultOptions);
+
+            const atInfo = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(atInfo).toContain(
+                'Created session to Qlik Sense Cloud tenant test-tenant.eu.qlikcloud.com'
+            );
+            expect(atInfo).toContain('engine version is');
+        });
+    });
+
+    describe('the virtual browser is released when the app fails', () => {
+        beforeEach(() => {
+            jest.clearAllMocks();
+            detectAvailableBrowser.mockResolvedValue({
+                executablePath: '/test/browser',
+                source: 'system',
+                browser: 'chrome',
+                buildId: 'system-installed',
+            });
+            browserInstall.mockReset();
+        });
+
+        test('closes the browser when a page operation throws', async () => {
+            // The browser was launched ~290 lines above its close and released on the happy
+            // path only, so any failure in between stranded a Chrome process for the life of
+            // the run - once per failing app, at hundreds of MB each.
+            const browser = setupHappyPath();
+            browser._page.goto.mockRejectedValue(new Error('navigation timed out'));
+
+            await expect(
+                processCloudApp('test-app-id', defaultSaasInstance, defaultOptions)
+            ).rejects.toThrow();
+
+            expect(browser.close).toHaveBeenCalledTimes(1);
+        });
+
+        test('closes the browser when creating the page throws', async () => {
+            const browser = setupHappyPath();
+            browser.newPage.mockRejectedValue(new Error('no page for you'));
+
+            await expect(
+                processCloudApp('test-app-id', defaultSaasInstance, defaultOptions)
+            ).rejects.toThrow();
+
+            expect(browser.close).toHaveBeenCalledTimes(1);
+        });
+
+        test('a browser that will not close does not mask the real failure', async () => {
+            const browser = setupHappyPath();
+            browser._page.goto.mockRejectedValue(new Error('navigation timed out'));
+            browser.close.mockRejectedValue(new Error('browser is wedged'));
+
+            await expect(
+                processCloudApp('test-app-id', defaultSaasInstance, defaultOptions)
+            ).rejects.toThrow();
+
+            const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(logged).toContain('navigation timed out');
+        });
+
+        test('closes the browser exactly once on a clean run', async () => {
+            const browser = setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, defaultOptions);
+
+            expect(browser.close).toHaveBeenCalledTimes(1);
+        });
     });
 
     describe('the engine session is released when the app fails', () => {
