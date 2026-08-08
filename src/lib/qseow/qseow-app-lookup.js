@@ -26,8 +26,11 @@ export const getAppIdsByTag = async (options) => {
     const qseowConfigQrs = setupQseowQrsConnection(options);
 
     const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
-    logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
 
+    // The QRS config is deliberately not dumped here. Both callers reach qseow-process-app.js
+    // or qseow-upload.js in the same run, and both log it there, so repeating it adds nothing -
+    // and CodeQL flags the pattern as clear-text logging of environment-derived values
+    // (js/clear-text-logging). Not worth adding a fourth copy to earn a fourth alert.
     const filter = qrsFilterAnyOf('tags.name', options.qliksensetag);
 
     // Logged unencoded: this line exists so an administrator can see why a tag matched nothing,
