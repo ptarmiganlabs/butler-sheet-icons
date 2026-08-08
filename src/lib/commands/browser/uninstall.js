@@ -1,6 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserUninstall } from '../../browser/browser-uninstall.js';
+import { describeBrowserVersionOption } from '../../browser/browser-version.js';
 import { runCommand } from '../run-command.js';
 
 /**
@@ -41,15 +42,15 @@ const buildBrowserUninstallCommand = () => {
                 '--browser <browser>',
                 'Browser to uninstall (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
             )
+                .choices(['chrome', 'firefox'])
                 .default('chrome')
                 .makeOptionMandatory()
                 .env('BSI_BROWSER_UI_BROWSER')
         )
         .addOption(
-            new Option(
-                '--browser-version <version>',
-                'Version (=build id) of the browser to uninstall. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
-            )
+            // No default on purpose: uninstalling is destructive, so the build to remove has to be
+            // named. A keyword is accepted and resolved like anywhere else.
+            new Option('--browser-version <version>', describeBrowserVersionOption('uninstall'))
                 .makeOptionMandatory()
                 .env('BSI_BROWSER_UI_BROWSER_VERSION')
         );

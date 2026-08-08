@@ -1,11 +1,15 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
+import {
+    VERSION_RECOMMENDED,
+    describeBrowserVersionOption,
+} from '../../browser/browser-version.js';
 import { parsePositiveInteger, collectPositiveIntegers } from '../helpers.js';
 import { runCommand } from '../run-command.js';
 
 /**
- * Commander action that triggers QSEoW thumbnail creation with normalized options and error logging.
+ * Commander action that triggers QSEoW thumbnail creation with error logging.
  *
  * @param {object} [options] - Parsed CLI options forwarded to the worker. Defaults to `{}`.
  * @param {import('commander').Command} command - Commander command instance for contextual metadata.
@@ -17,18 +21,7 @@ const handleQseowCreateSheetThumbnails = async (options = {}, command) => {
 
     logger.verbose(`appid=${options.appid}`);
     logger.verbose(`itemid=${options.itemid}`);
-    return runCommand('QSEOW MAIN 1', () => {
-        const resolvedOptions = { ...options };
-        if (!resolvedOptions.browserVersion || resolvedOptions.browserVersion === '') {
-            if (resolvedOptions.browser === 'chrome') {
-                resolvedOptions.browserVersion = 'latest';
-            } else if (resolvedOptions.browser === 'firefox') {
-                resolvedOptions.browserVersion = 'latest';
-            }
-        }
-
-        return qseowCreateThumbnails(resolvedOptions, command);
-    });
+    return runCommand('QSEOW MAIN 1', () => qseowCreateThumbnails(options, command));
 };
 
 /**
@@ -342,20 +335,18 @@ const buildQseowCommand = () => {
                 .env('BSI_QSEOW_CST_SENSE_VERSION')
         )
         .addOption(
-            new Option(
-                '--browser <browser>',
-                'Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
-            )
-                .choices(['chrome', 'firefox'])
+            // Chrome only, unlike "browser install": thumbnails are produced by driving the
+            // browser over the Chrome DevTools Protocol with a Chromium-only argument list, so a
+            // Firefox binary cannot be used here. Offering it in .choices() only moved the
+            // failure to a confusing place further along.
+            new Option('--browser <browser>', 'Browser used to render sheets. Chrome only.')
+                .choices(['chrome'])
                 .default('chrome')
                 .env('BSI_QSEOW_CST_BROWSER')
         )
         .addOption(
-            new Option(
-                '--browser-version <version>',
-                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
-            )
-                .default('latest')
+            new Option('--browser-version <version>', describeBrowserVersionOption('use'))
+                .default(VERSION_RECOMMENDED)
                 .env('BSI_QSEOW_CST_BROWSER_VERSION')
         )
         .addOption(

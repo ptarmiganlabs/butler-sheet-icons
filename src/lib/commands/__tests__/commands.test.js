@@ -93,6 +93,8 @@ let handleBrowserUninstall;
 let handleBrowserUninstallAll;
 let handleBrowserInstall;
 let handleBrowserListAvailable;
+let buildBrowserInstallCommand;
+let buildBrowserUninstallCommand;
 
 beforeAll(async () => {
     await Promise.all([
@@ -124,9 +126,10 @@ beforeAll(async () => {
     ({ buildQscloudCommand } = await import('../qscloud/index.js'));
     ({ buildBrowserCommand } = await import('../browser/index.js'));
     ({ handleBrowserListInstalled } = await import('../browser/list-installed.js'));
-    ({ handleBrowserUninstall } = await import('../browser/uninstall.js'));
+    ({ handleBrowserUninstall, buildBrowserUninstallCommand } =
+        await import('../browser/uninstall.js'));
     ({ handleBrowserUninstallAll } = await import('../browser/uninstall-all.js'));
-    ({ handleBrowserInstall } = await import('../browser/install.js'));
+    ({ handleBrowserInstall, buildBrowserInstallCommand } = await import('../browser/install.js'));
     ({ handleBrowserListAvailable } = await import('../browser/list-available.js'));
 });
 
@@ -198,6 +201,82 @@ const parseOptionInIsolation = (command, flag, argv) => {
     return parent.opts();
 };
 
+describe('--browser-version defaults (issue #878)', () => {
+    /**
+     * Resolves the `create-sheet-thumbnails` subcommand for a platform.
+     *
+     * @param {import('commander').Command} parent - Platform command, e.g. `qseow`.
+     *
+     * @returns {import('commander').Command} The thumbnail subcommand.
+     */
+    const thumbnailCommand = (parent) =>
+        parent.commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails');
+
+    // Asserted against the declared Option rather than a handler, because that is where the
+    // default actually lives. Butler Sheet Icons shipped with `.default('latest')` here and a
+    // handler that tried to correct it but never could, and no test covered the value that a
+    // real run would end up with - which is why the wrong default went unnoticed until every
+    // app in every run started failing.
+    const declarations = [
+        ['browser install', () => buildBrowserInstallCommand()],
+        ['qseow create-sheet-thumbnails', () => thumbnailCommand(buildQseowCommand())],
+        ['qscloud create-sheet-thumbnails', () => thumbnailCommand(buildQscloudCommand())],
+    ];
+
+    test.each(declarations)('%s defaults to the recommended build', (_name, build) => {
+        const option = build().options.find((opt) => opt.long === '--browser-version');
+
+        expect(option.defaultValue).toBe('recommended');
+    });
+
+    test.each(declarations)('%s still accepts an explicit build id', (_name, build) => {
+        const opts = parseOptionInIsolation(build(), '--browser-version', ['151.0.7922.77']);
+
+        expect(opts.browserVersion).toBe('151.0.7922.77');
+    });
+
+    // `latest` used to be the default, so it is in existing scripts and scheduled jobs. It has
+    // to keep parsing; browser-version.js is what re-points it at the stable channel.
+    test.each(declarations)('%s still accepts the legacy "latest" value', (_name, build) => {
+        const opts = parseOptionInIsolation(build(), '--browser-version', ['latest']);
+
+        expect(opts.browserVersion).toBe('latest');
+    });
+
+    test('browser uninstall requires the build to be named, with no default', () => {
+        const option = buildBrowserUninstallCommand().options.find(
+            (opt) => opt.long === '--browser-version'
+        );
+
+        expect(option.defaultValue).toBeUndefined();
+        expect(option.mandatory).toBe(true);
+    });
+});
+
+describe('--browser choices', () => {
+    // Firefox can be installed, but cannot render thumbnails: the launch path speaks the Chrome
+    // DevTools Protocol and passes a Chromium-only argument list. Offering it here only moved
+    // the failure somewhere the operator could not interpret it.
+    test.each([
+        ['qseow', () => buildQseowCommand()],
+        ['qscloud', () => buildQscloudCommand()],
+    ])('%s create-sheet-thumbnails offers chrome only', (_name, build) => {
+        const command = build().commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails');
+        const option = command.options.find((opt) => opt.long === '--browser');
+
+        expect(option.argChoices).toEqual(['chrome']);
+    });
+
+    test.each([
+        ['browser install', () => buildBrowserInstallCommand()],
+        ['browser uninstall', () => buildBrowserUninstallCommand()],
+    ])('%s still offers both browsers', (_name, build) => {
+        const option = build().options.find((opt) => opt.long === '--browser');
+
+        expect(option.argChoices).toEqual(['chrome', 'firefox']);
+    });
+});
+
 describe('variadic sheet-number options collect into arrays', () => {
     // A variadic option that also has an argParser takes Commander's parser branch, not
     // its array-collecting branch. A parser ignoring the accumulator leaves the option a
@@ -257,8 +336,11 @@ describe('qseow command', () => {
         expect(qseow.commands.map((cmd) => cmd.name())).toContain('create-sheet-thumbnails');
     });
 
-    test('invokes qseowCreateThumbnails with normalized browser version', async () => {
-        const options = { browser: 'chrome', browserVersion: '', appid: 'abc' };
+    test('invokes qseowCreateThumbnails with the options as given', async () => {
+        // The handler used to re-derive a browser version here. It could never fire - Commander
+        // had already applied the option default - so the default now lives in exactly one
+        // place, the option declaration, where the tests above assert it.
+        const options = { browser: 'chrome', browserVersion: 'recommended', appid: 'abc' };
         /**
          * Stub of a Commander command whose `name()` always returns `'qseow'`.
          *
@@ -270,7 +352,7 @@ describe('qseow command', () => {
         await handleQseowCreateSheetThumbnails(options, command);
 
         expect(qseowCreateThumbnails).toHaveBeenCalledWith(
-            expect.objectContaining({ browserVersion: 'latest', appid: 'abc' }),
+            expect.objectContaining({ browserVersion: 'recommended', appid: 'abc' }),
             command
         );
     });
@@ -303,10 +385,10 @@ describe('qscloud commands', () => {
         );
     });
 
-    test('create-sheet-thumbnails defaults browser version when missing', async () => {
+    test('create-sheet-thumbnails passes the options through unchanged', async () => {
         const options = {
-            browser: 'firefox',
-            browserVersion: '',
+            browser: 'chrome',
+            browserVersion: 'recommended',
             tenanturl: 'https://tenant',
             apikey: 'key',
         };
@@ -314,7 +396,7 @@ describe('qscloud commands', () => {
         await handleCloudCreateSheetThumbnails(options, {});
 
         expect(qscloudCreateThumbnails).toHaveBeenCalledWith(
-            expect.objectContaining({ browserVersion: 'latest', tenanturl: 'https://tenant' }),
+            expect.objectContaining({ browserVersion: 'recommended', tenanturl: 'https://tenant' }),
             {}
         );
     });
@@ -407,32 +489,20 @@ describe('browser commands', () => {
         expect(errors.join('\n')).not.toContain('at ');
     });
 
-    test('install delegates to browserInstall after normalizing chrome defaults', async () => {
-        const chromeOptions = { browser: 'chrome', browserVersion: '' };
-
-        await handleBrowserInstall(chromeOptions, {});
-
-        // Verify normalization happened
-        expect(chromeOptions.browserVersion).toBe('stable');
-        // Verify delegation to worker function
-        expect(browserInstall).toHaveBeenCalledWith(chromeOptions, {});
-    });
-
-    test('install delegates to browserInstall after normalizing firefox defaults', async () => {
-        const firefoxOptions = { browser: 'firefox', browserVersion: '' };
-
-        await handleBrowserInstall(firefoxOptions, {});
-
-        expect(firefoxOptions.browserVersion).toBe('latest');
-        expect(browserInstall).toHaveBeenCalledWith(firefoxOptions, {});
-    });
-
-    test('install passes through explicit browser versions without modification', async () => {
-        const options = { browser: 'chrome', browserVersion: '114.0.5735.133' };
+    test.each([
+        ['chrome', 'recommended'],
+        ['firefox', 'stable'],
+        ['chrome', '114.0.5735.133'],
+    ])('install delegates %s %s to browserInstall unchanged', async (browser, browserVersion) => {
+        // The handler used to rewrite browserVersion when it was empty. That could not happen
+        // from the CLI, because Commander had already applied the option default - so the branch
+        // that mapped chrome to "stable" was unreachable, and these tests were the only thing
+        // exercising it. Interpreting the version now happens in one place, browser-version.js.
+        const options = { browser, browserVersion };
 
         await handleBrowserInstall(options, {});
 
-        expect(options.browserVersion).toBe('114.0.5735.133');
+        expect(options.browserVersion).toBe(browserVersion);
         expect(browserInstall).toHaveBeenCalledWith(options, {});
     });
 
@@ -447,6 +517,13 @@ describe('browser commands', () => {
     test('install handles null options gracefully', async () => {
         // Reports failure rather than throwing. It used to resolve undefined, which the
         // caller could not distinguish from success.
+        //
+        // The handler is a pure delegator now, so the rejection comes from browserInstall - which
+        // really does reject a nullish options object; see browser_install_offline.test.js.
+        browserInstall.mockRejectedValueOnce(
+            new Error('Missing required options: "browser" and "browserVersion"')
+        );
+
         await expect(handleBrowserInstall(null)).resolves.toBe(false);
         expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('BROWSER MAIN 9'));
     });

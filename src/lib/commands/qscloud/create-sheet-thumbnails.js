@@ -1,6 +1,10 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qscloudCreateThumbnails } from '../../cloud/cloud-create-thumbnails.js';
+import {
+    VERSION_RECOMMENDED,
+    describeBrowserVersionOption,
+} from '../../browser/browser-version.js';
 import { parsePositiveInteger, collectPositiveIntegers } from '../helpers.js';
 import { runCommand } from '../run-command.js';
 
@@ -16,18 +20,7 @@ const handleCloudCreateSheetThumbnails = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
     logger.verbose(`appid=${options.appid}`);
-    return runCommand('CLOUD MAIN 3', () => {
-        const resolvedOptions = { ...options };
-        if (!resolvedOptions.browserVersion || resolvedOptions.browserVersion === '') {
-            if (resolvedOptions.browser === 'chrome') {
-                resolvedOptions.browserVersion = 'latest';
-            } else if (resolvedOptions.browser === 'firefox') {
-                resolvedOptions.browserVersion = 'latest';
-            }
-        }
-
-        return qscloudCreateThumbnails(resolvedOptions, cmd);
-    });
+    return runCommand('CLOUD MAIN 3', () => qscloudCreateThumbnails(options, cmd));
 };
 
 /**
@@ -237,20 +230,18 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 .env('BSI_QSCLOUD_CST_BLUR_FACTOR')
         )
         .addOption(
-            new Option(
-                '--browser <browser>',
-                'Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
-            )
-                .choices(['chrome', 'firefox'])
+            // Chrome only, unlike "browser install": thumbnails are produced by driving the
+            // browser over the Chrome DevTools Protocol with a Chromium-only argument list, so a
+            // Firefox binary cannot be used here. Offering it in .choices() only moved the
+            // failure to a confusing place further along.
+            new Option('--browser <browser>', 'Browser used to render sheets. Chrome only.')
+                .choices(['chrome'])
                 .default('chrome')
                 .env('BSI_QSCLOUD_CST_BROWSER')
         )
         .addOption(
-            new Option(
-                '--browser-version <version>',
-                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
-            )
-                .default('latest')
+            new Option('--browser-version <version>', describeBrowserVersionOption('use'))
+                .default(VERSION_RECOMMENDED)
                 .env('BSI_QSCLOUD_CST_BROWSER_VERSION')
         )
         .addOption(
