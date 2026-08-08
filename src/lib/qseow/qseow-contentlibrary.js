@@ -2,6 +2,7 @@ import qrsInteract from 'qrs-interact';
 
 import { logger } from '../../globals.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
+import { qrsFilterAnyOf, qrsPathWithFilter } from './qrs-filter.js';
 
 /**
  * Verifies if a specified content library exists in Qlik Sense Enterprise on Windows (QSEoW).
@@ -23,7 +24,7 @@ export const qseowVerifyContentLibraryExists = async (options) => {
 
         const { contentlibrary } = options;
 
-        const apiUrl = `/contentlibrary?filter=name eq '${contentlibrary}'`;
+        const apiUrl = qrsPathWithFilter('/contentlibrary', qrsFilterAnyOf('name', contentlibrary));
         logger.debug(`API URL: ${apiUrl}`);
 
         // Test if content library already exists

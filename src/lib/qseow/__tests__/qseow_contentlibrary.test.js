@@ -57,7 +57,33 @@ describe('qseowVerifyContentLibraryExists', () => {
 
         await qseowVerifyContentLibraryExists(OPTIONS);
 
-        expect(Get).toHaveBeenCalledWith("/contentlibrary?filter=name eq 'BSI thumbnails'");
+        // Assert on the decoded filter, i.e. what QRS parses. The path goes out URL-encoded,
+        // so pinning the raw string here would just pin the encoding.
+        expect(decodeURIComponent(Get.mock.calls[0][0])).toBe(
+            "/contentlibrary?filter=(name eq 'BSI thumbnails')"
+        );
+    });
+
+    test('a content library name containing an ampersand survives the query string', async () => {
+        // Unencoded, the `&` starts a new query parameter and QRS answers
+        // 400::Missing parameter value(s) - verified against a live QSEoW.
+        Get.mockResolvedValue({ statusCode: 200, body: [{ name: 'R&D thumbnails' }] });
+
+        await qseowVerifyContentLibraryExists({ ...OPTIONS, contentlibrary: 'R&D thumbnails' });
+
+        const [path] = Get.mock.calls[0];
+        expect(path).toContain('%26');
+        expect(decodeURIComponent(path)).toBe("/contentlibrary?filter=(name eq 'R&D thumbnails')");
+    });
+
+    test('a content library name containing a quote is backslash-escaped for QRS', async () => {
+        Get.mockResolvedValue({ statusCode: 200, body: [] });
+
+        await qseowVerifyContentLibraryExists({ ...OPTIONS, contentlibrary: "Q1'25" });
+
+        expect(decodeURIComponent(Get.mock.calls[0][0])).toBe(
+            "/contentlibrary?filter=(name eq 'Q1\\'25')"
+        );
     });
 
     test('builds the QRS connection from the supplied options', async () => {

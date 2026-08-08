@@ -329,7 +329,25 @@ describe('qseowRemoveSheetIcons', () => {
                 qliksensetag: 'BSI',
             });
 
-            expect(Get).toHaveBeenCalledWith("app/full?filter=tags.name eq 'BSI'");
+            // Decoded, because the path goes out URL-encoded.
+            expect(decodeURIComponent(Get.mock.calls[0][0])).toBe(
+                "app/full?filter=(tags.name eq 'BSI')"
+            );
+        });
+
+        test('a tag containing an ampersand is not truncated by the query string', async () => {
+            wireEnigma([makeSheet('sheet-1', 1)]);
+            Get.mockResolvedValue({ body: [] });
+
+            await qseowRemoveSheetIcons({
+                ...BASE_OPTIONS,
+                appid: '',
+                qliksensetag: 'R&D',
+            });
+
+            const [path] = Get.mock.calls[0];
+            expect(path).toContain('%26');
+            expect(decodeURIComponent(path)).toBe("app/full?filter=(tags.name eq 'R&D')");
         });
 
         test('processes an app named by both --appid and the tag only once', async () => {
