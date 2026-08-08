@@ -146,6 +146,8 @@ export const qseowProcessApp = async (appId, options) => {
     }
 
     // Create image directory for this app
+    let blurFailures = 0;
+
     try {
         fs.mkdirSync(`${options.imagedir}/qseow/${appId}`, { recursive: true });
         logger.verbose(`Created image QSEoW directory '${options.imagedir}/qseow/${appId}'`);
@@ -443,6 +445,27 @@ export const qseowProcessApp = async (appId, options) => {
                         if (err.stack) {
                             logger.error(`QSEOW CREATE BLURRED IMAGE (stack): ${err.stack}`);
                         }
+
+                        // Drop this sheet entirely rather than leave the unblurred entry
+                        // behind. The blur decision is made later, in updatesheets, from
+                        // the CLI options alone - so leaving the entry meant the sheet was
+                        // repointed at a `-blurred.png` that was never created, giving a
+                        // broken icon. Dropping it means updatesheets skips the sheet and
+                        // it keeps the icon it already had.
+                        //
+                        // --blur-sheet-* is a redaction control, so falling back to the
+                        // plain screenshot is not an option either: it would publish the
+                        // unredacted image the operator asked to hide.
+                        for (let i = createdFiles.length - 1; i >= 0; i -= 1) {
+                            if (createdFiles[i].sheetPos === iSheetNum) {
+                                createdFiles.splice(i, 1);
+                            }
+                        }
+
+                        blurFailures += 1;
+                        logger.error(
+                            `QSEOW APP: Sheet ${iSheetNum} in app ${appId} was left unchanged because its blurred thumbnail could not be created`
+                        );
                     }
                 }
                 iSheetNum += 1;
@@ -567,5 +590,13 @@ export const qseowProcessApp = async (appId, options) => {
         // Rethrow so the app loop can count this app as failed. Logging and returning
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;
+    }
+
+    // Asserted last, and outside the try, so the sheets that did work are still uploaded
+    // and applied.
+    if (blurFailures > 0) {
+        throw new QseowError(
+            `Failed to create a blurred thumbnail for ${blurFailures} sheet(s) in app ${appId}`
+        );
     }
 };

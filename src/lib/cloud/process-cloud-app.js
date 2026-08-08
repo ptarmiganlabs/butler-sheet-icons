@@ -8,7 +8,8 @@ import { deleteCloudAppThumbnail } from './cloud-delete-thumbnails.js';
 import { takeSheetScreenshot } from './sheet-screenshot.js';
 import { CloudError } from '../util/errors.js';
 import { launchBrowserForApp } from '../browser/browser-launch.js';
-import { sortSheetsByRank } from '../util/sheet-list.js';
+import { runOverSheets, SHEET_SKIPPED, sortSheetsByRank } from '../util/sheet-list.js';
+import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
 
 // Selector paths to elements on login page
 const selectorLoginPageUserName = '[id="\u0031-email"]';
@@ -30,6 +31,8 @@ export const processCloudApp = async (appId, saasInstance, options) => {
     if (options.browserPageTimeout && options.browserPageTimeout > 0) {
         pageTimeout = options.browserPageTimeout * 1000; // Convert to milliseconds
     }
+
+    let sheetRun;
 
     // Create image directory on disk for this app
     try {
@@ -142,7 +145,6 @@ export const processCloudApp = async (appId, saasInstance, options) => {
         if (sheetListObj.qAppObjectList.qItems.length > 0) {
             // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
             logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
-            let iSheetNum = 1;
 
             const browser = await launchBrowserForApp(options, {
                 appId,
@@ -205,129 +207,39 @@ export const processCloudApp = async (appId, saasInstance, options) => {
             sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
 
             // Loop over all sheets in app
-            for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                // Should this sheet be processed, or is it on exclude list?
-                // Options are
-                // --exclude-sheet-number <number...>
-                // --exclude-sheet-title <title...>
-                // --exclude-sheet-status <status...>
-                let excludeSheet = false;
-                // Get published status of sheet
-                let sheetPublished;
-                if (sheet.qMeta?.published === undefined || sheet.qMeta.published === false) {
-                    sheetPublished = false;
-                } else {
-                    sheetPublished = true;
-                }
-                // Get approved status of sheet
-                let sheetApproved;
-                if (sheet.qMeta?.approved === undefined || sheet.qMeta.approved === false) {
-                    sheetApproved = false;
-                } else {
-                    sheetApproved = true;
-                }
-                // Should this sheet be excluded based on its published status?
-                // Deal with public sheets first. Published and unpublished apps need to be handled differently.
-                if (appIsPublished === true) {
-                    // App is published
-                    if (
-                        sheetApproved === true &&
-                        sheetPublished === true &&
-                        options.excludeSheetStatus.includes('public')
-                    ) {
-                        excludeSheet = true;
-                        logger.verbose(
-                            `Excluded sheet (status public): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}'`
-                        );
-                    }
-                } else if (
-                    sheetApproved === false &&
-                    sheetPublished === true &&
-                    options.excludeSheetStatus &&
-                    options.excludeSheetStatus.includes('public')
-                ) {
-                    // App is not published. Public sheets in this case have approved===false and published===true
-                    excludeSheet = true;
-                    logger.verbose(
-                        `Excluded sheet (status public): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}'`
+            sheetRun = await runOverSheets(
+                sheetListObj.qAppObjectList.qItems,
+                {
+                    logPrefix: 'CLOUD APP',
+                    appId,
+                    action: 'create a thumbnail for',
+                    ErrorClass: CloudError,
+                },
+                async (sheet, iSheetNum) => {
+                    // Should this sheet be processed, or is it on exclude list?
+                    // Options are
+                    // --exclude-sheet-number <number...>
+                    // --exclude-sheet-title <title...>
+                    // --exclude-sheet-status <status...>
+                    const { excludeSheet, sheetIsHidden } = await determineSheetExcludeStatus(
+                        app,
+                        sheet,
+                        options,
+                        appIsPublished,
+                        iSheetNum,
+                        logger
                     );
-                }
-                // Next check published sheets
-                // Only applicable to published apps
-                if (appIsPublished === true) {
-                    if (
-                        sheetApproved === false &&
-                        sheetPublished === true &&
-                        options.excludeSheetStatus &&
-                        options.excludeSheetStatus.includes('published')
-                    ) {
-                        excludeSheet = true;
-                        logger.verbose(
-                            `Excluded sheet (status published): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}'`
+
+                    if (excludeSheet === true) {
+                        logger.info(
+                            `Excluded sheet: ${iSheetNum}: '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}', approved '${sheet?.qMeta?.approved === true}', published '${sheet?.qMeta?.published === true}', hidden '${sheetIsHidden}'`
                         );
+
+                        return SHEET_SKIPPED;
                     }
-                }
-                // Next check private sheets
-                // Handled the same way for both published and unpublished apps
-                if (
-                    sheetApproved === false &&
-                    sheetPublished === false &&
-                    options.excludeSheetStatus &&
-                    options.excludeSheetStatus.includes('private')
-                ) {
-                    excludeSheet = true;
-                    logger.verbose(
-                        `Excluded sheet (status private): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}'`
-                    );
-                }
-                // Is this sheet hidden?
-                // Never process hidden sheets
-                // Evaluate showCondition
-                const showConditionCall = {
-                    qExpression: sheet?.qData?.showCondition,
-                };
-                const showConditionEval = await app.evaluateEx(showConditionCall);
-                const sheetIsHidden =
-                    sheet?.qData?.showCondition &&
-                    (sheet.qData.showCondition.toLowerCase() === 'false' ||
-                        (showConditionEval?.qIsNumeric === true &&
-                            showConditionEval?.qNumber === 0))
-                        ? true
-                        : false;
-                if (sheetIsHidden === true && excludeSheet === false) {
-                    excludeSheet = true;
-                    logger.verbose(
-                        `Excluded sheet (hidden): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}', hidden '${sheetIsHidden}'`
-                    );
-                }
-                // Is this sheet on the exclude list via sheet number?
-                if (options.excludeSheetNumber && excludeSheet === false) {
-                    // Does the sheet number match any of the numbers in options.excludeSheetNumber array?
-                    // Take into account that iSheetNum is an integer, so we need to convert it to a string
-                    if (options.excludeSheetNumber.includes(iSheetNum.toString())) {
-                        excludeSheet = true;
-                        logger.verbose(
-                            `Excluded sheet (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                        );
-                    }
-                }
-                // Is this sheet on the exclude list via sheet title?
-                if (options.excludeSheetTitle && excludeSheet === false) {
-                    // Does the sheet title match any of the titles options.excludeSheetTitle array?
-                    if (options.excludeSheetTitle.includes(sheet.qMeta.title)) {
-                        excludeSheet = true;
-                        logger.verbose(
-                            `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                        );
-                    }
-                }
-                if (excludeSheet === true) {
+
                     logger.info(
-                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}', hidden '${sheetIsHidden}'`
-                    );
-                } else {
-                    logger.info(
-                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheetApproved}', published '${sheetPublished}', hidden '${sheetIsHidden}'`
+                        `Processing sheet ${iSheetNum}: '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}', approved '${sheet?.qMeta?.approved === true}', published '${sheet?.qMeta?.published === true}', hidden '${sheetIsHidden}'`
                     );
 
                     const createdFile = await takeSheetScreenshot(
@@ -340,10 +252,16 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                         options,
                         logger
                     );
+
+                    // Only reached when the screenshot, and any blur of it, succeeded. A
+                    // sheet whose thumbnail could not be produced is left out of
+                    // createdFiles entirely, so nothing later repoints it at an image that
+                    // does not exist - it keeps the icon it already had.
                     createdFiles.push(createdFile);
+
+                    return undefined;
                 }
-                iSheetNum += 1;
-            }
+            );
             try {
                 await browser.close();
                 logger.verbose('Closed virtual browser');
@@ -385,4 +303,9 @@ export const processCloudApp = async (appId, saasInstance, options) => {
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;
     }
+
+    // Asserted last, and outside the try, so the sheets that did work are still uploaded
+    // and applied. A sheet whose thumbnail could not be produced simply keeps the icon it
+    // had; the app is still reported as failed.
+    sheetRun?.assertAllProcessed();
 };

@@ -82,6 +82,11 @@ export async function takeSheetScreenshot(
         if (err.stack) {
             logger.error(`CREATE BLURRED IMAGE (stack): ${err.stack}`);
         }
+
+        // Fail the sheet rather than fall back to the unblurred screenshot. --blur-sheet-*
+        // is a redaction control: publishing the plain image because blurring failed would
+        // silently defeat it. Rethrowing leaves this sheet out of createdFiles, so it keeps
+        // whatever icon it already had and the app is reported as failed.
         throw err;
     }
 }

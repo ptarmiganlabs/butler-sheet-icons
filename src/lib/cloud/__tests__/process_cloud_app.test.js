@@ -592,3 +592,135 @@ describe('process-cloud-app.js — a failed upload must not update the sheets', 
         expect(qscloudUpdateSheetThumbnails).not.toHaveBeenCalled();
     });
 });
+
+describe('process-cloud-app.js — a sheet whose thumbnail cannot be produced', () => {
+    /**
+     * Wires the stack with two sheets, both processable.
+     *
+     * @returns {object} The mock SaaS instance.
+     */
+    function setupTwoSheets() {
+        jest.clearAllMocks();
+
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/test/browser',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+        qscloudUploadToApp.mockResolvedValue(true);
+        qscloudUpdateSheetThumbnails.mockResolvedValue(true);
+
+        const mockApp = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({
+                    qAppObjectList: {
+                        qItems: ['sheet-a', 'sheet-b'].map((id, i) => ({
+                            qInfo: { qId: id },
+                            qMeta: {
+                                title: id,
+                                description: '',
+                                approved: false,
+                                published: false,
+                            },
+                            qData: { rank: i + 1, showCondition: null },
+                        })),
+                    },
+                }),
+            }),
+            evaluateEx: jest.fn().mockResolvedValue({ qIsNumeric: false, qNumber: 1 }),
+        };
+        enigma.create.mockResolvedValue({
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '1.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(mockApp),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        });
+        puppeteer.launch.mockResolvedValue({
+            newPage: jest.fn().mockResolvedValue({
+                setViewport: jest.fn().mockResolvedValue(true),
+                setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                goto: jest.fn().mockResolvedValue(true),
+                waitForNavigation: jest.fn().mockResolvedValue(true),
+                screenshot: jest.fn().mockResolvedValue(true),
+                click: jest.fn().mockResolvedValue(true),
+                keyboard: { type: jest.fn().mockResolvedValue(true) },
+            }),
+            close: jest.fn().mockResolvedValue(true),
+        });
+
+        const saasInstance = { Get: jest.fn() };
+        saasInstance.Get.mockImplementation((p2) => {
+            if (p2.includes('media/list')) return Promise.resolve([]);
+            return Promise.resolve({
+                attributes: { name: 'Test App', published: false, publishTime: null },
+            });
+        });
+        return saasInstance;
+    }
+
+    const OPTIONS = {
+        tenanturl: 'test-tenant.eu.qlikcloud.com',
+        apikey: 'test-api-key',
+        imagedir: './img',
+        logonuserid: 'u',
+        logonpwd: 'p',
+        appid: 'test-app-id',
+        includesheetpart: '1',
+        schemaversion: '12.612.0',
+        browser: 'chrome',
+        browserVersion: 'latest',
+        headless: true,
+        pagewait: 0,
+        loglevel: 'info',
+        excludeSheetStatus: [],
+        excludeSheetNumber: [],
+        excludeSheetTitle: [],
+    };
+
+    test('leaves that sheet out of the files handed on for upload', async () => {
+        // takeSheetScreenshot rethrows when blurring fails. --blur-sheet-* is a redaction
+        // control, so the sheet must not fall back to the unredacted screenshot, and must
+        // not be repointed at an image that was never produced. It keeps its old icon.
+        const saasInstance = setupTwoSheets();
+        takeSheetScreenshot.mockImplementation(async (page, url, dir, appId, sheet) =>
+            sheet.qInfo.qId === 'sheet-a'
+                ? Promise.reject(new Error('Failed to create blurred image'))
+                : { sheetPos: 2, fileNameShort: 'thumbnail-2.png' }
+        );
+
+        await expect(processCloudApp('test-app-id', saasInstance, OPTIONS)).rejects.toThrow();
+
+        const uploaded = qscloudUploadToApp.mock.calls[0][0];
+        expect(uploaded.map((f) => f.fileNameShort)).toEqual(['thumbnail-2.png']);
+    });
+
+    test('still uploads and applies the sheets that did work', async () => {
+        const saasInstance = setupTwoSheets();
+        takeSheetScreenshot.mockImplementation(async (page, url, dir, appId, sheet) =>
+            sheet.qInfo.qId === 'sheet-a'
+                ? Promise.reject(new Error('Failed to create blurred image'))
+                : { sheetPos: 2, fileNameShort: 'thumbnail-2.png' }
+        );
+
+        await expect(processCloudApp('test-app-id', saasInstance, OPTIONS)).rejects.toThrow();
+
+        expect(qscloudUploadToApp).toHaveBeenCalledTimes(1);
+        expect(qscloudUpdateSheetThumbnails).toHaveBeenCalledTimes(1);
+    });
+
+    test('reports the app as failed, naming the sheet count', async () => {
+        const saasInstance = setupTwoSheets();
+        takeSheetScreenshot.mockImplementation(async (page, url, dir, appId, sheet) =>
+            sheet.qInfo.qId === 'sheet-a'
+                ? Promise.reject(new Error('Failed to create blurred image'))
+                : { sheetPos: 2, fileNameShort: 'thumbnail-2.png' }
+        );
+
+        await expect(processCloudApp('test-app-id', saasInstance, OPTIONS)).rejects.toThrow(
+            'Failed to create a thumbnail for 1 of 2 sheet(s)'
+        );
+    });
+});
