@@ -18,6 +18,9 @@ const {
     saveIfChanged,
     SHEET_SKIPPED,
     sortSheetsByRank,
+    getSheetList,
+    SHEET_LIST_FIELDS,
+    SHEET_LIST_FIELDS_EXTENDED,
 } = await import('../sheet-list.js');
 
 /**
@@ -474,5 +477,79 @@ describe('runOverSheets — changed count', () => {
         const result = await runOverSheets([sheet('a')], CTX, async () => SHEET_SKIPPED);
 
         expect(result.changed).toBe(0);
+    });
+});
+
+describe('getSheetList', () => {
+    /**
+     * Builds a mock app whose session object serves the supplied sheet items.
+     *
+     * @param {object[]} items - Sheet list items to return.
+     *
+     * @returns {object} The mock app.
+     */
+    const appReturning = (items) => ({
+        createSessionObject: jest.fn().mockResolvedValue({
+            getLayout: jest.fn().mockResolvedValue({ qAppObjectList: { qItems: items } }),
+        }),
+    });
+
+    test('returns the sheet items rather than the engine envelope', async () => {
+        const items = [{ qInfo: { qId: 'a' } }];
+
+        await expect(getSheetList(appReturning(items))).resolves.toEqual(items);
+    });
+
+    test('asks for a SheetList session object', async () => {
+        const app = appReturning([]);
+
+        await getSheetList(app);
+
+        expect(app.createSessionObject).toHaveBeenCalledWith(
+            expect.objectContaining({
+                qInfo: { qId: 'SheetList', qType: 'SheetList' },
+                qAppObjectListDef: expect.objectContaining({ qType: 'sheet' }),
+            })
+        );
+    });
+
+    test('requests the minimal projection by default', async () => {
+        // These field sets were verified byte-identical to the six hand-written copies they
+        // replace. Asking for the wrong ones would leave qData fields undefined downstream,
+        // which reads as "sheet has no rank" rather than as an error.
+        const app = appReturning([]);
+
+        await getSheetList(app);
+
+        expect(app.createSessionObject.mock.calls[0][0].qAppObjectListDef.qData).toEqual({
+            thumbnail: '/thumbnail',
+            rank: '/rank',
+        });
+    });
+
+    test('requests the wider projection when asked', async () => {
+        const app = appReturning([]);
+
+        await getSheetList(app, SHEET_LIST_FIELDS_EXTENDED);
+
+        expect(app.createSessionObject.mock.calls[0][0].qAppObjectListDef.qData).toEqual({
+            title: '/qMetaDef/title',
+            description: '/qMetaDef/description',
+            thumbnail: '/thumbnail',
+            cells: '/cells',
+            rank: '/rank',
+            columns: '/columns',
+            rows: '/rows',
+        });
+    });
+
+    test('the wider projection is a superset of the default', async () => {
+        Object.entries(SHEET_LIST_FIELDS).forEach(([key, value]) => {
+            expect(SHEET_LIST_FIELDS_EXTENDED[key]).toBe(value);
+        });
+    });
+
+    test('an app with no sheets yields an empty list, not a throw', async () => {
+        await expect(getSheetList(appReturning([]))).resolves.toEqual([]);
     });
 });

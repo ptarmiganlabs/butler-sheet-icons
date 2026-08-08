@@ -3,7 +3,13 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
 import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { QseowError } from '../util/errors.js';
-import { runOverSheets, sortSheetsByRank, saveIfChanged } from '../util/sheet-list.js';
+import {
+    runOverSheets,
+    sortSheetsByRank,
+    saveIfChanged,
+    getSheetList,
+    SHEET_LIST_FIELDS_EXTENDED,
+} from '../util/sheet-list.js';
 import { runOverApps } from '../util/run-over-apps.js';
 import { getAppIdsByTag } from './qseow-app-lookup.js';
 import { withEngineSession } from '../util/engine-session.js';
@@ -44,39 +50,17 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
                 logger.info(`Opened app ${appId}`);
 
                 // Get list of app sheets
-                const appSheetsCall = {
-                    qInfo: {
-                        qId: 'SheetList',
-                        qType: 'SheetList',
-                    },
-                    qAppObjectListDef: {
-                        qType: 'sheet',
-                        qData: {
-                            title: '/qMetaDef/title',
-                            description: '/qMetaDef/description',
-                            thumbnail: '/thumbnail',
-                            cells: '/cells',
-                            rank: '/rank',
-                            columns: '/columns',
-                            rows: '/rows',
-                        },
-                    },
-                };
+                const sheets = await getSheetList(app, SHEET_LIST_FIELDS_EXTENDED);
 
-                const genericListObj = await app.createSessionObject(appSheetsCall);
-                const sheetListObj = await genericListObj.getLayout();
-
-                if (sheetListObj.qAppObjectList.qItems.length > 0) {
-                    // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
-                    logger.info(
-                        `Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`
-                    );
+                if (sheets.length > 0) {
+                    // sheets[] now contains array of app sheets.
+                    logger.info(`Number of sheets in app: ${sheets.length}`);
 
                     // Sort sheets
-                    sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
+                    sortSheetsByRank(sheets);
 
                     sheetRun = await runOverSheets(
-                        sheetListObj.qAppObjectList.qItems,
+                        sheets,
                         {
                             logPrefix: 'QSEOW REMOVE SHEET ICONS',
                             appId,

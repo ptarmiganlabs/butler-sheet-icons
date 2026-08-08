@@ -7,6 +7,7 @@ import {
     SHEET_SKIPPED,
     sortSheetsByRank,
     saveIfChanged,
+    getSheetList,
 } from '../util/sheet-list.js';
 
 /**
@@ -54,32 +55,17 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
                 logger.verbose(`Opened app ${appId}`);
 
                 // Get list of app sheets
-                const appSheetsCall = {
-                    qInfo: {
-                        qId: 'SheetList',
-                        qType: 'SheetList',
-                    },
-                    qAppObjectListDef: {
-                        qType: 'sheet',
-                        qData: {
-                            thumbnail: '/thumbnail',
-                            rank: '/rank',
-                        },
-                    },
-                };
+                const sheets = await getSheetList(app);
 
-                const genericListObj = await app.createSessionObject(appSheetsCall);
-                const sheetListObj = await genericListObj.getLayout();
-
-                if (sheetListObj.qAppObjectList.qItems.length > 0) {
+                if (sheets.length > 0) {
                     // dimObj.qAppObjectList.qItems[] now contains array of app sheets.
-                    logger.info(`Number of sheets: ${sheetListObj.qAppObjectList.qItems.length}`);
+                    logger.info(`Number of sheets: ${sheets.length}`);
 
                     // Sort sheets
-                    sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
+                    sortSheetsByRank(sheets);
 
                     sheetRun = await runOverSheets(
-                        sheetListObj.qAppObjectList.qItems,
+                        sheets,
                         {
                             logPrefix: 'CLOUD UPDATE SHEETS',
                             appId,
