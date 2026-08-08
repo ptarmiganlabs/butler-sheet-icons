@@ -179,3 +179,36 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
         });
     }
 };
+
+/**
+ * Closes a virtual browser, swallowing and logging any failure.
+ *
+ * Belongs in a `finally`. Both screenshot paths launched the browser and closed it ~290 lines
+ * later on the happy path only, so any failure in between - navigation, login, a screenshot,
+ * image processing - stranded a Chrome process for the life of the run, once per failing app.
+ * Each of those holds hundreds of MB.
+ *
+ * Failures are logged rather than thrown on purpose: this runs on the way out of a region that
+ * may already be unwinding, and a throw here would replace the real cause. That mirrors what the
+ * two hand-written copies did, minus the drifted log prefix.
+ *
+ * @param {object} browser - Puppeteer browser handle. A nullish value is ignored, so callers can
+ *     put this in a `finally` that also covers a failed launch.
+ * @param {string} logPrefix - Prefix for the error line, e.g. `'QSEOW'`.
+ *
+ * @returns {Promise<void>} Resolves once the browser is closed, or the failure is logged.
+ */
+export const closeBrowserQuietly = async (browser, logPrefix) => {
+    if (!browser) {
+        return;
+    }
+
+    try {
+        await browser.close();
+        logger.verbose('Closed virtual browser');
+    } catch (err) {
+        logger.error(
+            `${logPrefix}: Could not close virtual browser: ${err?.stack || err?.message || err}`
+        );
+    }
+};

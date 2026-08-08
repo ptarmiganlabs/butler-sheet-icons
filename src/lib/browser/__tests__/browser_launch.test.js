@@ -38,7 +38,7 @@ jest.unstable_mockModule('node:fs', () => ({
 }));
 const fs = await import('node:fs');
 
-const { launchBrowserForApp, buildBrowserArgs, resolveBrowserExecutablePath } =
+const { launchBrowserForApp, buildBrowserArgs, resolveBrowserExecutablePath, closeBrowserQuietly } =
     await import('../browser-launch.js');
 
 /** Stand-in typed error, matching the (message, { cause }) shape of the real ones. */
@@ -188,5 +188,41 @@ describe('launchBrowserForApp', () => {
         await launchBrowserForApp(OPTIONS, CONTEXT).catch(() => undefined);
 
         expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('no display available'));
+    });
+});
+
+describe('closeBrowserQuietly', () => {
+    test('closes the browser', async () => {
+        const browser = { close: jest.fn().mockResolvedValue(undefined) };
+
+        await closeBrowserQuietly(browser, 'QSEOW');
+
+        expect(browser.close).toHaveBeenCalledTimes(1);
+    });
+
+    test('swallows a close failure rather than throwing', async () => {
+        // This runs from a finally that may already be unwinding a real failure. Throwing here
+        // would replace the cause the operator needs to see.
+        const browser = { close: jest.fn().mockRejectedValue(new Error('browser is wedged')) };
+
+        await expect(closeBrowserQuietly(browser, 'QSEOW')).resolves.toBeUndefined();
+    });
+
+    test('logs the failure with the caller prefix, so it is not lost silently', async () => {
+        const browser = { close: jest.fn().mockRejectedValue(new Error('browser is wedged')) };
+
+        await closeBrowserQuietly(browser, 'CLOUD APP');
+
+        const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(logged).toContain('CLOUD APP');
+        expect(logged).toContain('browser is wedged');
+    });
+
+    test.each([
+        ['undefined', undefined],
+        ['null', null],
+    ])('ignores a %s browser, so a failed launch can share the finally', async (_l, browser) => {
+        await expect(closeBrowserQuietly(browser, 'QSEOW')).resolves.toBeUndefined();
+        expect(logger.error).not.toHaveBeenCalled();
     });
 });

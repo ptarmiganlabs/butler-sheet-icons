@@ -30,6 +30,11 @@ import { logger } from '../../globals.js';
  * @param {string} ctx.connectionLabel - What was connected to, e.g. `'server sense.example.com'`
  *     or `'Qlik Sense Cloud tenant foo.eu.qlikcloud.com'`. Rendered into the existing
  *     `Created session to …, engine version is …` line.
+ * @param {string} [ctx.sessionLogLevel] - Level for that line. Defaults to `'verbose'`, which is
+ *     what four of the six callers used. The two screenshot paths pass `'info'`, because that is
+ *     what they logged before and the default log level is `info` - quietly demoting it would
+ *     remove a line operators see on every run. The inconsistency is deliberate to preserve here,
+ *     and belongs with the rest of the message work in #872 part 3.
  * @param {Function} fn - Async callback receiving the enigma `global` object. Its resolved value
  *     is returned.
  *
@@ -39,7 +44,7 @@ import { logger } from '../../globals.js';
  *     otherwise successful run throws.
  */
 export const withEngineSession = async (configEnigma, ctx, fn) => {
-    const { logPrefix, loglevel, connectionLabel } = ctx;
+    const { logPrefix, loglevel, connectionLabel, sessionLogLevel = 'verbose' } = ctx;
 
     // Outside the try: if this throws there is no session to release.
     const session = await enigma.create(configEnigma);
@@ -62,7 +67,7 @@ export const withEngineSession = async (configEnigma, ctx, fn) => {
         const global = await session.open();
 
         const engineVersion = await global.engineVersion();
-        logger.verbose(
+        logger[sessionLogLevel](
             `Created session to ${connectionLabel}, engine version is ${engineVersion.qComponentVersion}`
         );
 
