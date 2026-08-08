@@ -102,6 +102,17 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 - Puppeteer launch options are centralized in `src/lib/browser/` — do not create new browser instances ad hoc
 - Long browser sessions can hold files open; always call `browser.close()` (or use the `try/finally` helpers) to avoid hanging tests
 
+## Verifying against a live QSEoW environment
+
+The section above is about the browser BSI drives. This one is about the browser **you** drive. Some changes — a thumbnail that should have updated, a login or logout selector, which part of a sheet gets captured — can only be confirmed by looking at a real server. Unit tests cannot show this.
+
+- **Reach for the internal browser first.** Claude Code's in-app browser (`mcp__Claude_Browser__*`) starts from a clean profile, which satisfies the next point for free. Fall back to Claude in Chrome (`mcp__claude-in-chrome__*`) only when the task needs the user's existing signed-in session or password manager. Other agents: use whatever equivalent browser tooling you have.
+- **Start from a clean browser session** — a fresh profile, cleared cache, or an incognito/private window. A cached page is the most common reason a "verified" result is really the previous run.
+- **Get the app URL before opening anything.** Ask the user for it, or build it from the run's own options: `https://<host>/<prefix>/sense/app/<appId>`, dropping `/<prefix>` when no virtual proxy is in play. The hub is `https://<host>/<prefix>/hub`.
+- **Never type credentials yourself.** If the login form is already filled in, click the login button. Otherwise ask the user to sign in, and wait until they confirm they are done.
+- **Look at the specific thing that changed** — the sheet, the hub thumbnail, or the content library entry — and report what you actually saw, not what should have happened.
+- **If you have no browser tooling, say so.** Give the user the exact URL and what to look for. Do not describe the change as verified.
+
 ## SEA (Single Executable App)
 
 - SEA config: `build-script/sea-config.json` — bundles `build.cjs` and enigma.js JSON schemas as assets

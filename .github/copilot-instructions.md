@@ -119,6 +119,17 @@ After making changes, **ALWAYS** test at least one of these scenarios:
 - **Help System**: Verify all help commands work: `--help`, `qseow --help`, `qscloud --help`, `browser --help`
 - **Configuration Loading**: Test with environment variables or config files if modified
 
+### Live QSEoW Verification
+
+Some changes — a thumbnail that should have updated, a login or logout selector, which part of a sheet is captured — can only be confirmed against a real Qlik Sense server. Unit tests cannot show this.
+
+- **ALWAYS** prefer a sandboxed/in-app browser over the user's own signed-in browser, because it starts from a clean profile. Reach for the real browser, with its existing sessions and password manager, only when the task actually needs them. Under Claude Code that ordering is `mcp__Claude_Browser__*` first, `mcp__claude-in-chrome__*` second.
+- **ALWAYS** start from a clean browser session: fresh profile, cleared cache, or incognito. A cached page is the most common reason a "verified" result is really the previous run.
+- **ALWAYS** establish the app URL first — ask the user, or build it from the run's options: `https://<host>/<prefix>/sense/app/<appId>` (omit `/<prefix>` when no virtual proxy is used). The hub is `https://<host>/<prefix>/hub`.
+- **NEVER** type credentials yourself. Click the login button if the form is pre-filled; otherwise ask the user to sign in and wait for confirmation.
+- After signing in, open the specific sheet, hub thumbnail, or content library entry the change affects, and report what you **actually saw**.
+- **NEVER** describe a change as verified when you had no browser available — give the user the URL and what to look for instead.
+
 ## Code Quality and CI Requirements
 
 **ALWAYS** run these before committing or the CI (.github/workflows/ci.yaml) will fail:
