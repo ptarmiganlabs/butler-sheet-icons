@@ -12,7 +12,7 @@ import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js
 import { QseowError } from '../util/errors.js';
 import { launchBrowserForApp } from '../browser/browser-launch.js';
 import { sortSheetsByRank } from '../util/sheet-list.js';
-import { qrsFilterAnyOf, qrsPathWithFilter } from './qrs-filter.js';
+import { qrsFilterAnyOf, qrsPathWithFilter, toFilterValueList } from './qrs-filter.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -177,17 +177,35 @@ export const qseowProcessApp = async (appId, options) => {
         let appMetadata = await qrsInteractInstance.Get(appMetadataPath);
         appMetadata = appMetadata.body;
 
-        // Get metadata for the app sheets that should be exclude, blur etc based on sheet tags.
+        const appSheetsFilter = `objectType eq 'sheet' and app.id eq ${appId}`;
+
+        // Get metadata for the app sheets that should be excluded based on sheet tags.
+        //
+        // Only worth asking when tags were actually supplied. This used to run for every app
+        // whatever the operator passed: with --exclude-sheet-tag absent it queried for a tag
+        // literally named `undefined`, which costs a round trip per app and, on a site that
+        // happens to have a tag by that name, would have excluded sheets nobody asked to exclude.
+        //
         // --exclude-sheet-tag is variadic, so this has to be an `or` group over every tag given:
         // interpolating the array produced `tags.name eq 'A,B'`, one literal matching no tag.
-        const appSheetsFilter = `objectType eq 'sheet' and app.id eq ${appId}`;
-        const tagSheetPath = qrsPathWithFilter(
-            'app/object/full',
-            `${appSheetsFilter} and ${qrsFilterAnyOf('tags.name', options.excludeSheetTag)}`
-        );
-        logger.debug(`GET tagSheetAppMetadata: ${tagSheetPath}`);
-        let tagSheetAppMetadata = await qrsInteractInstance.Get(tagSheetPath);
-        tagSheetAppMetadata = tagSheetAppMetadata.body;
+        const excludeSheetTags = toFilterValueList(options.excludeSheetTag);
+        let tagSheetAppMetadata = [];
+
+        if (excludeSheetTags.length > 0) {
+            const tagFilter = `${appSheetsFilter} and ${qrsFilterAnyOf(
+                'tags.name',
+                excludeSheetTags
+            )}`;
+            logger.debug(`GET tagSheetAppMetadata: app/object/full?filter=${tagFilter}`);
+            const tagSheetResponse = await qrsInteractInstance.Get(
+                qrsPathWithFilter('app/object/full', tagFilter)
+            );
+            tagSheetAppMetadata = tagSheetResponse.body;
+        } else {
+            logger.debug(
+                'No --exclude-sheet-tag supplied, skipping the QRS lookup for tagged sheets'
+            );
+        }
 
         // Create mapping between repo db sheet id and engine sheet id
         let mapRepoEngineSheetIdTmp1 = await qrsInteractInstance.Get(

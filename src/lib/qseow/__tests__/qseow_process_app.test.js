@@ -305,6 +305,54 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         return browser;
     }
 
+    /**
+     * Runs qseowProcessApp against a wired-up happy path and returns every QRS path it asked
+     * for, decoded.
+     *
+     * @param {object} overrides - Option overrides merged over `defaultOptions`.
+     *
+     * @returns {Promise<string[]>} The decoded QRS paths requested.
+     */
+    async function qrsPathsFor(overrides) {
+        const mockGet = jest.fn();
+        qrsInteract.mockImplementation(() => ({ Get: mockGet }));
+        wireQrsGetSequence(mockGet);
+        wireEnigmaSession();
+        puppeteer.launch.mockResolvedValue(buildMockBrowser());
+
+        await qseowProcessApp('test-app-id', { ...defaultOptions, ...overrides });
+
+        return mockGet.mock.calls.map(([path]) => decodeURIComponent(path));
+    }
+
+    test.each([
+        ['the option is absent', undefined],
+        ['an empty environment variable yields a blank entry', ['']],
+        ['an empty array is passed programmatically', []],
+    ])('skips the tagged-sheet lookup entirely when %s', async (_label, excludeSheetTag) => {
+        // This query used to run for every app whatever was passed. With no tags it asked for a
+        // tag literally named `undefined` - a wasted round trip per app, and a real exclusion on
+        // any site that happens to have a tag by that name.
+        const paths = await qrsPathsFor({ excludeSheetTag });
+
+        expect(paths.some((path) => path.includes('tags.name eq'))).toBe(false);
+        expect(paths.some((path) => path.includes("'undefined'"))).toBe(false);
+    });
+
+    test('still fetches the sheet-id mapping when the tag lookup is skipped', async () => {
+        // Skipping must not take the neighbouring query with it - the repo-to-engine sheet id
+        // map is unconditional and everything downstream needs it.
+        const paths = await qrsPathsFor({ excludeSheetTag: undefined });
+
+        expect(paths.some((path) => path.includes("objectType eq 'sheet'"))).toBe(true);
+    });
+
+    test('still queries when exclude tags are supplied', async () => {
+        const paths = await qrsPathsFor({ excludeSheetTag: ['exclude-thumbnail'] });
+
+        expect(paths.some((path) => path.includes("tags.name eq 'exclude-thumbnail'"))).toBe(true);
+    });
+
     test('queries QRS with an or-group when several exclude tags are given', async () => {
         // --exclude-sheet-tag is variadic, so this arrives as an array. Interpolating it
         // produced `tags.name eq 'a,b'` - one literal matching no tag, so nothing was excluded.

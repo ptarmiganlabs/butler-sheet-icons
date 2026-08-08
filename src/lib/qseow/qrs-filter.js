@@ -36,6 +36,23 @@
 export const qrsFilterValue = (value) => String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
 
 /**
+ * Normalises a CLI option into the list of values worth querying for.
+ *
+ * Commander hands the same option over in several shapes: absent options arrive as `undefined`,
+ * a variadic option set from an empty environment variable arrives as `['']`, and a plain one
+ * arrives as a bare string. None of the empty shapes name a real tag, so they all collapse to an
+ * empty list and let the caller skip the query rather than ask QRS about nothing.
+ *
+ * @param {string|string[]|undefined} values - Raw option value.
+ *
+ * @returns {string[]} The values worth querying for, possibly empty.
+ */
+export const toFilterValueList = (values) =>
+    (Array.isArray(values) ? values : [values]).filter(
+        (value) => value !== undefined && value !== null && value !== ''
+    );
+
+/**
  * Builds a filter term matching a field against any one of the supplied values.
  *
  * The result is always a parenthesised `or` group, even for a single value. The parentheses
