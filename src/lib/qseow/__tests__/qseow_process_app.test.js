@@ -212,7 +212,11 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
      * @returns {void}
      */
     function wireQrsGetSequence(mockGet) {
-        mockGet.mockImplementation((path) => {
+        mockGet.mockImplementation((encodedPath) => {
+            // Match on the decoded filter, i.e. what QRS parses, rather than on the wire
+            // encoding. Filters are URL-encoded before they leave, so matching the raw path
+            // would tie these mocks to that encoding.
+            const path = decodeURIComponent(encodedPath);
             if (path.includes('app?filter=id eq')) {
                 return Promise.resolve({
                     body: [{ id: 'test-app-id', name: 'Test App', published: true }],
@@ -300,6 +304,28 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         puppeteer.launch.mockResolvedValue(browser);
         return browser;
     }
+
+    test('queries QRS with an or-group when several exclude tags are given', async () => {
+        // --exclude-sheet-tag is variadic, so this arrives as an array. Interpolating it
+        // produced `tags.name eq 'a,b'` - one literal matching no tag, so nothing was excluded.
+        const mockGet = jest.fn();
+        qrsInteract.mockImplementation(() => ({ Get: mockGet }));
+        wireQrsGetSequence(mockGet);
+        wireEnigmaSession();
+        puppeteer.launch.mockResolvedValue(buildMockBrowser());
+
+        await qseowProcessApp('test-app-id', {
+            ...defaultOptions,
+            excludeSheetTag: ['exclude-thumbnail', 'R&D'],
+        });
+
+        const tagQuery = mockGet.mock.calls
+            .map(([path]) => decodeURIComponent(path))
+            .find((path) => path.includes('tags.name eq'));
+
+        expect(tagQuery).toContain("(tags.name eq 'exclude-thumbnail' or tags.name eq 'R&D')");
+        expect(tagQuery).not.toContain("'exclude-thumbnail,R&D'");
+    });
 
     test('launches puppeteer with v25-compatible options (headless: true, no acceptInsecureCerts)', async () => {
         setupHappyPath();
@@ -433,7 +459,11 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
         qseowUploadToContentLibrary.mockResolvedValue(true);
         qseowUpdateSheetThumbnails.mockResolvedValue(true);
 
-        const mockGet = jest.fn().mockImplementation((path) => {
+        const mockGet = jest.fn().mockImplementation((encodedPath) => {
+            // Match on the decoded filter, i.e. what QRS parses, rather than on the wire
+            // encoding. Filters are URL-encoded before they leave, so matching the raw path
+            // would tie these mocks to that encoding.
+            const path = decodeURIComponent(encodedPath);
             if (path.includes('app?filter=id eq')) {
                 return Promise.resolve({
                     body: [{ id: 'test-app-id', name: 'Test App', published: true }],
@@ -553,7 +583,11 @@ describe('qseow-process-app.js — a blurred thumbnail that cannot be created', 
         qseowUploadToContentLibrary.mockResolvedValue(true);
         qseowUpdateSheetThumbnails.mockResolvedValue(true);
 
-        const mockGet = jest.fn().mockImplementation((path) => {
+        const mockGet = jest.fn().mockImplementation((encodedPath) => {
+            // Match on the decoded filter, i.e. what QRS parses, rather than on the wire
+            // encoding. Filters are URL-encoded before they leave, so matching the raw path
+            // would tie these mocks to that encoding.
+            const path = decodeURIComponent(encodedPath);
             if (path.includes('app?filter=id eq')) {
                 return Promise.resolve({
                     body: [{ id: 'test-app-id', name: 'Test App', published: true }],

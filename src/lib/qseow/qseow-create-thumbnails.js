@@ -1,12 +1,10 @@
-import qrsInteract from 'qrs-interact';
-
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyContentLibraryExists } from './qseow-contentlibrary.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
-import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { qseowProcessApp } from './qseow-process-app.js';
 import { runOverApps } from '../util/run-over-apps.js';
+import { getAppIdsByTag } from './qseow-app-lookup.js';
 
 /**
  * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW).
@@ -83,21 +81,7 @@ export const qseowCreateThumbnails = async (options) => {
         // If --qliksensetag does not exist the app specified by --appid should be processed.
         if (options.qliksensetag && options.qliksensetag.length > 0) {
             // Get all apps matching the tag in --qliksensetag
-            const qseowConfigQrs = setupQseowQrsConnection(options);
-
-            const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
-            logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
-
-            logger.debug(`GETAPPS 1: app/full?filter=tags.name eq '${options.qliksensetag}'`);
-            const result = await qrsInteractInstance.Get(
-                `app/full?filter=tags.name eq '${options.qliksensetag}'`
-            );
-
-            // Add all apps with this tag
-
-            for (const app of result.body) {
-                appIdsToProcess.push(app.id);
-            }
+            appIdsToProcess.push(...(await getAppIdsByTag(options)));
         }
 
         return await runOverApps(

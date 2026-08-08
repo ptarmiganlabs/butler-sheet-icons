@@ -45,6 +45,7 @@ const runOverApps = jest.fn();
 jest.unstable_mockModule('../../util/run-over-apps.js', () => ({ runOverApps }));
 
 const { logger } = await import('../../../globals.js');
+const qrsInteract = (await import('qrs-interact')).default;
 const { qseowCreateThumbnails } = await import('../qseow-create-thumbnails.js');
 
 const OPTIONS = {
@@ -98,6 +99,43 @@ describe('qseowCreateThumbnails app loop', () => {
 
         expect(runOverApps.mock.calls[0][1].emptySelectionHint).toContain('--qliksensetag');
         expect(runOverApps.mock.calls[0][1].emptySelectionHint).not.toContain('--collectionid');
+    });
+
+    describe('QRS tag lookup', () => {
+        /**
+         * Wires the qrs-interact mock and returns the mock `Get`.
+         *
+         * @returns {jest.Mock} The mock `Get` method.
+         */
+        const wireQrs = () => {
+            const Get = jest.fn().mockResolvedValue({ body: [] });
+            qrsInteract.mockImplementation(() => ({ Get }));
+            return Get;
+        };
+
+        test('encodes the tag so an ampersand cannot truncate the query string', async () => {
+            // Raw, the `&` starts a new query parameter and QRS answers
+            // 400::Missing parameter value(s) - verified against a live QSEoW.
+            const Get = wireQrs();
+            runOverApps.mockResolvedValue(true);
+
+            await qseowCreateThumbnails({ ...OPTIONS, appid: '', qliksensetag: 'R&D' });
+
+            const [path] = Get.mock.calls[0];
+            expect(path).toContain('%26');
+            expect(decodeURIComponent(path)).toBe("app/full?filter=(tags.name eq 'R&D')");
+        });
+
+        test('backslash-escapes a quote in the tag', async () => {
+            const Get = wireQrs();
+            runOverApps.mockResolvedValue(true);
+
+            await qseowCreateThumbnails({ ...OPTIONS, appid: '', qliksensetag: "Q1'25" });
+
+            expect(decodeURIComponent(Get.mock.calls[0][0])).toBe(
+                "app/full?filter=(tags.name eq 'Q1\\'25')"
+            );
+        });
     });
 
     test('catches a rejection from the loop rather than letting it escape', async () => {

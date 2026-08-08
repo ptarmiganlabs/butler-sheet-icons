@@ -12,6 +12,7 @@ import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js
 import { QseowError } from '../util/errors.js';
 import { launchBrowserForApp } from '../browser/browser-launch.js';
 import { sortSheetsByRank } from '../util/sheet-list.js';
+import { qrsFilterAnyOf, qrsPathWithFilter } from './qrs-filter.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -171,22 +172,26 @@ export const qseowProcessApp = async (appId, options) => {
         logger.debug(`QSEoW QRS config: ${JSON.stringify(qseowConfigQrs, null, 2)}`);
 
         // Get app top level metadata
-        logger.debug(`GET app top level metadata: app?filter=id eq ${appId}`);
-        let appMetadata = await qrsInteractInstance.Get(`app?filter=id eq ${appId}`);
+        const appMetadataPath = qrsPathWithFilter('app', `id eq ${appId}`);
+        logger.debug(`GET app top level metadata: ${appMetadataPath}`);
+        let appMetadata = await qrsInteractInstance.Get(appMetadataPath);
         appMetadata = appMetadata.body;
 
-        // Get metadata for the app sheets that should be exclude, blur etc based on sheet tags
-        logger.debug(
-            `GET tagSheetAppMetadata: app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
+        // Get metadata for the app sheets that should be exclude, blur etc based on sheet tags.
+        // --exclude-sheet-tag is variadic, so this has to be an `or` group over every tag given:
+        // interpolating the array produced `tags.name eq 'A,B'`, one literal matching no tag.
+        const appSheetsFilter = `objectType eq 'sheet' and app.id eq ${appId}`;
+        const tagSheetPath = qrsPathWithFilter(
+            'app/object/full',
+            `${appSheetsFilter} and ${qrsFilterAnyOf('tags.name', options.excludeSheetTag)}`
         );
-        let tagSheetAppMetadata = await qrsInteractInstance.Get(
-            `app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId} and tags.name eq '${options.excludeSheetTag}'`
-        );
+        logger.debug(`GET tagSheetAppMetadata: ${tagSheetPath}`);
+        let tagSheetAppMetadata = await qrsInteractInstance.Get(tagSheetPath);
         tagSheetAppMetadata = tagSheetAppMetadata.body;
 
         // Create mapping between repo db sheet id and engine sheet id
         let mapRepoEngineSheetIdTmp1 = await qrsInteractInstance.Get(
-            `app/object/full?filter=objectType eq 'sheet' and app.id eq ${appId}`
+            qrsPathWithFilter('app/object/full', appSheetsFilter)
         );
         mapRepoEngineSheetIdTmp1 = mapRepoEngineSheetIdTmp1.body;
 
