@@ -366,3 +366,104 @@ describe('qseowUpdateSheetThumbnails — a sheet that cannot be updated', () => 
         ).rejects.toThrow(QseowError);
     });
 });
+
+describe('qseowUpdateSheetThumbnails — saving the app', () => {
+    /**
+     * Wires the enigma chain over one updatable sheet, exposing the app and session so
+     * tests can assert on doSave and close.
+     *
+     * @returns {{app: object, session: object, sheetObj: object}} The mock handles.
+     */
+    function wire() {
+        const sheetObj = {
+            getProperties: jest
+                .fn()
+                .mockResolvedValue({ thumbnail: { qStaticContentUrlDef: { qUrl: '' } } }),
+            setProperties: jest.fn().mockResolvedValue({ ok: true }),
+        };
+
+        const app = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({
+                    qAppObjectList: {
+                        qItems: [
+                            {
+                                qInfo: { qId: 'engine-sheet-1' },
+                                qMeta: { title: 'Sheet 1', description: 'first' },
+                                qData: { rank: 1 },
+                            },
+                        ],
+                    },
+                }),
+            }),
+            getObject: jest.fn().mockResolvedValue(sheetObj),
+            doSave: jest.fn().mockResolvedValue(true),
+        };
+
+        const session = {
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '12.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(app),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        };
+        enigma.create.mockResolvedValue(session);
+
+        return { app, session, sheetObj };
+    }
+
+    test('saves the app once, not once per sheet', async () => {
+        const { app, sheetObj } = wire();
+
+        await qseowUpdateSheetThumbnails(CREATED_FILES, 'test-app-id', { ...BASE_OPTIONS });
+
+        expect(sheetObj.setProperties).toHaveBeenCalledTimes(1);
+        expect(app.doSave).toHaveBeenCalledTimes(1);
+    });
+
+    test('does not save when there was no thumbnail to apply', async () => {
+        const { app } = wire();
+
+        await qseowUpdateSheetThumbnails([], 'test-app-id', { ...BASE_OPTIONS });
+
+        expect(app.doSave).not.toHaveBeenCalled();
+    });
+
+    test('does not save when thumbnails were made but no sheet matched one', async () => {
+        // requireAttempt makes this a failure - work was expected and none happened - but
+        // the app must not be written either way.
+        const { app } = wire();
+
+        await expect(
+            qseowUpdateSheetThumbnails([{ sheetPos: 99 }], 'test-app-id', { ...BASE_OPTIONS })
+        ).rejects.toThrow(/No sheet in app .* could be matched to a generated thumbnail/);
+
+        expect(app.doSave).not.toHaveBeenCalled();
+    });
+
+    test('saves before closing the engine session', async () => {
+        // Saving after the close would persist nothing, and no test caught that here.
+        const { app, session } = wire();
+        const order = [];
+        app.doSave.mockImplementation(async () => order.push('save'));
+        session.close.mockImplementation(async () => order.push('close'));
+
+        await qseowUpdateSheetThumbnails(CREATED_FILES, 'test-app-id', { ...BASE_OPTIONS });
+
+        expect(order).toEqual(['save', 'close']);
+    });
+
+    test('releases the engine session even when the save fails', async () => {
+        // The save sits above the close; without a finally the websocket leaked once per
+        // failing app, against a QSEoW session ceiling.
+        const { app, session } = wire();
+        app.doSave.mockRejectedValue(new Error('app is published and cannot be saved'));
+
+        await expect(
+            qseowUpdateSheetThumbnails(CREATED_FILES, 'test-app-id', { ...BASE_OPTIONS })
+        ).rejects.toThrow();
+
+        expect(session.close).toHaveBeenCalledTimes(1);
+    });
+});

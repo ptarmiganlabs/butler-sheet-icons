@@ -173,13 +173,47 @@ describe('qseowRemoveSheetIcons', () => {
             });
         });
 
-        test('saves the app once per sheet', async () => {
+        test('saves the app once, not once per sheet', async () => {
+            // Saving inside the loop wrote the app N times for N sheets and produced N
+            // app versions.
             const sheets = [makeSheet('sheet-1', 1), makeSheet('sheet-2', 2)];
             const { app } = wireEnigma(sheets);
 
             await qseowRemoveSheetIcons(BASE_OPTIONS);
 
-            expect(app.doSave).toHaveBeenCalledTimes(2);
+            expect(app.doSave).toHaveBeenCalledTimes(1);
+        });
+
+        test('does not save an app whose sheets were all left alone', async () => {
+            const { app } = wireEnigma([]);
+
+            await qseowRemoveSheetIcons(BASE_OPTIONS);
+
+            expect(app.doSave).not.toHaveBeenCalled();
+        });
+
+        test('releases the engine session even when the save fails', async () => {
+            // Without a finally around save-and-close the websocket leaked once per app
+            // whose save was refused - a published app, or one the account cannot write.
+            const { app, session } = wireEnigma([makeSheet('sheet-1', 1)]);
+            app.doSave.mockRejectedValue(new Error('app is published and cannot be saved'));
+
+            // The command reports failure rather than rejecting - runOverApps catches the
+            // per-app error. What matters here is that the session was still released.
+            await expect(qseowRemoveSheetIcons(BASE_OPTIONS)).resolves.toBe(false);
+
+            expect(session.close).toHaveBeenCalledTimes(1);
+        });
+
+        test('saves before closing the engine session', async () => {
+            const { app, session } = wireEnigma([makeSheet('sheet-1', 1)]);
+            const order = [];
+            app.doSave.mockImplementation(async () => order.push('save'));
+            session.close.mockImplementation(async () => order.push('close'));
+
+            await qseowRemoveSheetIcons(BASE_OPTIONS);
+
+            expect(order).toEqual(['save', 'close']);
         });
 
         test('processes sheets in rank order', async () => {

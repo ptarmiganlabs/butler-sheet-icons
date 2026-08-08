@@ -99,7 +99,9 @@ export const SHEET_SKIPPED = Symbol('sheet skipped');
  *
  * Net-level classification is delegated to `getErrorCategory`, which already knows about
  * refused connections, timeouts and resets. The message checks cover enigma.js and the
- * Chrome DevTools Protocol, whose session deaths carry no `code`.
+ * Chrome DevTools Protocol, whose session deaths carry no `code`. They are deliberately
+ * whole phrases: matching a bare `websocket` also caught per-sheet engine errors that merely
+ * mention the transport, aborting the loop on a session that was still alive.
  *
  * @param {Error|unknown} err - Error thrown by a per-sheet worker.
  *
@@ -122,7 +124,8 @@ export const isSessionLevelFailure = (err) => {
         message.includes('session closed') ||
         message.includes('connection closed') ||
         message.includes('target closed') ||
-        message.includes('websocket')
+        message.includes('websocket connection') ||
+        message.includes('websocket is not open')
     );
 };
 
@@ -165,12 +168,15 @@ export const isSessionLevelFailure = (err) => {
  *     invoked once per sheet, with the 1-based sheet number. Returns `SHEET_SKIPPED` to
  *     record that it did nothing for that sheet.
  *
- * @returns {Promise<{attempted: number, failed: number, skipped: number, assertAllProcessed: () => void}>}
- *     The counts, plus a check to call once the engine session has been released.
+ * @returns {Promise<{attempted: number, failed: number, skipped: number, changed: number, assertAllProcessed: () => void}>}
+ *     The counts - `changed` being only the sheets the worker completed, so neither a failed
+ *     sheet nor the one that killed the session is included - plus a check to call once the
+ *     engine session has been released.
  */
 export const runOverSheets = async (sheets, ctx, processSheet) => {
     const { logPrefix, appId, action, ErrorClass, requireAttempt = false } = ctx;
     let attempted = 0;
+    let changed = 0;
     let failed = 0;
     let skipped = 0;
     let iSheetNum = 1;
@@ -184,6 +190,7 @@ export const runOverSheets = async (sheets, ctx, processSheet) => {
                 skipped += 1;
             } else {
                 attempted += 1;
+                changed += 1;
             }
         } catch (err) {
             // A sheet that threw was attempted, whatever it was about to return.
@@ -211,6 +218,7 @@ export const runOverSheets = async (sheets, ctx, processSheet) => {
         attempted,
         failed,
         skipped,
+        changed,
         assertAllProcessed: () => {
             // Surface the real cause, not a sheet count that would blame the sheets.
             if (sessionFailure) {
@@ -230,4 +238,44 @@ export const runOverSheets = async (sheets, ctx, processSheet) => {
             }
         },
     };
+};
+
+/**
+ * Persists an app, but only when a sheet was actually changed.
+ *
+ * `app.doSave()` used to be called once per sheet, from inside the loop. That wrote the app
+ * N times for N sheets, and wrote it even when every sheet had been skipped - a run that
+ * changed nothing still produced a new app version.
+ *
+ * The count is passed in rather than tracked here, so there is no way to end up with an
+ * unbound placeholder in the message. An earlier attempt at this shipped a literal `{n}` to
+ * operators in two of its four copies.
+ *
+ * Trade-off worth knowing: saving once at the end means a session lost mid-loop persists
+ * nothing, where per-sheet saving left the sheets processed so far already written. That is
+ * deliberate - it matches how a failed app is reported everywhere else here, all-or-nothing
+ * with the old icons intact, rather than a mix of old and new nobody asked for.
+ *
+ * @param {object} app - Open engine app handle.
+ * @param {object} ctx - Logging context.
+ * @param {string} ctx.logPrefix - Prefix for the log line, e.g. `'CLOUD UPDATE SHEETS'`.
+ * @param {string} ctx.appId - App being saved.
+ * @param {number} changedCount - How many sheets had their properties written. Anything that
+ *     is not a positive number suppresses the save, so an accidental `undefined` cannot
+ *     write an app nothing touched.
+ *
+ * @returns {Promise<boolean>} `true` if the app was saved, `false` if there was nothing to save.
+ */
+export const saveIfChanged = async (app, { logPrefix, appId }, changedCount) => {
+    if (!(changedCount > 0)) {
+        logger.verbose(
+            `${logPrefix}: No sheet in app ${appId} was changed, so the app was not saved`
+        );
+        return false;
+    }
+
+    await app.doSave();
+    logger.verbose(`${logPrefix}: Saved app ${appId} after changing ${changedCount} sheet(s)`);
+
+    return true;
 };

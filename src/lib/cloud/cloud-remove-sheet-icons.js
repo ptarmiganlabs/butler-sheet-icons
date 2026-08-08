@@ -7,7 +7,7 @@ import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { runOverApps } from '../util/run-over-apps.js';
 import { CloudError } from '../util/errors.js';
-import { runOverSheets, sortSheetsByRank } from '../util/sheet-list.js';
+import { runOverSheets, sortSheetsByRank, saveIfChanged } from '../util/sheet-list.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Cloud app.
@@ -30,36 +30,6 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
     let sheetRun;
 
     try {
-        // Does the app have a thumbnail folder in its media library?
-        const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
-
-        if (
-            mediaList.find((item) => {
-                const thumbnailFolderExists =
-                    item.type === 'directory' && item.name === 'thumbnails';
-                return thumbnailFolderExists;
-            })
-        ) {
-            // "thumbnails" folder exists in app's media library
-            // Remove all existing thumbnail images from this app
-            const existingThumbnails = await saasInstance.Get(
-                `apps/${appId}/media/list/thumbnails`
-            );
-
-            for (const thumbnailImg of existingThumbnails) {
-                if (thumbnailImg.type === 'image') {
-                    const result = await saasInstance.Delete(
-                        `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
-                    );
-                    logger.debug(
-                        `Deleted existing file ${JSON.stringify(
-                            thumbnailImg.name
-                        )}, result=${JSON.stringify(result)}`
-                    );
-                }
-            }
-        }
-
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
         const session = await enigma.create(configEnigma);
@@ -133,18 +103,63 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
 
                     const res = await sheetObj.setProperties(sheetProperties);
                     logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
-                    await app.doSave();
                 }
             );
         }
 
-        // Closed outside the sheet-count guard: an app with no sheets still holds an open
-        // engine session that has to be released.
-        // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
-        await session.close();
+        // The close sits in a finally: the save can reject - a published app, or one the
+        // service account may not write - and without this the engine websocket would be
+        // left open for the life of the process, once per failing app.
+        try {
+            await saveIfChanged(
+                app,
+                { logPrefix: 'CLOUD REMOVE SHEET ICONS', appId },
+                sheetRun?.changed ?? 0
+            );
+        } finally {
+            // Closed outside the sheet-count guard: an app with no sheets still holds an open
+            // engine session that has to be released.
+            // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+            await session.close();
+        }
         logger.verbose(
             `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
         );
+
+        // Deleted only after the sheets have been repointed and the app saved. Doing it
+        // first meant a failed save left every sheet pointing at images that no longer
+        // existed - broken icons on every sheet, where the old behaviour of saving per
+        // sheet had at least persisted the ones processed before the failure. Clearing the
+        // reference and then removing the file is the order that degrades safely.
+        // Does the app have a thumbnail folder in its media library?
+        const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
+
+        if (
+            mediaList.find((item) => {
+                const thumbnailFolderExists =
+                    item.type === 'directory' && item.name === 'thumbnails';
+                return thumbnailFolderExists;
+            })
+        ) {
+            // "thumbnails" folder exists in app's media library
+            // Remove all existing thumbnail images from this app
+            const existingThumbnails = await saasInstance.Get(
+                `apps/${appId}/media/list/thumbnails`
+            );
+
+            for (const thumbnailImg of existingThumbnails) {
+                if (thumbnailImg.type === 'image') {
+                    const result = await saasInstance.Delete(
+                        `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
+                    );
+                    logger.debug(
+                        `Deleted existing file ${JSON.stringify(
+                            thumbnailImg.name
+                        )}, result=${JSON.stringify(result)}`
+                    );
+                }
+            }
+        }
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
