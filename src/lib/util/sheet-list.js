@@ -7,6 +7,58 @@ import { logger } from '../../globals.js';
 import { getErrorCategory } from './error-categorizer.js';
 
 /**
+ * The `qData` projection every caller needs: enough to place a sheet and see its thumbnail.
+ */
+export const SHEET_LIST_FIELDS = {
+    thumbnail: '/thumbnail',
+    rank: '/rank',
+};
+
+/**
+ * The wider projection the icon-removal paths ask for. Kept as a distinct constant rather than
+ * always requesting the superset, so no caller silently starts pulling fields it does not read.
+ */
+export const SHEET_LIST_FIELDS_EXTENDED = {
+    title: '/qMetaDef/title',
+    description: '/qMetaDef/description',
+    thumbnail: '/thumbnail',
+    cells: '/cells',
+    rank: '/rank',
+    columns: '/columns',
+    rows: '/rows',
+};
+
+/**
+ * Fetches an app's sheets through a `SheetList` session object.
+ *
+ * The same ~15-line session-object literal was written out in all six modules that walk an app's
+ * sheets, in two variants that differed only in which `qData` fields they asked for. Sonar
+ * counted it as the largest duplicated block between the twins.
+ *
+ * @param {object} app - Open engine app handle.
+ * @param {object} [qData] - The `qData` projection to request. Defaults to
+ *     {@link SHEET_LIST_FIELDS}; the removal paths pass {@link SHEET_LIST_FIELDS_EXTENDED}.
+ *
+ * @returns {Promise<object[]>} The sheet list items, in the order the engine returned them.
+ *     Sort with {@link sortSheetsByRank} before assigning sheet numbers.
+ */
+export const getSheetList = async (app, qData = SHEET_LIST_FIELDS) => {
+    const genericListObj = await app.createSessionObject({
+        qInfo: {
+            qId: 'SheetList',
+            qType: 'SheetList',
+        },
+        qAppObjectListDef: {
+            qType: 'sheet',
+            qData,
+        },
+    });
+    const sheetListObj = await genericListObj.getLayout();
+
+    return sheetListObj.qAppObjectList.qItems;
+};
+
+/**
  * Sorts a list of app sheets by their engine rank, in place.
  *
  * Sheet order matters beyond presentation: it assigns each sheet its 1-based sheet

@@ -1,5 +1,3 @@
-import enigma from 'enigma.js';
-
 import { setupEnigmaConnection } from './cloud-enigma.js';
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
@@ -7,7 +5,14 @@ import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { runOverApps } from '../util/run-over-apps.js';
 import { CloudError } from '../util/errors.js';
-import { runOverSheets, sortSheetsByRank, saveIfChanged } from '../util/sheet-list.js';
+import {
+    runOverSheets,
+    sortSheetsByRank,
+    saveIfChanged,
+    getSheetList,
+    SHEET_LIST_FIELDS_EXTENDED,
+} from '../util/sheet-list.js';
+import { withEngineSession } from '../util/engine-session.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Cloud app.
@@ -32,98 +37,65 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
     try {
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
-        const session = await enigma.create(configEnigma);
-
-        if (options.loglevel === 'silly') {
-            session.on('traffic:sent', (data) => console.log('sent:', data));
-            session.on('traffic:received', (data) =>
-                console.log('received:', JSON.stringify(data, null, 2))
-            );
-        }
-
-        const global = await session.open();
-
-        const engineVersion = await global.engineVersion();
-        logger.verbose(
-            `Created session to Qlik Sense Cloud tenant ${options.tenanturl}, engine version is ${engineVersion.qComponentVersion}`
-        );
-
-        const app = await global.openDoc(appId, '', '', '', false);
-        logger.info(`Opened app ${appId}`);
-
-        // Get list of app sheets
-        const appSheetsCall = {
-            qInfo: {
-                qId: 'SheetList',
-                qType: 'SheetList',
+        await withEngineSession(
+            configEnigma,
+            {
+                logPrefix: 'CLOUD REMOVE SHEET ICONS',
+                loglevel: options.loglevel,
+                connectionLabel: `Qlik Sense Cloud tenant ${options.tenanturl}`,
             },
-            qAppObjectListDef: {
-                qType: 'sheet',
-                qData: {
-                    title: '/qMetaDef/title',
-                    description: '/qMetaDef/description',
-                    thumbnail: '/thumbnail',
-                    cells: '/cells',
-                    rank: '/rank',
-                    columns: '/columns',
-                    rows: '/rows',
-                },
-            },
-        };
+            async (global) => {
+                const app = await global.openDoc(appId, '', '', '', false);
+                logger.info(`Opened app ${appId}`);
 
-        const genericListObj = await app.createSessionObject(appSheetsCall);
-        const sheetListObj = await genericListObj.getLayout();
+                // Get list of app sheets
+                const sheets = await getSheetList(app, SHEET_LIST_FIELDS_EXTENDED);
 
-        if (sheetListObj.qAppObjectList.qItems.length > 0) {
-            // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
-            logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
+                if (sheets.length > 0) {
+                    // sheets[] now contains array of app sheets.
+                    logger.info(`Number of sheets in app: ${sheets.length}`);
 
-            // Sort sheets
-            sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
+                    // Sort sheets
+                    sortSheetsByRank(sheets);
 
-            sheetRun = await runOverSheets(
-                sheetListObj.qAppObjectList.qItems,
-                {
-                    logPrefix: 'CLOUD REMOVE SHEET ICONS',
-                    appId,
-                    action: 'remove icons for',
-                    ErrorClass: CloudError,
-                },
-                async (sheet, iSheetNum) => {
-                    logger.info(
-                        `Removing icon for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                    sheetRun = await runOverSheets(
+                        sheets,
+                        {
+                            logPrefix: 'CLOUD REMOVE SHEET ICONS',
+                            appId,
+                            action: 'remove icons for',
+                            ErrorClass: CloudError,
+                        },
+                        async (sheet, iSheetNum) => {
+                            logger.info(
+                                `Removing icon for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
+                            );
+
+                            // Get properties of current sheet
+                            const sheetObj = await app.getObject(sheet.qInfo.qId);
+                            const sheetProperties = await sheetObj.getProperties();
+
+                            // Clear sheet icon
+                            sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = '';
+
+                            const res = await sheetObj.setProperties(sheetProperties);
+                            logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
+                        }
                     );
-
-                    // Get properties of current sheet
-                    const sheetObj = await app.getObject(sheet.qInfo.qId);
-                    const sheetProperties = await sheetObj.getProperties();
-
-                    // Clear sheet icon
-                    sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = '';
-
-                    const res = await sheetObj.setProperties(sheetProperties);
-                    logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
                 }
-            );
-        }
 
-        // The close sits in a finally: the save can reject - a published app, or one the
-        // service account may not write - and without this the engine websocket would be
-        // left open for the life of the process, once per failing app.
-        try {
-            await saveIfChanged(
-                app,
-                { logPrefix: 'CLOUD REMOVE SHEET ICONS', appId },
-                sheetRun?.changed ?? 0
-            );
-        } finally {
-            // Closed outside the sheet-count guard: an app with no sheets still holds an open
-            // engine session that has to be released.
-            // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
-            await session.close();
-        }
+                // Saved inside the session callback: withEngineSession closes the session once
+                // this resolves or throws, so a save that rejects - a published app, or one the
+                // service account may not write - still releases the websocket.
+                await saveIfChanged(
+                    app,
+                    { logPrefix: 'CLOUD REMOVE SHEET ICONS', appId },
+                    sheetRun?.changed ?? 0
+                );
+            }
+        );
         logger.verbose(
-            `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on host ${options.host}`
+            `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on tenant ${options.tenanturl}`
         );
 
         // Deleted only after the sheets have been repointed and the app saved. Doing it
