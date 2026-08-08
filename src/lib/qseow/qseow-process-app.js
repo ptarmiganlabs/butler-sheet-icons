@@ -233,361 +233,380 @@ export const qseowProcessApp = async (appId, options) => {
             );
         }
 
-        const global = await session.open();
-
-        const engineVersion = await global.engineVersion();
-        logger.info(
-            `Created session to server ${options.host}, engine version is ${engineVersion.qComponentVersion}`
-        );
-
-        const app = await global.openDoc(appId, '', '', '', false);
-        logger.info(`Opened app ${appId}`);
-        logger.info(`App name: "${appMetadata[0].name}"`);
-        logger.info(`App is published: ${appMetadata[0].published}`);
-
-        // Get list of app sheets
-        const appSheetsCall = {
-            qInfo: {
-                qId: 'SheetList',
-                qType: 'SheetList',
-            },
-            qAppObjectListDef: {
-                qType: 'sheet',
-                qData: {
-                    title: '/qMetaDef/title',
-                    description: '/qMetaDef/description',
-                    thumbnail: '/thumbnail',
-                    cells: '/cells',
-                    rank: '/rank',
-                    columns: '/columns',
-                    rows: '/rows',
-                    showCondition: '/showCondition',
-                },
-            },
-        };
-
-        const genericListObj = await app.createSessionObject(appSheetsCall);
-        const sheetListObj = await genericListObj.getLayout();
-
         const createdFiles = [];
 
-        if (sheetListObj.qAppObjectList.qItems.length > 0) {
-            // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
-            logger.info(`Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`);
+        try {
+            const global = await session.open();
 
-            let iSheetNum = 1;
+            const engineVersion = await global.engineVersion();
+            logger.info(
+                `Created session to server ${options.host}, engine version is ${engineVersion.qComponentVersion}`
+            );
 
-            const browser = await launchBrowserForApp(options, {
-                appId,
-                logPrefix: 'QSEOW',
-                appLabel: 'QSEoW app',
-                ErrorClass: QseowError,
-            });
+            const app = await global.openDoc(appId, '', '', '', false);
+            logger.info(`Opened app ${appId}`);
+            logger.info(`App name: "${appMetadata[0].name}"`);
+            logger.info(`App is published: ${appMetadata[0].published}`);
 
-            const page = await browser.newPage();
+            // Get list of app sheets
+            const appSheetsCall = {
+                qInfo: {
+                    qId: 'SheetList',
+                    qType: 'SheetList',
+                },
+                qAppObjectListDef: {
+                    qType: 'sheet',
+                    qData: {
+                        title: '/qMetaDef/title',
+                        description: '/qMetaDef/description',
+                        thumbnail: '/thumbnail',
+                        cells: '/cells',
+                        rank: '/rank',
+                        columns: '/columns',
+                        rows: '/rows',
+                        showCondition: '/showCondition',
+                    },
+                },
+            };
 
-            // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
-            await page.setViewport({
-                width: 1230,
-                height: 810,
-                deviceScaleFactor: 1,
-            });
+            const genericListObj = await app.createSessionObject(appSheetsCall);
+            const sheetListObj = await genericListObj.getLayout();
 
-            // Set default timeout for all page operations to 90 seconds
-            // https://stackoverflow.com/questions/52163547/node-js-puppeteer-how-to-set-navigation-timeout
-            await page.setDefaultTimeout(pageTimeout);
-
-            let appUrl = '';
-            let hubUrl = '';
-
-            if (options.secure === 'true' || options.secure === true) {
-                appUrl = 'https://';
-            } else {
-                appUrl = 'http://';
-            }
-            hubUrl = appUrl;
-
-            if (options.prefix && options.prefix.length > 0) {
-                appUrl = `${appUrl + options.host}/${options.prefix}/sense/app/${appId}`;
-                hubUrl = `${hubUrl + options.host}/${options.prefix}/hub`;
-            } else {
-                appUrl = `${appUrl + options.host}/sense/app/${appId}`;
-                hubUrl = `${hubUrl + options.host}/hub`;
-            }
-
-            logger.debug(`App URL: ${appUrl}`);
-            logger.debug(`Hub URL: ${hubUrl}`);
-
-            await Promise.all([
-                page.goto(appUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
-            ]);
-
-            await sleep(options.pagewait * 1000);
-            await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-1.png` });
-
-            // Enter credentials
-            // User
-            await page.click(selectorLoginPageUserName, {
-                button: 'left',
-                delay: 10,
-            });
-
-            const user = `${options.logonuserdir}\\${options.logonuserid}`;
-            await page.keyboard.type(user);
-
-            // Pwd
-            await page.click(selectorLoginPageUserPwd, {
-                button: 'left',
-                delay: 10,
-            });
-            await page.keyboard.type(options.logonpwd);
-
-            await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-2.png` });
-
-            // Click login button and wait for page to load
-            await Promise.all([
-                page.click(selectorLoginPageLoginButton, {
-                    button: 'left',
-                    delay: 10,
-                }),
-                page.waitForNavigation({ waitUntil: 'networkidle2' }),
-            ]);
-
-            await sleep(options.pagewait * 1000);
-
-            // Take screenshot of app overview page
-            await page.screenshot({ path: `${imgDir}/qseow/${appId}/overview-1.png` });
-
-            // Sort sheets
-            sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
-
-            // Loop over all sheets in app, processing each one unless excluded
-            for (const sheet of sheetListObj.qAppObjectList.qItems) {
-                // Get repository db sheet id from mapRepoEngineSheetIdTmp1, using sheet.qInfo.qId as key
-                const repoDbSheetId = mapRepoEngineSheetId.get(sheet.qInfo.qId);
-                const engineSheetId = sheet.qInfo.qId;
-
-                // Should this sheet be processed, or is it on exclude list?
-                // Options are
-                // --exclude-sheet-tag <value>
-                // --exclude-sheet-number <number...>
-                // --exclude-sheet-title <title...>
-                // --exclude-sheet-status <status...>
-
-                let { excludeSheet, sheetIsHidden } = await determineSheetExcludeStatus(
-                    app,
-                    sheet,
-                    options,
-                    tagSheetAppMetadata,
-                    iSheetNum,
-                    repoDbSheetId,
-                    engineSheetId,
-                    logger
+            if (sheetListObj.qAppObjectList.qItems.length > 0) {
+                // sheetListObj.qAppObjectList.qItems[] now contains array of app sheets.
+                logger.info(
+                    `Number of sheets in app: ${sheetListObj.qAppObjectList.qItems.length}`
                 );
 
-                if (excludeSheet === true) {
-                    logger.info(
-                        `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                    );
+                let iSheetNum = 1;
+
+                const browser = await launchBrowserForApp(options, {
+                    appId,
+                    logPrefix: 'QSEOW',
+                    appLabel: 'QSEoW app',
+                    ErrorClass: QseowError,
+                });
+
+                const page = await browser.newPage();
+
+                // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
+                await page.setViewport({
+                    width: 1230,
+                    height: 810,
+                    deviceScaleFactor: 1,
+                });
+
+                // Set default timeout for all page operations to 90 seconds
+                // https://stackoverflow.com/questions/52163547/node-js-puppeteer-how-to-set-navigation-timeout
+                await page.setDefaultTimeout(pageTimeout);
+
+                let appUrl = '';
+                let hubUrl = '';
+
+                if (options.secure === 'true' || options.secure === true) {
+                    appUrl = 'https://';
                 } else {
-                    logger.info(
-                        `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                    appUrl = 'http://';
+                }
+                hubUrl = appUrl;
+
+                if (options.prefix && options.prefix.length > 0) {
+                    appUrl = `${appUrl + options.host}/${options.prefix}/sense/app/${appId}`;
+                    hubUrl = `${hubUrl + options.host}/${options.prefix}/hub`;
+                } else {
+                    appUrl = `${appUrl + options.host}/sense/app/${appId}`;
+                    hubUrl = `${hubUrl + options.host}/hub`;
+                }
+
+                logger.debug(`App URL: ${appUrl}`);
+                logger.debug(`Hub URL: ${hubUrl}`);
+
+                await Promise.all([
+                    page.goto(appUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
+                ]);
+
+                await sleep(options.pagewait * 1000);
+                await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-1.png` });
+
+                // Enter credentials
+                // User
+                await page.click(selectorLoginPageUserName, {
+                    button: 'left',
+                    delay: 10,
+                });
+
+                const user = `${options.logonuserdir}\\${options.logonuserid}`;
+                await page.keyboard.type(user);
+
+                // Pwd
+                await page.click(selectorLoginPageUserPwd, {
+                    button: 'left',
+                    delay: 10,
+                });
+                await page.keyboard.type(options.logonpwd);
+
+                await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-2.png` });
+
+                // Click login button and wait for page to load
+                await Promise.all([
+                    page.click(selectorLoginPageLoginButton, {
+                        button: 'left',
+                        delay: 10,
+                    }),
+                    page.waitForNavigation({ waitUntil: 'networkidle2' }),
+                ]);
+
+                await sleep(options.pagewait * 1000);
+
+                // Take screenshot of app overview page
+                await page.screenshot({ path: `${imgDir}/qseow/${appId}/overview-1.png` });
+
+                // Sort sheets
+                sortSheetsByRank(sheetListObj.qAppObjectList.qItems);
+
+                // Loop over all sheets in app, processing each one unless excluded
+                for (const sheet of sheetListObj.qAppObjectList.qItems) {
+                    // Get repository db sheet id from mapRepoEngineSheetIdTmp1, using sheet.qInfo.qId as key
+                    const repoDbSheetId = mapRepoEngineSheetId.get(sheet.qInfo.qId);
+                    const engineSheetId = sheet.qInfo.qId;
+
+                    // Should this sheet be processed, or is it on exclude list?
+                    // Options are
+                    // --exclude-sheet-tag <value>
+                    // --exclude-sheet-number <number...>
+                    // --exclude-sheet-title <title...>
+                    // --exclude-sheet-status <status...>
+
+                    let { excludeSheet, sheetIsHidden } = await determineSheetExcludeStatus(
+                        app,
+                        sheet,
+                        options,
+                        tagSheetAppMetadata,
+                        iSheetNum,
+                        repoDbSheetId,
+                        engineSheetId,
+                        logger
                     );
 
-                    // Build URL to current sheet
-                    const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
-                    logger.debug(`Sheet URL: ${sheetUrl}`);
+                    if (excludeSheet === true) {
+                        logger.info(
+                            `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        );
+                    } else {
+                        logger.info(
+                            `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                        );
 
-                    // Open sheet in browser, then take screen shot
-                    await Promise.all([
-                        page.goto(sheetUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
-                    ]);
+                        // Build URL to current sheet
+                        const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
+                        logger.debug(`Sheet URL: ${sheetUrl}`);
 
-                    await sleep(options.pagewait * 1000);
+                        // Open sheet in browser, then take screen shot
+                        await Promise.all([
+                            page.goto(sheetUrl, {
+                                waitUntil: 'networkidle2',
+                                timeout: pageTimeout,
+                            }),
+                        ]);
 
-                    const fileName = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}.png`;
-                    const fileNameShort = `thumbnail-${appId}-${iSheetNum}.png`;
+                        await sleep(options.pagewait * 1000);
 
-                    let selector = '';
-                    if (options.includesheetpart === '1') {
-                        // 1: Only chart part of sheet (no sheet title, selections or app info)
-                        selector = '#grid-wrap';
-                    } else if (options.includesheetpart === '2') {
-                        // 2: Include sheet title  (no selections or app info)
-                        selector = '#qv-stage-container > div > div.qv-panel-content.flex-row';
-                    } else if (options.includesheetpart === '3') {
-                        // 3: Include sheet title and selection bar (no app info)
-                        selector = '#qv-stage-container > div';
-                    } else if (options.includesheetpart === '4') {
-                        // 4: Take screen shot of entire sheet, including sheet title, top menu and status bars.
-                        // or: await page.screenshot({ path: fileName });
-                        selector = '#qv-page-container';
-                    }
+                        const fileName = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}.png`;
+                        const fileNameShort = `thumbnail-${appId}-${iSheetNum}.png`;
 
-                    // Ensure that the element we're interested in is loaded
-                    await page.waitForSelector(selector);
-                    const sheetMainPart = await page.$(selector);
-                    await sheetMainPart.screenshot({
-                        path: fileName,
-                    });
-                    createdFiles.push({ sheetPos: iSheetNum, blurred: false, fileNameShort });
-
-                    // Blur image and store as separate file
-                    const fileNameBlurred = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}-blurred.png`;
-                    const fileNameShortBlurred = `thumbnail-${appId}-${iSheetNum}-blurred.png`;
-
-                    // Create blurred image from the already taken screenshot
-                    // Load the image from disk, blur it, then save it back to disk with new name
-                    try {
-                        let blurFactor;
-
-                        // Blur factor should be between 1 and 100
-                        if (options?.blurFactor < 1) {
-                            blurFactor = 1; // Min blur value
-                        } else if (options?.blurFactor > 100) {
-                            blurFactor = 100; // Max blur value
-                        } else {
-                            blurFactor = parseInt(options?.blurFactor, 10);
+                        let selector = '';
+                        if (options.includesheetpart === '1') {
+                            // 1: Only chart part of sheet (no sheet title, selections or app info)
+                            selector = '#grid-wrap';
+                        } else if (options.includesheetpart === '2') {
+                            // 2: Include sheet title  (no selections or app info)
+                            selector = '#qv-stage-container > div > div.qv-panel-content.flex-row';
+                        } else if (options.includesheetpart === '3') {
+                            // 3: Include sheet title and selection bar (no app info)
+                            selector = '#qv-stage-container > div';
+                        } else if (options.includesheetpart === '4') {
+                            // 4: Take screen shot of entire sheet, including sheet title, top menu and status bars.
+                            // or: await page.screenshot({ path: fileName });
+                            selector = '#qv-page-container';
                         }
 
-                        // Use Jimp instead of Sharp
-                        const image = await Jimp.read(fileName);
-                        await image.blur(blurFactor).write(fileNameBlurred);
-
-                        createdFiles.push({
-                            sheetPos: iSheetNum,
-                            blurred: true,
-                            fileNameShort: fileNameShortBlurred,
+                        // Ensure that the element we're interested in is loaded
+                        await page.waitForSelector(selector);
+                        const sheetMainPart = await page.$(selector);
+                        await sheetMainPart.screenshot({
+                            path: fileName,
                         });
-                        logger.verbose(`Created blurred image: ${fileNameBlurred}`);
-                    } catch (err) {
-                        logger.error(`Failed to create blurred image: ${err}`);
-                        if (err.message) {
-                            logger.error(`QSEOW CREATE BLURRED IMAGE (message): ${err.message}`);
-                        }
-                        if (err.stack) {
-                            logger.error(`QSEOW CREATE BLURRED IMAGE (stack): ${err.stack}`);
-                        }
+                        createdFiles.push({ sheetPos: iSheetNum, blurred: false, fileNameShort });
 
-                        // Drop this sheet entirely rather than leave the unblurred entry
-                        // behind. The blur decision is made later, in updatesheets, from
-                        // the CLI options alone - so leaving the entry meant the sheet was
-                        // repointed at a `-blurred.png` that was never created, giving a
-                        // broken icon. Dropping it means updatesheets skips the sheet and
-                        // it keeps the icon it already had.
-                        //
-                        // --blur-sheet-* is a redaction control, so falling back to the
-                        // plain screenshot is not an option either: it would publish the
-                        // unredacted image the operator asked to hide.
-                        for (let i = createdFiles.length - 1; i >= 0; i -= 1) {
-                            if (createdFiles[i].sheetPos === iSheetNum) {
-                                createdFiles.splice(i, 1);
+                        // Blur image and store as separate file
+                        const fileNameBlurred = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}-blurred.png`;
+                        const fileNameShortBlurred = `thumbnail-${appId}-${iSheetNum}-blurred.png`;
+
+                        // Create blurred image from the already taken screenshot
+                        // Load the image from disk, blur it, then save it back to disk with new name
+                        try {
+                            let blurFactor;
+
+                            // Blur factor should be between 1 and 100
+                            if (options?.blurFactor < 1) {
+                                blurFactor = 1; // Min blur value
+                            } else if (options?.blurFactor > 100) {
+                                blurFactor = 100; // Max blur value
+                            } else {
+                                blurFactor = parseInt(options?.blurFactor, 10);
                             }
-                        }
 
-                        blurFailures += 1;
+                            // Use Jimp instead of Sharp
+                            const image = await Jimp.read(fileName);
+                            await image.blur(blurFactor).write(fileNameBlurred);
+
+                            createdFiles.push({
+                                sheetPos: iSheetNum,
+                                blurred: true,
+                                fileNameShort: fileNameShortBlurred,
+                            });
+                            logger.verbose(`Created blurred image: ${fileNameBlurred}`);
+                        } catch (err) {
+                            logger.error(`Failed to create blurred image: ${err}`);
+                            if (err.message) {
+                                logger.error(
+                                    `QSEOW CREATE BLURRED IMAGE (message): ${err.message}`
+                                );
+                            }
+                            if (err.stack) {
+                                logger.error(`QSEOW CREATE BLURRED IMAGE (stack): ${err.stack}`);
+                            }
+
+                            // Drop this sheet entirely rather than leave the unblurred entry
+                            // behind. The blur decision is made later, in updatesheets, from
+                            // the CLI options alone - so leaving the entry meant the sheet was
+                            // repointed at a `-blurred.png` that was never created, giving a
+                            // broken icon. Dropping it means updatesheets skips the sheet and
+                            // it keeps the icon it already had.
+                            //
+                            // --blur-sheet-* is a redaction control, so falling back to the
+                            // plain screenshot is not an option either: it would publish the
+                            // unredacted image the operator asked to hide.
+                            for (let i = createdFiles.length - 1; i >= 0; i -= 1) {
+                                if (createdFiles[i].sheetPos === iSheetNum) {
+                                    createdFiles.splice(i, 1);
+                                }
+                            }
+
+                            blurFailures += 1;
+                            logger.error(
+                                `QSEOW APP: Sheet ${iSheetNum} in app ${appId} was left unchanged because its blurred thumbnail could not be created`
+                            );
+                        }
+                    }
+                    iSheetNum += 1;
+                }
+
+                logger.verbose(`QSEoW APP: Done creating thumbnails. Opening hub at ${hubUrl}`);
+
+                try {
+                    // Log out
+                    await Promise.all([
+                        page.goto(hubUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
+                    ]);
+                } catch (err) {
+                    if (err.stack) {
                         logger.error(
-                            `QSEOW APP: Sheet ${iSheetNum} in app ${appId} was left unchanged because its blurred thumbnail could not be created`
+                            `QSEOW: Could not open hub after generating thumbnail images (stack): ${err.stack}`
+                        );
+                    } else if (err.message) {
+                        logger.error(
+                            `QSEOW: Could not open hub after generating thumbnail images (message): ${err.message}`
+                        );
+                    } else {
+                        logger.error(
+                            `QSEOW: Could not open hub after generating thumbnail images: ${err}`
                         );
                     }
                 }
-                iSheetNum += 1;
-            }
 
-            logger.verbose(`QSEoW APP: Done creating thumbnails. Opening hub at ${hubUrl}`);
+                let elementHandle;
+                try {
+                    // wait for user button to become visible, then click it to open the user menu
+                    await page.waitForSelector(xpathHubUserPageButton);
+                    // evaluate XPath expression of the target selector (it returns array of ElementHandle)
+                    elementHandle = await page.$$(xpathHubUserPageButton);
 
-            try {
-                // Log out
-                await Promise.all([
-                    page.goto(hubUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
-                ]);
-            } catch (err) {
-                if (err.stack) {
-                    logger.error(
-                        `QSEOW: Could not open hub after generating thumbnail images (stack): ${err.stack}`
-                    );
-                } else if (err.message) {
-                    logger.error(
-                        `QSEOW: Could not open hub after generating thumbnail images (message): ${err.message}`
-                    );
-                } else {
-                    logger.error(
-                        `QSEOW: Could not open hub after generating thumbnail images: ${err}`
-                    );
+                    await sleep(options.pagewait * 1000);
+
+                    // Click user button and wait for page to load
+                    await Promise.all([elementHandle[0].click()]);
+                } catch (err) {
+                    if (err.stack) {
+                        logger.error(
+                            `QSEOW: Error waiting for, or clicking, user button in hub default view (stack): ${err.stack}`
+                        );
+                    } else if (err.message) {
+                        logger.error(
+                            `QSEOW: Error waiting for, or clicking, user button in hub default view (message): ${err.message}`
+                        );
+                    } else {
+                        logger.error(
+                            `QSEOW: Error waiting for, or clicking, user button in hub default view: ${err}`
+                        );
+                    }
+                }
+
+                try {
+                    // Wait for logout button to become visible, then click it
+                    await page.waitForSelector(xpathLogoutButton);
+                    elementHandle = await page.$$(xpathLogoutButton);
+
+                    await sleep(options.pagewait * 1000);
+
+                    // Click logout button and wait for page to load
+                    await Promise.all([elementHandle[0].click()]);
+                    await sleep(options.pagewait * 1000);
+                } catch (err) {
+                    if (err.stack) {
+                        logger.error(
+                            `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu (stack): ${err.stack}`
+                        );
+                    } else if (err.message) {
+                        logger.error(
+                            `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu (message): ${err.message}`
+                        );
+                    } else {
+                        logger.error(
+                            `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu: ${err}`
+                        );
+                    }
+                }
+
+                try {
+                    await browser.close();
+                    logger.verbose('Closed virtual browser');
+                } catch (err) {
+                    if (err.stack) {
+                        logger.error(
+                            `QSEOW: Could not close virtual browser (stack): ${err.stack}`
+                        );
+                    } else if (err.message) {
+                        logger.error(
+                            `QSEOW: Could not close virtual browser (message): ${err.message}`
+                        );
+                    } else {
+                        logger.error(`QSEOW: Could not close virtual browser: ${err}`);
+                    }
                 }
             }
-
-            let elementHandle;
-            try {
-                // wait for user button to become visible, then click it to open the user menu
-                await page.waitForSelector(xpathHubUserPageButton);
-                // evaluate XPath expression of the target selector (it returns array of ElementHandle)
-                elementHandle = await page.$$(xpathHubUserPageButton);
-
-                await sleep(options.pagewait * 1000);
-
-                // Click user button and wait for page to load
-                await Promise.all([elementHandle[0].click()]);
-            } catch (err) {
-                if (err.stack) {
-                    logger.error(
-                        `QSEOW: Error waiting for, or clicking, user button in hub default view (stack): ${err.stack}`
-                    );
-                } else if (err.message) {
-                    logger.error(
-                        `QSEOW: Error waiting for, or clicking, user button in hub default view (message): ${err.message}`
-                    );
-                } else {
-                    logger.error(
-                        `QSEOW: Error waiting for, or clicking, user button in hub default view: ${err}`
-                    );
-                }
-            }
-
-            try {
-                // Wait for logout button to become visible, then click it
-                await page.waitForSelector(xpathLogoutButton);
-                elementHandle = await page.$$(xpathLogoutButton);
-
-                await sleep(options.pagewait * 1000);
-
-                // Click logout button and wait for page to load
-                await Promise.all([elementHandle[0].click()]);
-                await sleep(options.pagewait * 1000);
-            } catch (err) {
-                if (err.stack) {
-                    logger.error(
-                        `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu (stack): ${err.stack}`
-                    );
-                } else if (err.message) {
-                    logger.error(
-                        `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu (message): ${err.message}`
-                    );
-                } else {
-                    logger.error(
-                        `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu: ${err}`
-                    );
-                }
-            }
-
-            try {
-                await browser.close();
-                logger.verbose('Closed virtual browser');
-            } catch (err) {
-                if (err.stack) {
-                    logger.error(`QSEOW: Could not close virtual browser (stack): ${err.stack}`);
-                } else if (err.message) {
-                    logger.error(
-                        `QSEOW: Could not close virtual browser (message): ${err.message}`
-                    );
-                } else {
-                    logger.error(`QSEOW: Could not close virtual browser: ${err}`);
-                }
-            }
+        } finally {
+            // Everything above it - browser launch, login, navigation, screenshots, image
+            // processing - can throw, and without this the engine websocket was left open for
+            // the life of the process, once per failing app. The other four session-holding
+            // modules got this in #885; these two were missed.
+            //
+            // Closed here rather than at the end of the function: the update step below opens
+            // its own session to the same app, and overlapping them would hold two engine
+            // sessions per app.
+            // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
+            await session.close();
         }
-
-        // enigma.js always resolves close() truthy; a real failure rejects into the catch below.
-        await session.close();
         logger.verbose(
             `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
         );

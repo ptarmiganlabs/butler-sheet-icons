@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, jest } from '@jest/globals';
+import { describe, test, expect, beforeAll, beforeEach, jest } from '@jest/globals';
 
 // Mock every dependency of processCloudApp using the ESM-native
 // jest.unstable_mockModule + dynamic import pattern. This mirrors the pattern
@@ -262,6 +262,8 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
             on: jest.fn(),
         };
         enigma.create.mockResolvedValue(mockSession);
+
+        return mockSession;
     }
 
     /**
@@ -329,6 +331,86 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         // resolves close() truthy, so it only ever fired on a misreading of the contract.
         const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
         expect(logged).not.toContain('Error closing session');
+    });
+
+    describe('the engine session is released when the app fails', () => {
+        beforeEach(() => {
+            // The enclosing describe has no beforeEach, so both call counts and mock
+            // implementations accumulate across its tests. clearAllMocks resets the counts but
+            // deliberately keeps implementations, so the browser mocks are restored by hand.
+            jest.clearAllMocks();
+            detectAvailableBrowser.mockResolvedValue({
+                executablePath: '/test/browser',
+                source: 'system',
+                browser: 'chrome',
+                buildId: 'system-installed',
+            });
+            browserInstall.mockReset();
+            qscloudUploadToApp.mockResolvedValue(true);
+            qscloudUpdateSheetThumbnails.mockResolvedValue(true);
+        });
+
+        test('releases the session when the browser cannot be installed', async () => {
+            // The session is opened before the browser is launched and was closed ~180 lines
+            // later on the happy path only, with no finally. Every failure in between left the
+            // engine websocket open for the life of the process, once per failing app.
+            setupHappyPath();
+            detectAvailableBrowser.mockResolvedValue(null);
+            browserInstall.mockRejectedValue(new Error('network unreachable'));
+
+            await expect(
+                processCloudApp('test-app-id', defaultSaasInstance, defaultOptions)
+            ).rejects.toThrow();
+
+            const session = await enigma.create.mock.results[0].value;
+            expect(session.close).toHaveBeenCalledTimes(1);
+        });
+
+        test('releases the session when opening a page fails', async () => {
+            const browser = setupHappyPath();
+            browser.newPage.mockRejectedValue(new Error('page could not be created'));
+
+            await expect(
+                processCloudApp('test-app-id', defaultSaasInstance, defaultOptions)
+            ).rejects.toThrow();
+
+            const session = await enigma.create.mock.results[0].value;
+            expect(session.close).toHaveBeenCalledTimes(1);
+        });
+
+        test('closes the session before the thumbnails are uploaded and applied', async () => {
+            // Ordering, not just occurrence. qscloudUpdateSheetThumbnails opens its own session
+            // to the same app - if the close drifted below it, two engine sessions would be held
+            // per app.
+            const order = [];
+            wireSaasGet();
+            const session = wireEnigmaSession();
+            puppeteer.launch.mockResolvedValue(buildMockBrowser());
+            session.close.mockImplementation(async () => {
+                order.push('session-close');
+                return true;
+            });
+            qscloudUploadToApp.mockImplementation(async () => {
+                order.push('upload');
+                return true;
+            });
+            qscloudUpdateSheetThumbnails.mockImplementation(async () => {
+                order.push('update');
+                return true;
+            });
+
+            await processCloudApp('test-app-id', defaultSaasInstance, defaultOptions);
+
+            expect(order).toEqual(['session-close', 'upload', 'update']);
+        });
+
+        test('opens exactly one engine session per app', async () => {
+            setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, defaultOptions);
+
+            expect(enigma.create).toHaveBeenCalledTimes(1);
+        });
     });
 
     test('reports the app context when browser installation fails', async () => {
