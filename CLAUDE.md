@@ -64,6 +64,17 @@ If a change adds, alters, or removes behaviour a Butler Sheet Icons user can obs
 
 Internal-only changes — refactors, test changes, build or lint tooling — need no doc page.
 
+## Verifying against a live QSEoW environment
+
+Some changes — a thumbnail that should have updated, a login or logout selector, which part of a sheet gets captured — can only be confirmed by opening a real server in a browser. Unit tests cannot show this.
+
+- **Internal browser first** — the in-app browser (`mcp__Claude_Browser__*`) starts from a clean profile. Fall back to Claude in Chrome (`mcp__claude-in-chrome__*`) only when you need the user's existing signed-in session or password manager.
+- **Start from a clean browser session** — fresh profile, cleared cache, or incognito. A cached page is the most common reason a "verified" result is really the previous run.
+- **Get the app URL first** — ask the user, or build it from the run's options: `https://<host>/<prefix>/sense/app/<appId>` (drop `/<prefix>` when no virtual proxy is used).
+- **Never type credentials yourself.** Click login if the form is pre-filled; otherwise ask the user to sign in and wait for their confirmation.
+- **Look at the specific thing that changed** — the sheet, the hub thumbnail, or the content library entry — and report what you actually saw.
+- **No browser tooling? Say so** — give the user the URL and what to check. Do not call it verified.
+
 ## Workflow
 
 The order is: **branch first, implement, verify, stop and report.**
