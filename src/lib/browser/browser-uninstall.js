@@ -5,13 +5,15 @@ import fs from 'fs-extra';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
+import { resolveBrowserVersion, isVersionKeyword } from './browser-version.js';
 
 /**
  * Uninstall a browser from the Butler Sheet Icons cache.
  *
  * @param {object} options - An options object.
  * @param {string} options.browser - The browser to uninstall.
- * @param {string} options.browserVersion - The version of the browser to uninstall.
+ * @param {string} options.browserVersion - The version of the browser to uninstall: a keyword such
+ * as `recommended`, or an explicit build id.
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
  *
  * @returns {Promise<boolean>} A promise that resolves to `true` if the browser was uninstalled successfully, `false` if it was not found in the cache.
@@ -40,10 +42,21 @@ export const browserUninstall = async (options) => {
             cacheDir: browserPath,
         });
 
+        // Match on a resolved build id rather than the raw option. Cache entries are build ids
+        // like "151.0.7922.77", so comparing the option directly meant a keyword could never
+        // match anything: "browser uninstall --browser-version latest" always reported "browser
+        // not found" and exited 1.
+        const { buildId } = await resolveBrowserVersion(options.browser, options.browserVersion);
+
+        if (isVersionKeyword(options.browserVersion)) {
+            logger.info(
+                `Uninstall target "${options.browserVersion}" resolves to build ${buildId}`
+            );
+        }
+
         // Get specifics of browser to be uninstalled
         const browserToUninstall = browsersInstalled.find(
-            (browser) =>
-                browser.browser === options.browser && browser.buildId === options.browserVersion
+            (browser) => browser.browser === options.browser && browser.buildId === buildId
         );
 
         // Check if browser to uninstall was found
@@ -62,7 +75,9 @@ export const browserUninstall = async (options) => {
                 `Browser "${browserToUninstall.browser}", version "${browserToUninstall.buildId}" uninstalled.`
             );
         } else {
-            logger.info(`Browser not found: ${options.browser}, platform=${options.platform}`);
+            logger.info(
+                `Browser not found in cache: ${options.browser} build ${buildId}. Use "butler-sheet-icons browser list-installed" to see what is installed.`
+            );
             return false;
         }
 

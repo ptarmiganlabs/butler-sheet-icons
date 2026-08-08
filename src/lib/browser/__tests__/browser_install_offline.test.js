@@ -1,11 +1,9 @@
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 
-// `browser install --browser-version latest` resolves the build id through
-// getMostRecentUsableChromeBuildId, so an offline install fails on the same code path as
-// `browser list-available`. These tests cover the install side of issue #785.
-
-jest.unstable_mockModule('axios', () => ({ default: jest.fn() }));
-const axios = (await import('axios')).default;
+// Any version form other than `recommended` or an exact build id has to ask the browser vendor
+// which build it means, so an offline install fails during version resolution. These tests cover
+// the install side of issue #785: the operator must get an explanation and a way forward, not a
+// bare network error repeated with a stack trace.
 
 jest.unstable_mockModule('@puppeteer/browsers', () => ({
     detectBrowserPlatform: jest.fn().mockResolvedValue('mac_arm'),
@@ -13,6 +11,14 @@ jest.unstable_mockModule('@puppeteer/browsers', () => ({
     install: jest.fn(),
     resolveBuildId: jest.fn(),
     uninstall: jest.fn(),
+}));
+const { resolveBuildId } = await import('@puppeteer/browsers');
+
+jest.unstable_mockModule('puppeteer-core/internal/revisions.js', () => ({
+    PUPPETEER_REVISIONS: Object.freeze({
+        chrome: '150.0.7871.24',
+        firefox: 'stable_152.0.1',
+    }),
 }));
 
 jest.unstable_mockModule('../../../globals.js', () => ({
@@ -76,20 +82,21 @@ beforeEach(() => {
 });
 
 describe('browserInstall — offline (issue #785)', () => {
-    test('does not repeat the failure or print a stack at error level', async () => {
-        // The first version of this fix kept the already-reported marker private to
-        // browser-list-available.js, so browserInstall logged the raw message and a full stack
-        // trace on top of the explanation - reproducing the very symptom #785 reports.
-        axios.mockRejectedValue(
+    test('explains a failed version lookup instead of repeating it with a stack', async () => {
+        // The first version of the #785 fix kept the already-reported marker private, so
+        // browserInstall logged the raw message and a full stack trace on top of the
+        // explanation - reproducing the very symptom the issue reports.
+        resolveBuildId.mockRejectedValue(
             Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' })
         );
 
-        await browserInstall({ browser: 'chrome', browserVersion: 'latest' }).catch(
+        await browserInstall({ browser: 'chrome', browserVersion: 'stable' }).catch(
             () => undefined
         );
 
         const out = errorOutput();
-        expect(out).toContain('Could not reach versionhistory.googleapis.com');
+        expect(out).toContain("could not reach the browser vendor's version service");
+        expect(out).toContain('--browser-version recommended');
         expect(out).not.toContain('Error installing browser');
         expect(out).not.toContain('at ');
     });
@@ -102,11 +109,11 @@ describe('browserInstall — offline (issue #785)', () => {
         // Asserting the identity of the rejected value, not merely that it rejects: on the old
         // code it still rejected, just with the wrong error. A `toBeDefined()` assertion passed
         // either way and would have proved nothing.
-        axios.mockRejectedValue('a bare string, not an Error');
+        resolveBuildId.mockRejectedValue('a bare string, not an Error');
 
         const rejection = await browserInstall({
             browser: 'chrome',
-            browserVersion: 'latest',
+            browserVersion: 'stable',
         }).catch((err) => err);
 
         expect(rejection).toBe('a bare string, not an Error');
@@ -118,5 +125,28 @@ describe('browserInstall — offline (issue #785)', () => {
         await browserInstall({}).catch(() => undefined);
 
         expect(errorOutput()).toContain('Error installing browser');
+    });
+
+    // Command handlers pass their options straight through, so a nullish object reaches here.
+    // It has to produce the intended message rather than a TypeError about reading a property
+    // of null, which would say nothing about what the operator got wrong.
+    test.each([
+        ['null', null],
+        ['undefined', undefined],
+    ])('names the missing options for a %s options object', async (_label, options) => {
+        const rejection = await browserInstall(options).catch((err) => err);
+
+        expect(rejection.message).toBe('Missing required options: "browser" and "browserVersion"');
+    });
+
+    // The property that makes the default usable on an air-gapped machine: resolving
+    // `recommended` reads a constant, so an install of an already-cached build never has to
+    // reach a version service at all.
+    test('the recommended build needs no version lookup', async () => {
+        await browserInstall({ browser: 'chrome', browserVersion: 'recommended' }).catch(
+            () => undefined
+        );
+
+        expect(resolveBuildId).not.toHaveBeenCalled();
     });
 });

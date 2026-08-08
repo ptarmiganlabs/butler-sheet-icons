@@ -8,6 +8,20 @@ jest.unstable_mockModule('@puppeteer/browsers', () => ({
 }));
 const { getInstalledBrowsers, uninstall } = await import('@puppeteer/browsers');
 
+// browser-uninstall.js resolves the requested version to a build id before matching the cache,
+// so it now pulls in browser-version.js. Stubbed as identity here: these tests pass explicit
+// build ids, and version resolution has its own suite.
+jest.unstable_mockModule('../browser-version.js', () => ({
+    resolveBrowserVersion: jest.fn(async (browser, browserVersion) => ({
+        buildId: browserVersion,
+        source: 'explicit',
+        requested: browserVersion,
+        usedNetwork: false,
+    })),
+    isVersionKeyword: jest.fn(() => false),
+}));
+await import('../browser-version.js');
+
 jest.unstable_mockModule('../../../globals', () => ({
     logger: {
         info: jest.fn(),

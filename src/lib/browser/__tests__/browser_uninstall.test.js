@@ -7,6 +7,19 @@ jest.unstable_mockModule('@puppeteer/browsers', () => ({
 }));
 const { getInstalledBrowsers, uninstall } = await import('@puppeteer/browsers');
 
+// Version resolution has its own suite; stubbed here as identity so these tests stay about
+// uninstall behaviour and need no version service.
+jest.unstable_mockModule('../browser-version.js', () => ({
+    resolveBrowserVersion: jest.fn(async (browser, browserVersion) => ({
+        buildId: browserVersion,
+        source: 'explicit',
+        requested: browserVersion,
+        usedNetwork: false,
+    })),
+    isVersionKeyword: jest.fn(() => false),
+}));
+await import('../browser-version.js');
+
 jest.unstable_mockModule('../../../globals.js', () => ({
     logger: {
         info: jest.fn(),
