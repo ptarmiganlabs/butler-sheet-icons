@@ -495,4 +495,17 @@ describe('qscloudUpdateSheetThumbnails — saving the app', () => {
 
         expect(session.close).toHaveBeenCalledTimes(1);
     });
+
+    test('names the tenant when reporting the closed session, not an undefined host', async () => {
+        // This line interpolated options.host, which Qlik Sense Cloud has no such option for -
+        // every run logged "on host undefined". Nothing covered it, which is how it survived.
+        wireEnigma([makeSheet()]);
+
+        await qscloudUpdateSheetThumbnails(CREATED_FILES, APP_ID, BASE_OPTIONS);
+
+        const logged = logger.verbose.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(logged).toContain('Closed session after updating sheet thumbnail images');
+        expect(logged).toContain(`on tenant ${BASE_OPTIONS.tenanturl}`);
+        expect(logged).not.toContain('undefined');
+    });
 });

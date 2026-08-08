@@ -635,6 +635,18 @@ describe('qscloudRemoveSheetIcons', () => {
             expect(session.close).toHaveBeenCalledTimes(1);
         });
 
+        test('names the tenant when reporting the closed session, not an undefined host', async () => {
+            // Twin of the cloud_updatesheets assertion. This line interpolated options.host,
+            // which Qlik Sense Cloud has no such option for, so it logged "on host undefined".
+            wireEnigma([makeSheet('sheet-1', 1)]);
+
+            await qscloudRemoveSheetIcons({ ...BASE_OPTIONS });
+
+            const logged = logger.verbose.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(logged).toContain(`on tenant ${BASE_OPTIONS.tenanturl}`);
+            expect(logged).not.toContain('on host undefined');
+        });
+
         test('returns false when the SaaS client cannot be built', async () => {
             QlikSaas.mockImplementationOnce(() => {
                 throw new Error('API token parameter is required');
