@@ -1,6 +1,11 @@
 import { describe, test, expect } from '@jest/globals';
 
-import { qrsFilterValue, qrsFilterAnyOf, qrsPathWithFilter } from '../qrs-filter.js';
+import {
+    qrsFilterValue,
+    qrsFilterAnyOf,
+    qrsPathWithFilter,
+    toFilterValueList,
+} from '../qrs-filter.js';
 
 /**
  * Replicates the query-string handling inside `qrs-interact`'s `getFullPath`, so the tests can
@@ -63,6 +68,28 @@ describe('qrsFilterValue', () => {
 
     test('coerces non-strings rather than throwing', () => {
         expect(qrsFilterValue(42)).toBe('42');
+    });
+});
+
+describe('toFilterValueList', () => {
+    test.each([
+        ['absent option', undefined, []],
+        ['null', null, []],
+        ['empty string', '', []],
+        ['empty array', [], []],
+        ['blank entry from an empty env var', [''], []],
+        ['single string', 'Finance', ['Finance']],
+        ['single-element array', ['Finance'], ['Finance']],
+        ['several values', ['Finance', 'HR'], ['Finance', 'HR']],
+        ['drops only the blanks', ['Finance', '', 'HR'], ['Finance', 'HR']],
+    ])('%s', (_label, input, expected) => {
+        expect(toFilterValueList(input)).toEqual(expected);
+    });
+
+    test('keeps a value that is only whitespace', () => {
+        // A tag cannot usefully be named ' ', but trimming here would silently change what the
+        // operator asked for. Only genuinely empty values are dropped.
+        expect(toFilterValueList([' '])).toEqual([' ']);
     });
 });
 
