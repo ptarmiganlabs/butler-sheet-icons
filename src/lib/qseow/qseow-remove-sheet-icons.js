@@ -42,6 +42,10 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
             configEnigma,
             {
                 logPrefix: 'QSEOW REMOVE SHEET ICONS',
+                // A top-level command, like the two process-app paths: its own "Opened app" line
+                // is already info, and the default log level is info. Only the update step,
+                // which re-opens an app process-app already reported, stays at verbose.
+                sessionLogLevel: 'info',
                 loglevel: options.loglevel,
                 connectionLabel: `server ${options.host}`,
             },
@@ -98,7 +102,7 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
             }
         );
         logger.verbose(
-            `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
+            `Closed session after removing sheet icons in QSEoW app ${appId} on host ${options.host}`
         );
 
         logger.info(`Done processing app ${appId}`);
@@ -171,7 +175,7 @@ export const qseowRemoveSheetIcons = async (options) => {
         return await runOverApps(
             appIdsToProcess,
             {
-                logPrefix: 'QSEOW PROCESS APP: Remove sheet icons',
+                logPrefix: 'QSEOW REMOVE SHEET ICONS',
                 emptySelectionHint: 'Check the --appid and --qliksensetag options.',
             },
             (appId) => removeSheetIconsQSEoWApp(appId, global, options)

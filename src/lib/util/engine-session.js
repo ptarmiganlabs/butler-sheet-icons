@@ -30,11 +30,22 @@ import { logger } from '../../globals.js';
  * @param {string} ctx.connectionLabel - What was connected to, e.g. `'server sense.example.com'`
  *     or `'Qlik Sense Cloud tenant foo.eu.qlikcloud.com'`. Rendered into the existing
  *     `Created session to …, engine version is …` line.
- * @param {string} [ctx.sessionLogLevel] - Level for that line. Defaults to `'verbose'`, which is
- *     what four of the six callers used. The two screenshot paths pass `'info'`, because that is
- *     what they logged before and the default log level is `info` - quietly demoting it would
- *     remove a line operators see on every run. The inconsistency is deliberate to preserve here,
- *     and belongs with the rest of the message work in #872 part 3.
+ * @param {string} [ctx.sessionLogLevel] - Level for that line, following the convention below.
+ *     Defaults to `'verbose'`, so a caller that does not think about it stays quiet.
+ *
+ *     The rule is **who opened the app first**, not which platform or command:
+ *
+ *     - A command working on an app the operator named logs at `'info'` - the two screenshot
+ *       paths and the two icon-removal commands. The default log level is `info`, so this is the
+ *       line that tells an operator the run reached their app.
+ *     - A step re-opening an app already reported by the caller above it logs at `'verbose'`.
+ *       Only the two `*-updatesheets` modules qualify: they are called solely from the
+ *       screenshot paths, which have already announced the same app. Repeating it at `info`
+ *       would print every app twice on a default-level run.
+ *
+ *     Each module's `Opened app …` line follows the same rule, so the two lines in a module
+ *     always agree. The removal commands used to mix them - session at `verbose`, `Opened app`
+ *     at `info` - which is what made the split look accidental.
  * @param {Function} fn - Async callback receiving the enigma `global` object. Its resolved value
  *     is returned.
  *
