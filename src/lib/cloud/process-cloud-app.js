@@ -133,7 +133,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
 
                     const browser = await launchBrowserForApp(options, {
                         appId,
-                        logPrefix: 'CLOUD APP:',
+                        logPrefix: 'CLOUD APP',
                         appLabel: 'Qlik Sense Cloud app',
                         ErrorClass: CloudError,
                     });

@@ -206,6 +206,20 @@ describe('qscloudRemoveSheetIcons', () => {
             expect(session.close).toHaveBeenCalledTimes(1);
         });
 
+        test('names the removal command in the per-app failure line', async () => {
+            // The app loop was told 'CLOUD PROCESS APP 2' and 'QSEOW PROCESS APP: Remove sheet
+            // icons' respectively - a stray counter on one, a double colon on the other, and
+            // neither naming the command actually running.
+            const { app } = wireEnigma([makeSheet('sheet-1', 1)]);
+            app.doSave.mockRejectedValue(new Error('app is published and cannot be saved'));
+
+            await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS })).resolves.toBe(false);
+
+            const errors = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(errors).toContain('CLOUD REMOVE SHEET ICONS: Failed to process app');
+            expect(errors).not.toContain('CLOUD PROCESS APP 2');
+        });
+
         test('saves before closing the engine session', async () => {
             const { app, session } = wireEnigma([makeSheet('sheet-1', 1)]);
             const order = [];
@@ -645,6 +659,34 @@ describe('qscloudRemoveSheetIcons', () => {
             const logged = logger.verbose.mock.calls.map((call) => String(call[0])).join('\n');
             expect(logged).toContain(`on tenant ${BASE_OPTIONS.tenanturl}`);
             expect(logged).not.toContain('on host undefined');
+        });
+
+        test('says it removed icons, not that it updated or generated them', async () => {
+            // This command clears sheet icons. The two twins previously claimed "updating" and
+            // "generating" respectively - neither of which it does, and they disagreed with
+            // each other about which wrong verb to use.
+            wireEnigma([makeSheet('sheet-1', 1)]);
+
+            await qscloudRemoveSheetIcons({ ...BASE_OPTIONS });
+
+            const logged = [...logger.info.mock.calls, ...logger.verbose.mock.calls]
+                .map((call) => String(call[0]))
+                .join('\n');
+            expect(logged).toContain('Closed session after removing sheet icons in QS Cloud app');
+            expect(logged).not.toContain('after updating sheet thumbnail');
+            expect(logged).not.toContain('after generating sheet thumbnail');
+        });
+
+        test('reports the created session at info, like the other top-level commands', async () => {
+            // A command working on an app the operator named. Its own "Opened app" line is
+            // already info and the default log level is info, so the session line belongs there
+            // too - only the update step, which re-opens an already-reported app, stays verbose.
+            wireEnigma([makeSheet('sheet-1', 1)]);
+
+            await qscloudRemoveSheetIcons({ ...BASE_OPTIONS });
+
+            const atInfo = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(atInfo).toContain('Created session to');
         });
 
         test('returns false when the SaaS client cannot be built', async () => {

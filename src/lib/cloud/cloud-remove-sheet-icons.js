@@ -41,6 +41,10 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
             configEnigma,
             {
                 logPrefix: 'CLOUD REMOVE SHEET ICONS',
+                // A top-level command, like the two process-app paths: its own "Opened app" line
+                // is already info, and the default log level is info. Only the update step,
+                // which re-opens an app process-app already reported, stays at verbose.
+                sessionLogLevel: 'info',
                 loglevel: options.loglevel,
                 connectionLabel: `Qlik Sense Cloud tenant ${options.tenanturl}`,
             },
@@ -95,7 +99,7 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
             }
         );
         logger.verbose(
-            `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on tenant ${options.tenanturl}`
+            `Closed session after removing sheet icons in QS Cloud app ${appId} on tenant ${options.tenanturl}`
         );
 
         // Deleted only after the sheets have been repointed and the app saved. Doing it
@@ -251,7 +255,7 @@ export const qscloudRemoveSheetIcons = async (options) => {
         return await runOverApps(
             appIdsToProcess,
             {
-                logPrefix: 'CLOUD PROCESS APP 2',
+                logPrefix: 'CLOUD REMOVE SHEET ICONS',
                 emptySelectionHint: 'Check the --appid and --collectionid options.',
             },
             (appId) => removeSheetIconsCloudApp(appId, saasInstance, options)

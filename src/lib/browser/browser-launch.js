@@ -135,7 +135,8 @@ export const resolveBrowserExecutablePath = async (options) => {
  * to browser detection and install.
  * @param {object} context - Platform-specific labelling and error construction.
  * @param {string} context.appId - App being processed, used in error messages.
- * @param {string} context.logPrefix - Log line prefix, e.g. `QSEOW` or `CLOUD APP:`.
+ * @param {string} context.logPrefix - Log line prefix without a trailing colon, e.g. `'QSEOW'`
+ *     or `'CLOUD APP'`. The colon is added here, so both platforms render the same shape.
  * @param {string} context.appLabel - Human-readable app description, e.g. `QSEoW app`.
  * @param {Function} context.ErrorClass - Typed error to throw, e.g. `QseowError` or `CloudError`.
  *
@@ -171,7 +172,7 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
         // Falls back to the value itself so a non-Error throw still logs something useful
         // rather than "undefined".
         logger.error(
-            `${logPrefix} Could not launch virtual browser: ${err?.stack || err?.message || err}`
+            `${logPrefix}: Could not launch virtual browser: ${err?.stack || err?.message || err}`
         );
 
         throw new ErrorClass(`Failed to launch virtual browser for ${appLabel} ${appId}`, {

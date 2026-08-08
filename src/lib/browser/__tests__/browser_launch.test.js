@@ -57,7 +57,7 @@ class TestError extends Error {
 
 const CONTEXT = {
     appId: 'test-app-id',
-    logPrefix: 'TEST:',
+    logPrefix: 'TEST',
     appLabel: 'test app',
     ErrorClass: TestError,
 };
@@ -224,5 +224,21 @@ describe('closeBrowserQuietly', () => {
     ])('ignores a %s browser, so a failed launch can share the finally', async (_l, browser) => {
         await expect(closeBrowserQuietly(browser, 'QSEOW')).resolves.toBeUndefined();
         expect(logger.error).not.toHaveBeenCalled();
+    });
+});
+
+describe('log prefix shape', () => {
+    test('adds the colon itself, so both platforms render the same shape', async () => {
+        // QSEoW passed 'QSEOW' and Cloud passed 'CLOUD APP:', against a template with no colon.
+        // QSEoW therefore logged "QSEOW Could not launch ..." while Cloud logged
+        // "CLOUD APP: Could not launch ...". The colon belongs in one place.
+        puppeteer.launch.mockRejectedValue(new Error('no browser here'));
+
+        await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow();
+
+        const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(logged).toContain('TEST: Could not launch virtual browser');
+        expect(logged).not.toContain('TEST Could not launch');
+        expect(logged).not.toContain('TEST:: Could not launch');
     });
 });
