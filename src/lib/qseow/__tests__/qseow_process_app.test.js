@@ -137,6 +137,10 @@ beforeAll(async () => {
 describe('qseow-process-app.js — puppeteer launch and click options', () => {
     const defaultOptions = {
         senseVersion: '2023-Nov',
+        // Always present in real runs: Commander supplies both via option defaults. The launch
+        // path treats their absence as a caller bug rather than silently picking a build.
+        browser: 'chrome',
+        browserVersion: 'recommended',
         imagedir: './img',
         host: 'test-server.example.com',
         logonuserdir: 'INTERNAL',
@@ -644,6 +648,10 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
 describe('qseow-process-app.js — a sheet with no metadata does not abort the app', () => {
     const options = {
         senseVersion: '2023-Nov',
+        // Always present in real runs: Commander supplies both via option defaults. The launch
+        // path treats their absence as a caller bug rather than silently picking a build.
+        browser: 'chrome',
+        browserVersion: 'recommended',
         imagedir: './img',
         host: 'test-server.example.com',
         logonuserdir: 'INTERNAL',
@@ -792,6 +800,10 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
 describe('qseow-process-app.js — a blurred thumbnail that cannot be created', () => {
     const options = {
         senseVersion: '2023-Nov',
+        // Always present in real runs: Commander supplies both via option defaults. The launch
+        // path treats their absence as a caller bug rather than silently picking a build.
+        browser: 'chrome',
+        browserVersion: 'recommended',
         imagedir: './img',
         host: 'test-server.example.com',
         logonuserdir: 'INTERNAL',
