@@ -8,12 +8,45 @@
 In earlier versions these two options selected the wrong sheets. See "Who was affected" below — if you use either option, your existing thumbnails may need regenerating after upgrading.
 :::
 
+<!--
+Correction made while publishing: the version gate above is wrong. This draft was written while the
+open release-please PR (#774) was titled "chore(main): release butler-sheet-icons 3.12.0", so 3.12.0
+was the expected next version. Breaking changes landed before that PR merged - the removal of
+`--browser firefox` from the create-sheet-thumbnails commands, and the exit code change - so
+release-please recomputed the bump as a major and it shipped as 4.0.0 (release commit fe6d335,
+compare/butler-sheet-icons-v3.11.0...butler-sheet-icons-v4.0.0). There is no 3.12.0 and there never
+will be.
+
+The doc site pages published from this draft were written before that merge and still say 3.12.0, as
+do several other pages carrying gates from earlier publishing passes. They sit on the doc site's
+`next` branch, not on the public site, and all of them need correcting to 4.0.0 before `next` is
+merged to `main`.
+-->
+
 ## Summary
 
 Butler Sheet Icons was reading these two options incorrectly. Two things went wrong at once:
 
 1. **Only the last number you listed was kept.** `--exclude-sheet-number 1 2 12` behaved as though you had written `--exclude-sheet-number 12`. Sheets 1 and 2 were processed anyway.
 2. **Numbers were matched as text fragments rather than as whole sheet numbers.** Because of this, `--exclude-sheet-number 12` also excluded sheet 1 and sheet 2 — any sheet whose number appears as a fragment of the number you asked for.
+
+<!--
+Correction made while publishing: point 1's example contradicts point 2, and its last sentence is
+wrong. Driving the real pre-fix Option through Commander gives:
+
+    --exclude-sheet-number 1 2 12  ->  stored "12"  ->  sheets excluded: 1, 2, 12
+    --exclude-sheet-number 3 7     ->  stored "7"   ->  sheets excluded: 7
+    --exclude-sheet-number 12      ->  stored "12"  ->  sheets excluded: 1, 2, 12
+
+So in the `1 2 12` example sheets 1 and 2 were NOT processed - the substring match in point 2
+re-excluded exactly the values that point 1 had discarded, and the two faults cancelled out. That
+example happens to produce the correct result and demonstrates nothing.
+
+A case where the lost-values fault is actually visible needs the discarded numbers not to be
+substrings of the surviving one, e.g. `--exclude-sheet-number 3 7`, where sheet 3 was processed as
+normal. The published pages use that example instead.
+-->
+
 
 Both options now behave as documented. Every number you list is kept, and each is matched as a whole sheet number.
 
@@ -57,6 +90,27 @@ Using blurred thumbnail for sheet 1: ...
 ```
 
 There was no error or warning to draw attention to it — the run reported success — so this is worth checking deliberately rather than expecting to have noticed it at the time.
+
+<!--
+Correction made while publishing: this section overstates what a default-level log proves. Both
+quoted lines are logged at `info`, so they are present in an ordinary run - that part is right. But
+neither names the filter that matched, and the exclude line is emitted for every kind of exclusion:
+
+    logger.info(`Excluded sheet: ${iSheetNum}: ...`)                  <- qseow-process-app.js, process-cloud-app.js
+    logger.info(`Using blurred thumbnail for sheet ${iSheetNum}: ...`) <- qseow-updatesheets.js, cloud-updatesheets.js
+
+A sheet excluded by status, tag or title produces the identical `Excluded sheet:` line, so "any
+sheet number in that list that you did not ask to exclude was wrongly skipped" does not follow.
+
+The lines that do name the cause are logged at `verbose`:
+
+    logger.verbose(`Excluded sheet (via sheet number): ${iSheetNum}: ...`)        <- determine-sheet-exclude-status.js
+    logger.verbose(`Blurred sheet thumbnail (via sheet number): ${iSheetNum}: ...`) <- *-updatesheets.js
+
+The published troubleshooting entry makes that distinction and tells the reader to re-run with
+--loglevel verbose to confirm the cause.
+-->
+
 
 ## What you should do
 
