@@ -90,5 +90,6 @@ When a commit is authorised:
 
 - **MUST group changes by topic** — one commit per logical change, not one commit listing everything. Split a mixed working tree rather than writing a catch-all message.
 - **MUST use Conventional Commits** (`type: subject`). This is functional: release-please derives the changelog and version bump from the type — `feat` minor, `fix` patch, `feat!` or a `BREAKING CHANGE:` footer major. Configured types are `feat`, `fix`, `chore`, `docs`, `build`, `refactor` (hidden from the changelog).
+- **MUST NOT give a pull request a Conventional Commits title** — commit subjects use `type: subject`, PR titles are ordinary sentences. PRs land as merge commits and GitHub copies the PR title into the merge commit *body*; release-please cannot parse the merge subject, falls back to the body, and emits a **duplicate changelog entry**. That is why the 4.0.0 release PR listed 154 entries for 128 real changes. If a conventional PR title is unavoidable, merge with `gh pr merge --merge --body ""` — but the title rule is the one that also covers merges done in the web UI.
 
 See `AGENTS.md` for the full set of repository conventions.
