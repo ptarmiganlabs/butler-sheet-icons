@@ -20,8 +20,11 @@ import { markReported } from '../util/reported-error.js';
  *
  * Copied verbatim from the two process-app modules this was extracted from; the list was
  * already identical in both.
+ *
+ * Exported so `scripts/diag/browser-flag-probe.mjs` can A/B the real launch arguments rather than
+ * a hand-copied list. A diagnostic that has drifted from the product proves nothing.
  */
-const BASE_BROWSER_ARGS = [
+export const BASE_BROWSER_ARGS = [
     '--proxy-bypass-list=*',
     '--disable-gpu',
     '--disable-dev-shm-usage',
