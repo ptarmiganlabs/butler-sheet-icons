@@ -114,6 +114,19 @@ and the run logs a one-time note explaining that:
 warn: --browser-version "latest" now means "stable" - the newest stable release of the browser.
 ```
 
+<!--
+Correction made while publishing: there are two warning lines, not one, and the second is the one
+carrying the advice. normalizeVersionKeyword() in src/lib/browser/browser-version.js emits both:
+
+    warn: --browser-version "latest" now means "stable" - the newest stable release of the browser.
+    warn: It previously meant the newest published build, which could be one the browser automation
+          library cannot drive. Use "recommended" for the build Butler Sheet Icons is tested
+          against, or "stable" to keep tracking the newest stable release.
+
+"one-time" is right - a module-level `latestDeprecationWarned` flag suppresses repeats within a
+process, because resolution happens more than once per run. The published page quotes both lines.
+-->
+
 This is a deliberate change. The old meaning of `latest` is what caused the failures described
 above, so there is no way to ask for it any more.
 
@@ -162,6 +175,37 @@ butler-sheet-icons.exe browser uninstall --browser chrome --browser-version <bui
 is tested with. It deliberately does **not** accept `stable` or `latest`: those refer to whatever
 build the vendor currently publishes, not to a build on your machine, so they cannot safely name
 a build to delete. Uninstalling never needs internet access.
+
+<!--
+Correction made while publishing: the rejected set is wider than "stable" and "latest" - release
+channels (beta, dev, canary, nightly, devedition, esr) are refused too, for exactly the same
+reason. The published page states the reason rather than enumerating, so it stays correct if the
+channel list changes.
+-->
+
+<!--
+Version gate: this draft's placeholder said 3.12.0 and instructed the publisher to take the real
+number from the open release-please PR title. That PR merged as 4.0.0, not 3.12.0 - breaking
+changes recomputed the bump to a major. The published pages say 4.0.0. Do not trust a version read
+from an open release-please PR title; check the merged release commit.
+-->
+
+<!--
+Published 2026-08-09 to the doc site's `next` branch (butler-sheet-icons-docs#49), and from there
+to `main`. Landed on: /guide/concepts/browser-management ("Choosing a browser build"),
+/guide/troubleshooting ("Every app fails with Target closed or Protocol error"), /reference/browser,
+/reference/qseow and /reference/qscloud.
+
+The "Firefox is no longer offered for thumbnails" section below was published separately and
+earlier, in butler-sheet-icons-docs#47, because the site was still instructing readers to use
+--browser firefox with the thumbnail commands and that had to be corrected before `next` could be
+released to production.
+
+Not published: what happens when a `stable` lookup fails on an offline machine. Left as a
+follow-up, since it belongs with the existing offline material on
+/guide/concepts/browser-detection-and-environment-variables.
+-->
+
 
 ## Firefox is no longer offered for thumbnails
 
