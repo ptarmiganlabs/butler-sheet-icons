@@ -33,34 +33,72 @@ export const VERSION_LATEST = 'latest';
 export const VERSION_KEYWORDS = [VERSION_RECOMMENDED, VERSION_STABLE];
 
 /**
+ * Browser release channels accepted per browser.
+ *
+ * Resolved live through the same `@puppeteer/browsers` tag handling that resolves `stable`.
+ * These worked before the `recommended`/`stable` vocabulary existed - every value used to be
+ * handed to `resolveBuildId` verbatim, which recognises them as tags - and administrators use
+ * them to track a vendor channel, so they must keep working. The sets differ per browser
+ * because the vendors' channels differ: Chrome has no nightly/devedition/esr, Firefox has no
+ * dev/canary.
+ */
+const CHANNEL_KEYWORDS = {
+    chrome: ['beta', 'dev', 'canary'],
+    firefox: ['beta', 'nightly', 'devedition', 'esr'],
+};
+
+/** Every channel name accepted for at least one browser. */
+const ALL_CHANNEL_KEYWORDS = new Set(Object.values(CHANNEL_KEYWORDS).flat());
+
+/**
  * Builds the help text for a `--browser-version` option.
  *
- * Shared by all four commands that declare the option, so the accepted values are described the
- * same way everywhere. The old text - "Version (=build id) of the browser to install" - said
+ * Shared by the commands that install or drive a browser, so the accepted values are described
+ * the same way everywhere. The old text - "Version (=build id) of the browser to install" - said
  * nothing about the keywords and left it ambiguous whether a full version string or just a
- * version number was wanted.
+ * version number was wanted. `browser uninstall` carries its own description: it accepts a
+ * narrower set, see `resolveLocalBrowserBuildId`.
  *
  * @param {string} action - What the command does with the browser, e.g. `install` or `use`.
  *
  * @returns {string} Description for Commander.
  */
 export const describeBrowserVersionOption = (action) =>
-    `Browser build to ${action}. Either a keyword - "${VERSION_RECOMMENDED}" for the build Butler Sheet Icons is tested with, or "${VERSION_STABLE}" for the newest stable release of the browser - or an exact version. For Chrome that is a milestone ("151"), a build prefix ("151.0.7922") or a full build id ("151.0.7922.77"); for Firefox a channel-prefixed build id ("stable_153.0.3"). Use "butler-sheet-icons browser list-available" to see what is available.`;
+    `Browser build to ${action}. Either a keyword - "${VERSION_RECOMMENDED}" for the build Butler Sheet Icons is tested with, "${VERSION_STABLE}" for the newest stable release, or a release channel such as "beta" - or an exact version. For Chrome that is a milestone ("151"), a build prefix ("151.0.7922") or a full build id ("151.0.7922.77"); for Firefox a channel-prefixed build id ("stable_153.0.3"). Use "butler-sheet-icons browser list-available" to see what is available.`;
 
 /**
- * Reports whether a `--browser-version` value is one of the keywords rather than a specific build.
+ * Commander argument parser for `--browser-version` options that default to `recommended`.
  *
- * Callers use this to tell "the user asked for a particular build" from "Butler Sheet Icons chose
- * one", which changes how loudly an override should be reported.
+ * Exists for one input Commander's `.default()` cannot handle: an environment variable that is
+ * set but empty. Commander checks `envVar in process.env`, so a bare
+ * `BSI_..._BROWSER_VERSION=` line in a systemd unit or docker-compose file beats the declared
+ * default and would otherwise reach the resolver as an empty string - which used to be absorbed
+ * by handler-level normalization before the `recommended` vocabulary existed. Treating empty as
+ * "use the default" keeps those deployments working.
+ *
+ * @param {string} value - Raw value from the command line or environment.
+ *
+ * @returns {string} The value, or the default keyword when the value is empty.
+ */
+export const parseBrowserVersionValue = (value) => (value === '' ? VERSION_RECOMMENDED : value);
+
+/**
+ * Reports whether a `--browser-version` value is a keyword rather than a specific build.
+ *
+ * True for every value that floats - `recommended`, `stable`, the `latest` alias, and the
+ * release channels. Callers use this to tell "the user asked for a particular build" from
+ * "Butler Sheet Icons or the vendor chose one", which changes how loudly an override should be
+ * reported, and whether degrading to a cached build can ever be acceptable.
  *
  * @param {string} browserVersion - Raw value from the command line or environment.
  *
- * @returns {boolean} `true` for `recommended`, `stable` and the `latest` alias.
+ * @returns {boolean} `true` for `recommended`, `stable`, the `latest` alias and release channels.
  */
 export const isVersionKeyword = (browserVersion) =>
     browserVersion === VERSION_RECOMMENDED ||
     browserVersion === VERSION_STABLE ||
-    browserVersion === VERSION_LATEST;
+    browserVersion === VERSION_LATEST ||
+    ALL_CHANNEL_KEYWORDS.has(browserVersion);
 
 /**
  * Explicit version forms accepted per browser.
@@ -89,8 +127,9 @@ const SUPPORTED_BROWSERS = Object.keys(EXPLICIT_VERSION_PATTERNS);
  * Human-readable description of the accepted explicit forms, used in error text.
  */
 const EXPLICIT_VERSION_HELP = {
-    chrome: 'a milestone such as "151", a build prefix such as "151.0.7922", or a full build id such as "151.0.7922.77"',
-    firefox: 'a channel-prefixed build id such as "stable_153.0.3"',
+    chrome: 'a release channel ("beta", "dev", "canary"), a milestone such as "151", a build prefix such as "151.0.7922", or a full build id such as "151.0.7922.77"',
+    firefox:
+        'a release channel ("beta", "nightly", "devedition", "esr"), or a channel-prefixed build id such as "stable_153.0.3"',
 };
 
 /**
@@ -207,6 +246,47 @@ const assertExplicitVersionIsWellFormed = (browser, browserVersion) => {
 };
 
 /**
+ * Marker for errors raised while asking the vendor's version service which build a value means.
+ *
+ * The launch path has to tell "the lookup itself failed" - an environment problem, where
+ * degrading to a cached build can be reasonable for a floating keyword - apart from "the input
+ * is wrong", where it never is: falling back there means running a build the user did not
+ * choose, the exact failure mode issue #878 is about. A Symbol property, following the pattern
+ * of `reported-error.js`, so the marker survives rethrows without appearing in serialized
+ * output.
+ */
+const VERSION_LOOKUP_FAILED = Symbol('butler-sheet-icons.versionLookupFailed');
+
+/**
+ * Tags an error as raised by the version-service lookup.
+ *
+ * Values that cannot carry a property (strings, numbers) are returned unmarked rather than
+ * wrapped, so the original thrown value is preserved for the caller.
+ *
+ * @param {Error|unknown} err - The error to mark.
+ *
+ * @returns {Error|unknown} The same value, for use in `throw markLookupFailure(err)`.
+ */
+const markLookupFailure = (err) => {
+    if (err && typeof err === 'object' && Object.isExtensible(err)) {
+        err[VERSION_LOOKUP_FAILED] = true;
+    }
+
+    return err;
+};
+
+/**
+ * Reports whether an error came from the version-service lookup inside
+ * {@link resolveBrowserVersion}, as opposed to validation of the input.
+ *
+ * @param {Error|unknown} err - The error to test.
+ *
+ * @returns {boolean} `true` when the lookup itself failed.
+ */
+export const isVersionLookupFailure = (err) =>
+    Boolean(err && typeof err === 'object' && err[VERSION_LOOKUP_FAILED]);
+
+/**
  * Error categories that mean the request never reached the version service.
  *
  * Same set, and same reasoning, as `browser-list-available.js`: a failure to reach the service is
@@ -261,14 +341,16 @@ const logVersionLookupFailure = (browser, browserVersion, err) => {
  * Icons release with the same options select the same build.
  *
  * @param {string} browser - Browser to resolve for (`chrome` or `firefox`).
- * @param {string} browserVersion - Keyword or explicit version from the CLI or environment.
+ * @param {string} browserVersion - Keyword, release channel, or explicit version from the CLI or
+ * environment.
  *
  * @returns {Promise<object>} `{ buildId, source, requested, usedNetwork }`, where `source` is
- * `recommended`, `stable` or `explicit`, and `usedNetwork` says whether resolving needed the
- * internet - `false` for `recommended`, which is what lets an offline machine start.
+ * `recommended`, `stable`, `channel` or `explicit`, and `usedNetwork` says whether resolving
+ * needed the internet - `false` for `recommended`, which is what lets an offline machine start.
  *
  * @throws {Error} If the version is malformed, or the browser vendor's version data cannot be
- * reached to resolve a keyword.
+ * reached to resolve a keyword. Lookup failures are distinguishable via
+ * {@link isVersionLookupFailure}.
  */
 export const resolveBrowserVersion = async (browser, browserVersion) => {
     if (!browser) {
@@ -308,16 +390,21 @@ export const resolveBrowserVersion = async (browser, browserVersion) => {
         };
     }
 
-    if (!keyword) {
+    // A release channel is validated by name, not by shape - "beta" is a real Chrome channel
+    // but matches none of the explicit build-id patterns.
+    const isChannel = !keyword && CHANNEL_KEYWORDS[browser].includes(browserVersion);
+
+    if (!keyword && !isChannel) {
         assertExplicitVersionIsWellFormed(browser, browserVersion);
     }
 
     const platform = await detectBrowserPlatform();
     logger.debug(`Detected browser platform: ${platform}`);
 
-    // `stable` is a tag @puppeteer/browsers understands for both browsers, which is why one
-    // Butler Sheet Icons keyword can serve both. Note that its `latest` tag is NOT the
-    // equivalent - for Chrome it means the canary channel, and for Firefox nightly.
+    // `stable` and the release channels are tags @puppeteer/browsers understands for both
+    // browsers, which is why one Butler Sheet Icons vocabulary can serve both. Note that its
+    // `latest` tag is NOT the equivalent of `stable` - for Chrome it means the canary channel,
+    // and for Firefox nightly.
     const tag = keyword === VERSION_STABLE ? VERSION_STABLE : browserVersion;
 
     let buildId;
@@ -325,9 +412,10 @@ export const resolveBrowserVersion = async (browser, browserVersion) => {
         buildId = await resolveBuildId(browser, platform, tag);
     } catch (err) {
         // Rethrown unchanged, including non-Error throws: the reporter only adds an explanation,
-        // and replacing the value here would discard the real cause.
+        // and replacing the value here would discard the real cause. The lookup marker lets the
+        // launch path tell this environment failure apart from bad input.
         logVersionLookupFailure(browser, browserVersion, err);
-        throw err;
+        throw markLookupFailure(err);
     }
 
     if (!buildId) {
@@ -336,13 +424,62 @@ export const resolveBrowserVersion = async (browser, browserVersion) => {
         );
     }
 
-    const source = keyword === VERSION_STABLE ? VERSION_STABLE : 'explicit';
+    let source = 'explicit';
+    if (keyword === VERSION_STABLE) {
+        source = VERSION_STABLE;
+    } else if (isChannel) {
+        source = 'channel';
+    }
 
     logger.info(
         `Browser version "${browserVersion}" resolved to ${browser} build ${buildId} on platform "${platform}"`
     );
 
     return { buildId, source, requested: browserVersion, usedNetwork: true };
+};
+
+/**
+ * Interprets a `--browser-version` value against the local machine only.
+ *
+ * `browser uninstall` must work offline - removing a cached browser is a purely local
+ * operation - and a floating keyword cannot name a build on this machine anyway: `stable`
+ * resolves to whatever the vendor currently publishes, which is usually not what is cached.
+ * So only two forms make sense here: an exact build id, and `recommended`, whose build id is a
+ * compile-time constant. Everything else is refused with guidance rather than resolved over the
+ * network.
+ *
+ * A value that matches no accepted form is passed through unvalidated: it simply will not match
+ * any cache entry, and "not found in cache" is the honest outcome for it.
+ *
+ * @param {string} browser - Browser the version belongs to (`chrome` or `firefox`).
+ * @param {string} browserVersion - Raw `--browser-version` value.
+ *
+ * @returns {string|null} The build id to match against the cache, or `null` when the value
+ * cannot name a local build - in which case the reason has already been logged.
+ */
+export const resolveLocalBrowserBuildId = (browser, browserVersion) => {
+    if (!browserVersion) {
+        logger.error(
+            'No browser version given. Name the exact build id; "butler-sheet-icons browser list-installed" shows the installed builds.'
+        );
+        return null;
+    }
+
+    if (browserVersion === VERSION_RECOMMENDED) {
+        return getRecommendedBuildId(browser);
+    }
+
+    if (isVersionKeyword(browserVersion)) {
+        logger.error(
+            `--browser-version "${browserVersion}" cannot be used here: it names whichever build is currently newest, not a specific build on this machine.`
+        );
+        logger.error(
+            `Name the exact build id, or use "${VERSION_RECOMMENDED}" for the build Butler Sheet Icons is tested with. "butler-sheet-icons browser list-installed" shows the installed builds.`
+        );
+        return null;
+    }
+
+    return browserVersion;
 };
 
 /**

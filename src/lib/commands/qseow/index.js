@@ -4,6 +4,7 @@ import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
 import {
     VERSION_RECOMMENDED,
     describeBrowserVersionOption,
+    parseBrowserVersionValue,
 } from '../../browser/browser-version.js';
 import { parsePositiveInteger, collectPositiveIntegers } from '../helpers.js';
 import { runCommand } from '../run-command.js';
@@ -345,8 +346,12 @@ const buildQseowCommand = () => {
                 .env('BSI_QSEOW_CST_BROWSER')
         )
         .addOption(
+            // The argParser maps a set-but-empty value onto the default: Commander lets a bare
+            // `BSI_QSEOW_CST_BROWSER_VERSION=` line in a unit file beat .default(), and an
+            // empty string must mean "unset", not an error.
             new Option('--browser-version <version>', describeBrowserVersionOption('use'))
                 .default(VERSION_RECOMMENDED)
+                .argParser(parseBrowserVersionValue)
                 .env('BSI_QSEOW_CST_BROWSER_VERSION')
         )
         .addOption(

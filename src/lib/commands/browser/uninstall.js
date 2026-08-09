@@ -1,7 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserUninstall } from '../../browser/browser-uninstall.js';
-import { describeBrowserVersionOption } from '../../browser/browser-version.js';
 import { runCommand } from '../run-command.js';
 
 /**
@@ -48,9 +47,15 @@ const buildBrowserUninstallCommand = () => {
                 .env('BSI_BROWSER_UI_BROWSER')
         )
         .addOption(
-            // No default on purpose: uninstalling is destructive, so the build to remove has to be
-            // named. A keyword is accepted and resolved like anywhere else.
-            new Option('--browser-version <version>', describeBrowserVersionOption('uninstall'))
+            // No default on purpose: uninstalling is destructive, so the build to remove has to
+            // be named. Unlike the other commands this one does not share
+            // describeBrowserVersionOption - floating keywords such as "stable" are refused at
+            // run time, because they name whatever the vendor currently publishes rather than a
+            // build on this machine.
+            new Option(
+                '--browser-version <version>',
+                'Browser build to uninstall: an exact build id (for Chrome e.g. "151.0.7922.77", for Firefox e.g. "stable_153.0.3"), or "recommended" for the build Butler Sheet Icons is tested with. Use "butler-sheet-icons browser list-installed" to see which builds are installed.'
+            )
                 .makeOptionMandatory()
                 .env('BSI_BROWSER_UI_BROWSER_VERSION')
         );

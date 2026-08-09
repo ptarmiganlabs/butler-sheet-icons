@@ -5,18 +5,20 @@ import fs from 'fs-extra';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
-import { resolveBrowserVersion, isVersionKeyword } from './browser-version.js';
+import { resolveLocalBrowserBuildId, VERSION_RECOMMENDED } from './browser-version.js';
 
 /**
  * Uninstall a browser from the Butler Sheet Icons cache.
  *
  * @param {object} options - An options object.
  * @param {string} options.browser - The browser to uninstall.
- * @param {string} options.browserVersion - The version of the browser to uninstall: a keyword such
- * as `recommended`, or an explicit build id.
+ * @param {string} options.browserVersion - The build to uninstall: an exact build id, or
+ * `recommended` for the build Butler Sheet Icons is tested with. Floating keywords such as
+ * `stable` are refused - they name whatever the vendor currently publishes, not a build on this
+ * machine.
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
  *
- * @returns {Promise<boolean>} A promise that resolves to `true` if the browser was uninstalled successfully, `false` if it was not found in the cache.
+ * @returns {Promise<boolean>} A promise that resolves to `true` if the browser was uninstalled successfully, `false` if it was not found in the cache or the version could not name a local build.
  *
  * @throws {Error} If there was an error uninstalling the browser.
  */
@@ -33,6 +35,22 @@ export const browserUninstall = async (options) => {
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
+        // Resolved locally, never over the network: uninstall removes local files and has to
+        // work on an offline machine. Cache entries are exact build ids, so the raw option only
+        // ever matched when the user typed one; `recommended` resolves from a constant, and
+        // floating keywords are refused with guidance because they cannot name a local build.
+        const buildId = resolveLocalBrowserBuildId(options.browser, options.browserVersion);
+
+        if (buildId === null) {
+            return false;
+        }
+
+        if (options.browserVersion === VERSION_RECOMMENDED) {
+            logger.info(
+                `Uninstall target "${options.browserVersion}" resolves to build ${buildId}`
+            );
+        }
+
         const browserPath = path.join(homedir(), '.cache/puppeteer');
 
         logger.debug(`Browser cache path: ${browserPath}`);
@@ -41,18 +59,6 @@ export const browserUninstall = async (options) => {
         const browsersInstalled = await getInstalledBrowsers({
             cacheDir: browserPath,
         });
-
-        // Match on a resolved build id rather than the raw option. Cache entries are build ids
-        // like "151.0.7922.77", so comparing the option directly meant a keyword could never
-        // match anything: "browser uninstall --browser-version latest" always reported "browser
-        // not found" and exited 1.
-        const { buildId } = await resolveBrowserVersion(options.browser, options.browserVersion);
-
-        if (isVersionKeyword(options.browserVersion)) {
-            logger.info(
-                `Uninstall target "${options.browserVersion}" resolves to build ${buildId}`
-            );
-        }
 
         // Get specifics of browser to be uninstalled
         const browserToUninstall = browsersInstalled.find(

@@ -57,20 +57,27 @@ changes when you upgrade Butler Sheet Icons itself, which means:
   fleet of scheduled jobs can no longer drift apart on its own.
 - Once that build is in the cache, later runs need no internet access for the browser at all. The
   build number is baked into Butler Sheet Icons, so there is nothing to look up. With `stable`,
-  every run has to ask the vendor which build is currently newest before it can check the cache —
-  so a server that loses outbound access can no longer start, even though a perfectly good
-  browser is sitting on disk.
+  every run first asks the vendor which build is currently newest. If that lookup fails — the
+  machine is offline, or the service is unreachable — Butler Sheet Icons logs a warning and falls
+  back to the newest browser already in its cache; on a machine with nothing cached, the run
+  fails. A machine that is deliberately offline is better served by `recommended`: same build
+  every time, and no warning noise.
 
 Choose `stable` if you specifically need the newest stable Chrome — for example because your
 security policy requires it. Two things to be aware of: it reintroduces the original risk, since
 `stable` follows whatever the browser vendor has promoted and that can be a build newer than
-Butler Sheet Icons has been tested with; and every run needs internet access to resolve it, even
-when a suitable browser is already cached.
+Butler Sheet Icons has been tested with; and every run makes an internet lookup to resolve it —
+when that lookup fails, the newest cached build is used instead, with a warning in the log.
+
+Browser **release channels** are also accepted: `beta`, `dev` and `canary` for Chrome, and
+`beta`, `nightly`, `devedition` and `esr` for Firefox. Like `stable`, these are looked up when
+the command runs and select that channel's current build.
 
 ## Naming an exact build
 
 You can still pin an exact build. Butler Sheet Icons now checks the format before doing anything,
-so a typo is reported immediately instead of failing later with a misleading download error.
+so a typo is reported immediately and stops the run — it is never silently replaced with some
+other build from the cache.
 
 For **Chrome**, three forms are accepted:
 
@@ -134,12 +141,27 @@ butler-sheet-icons.exe browser install --browser chrome
 
 :::
 
-You can remove the old build afterwards. `browser uninstall` now accepts the keywords too, so you
-no longer have to type a full build id:
+You can remove the old build afterwards. First list what is installed, then name the exact build
+to remove:
 
-```bash
-./butler-sheet-icons browser list-installed
+::: code-group
+
+```powershell [PowerShell]
+butler-sheet-icons.exe browser list-installed
+butler-sheet-icons.exe browser uninstall --browser chrome --browser-version <build id from the list>
 ```
+
+```bash [Bash]
+./butler-sheet-icons browser list-installed
+./butler-sheet-icons browser uninstall --browser chrome --browser-version <build id from the list>
+```
+
+:::
+
+`browser uninstall` accepts an exact build id, or `recommended` for the build Butler Sheet Icons
+is tested with. It deliberately does **not** accept `stable` or `latest`: those refer to whatever
+build the vendor currently publishes, not to a build on your machine, so they cannot safely name
+a build to delete. Uninstalling never needs internet access.
 
 ## Firefox is no longer offered for thumbnails
 
@@ -174,10 +196,17 @@ error: Use a different browser build: "--browser-version recommended" selects th
 ## Note for the reviewer publishing this
 
 - Confirm the version gate against the open `release-please` PR before publishing; do not guess.
-- The environment variables are unchanged: `BSI_BROWSER_I_BROWSER_VERSION`,
+- The environment variable **names** are unchanged: `BSI_BROWSER_I_BROWSER_VERSION`,
   `BSI_BROWSER_UI_BROWSER_VERSION`, `BSI_QSCLOUD_CST_BROWSER_VERSION`,
-  `BSI_QSEOW_CST_BROWSER_VERSION`. Only the accepted values and the default have changed. There is
-  no unprefixed `BSI_BROWSER_VERSION` variable — if the site claims one anywhere, that is wrong.
+  `BSI_QSEOW_CST_BROWSER_VERSION`. Their accepted values and the default have changed as this
+  page describes. Note that `BSI_QSEOW_CST_BROWSER` and `BSI_QSCLOUD_CST_BROWSER` also changed:
+  they now accept only `chrome`, and a value of `firefox` fails with
+  `error: option '--browser <browser>' value 'firefox' from env 'BSI_QSEOW_CST_BROWSER' is
+  invalid. Allowed choices are chrome.` — quote that variant too, it is what an admin whose
+  scheduled job sets the env var will search for. There is no unprefixed `BSI_BROWSER_VERSION`
+  variable — if the site claims one anywhere, that is wrong.
+- An environment variable that is set but **empty** (a bare `BSI_..._BROWSER_VERSION=` line in a
+  unit file) is treated as unset: the default applies.
 - Cross-link the browser-management concept page and the troubleshooting entry both ways.
 - The exact build ids used as examples here (`150.0.7871.24`, `151.0.7922.77`) were current in
   August 2026. Prefer describing the keywords over quoting build numbers on the published page,

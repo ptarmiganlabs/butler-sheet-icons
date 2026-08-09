@@ -251,6 +251,73 @@ describe('--browser-version defaults (issue #878)', () => {
         expect(option.defaultValue).toBeUndefined();
         expect(option.mandatory).toBe(true);
     });
+
+    // Commander checks `envVar in process.env`, so a set-but-empty variable - a bare
+    // `BSI_..._BROWSER_VERSION=` line in a systemd unit or docker-compose file - beats
+    // `.default()`. On 3.11 the handler normalization absorbed exactly this input; without the
+    // argParser it would reach the resolver as an empty string and fail the run (issue #878
+    // review).
+    const envVars = [
+        ['browser install', () => buildBrowserInstallCommand(), 'BSI_BROWSER_I_BROWSER_VERSION'],
+        [
+            'qseow create-sheet-thumbnails',
+            () => thumbnailCommand(buildQseowCommand()),
+            'BSI_QSEOW_CST_BROWSER_VERSION',
+        ],
+        [
+            'qscloud create-sheet-thumbnails',
+            () => thumbnailCommand(buildQscloudCommand()),
+            'BSI_QSCLOUD_CST_BROWSER_VERSION',
+        ],
+    ];
+
+    test.each(envVars)('%s treats a set-but-empty env var as the default', (_n, build, envVar) => {
+        const saved = process.env[envVar];
+        process.env[envVar] = '';
+
+        try {
+            const option = build().options.find((opt) => opt.long === '--browser-version');
+            const parent = new Command();
+            parent.exitOverride();
+            parent.addOption(option);
+            parent.parse(['node', 'test']);
+
+            expect(parent.opts().browserVersion).toBe('recommended');
+        } finally {
+            if (saved === undefined) {
+                delete process.env[envVar];
+            } else {
+                process.env[envVar] = saved;
+            }
+        }
+    });
+
+    test.each(envVars)('%s still takes a real value from the env var', (_n, build, envVar) => {
+        const saved = process.env[envVar];
+        process.env[envVar] = '151.0.7922.77';
+
+        try {
+            const option = build().options.find((opt) => opt.long === '--browser-version');
+            const parent = new Command();
+            parent.exitOverride();
+            parent.addOption(option);
+            parent.parse(['node', 'test']);
+
+            expect(parent.opts().browserVersion).toBe('151.0.7922.77');
+        } finally {
+            if (saved === undefined) {
+                delete process.env[envVar];
+            } else {
+                process.env[envVar] = saved;
+            }
+        }
+    });
+
+    test.each(declarations)('%s treats an empty command-line value as the default', (_n, build) => {
+        const opts = parseOptionInIsolation(build(), '--browser-version', ['']);
+
+        expect(opts.browserVersion).toBe('recommended');
+    });
 });
 
 describe('--browser choices', () => {

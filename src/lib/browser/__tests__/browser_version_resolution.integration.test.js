@@ -5,6 +5,7 @@ import { browserInstall } from '../browser-install.js';
 import { browserInstalled } from '../browser-installed.js';
 import { browserUninstall, browserUninstallAll } from '../browser-uninstall.js';
 import { detectAvailableBrowser } from '../browser-detect.js';
+import { resolveBrowserExecutablePath } from '../browser-launch.js';
 import { resolveBrowserVersion, getRecommendedBuildId } from '../browser-version.js';
 import { assertEnv, getTestTimeout } from '../../util/env-check.js';
 
@@ -122,6 +123,23 @@ describe('browser version resolution', () => {
         },
         defaultTestTimeout
     );
+
+    /**
+     * A release channel resolves live through the vendor, like `stable`. Channels worked before
+     * the keyword vocabulary existed and administrators use them to track vendor channels; the
+     * first cut of the vocabulary rejected them (issue #878 review).
+     */
+    test(
+        'a release channel resolves through the vendor',
+        async () => {
+            const resolved = await resolveBrowserVersion('chrome', 'beta');
+
+            expect(resolved.usedNetwork).toBe(true);
+            expect(resolved.source).toBe('channel');
+            expect(resolved.buildId).toMatch(/^\d+\.\d+\.\d+\.\d+$/);
+        },
+        defaultTestTimeout
+    );
 });
 
 describe('cached browser selection', () => {
@@ -198,7 +216,7 @@ describe('cached browser selection', () => {
      * The command reported "browser not found" and exited 1.
      */
     test(
-        'a browser can be uninstalled by keyword rather than by build id',
+        'a browser can be uninstalled by the recommended keyword',
         async () => {
             await browserUninstallAll(options);
             await browserInstall({ browser: 'chrome', browserVersion: 'recommended' });
@@ -211,6 +229,49 @@ describe('cached browser selection', () => {
 
             expect(removed).toBe(true);
             expect((await browserInstalled(options)).length).toEqual(0);
+        },
+        defaultTestTimeout
+    );
+
+    /**
+     * Floating keywords are refused for uninstall: they resolve to whatever the vendor
+     * currently publishes, which is not what is cached, so accepting them either deleted the
+     * wrong build or reported "not found" after a pointless network round trip. This also keeps
+     * uninstall a purely offline operation.
+     */
+    test(
+        'uninstall refuses a floating keyword and leaves the cache alone',
+        async () => {
+            await browserUninstallAll(options);
+            await browserInstall({ browser: 'chrome', browserVersion: 'recommended' });
+
+            const removed = await browserUninstall({
+                ...options,
+                browser: 'chrome',
+                browserVersion: 'stable',
+            });
+
+            expect(removed).toBe(false);
+            expect((await browserInstalled(options)).length).toEqual(1);
+        },
+        defaultTestTimeout
+    );
+
+    /**
+     * The top finding of the issue #878 review: the offline fallback used to swallow EVERY
+     * resolution error, so a typo'd --browser-version printed three errors saying the value was
+     * invalid and then completed successfully on whatever was cached - a build nobody chose.
+     * With a browser cached (the normal state), a malformed version must still fail the run.
+     */
+    test(
+        'a malformed version fails even when a browser is cached',
+        async () => {
+            await browserUninstallAll(options);
+            await browserInstall({ browser: 'chrome', browserVersion: 'recommended' });
+
+            await expect(
+                resolveBrowserExecutablePath({ browser: 'chrome', browserVersion: 'garbage' })
+            ).rejects.toThrow(/invalid --browser-version/i);
         },
         defaultTestTimeout
     );

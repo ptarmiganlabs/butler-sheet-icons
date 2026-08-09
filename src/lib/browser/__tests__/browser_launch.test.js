@@ -32,7 +32,10 @@ jest.unstable_mockModule('../browser-install.js', () => ({
 const { browserInstall } = await import('../browser-install.js');
 
 // Version resolution has its own suite. Stubbed here so these tests exercise the launch path
-// rather than a version service.
+// rather than a version service. isVersionKeyword mirrors the real module's semantics - a mock
+// with different semantics would let the keyword/pin distinction in the fallback logic rot
+// unnoticed. isVersionLookupFailure is a plain mock because the marker lives on errors the
+// tests construct themselves.
 jest.unstable_mockModule('../browser-version.js', () => ({
     resolveBrowserVersion: jest.fn(async (browser, browserVersion) => ({
         buildId: '150.0.7871.24',
@@ -40,9 +43,23 @@ jest.unstable_mockModule('../browser-version.js', () => ({
         requested: browserVersion,
         usedNetwork: false,
     })),
+    isVersionKeyword: jest.fn((v) =>
+        [
+            'recommended',
+            'stable',
+            'latest',
+            'beta',
+            'dev',
+            'canary',
+            'nightly',
+            'devedition',
+            'esr',
+        ].includes(v)
+    ),
+    isVersionLookupFailure: jest.fn(() => false),
     VERSION_RECOMMENDED: 'recommended',
 }));
-const { resolveBrowserVersion } = await import('../browser-version.js');
+const { resolveBrowserVersion, isVersionLookupFailure } = await import('../browser-version.js');
 
 // Docker detection imports fs dynamically; existsSync drives which branch is taken.
 jest.unstable_mockModule('node:fs', () => ({
@@ -115,6 +132,9 @@ beforeEach(() => {
         requested: 'recommended',
         usedNetwork: false,
     });
+    // clearMocks resets call history but not implementations, so a test that flips this to
+    // true would otherwise leak into its neighbours.
+    isVersionLookupFailure.mockImplementation(() => false);
 });
 
 describe('buildBrowserArgs', () => {
@@ -208,12 +228,13 @@ describe('resolveBrowserExecutablePath', () => {
     });
 });
 
-describe('resolveBrowserExecutablePath — version lookup failure', () => {
+describe('resolveBrowserExecutablePath — keyword lookup failure', () => {
     // A machine that cannot reach the version service used to work fine against whatever was in
-    // the cache. It must keep working, or moving to resolved build ids would strand offline
-    // installations.
-    test('falls back to any cached build when the version cannot be resolved', async () => {
+    // the cache. For floating keywords it must keep working, or moving to resolved build ids
+    // would strand offline installations.
+    test('falls back to any cached build when a keyword cannot be looked up', async () => {
         resolveBrowserVersion.mockRejectedValue(new Error('getaddrinfo ENOTFOUND'));
+        isVersionLookupFailure.mockImplementation(() => true);
         detectAvailableBrowser.mockResolvedValue({
             executablePath: '/cached/chrome',
             source: 'cache',
@@ -233,10 +254,56 @@ describe('resolveBrowserExecutablePath — version lookup failure', () => {
     test('reports the lookup failure when the cache cannot help either', async () => {
         const cause = new Error('getaddrinfo ENOTFOUND');
         resolveBrowserVersion.mockRejectedValue(cause);
+        isVersionLookupFailure.mockImplementation(() => true);
         detectAvailableBrowser.mockResolvedValue(null);
 
         await expect(resolveBrowserExecutablePath(OPTIONS)).rejects.toBe(cause);
         expect(browserInstall).not.toHaveBeenCalled();
+    });
+});
+
+describe('resolveBrowserExecutablePath — invalid version input (issue #878 review)', () => {
+    // The regression the review caught: the fallback used to swallow EVERY resolution error, so
+    // `--browser-version garbage` printed three errors saying the value was invalid and then
+    // completed successfully on whatever build happened to be cached - the exact
+    // build-nobody-chose failure mode this branch exists to remove.
+    test('a validation failure fails the run instead of using the cache', async () => {
+        const cause = new Error('Invalid --browser-version "garbage" for browser "chrome"');
+        resolveBrowserVersion.mockRejectedValue(cause);
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '151.0.7922.77',
+        });
+
+        await expect(
+            resolveBrowserExecutablePath({ ...OPTIONS, browserVersion: 'garbage' })
+        ).rejects.toBe(cause);
+
+        expect(detectAvailableBrowser).not.toHaveBeenCalled();
+        expect(browserInstall).not.toHaveBeenCalled();
+    });
+
+    // A pin is a promise: the user named a specific target, so substituting a cached build when
+    // the lookup fails would run something they explicitly did not choose. Only floating
+    // keywords may degrade.
+    test('a lookup failure on an explicit pin fails the run', async () => {
+        const cause = new Error('getaddrinfo ENOTFOUND');
+        resolveBrowserVersion.mockRejectedValue(cause);
+        isVersionLookupFailure.mockImplementation(() => true);
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '150.0.7871.24',
+        });
+
+        await expect(
+            resolveBrowserExecutablePath({ ...OPTIONS, browserVersion: '151' })
+        ).rejects.toBe(cause);
+
+        expect(detectAvailableBrowser).not.toHaveBeenCalled();
     });
 });
 

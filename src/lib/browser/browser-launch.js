@@ -6,7 +6,12 @@ import { computeExecutablePath } from '@puppeteer/browsers';
 import { logger } from '../../globals.js';
 import { detectAvailableBrowser } from './browser-detect.js';
 import { browserInstall } from './browser-install.js';
-import { resolveBrowserVersion, VERSION_RECOMMENDED } from './browser-version.js';
+import {
+    resolveBrowserVersion,
+    isVersionKeyword,
+    isVersionLookupFailure,
+    VERSION_RECOMMENDED,
+} from './browser-version.js';
 import { parseHeadlessOption } from '../util/headless-option.js';
 import { markReported } from '../util/reported-error.js';
 
@@ -88,28 +93,38 @@ export const buildBrowserArgs = async ({ platform = process.platform } = {}) => 
 };
 
 /**
- * Resolves the requested version to a build id, tolerating a machine that cannot reach the
- * internet.
+ * Resolves the requested version to a build id, degrading gracefully only when a floating
+ * keyword cannot be looked up.
  *
- * `recommended`, the default, resolves from a constant and never needs the network. `stable` and
- * the milestone and build-prefix forms do, and a run that used to work offline against whatever
- * was in the cache must not start failing just because it cannot look the version up. When
- * resolution fails, this returns `undefined`, which tells detection to accept the newest cached
- * build of the right type instead.
+ * `recommended`, the default, resolves from a constant and never needs the network. `stable`,
+ * the `latest` alias and the release channels need the vendor's version service, and a machine
+ * that cannot reach it used to work offline against whatever was cached - so for those, and
+ * only those, a failed lookup returns `undefined`, which tells detection to accept the newest
+ * cached build of the right type instead.
  *
- * The failure is only swallowed if the cache can still answer. If no browser is cached either,
+ * Everything else rethrows. A malformed version, an unsupported browser or an unresolvable
+ * value is the user's input being wrong, and an explicit pin (milestone or build prefix) whose
+ * lookup fails is a promise that cannot be kept - in both cases, quietly running some other
+ * cached build would reintroduce the exact failure mode issue #878 is about: a build nobody
+ * chose, selected silently.
+ *
+ * The fallback is only useful if the cache can still answer. If no browser is cached either,
  * the original resolution error is the honest one to report, so it is rethrown by the caller.
  *
  * @param {object} options - Options object carrying `browser` and `browserVersion`.
  *
- * @returns {Promise<object>} `{ buildId, resolveError }`. `buildId` is `undefined` when resolution
- * failed, in which case `resolveError` carries the reason.
+ * @returns {Promise<object>} `{ buildId, resolveError }`. `buildId` is `undefined` when a
+ * keyword lookup failed, in which case `resolveError` carries the reason.
  */
 const resolveRequestedBuildId = async (options) => {
     try {
         const { buildId } = await resolveBrowserVersion(options.browser, options.browserVersion);
         return { buildId };
     } catch (err) {
+        if (!(isVersionKeyword(options.browserVersion) && isVersionLookupFailure(err))) {
+            throw err;
+        }
+
         logger.warn(
             `Could not resolve --browser-version "${options.browserVersion}": ${err?.message ?? err}`
         );

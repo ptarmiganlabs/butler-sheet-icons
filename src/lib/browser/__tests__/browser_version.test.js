@@ -30,8 +30,12 @@ const { logger } = await import('../../../globals.js');
 
 const {
     resolveBrowserVersion,
+    resolveLocalBrowserBuildId,
     getRecommendedBuildId,
     resetVersionWarningsForTesting,
+    isVersionKeyword,
+    isVersionLookupFailure,
+    parseBrowserVersionValue,
     VERSION_RECOMMENDED,
     VERSION_STABLE,
 } = await import('../browser-version.js');
@@ -135,6 +139,130 @@ describe('the latest alias', () => {
     });
 });
 
+describe('release channels', () => {
+    // These worked before the recommended/stable vocabulary existed - every value was handed to
+    // resolveBuildId verbatim, which recognises channel tags - so administrators have them in
+    // scheduled jobs. The first cut of the vocabulary rejected them (issue #878 review).
+    test.each([
+        ['chrome', 'beta'],
+        ['chrome', 'dev'],
+        ['chrome', 'canary'],
+        ['firefox', 'beta'],
+        ['firefox', 'nightly'],
+        ['firefox', 'devedition'],
+        ['firefox', 'esr'],
+    ])('resolves %s %s through the vendor', async (browser, channel) => {
+        resolveBuildId.mockResolvedValue('resolved-build');
+
+        const result = await resolveBrowserVersion(browser, channel);
+
+        expect(resolveBuildId).toHaveBeenCalledWith(browser, 'mac_arm', channel);
+        expect(result.buildId).toBe('resolved-build');
+        expect(result.source).toBe('channel');
+        expect(result.usedNetwork).toBe(true);
+    });
+
+    // The vendors' channels differ; a channel the browser does not have must be rejected up
+    // front, not passed to a lookup that would throw a less helpful error.
+    test.each([
+        ['chrome', 'nightly'],
+        ['chrome', 'devedition'],
+        ['chrome', 'esr'],
+        ['firefox', 'dev'],
+        ['firefox', 'canary'],
+    ])('rejects %s "%s", a channel that browser does not have', async (browser, channel) => {
+        await expect(resolveBrowserVersion(browser, channel)).rejects.toThrow(
+            /invalid --browser-version/i
+        );
+
+        expect(resolveBuildId).not.toHaveBeenCalled();
+    });
+});
+
+describe('lookup-failure marking', () => {
+    // The launch path decides whether falling back to a cached build is acceptable based on
+    // this marker: only an error from the lookup itself - an environment problem - qualifies.
+    test('marks a connectivity failure raised by the lookup', async () => {
+        resolveBuildId.mockRejectedValue(
+            Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' })
+        );
+
+        const err = await resolveBrowserVersion('chrome', VERSION_STABLE).catch((e) => e);
+
+        expect(isVersionLookupFailure(err)).toBe(true);
+    });
+
+    test('marks a non-connectivity lookup failure too', async () => {
+        // A 503 or a captive-portal parse error is still the environment, not the input.
+        resolveBuildId.mockRejectedValue(new Error('Got status code 503'));
+
+        const err = await resolveBrowserVersion('chrome', VERSION_STABLE).catch((e) => e);
+
+        expect(isVersionLookupFailure(err)).toBe(true);
+    });
+
+    test('does not mark a validation failure', async () => {
+        const err = await resolveBrowserVersion('chrome', 'garbage').catch((e) => e);
+
+        expect(isVersionLookupFailure(err)).toBe(false);
+    });
+
+    test('does not mark an unsupported-browser failure', async () => {
+        const err = await resolveBrowserVersion('opera', VERSION_STABLE).catch((e) => e);
+
+        expect(isVersionLookupFailure(err)).toBe(false);
+    });
+
+    test('does not mark a lookup that answered with no build', async () => {
+        // A well-formed milestone that does not exist is the input being wrong, not the
+        // environment failing - it must not qualify for the cache fallback.
+        resolveBuildId.mockResolvedValue(undefined);
+
+        const err = await resolveBrowserVersion('chrome', '9999').catch((e) => e);
+
+        expect(err.message).toMatch(/could not resolve --browser-version "9999"/i);
+        expect(isVersionLookupFailure(err)).toBe(false);
+    });
+});
+
+describe('isVersionKeyword', () => {
+    test.each([
+        'recommended',
+        'stable',
+        'latest',
+        'beta',
+        'dev',
+        'canary',
+        'nightly',
+        'devedition',
+        'esr',
+    ])('recognises the floating "%s"', (value) => {
+        expect(isVersionKeyword(value)).toBe(true);
+    });
+
+    test.each(['151.0.7922.77', '151', 'stable_153.0.3', 'garbage', '', undefined])(
+        'does not treat %s as a keyword',
+        (value) => {
+            expect(isVersionKeyword(value)).toBe(false);
+        }
+    );
+});
+
+describe('parseBrowserVersionValue', () => {
+    // Commander lets a set-but-empty env var beat .default(), so a bare
+    // `BSI_..._BROWSER_VERSION=` line in a unit file used to reach the resolver as ''.
+    test('maps a set-but-empty value onto the default keyword', () => {
+        expect(parseBrowserVersionValue('')).toBe(VERSION_RECOMMENDED);
+    });
+
+    test.each(['stable', 'latest', '151', '151.0.7922.77', 'garbage'])(
+        'passes "%s" through untouched',
+        (value) => {
+            expect(parseBrowserVersionValue(value)).toBe(value);
+        }
+    );
+});
+
 describe('explicit versions', () => {
     test.each([
         ['chrome', '151', 'milestone'],
@@ -221,6 +349,38 @@ describe('required options', () => {
         ['chrome', '', /"browserVersion"/],
     ])('rejects browser=%s version=%s', async (browser, version, expected) => {
         await expect(resolveBrowserVersion(browser, version)).rejects.toThrow(expected);
+    });
+});
+
+describe('resolveLocalBrowserBuildId (uninstall)', () => {
+    test('resolves "recommended" from the pin, with no platform detection or lookup', () => {
+        expect(resolveLocalBrowserBuildId('chrome', VERSION_RECOMMENDED)).toBe('150.0.7871.24');
+
+        expect(resolveBuildId).not.toHaveBeenCalled();
+        expect(detectBrowserPlatform).not.toHaveBeenCalled();
+    });
+
+    // A floating keyword resolves to whatever the vendor currently publishes - almost never a
+    // build in the local cache - so for a destructive, offline-capable command it is refused
+    // with guidance instead of resolved over the network.
+    test.each(['stable', 'latest', 'beta', 'esr'])(
+        'refuses the floating "%s" and points at list-installed',
+        (value) => {
+            expect(resolveLocalBrowserBuildId('chrome', value)).toBeNull();
+
+            const advice = logger.error.mock.calls.map(([msg]) => msg).join('\n');
+            expect(advice).toContain('list-installed');
+            expect(resolveBuildId).not.toHaveBeenCalled();
+        }
+    );
+
+    test('passes an exact build id through unchanged', () => {
+        expect(resolveLocalBrowserBuildId('chrome', '151.0.7922.77')).toBe('151.0.7922.77');
+        expect(resolveLocalBrowserBuildId('firefox', 'stable_153.0.3')).toBe('stable_153.0.3');
+    });
+
+    test('refuses an empty value', () => {
+        expect(resolveLocalBrowserBuildId('chrome', '')).toBeNull();
     });
 });
 
