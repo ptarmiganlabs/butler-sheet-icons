@@ -1206,7 +1206,16 @@ jobs:
     env:
       DIST_FILE_NAME: butler-sheet-icons
       GITHUB_TOKEN: ${{ secrets.PAT }}
-      CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT}}
+      # Windows code signing is OFF: the certificate expired, and signtool cannot sign with it
+      # whatever else is configured. scripts/release-win.ps1 skips signing when this variable is
+      # empty and ships an unsigned binary instead of failing, which is why 4.0.0 went out with no
+      # Windows binary at all.
+      #
+      # TO RE-ENABLE: uncomment the line below, once WIN_CODESIGN_THUMBPRINT holds the thumbprint
+      # of a valid certificate. Nothing else needs changing here. Note that Certum SimplySign is a
+      # cloud signing service, so the signtool invocation in release-win.ps1 will probably need
+      # reworking for it rather than simply being switched back on - see the comment there.
+      # CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT}}
     steps:
       - name: Release tag and upload url from previous job
         shell: powershell
