@@ -717,6 +717,13 @@ jobs:
     env:
       IMAGE_NAME: butler-sheet-icons:ci-arm64
       IMAGE_TAR: butler-sheet-icons-ci-arm64.tar
+      # Per-run so two runs can never share state, and named so a leftover is obvious in
+      # `docker volume ls` on a self-hosted runner.
+      CERT_VOLUME: bsi-qseow-cert-arm64-${{ github.run_id }}
+      IMG_VOLUME: bsi-qseow-img-arm64-${{ github.run_id }}
+      # Any non-root uid will do; the container adopts whoever owns the mounted image directory.
+      RUN_UID: '1000'
+      RUN_GID: '1000'
       BSI_CONTENT_LIBRARY: 'abc 123'
       BSI_HOST: ${{ secrets.BSI_HOST }}
       BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
@@ -737,30 +744,59 @@ jobs:
       - name: Remove downloaded tarball
         run: rm -f "$IMAGE_TAR"
 
-      - name: Prepare host folders for Docker mounts
+      # Docker volumes rather than host bind mounts, and the reason is issue #922. The amd64
+      # runner is a self-hosted runner running *inside a container*, talking to the host's Docker
+      # daemon. Bind-mount source paths are resolved by the daemon, on the host - not inside the
+      # container that issued the command. So `-v "$HOME/bsi-bsi/cert:/nodeapp/cert"` mounted a
+      # different, empty directory that happened to exist on the host, and the certificates written
+      # moments earlier were invisible to the container. "Certificate file ... missing" was
+      # literally true. The job had never once passed.
+      #
+      # A volume is resolved by the daemon itself, so a runner inside a container and a runner on
+      # the host behave identically. Both QSEoW Docker jobs use them so the two cannot drift apart
+      # again - this one runs on macOS, where the bug is invisible.
+      - name: Prepare Docker volumes for the run
         env:
           QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
           QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
         run: |
           set -euo pipefail
-          IMG_DIR="$HOME/bsi-bsi/img"
-          CERT_DIR="$HOME/bsi-bsi/cert"
-          mkdir -p "$IMG_DIR" "$CERT_DIR"
           if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
             echo 'Missing QSEoW client certificate secrets' >&2
             exit 1
           fi
-          printf '%s\n' "$QS_CLIENT_PEM" > "$CERT_DIR/client.pem"
-          printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$CERT_DIR/client_key.pem"
-          chmod 600 "$CERT_DIR"/client*.pem
+
+          docker volume create "$CERT_VOLUME" >/dev/null
+          docker volume create "$IMG_VOLUME" >/dev/null
+
+          # Secrets travel on stdin, never in argv, so they cannot surface in a process listing.
+          # The Butler Sheet Icons image is its own helper: already loaded, and it carries busybox,
+          # so no second image has to be pulled or pinned.
+          printf '%s\n' "$QS_CLIENT_PEM" | docker run --rm -i \
+            -v "$CERT_VOLUME:/c" --entrypoint /bin/sh "$IMAGE_NAME" -c 'cat > /c/client.pem'
+          printf '%s\n' "$QS_CLIENT_KEY_PEM" | docker run --rm -i \
+            -v "$CERT_VOLUME:/c" --entrypoint /bin/sh "$IMAGE_NAME" -c 'cat > /c/client_key.pem'
+
+          # The mkdir is load-bearing. Docker copies the image's directory contents - and their
+          # ownership - into a volume only for as long as that volume is EMPTY, and chown alone
+          # does not make it non-empty. Without an entry here, mounting at /nodeapp/img silently
+          # resets the volume to the image's own uid and the run cannot write. Both outcomes were
+          # reproduced before settling on this.
+          docker run --rm -e OWNER="$RUN_UID:$RUN_GID" \
+            -v "$CERT_VOLUME:/c" -v "$IMG_VOLUME:/i" \
+            --entrypoint /bin/sh "$IMAGE_NAME" -c 'set -e; chmod 600 /c/client.pem /c/client_key.pem; mkdir -p /i/qseow; chown -R "$OWNER" /c /i'
+
+      - name: Report volume ownership as the container sees it
+        run: |
+          echo "runner user : $(id)"
+          docker run --rm -v "$IMG_VOLUME:/nodeapp/img" -v "$CERT_VOLUME:/nodeapp/cert" \
+            --entrypoint /bin/sh "$IMAGE_NAME" -c 'echo "image dir : $(stat -c "%u:%g %a" /nodeapp/img)"; echo "cert dir  : $(stat -c "%u:%g %a" /nodeapp/cert)"; ls -ln /nodeapp/cert'
 
       - name: Run QSEoW Docker command (arm64 image)
         run: |
-          IMG_DIR="$HOME/bsi-bsi/img"
-          CERT_DIR="$HOME/bsi-bsi/cert"
           docker run --rm \
-            -v "$IMG_DIR:/nodeapp/img" \
-            -v "$CERT_DIR:/nodeapp/cert" \
+            -v "$IMG_VOLUME:/nodeapp/img" \
+            -v "$CERT_VOLUME:/nodeapp/cert" \
             "$IMAGE_NAME" \
             qseow create-sheet-thumbnails \
             --host "$BSI_HOST" \
@@ -782,6 +818,22 @@ jobs:
             --qliksensetag updateSheetThumbnail \
             --prefix "$BSI_PREFIX" \
             --log-level verbose
+
+      # Read the results back out of the volume rather than off the runner's filesystem: with the
+      # daemon potentially on another machine, the runner cannot see them any other way. busybox
+      # find takes -user, not GNU find's -uid - getting that wrong produced a silent false pass
+      # when this was first written.
+      - name: Assert the thumbnails are owned by the expected user
+        run: |
+          set -euo pipefail
+          docker run --rm -e EXPECTED_UID="$RUN_UID" -v "$IMG_VOLUME:/i" \
+            --entrypoint /bin/sh "$IMAGE_NAME" -c 'set -e; if [ -z "$(find /i -type f)" ]; then echo "::error::no files were written to the image volume"; exit 1; fi; WRONG=$(find /i -type f ! -user "$EXPECTED_UID"); if [ -n "$WRONG" ]; then echo "::error::files in the image volume are not owned by uid $EXPECTED_UID"; ls -ln $WRONG | head -5; exit 1; fi; find /i -type f -exec ls -ln {} + | head -10; echo "Every file in the image volume is owned by uid $EXPECTED_UID."'
+
+      # Unconditional: the certificate volume holds a private key, and a failed run is exactly when
+      # it would otherwise be left behind on a long-lived self-hosted runner.
+      - name: Remove the run's Docker volumes
+        if: always()
+        run: docker volume rm -f "$CERT_VOLUME" "$IMG_VOLUME" || true
 
       - name: Remove local Docker image
         run: docker image rm "$IMAGE_NAME" || true
@@ -809,6 +861,13 @@ jobs:
     env:
       IMAGE_NAME: butler-sheet-icons:ci-amd64
       IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
+      # Per-run so two runs can never share state, and named so a leftover is obvious in
+      # `docker volume ls` on a self-hosted runner.
+      CERT_VOLUME: bsi-qseow-cert-amd64-${{ github.run_id }}
+      IMG_VOLUME: bsi-qseow-img-amd64-${{ github.run_id }}
+      # Any non-root uid will do; the container adopts whoever owns the mounted image directory.
+      RUN_UID: '1000'
+      RUN_GID: '1000'
       BSI_CONTENT_LIBRARY: 'abc 123'
       BSI_HOST: ${{ secrets.BSI_HOST }}
       BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
@@ -829,57 +888,59 @@ jobs:
       - name: Remove downloaded tarball
         run: rm -f "$IMAGE_TAR"
 
-      - name: Prepare host folders for Docker mounts
+      # Docker volumes rather than host bind mounts, and the reason is issue #922. The amd64
+      # runner is a self-hosted runner running *inside a container*, talking to the host's Docker
+      # daemon. Bind-mount source paths are resolved by the daemon, on the host - not inside the
+      # container that issued the command. So `-v "$HOME/bsi-bsi/cert:/nodeapp/cert"` mounted a
+      # different, empty directory that happened to exist on the host, and the certificates written
+      # moments earlier were invisible to the container. "Certificate file ... missing" was
+      # literally true. The job had never once passed.
+      #
+      # A volume is resolved by the daemon itself, so a runner inside a container and a runner on
+      # the host behave identically. Both QSEoW Docker jobs use them so the two cannot drift apart
+      # again - this one runs on macOS, where the bug is invisible.
+      - name: Prepare Docker volumes for the run
         env:
           QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
           QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
         run: |
           set -euo pipefail
-          IMG_DIR="$HOME/bsi-bsi/img"
-          CERT_DIR="$HOME/bsi-bsi/cert"
-          mkdir -p "$IMG_DIR" "$CERT_DIR"
           if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
             echo 'Missing QSEoW client certificate secrets' >&2
             exit 1
           fi
-          printf '%s\n' "$QS_CLIENT_PEM" > "$CERT_DIR/client.pem"
-          printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$CERT_DIR/client_key.pem"
-          chmod 600 "$CERT_DIR"/client*.pem
 
-      # This job has never passed. It fails with "Missing certificate file(s)" even though the
-      # files are plainly there, which points at the container user being unable to read them - the
-      # certificate is written mode 0600 above, so only its owner can.
-      #
-      # #915 asserted this was the same root cause as the image directory and would be fixed by the
-      # same change. It was not: the entrypoint shipped, the two QS Cloud jobs went green, and this
-      # one failed identically. That claim was an inference from the chmod, never a measurement, so
-      # the step below measures it instead of guessing again - on the host and from inside the
-      # image, as the unprivileged user the container actually runs as.
-      - name: Report mounted directory ownership and certificate readability
+          docker volume create "$CERT_VOLUME" >/dev/null
+          docker volume create "$IMG_VOLUME" >/dev/null
+
+          # Secrets travel on stdin, never in argv, so they cannot surface in a process listing.
+          # The Butler Sheet Icons image is its own helper: already loaded, and it carries busybox,
+          # so no second image has to be pulled or pinned.
+          printf '%s\n' "$QS_CLIENT_PEM" | docker run --rm -i \
+            -v "$CERT_VOLUME:/c" --entrypoint /bin/sh "$IMAGE_NAME" -c 'cat > /c/client.pem'
+          printf '%s\n' "$QS_CLIENT_KEY_PEM" | docker run --rm -i \
+            -v "$CERT_VOLUME:/c" --entrypoint /bin/sh "$IMAGE_NAME" -c 'cat > /c/client_key.pem'
+
+          # The mkdir is load-bearing. Docker copies the image's directory contents - and their
+          # ownership - into a volume only for as long as that volume is EMPTY, and chown alone
+          # does not make it non-empty. Without an entry here, mounting at /nodeapp/img silently
+          # resets the volume to the image's own uid and the run cannot write. Both outcomes were
+          # reproduced before settling on this.
+          docker run --rm -e OWNER="$RUN_UID:$RUN_GID" \
+            -v "$CERT_VOLUME:/c" -v "$IMG_VOLUME:/i" \
+            --entrypoint /bin/sh "$IMAGE_NAME" -c 'set -e; chmod 600 /c/client.pem /c/client_key.pem; mkdir -p /i/qseow; chown -R "$OWNER" /c /i'
+
+      - name: Report volume ownership as the container sees it
         run: |
-          IMG_DIR="$HOME/bsi-bsi/img"
-          CERT_DIR="$HOME/bsi-bsi/cert"
-
           echo "runner user : $(id)"
-          echo "HOME        : $HOME"
-          echo "--- host side ---"
-          ls -lnd "$IMG_DIR" "$CERT_DIR"
-          ls -ln "$CERT_DIR"
-
-          echo "--- inside the image, as the user it runs as by default ---"
-          docker run --rm \
-            -v "$IMG_DIR:/nodeapp/img" \
-            -v "$CERT_DIR:/nodeapp/cert" \
-            --entrypoint /bin/sh \
-            "$IMAGE_NAME" -c 'echo "image dir : $(stat -c "%u:%g %a" /nodeapp/img)"; echo "cert dir  : $(stat -c "%u:%g %a" /nodeapp/cert)"; ls -ln /nodeapp/cert; su-exec nodejs test -r /nodeapp/cert/client.pem && echo "nodejs CAN read client.pem" || echo "nodejs CANNOT read client.pem"; su-exec nodejs test -w /nodeapp/img && echo "nodejs CAN write the image dir" || echo "nodejs CANNOT write the image dir"'
+          docker run --rm -v "$IMG_VOLUME:/nodeapp/img" -v "$CERT_VOLUME:/nodeapp/cert" \
+            --entrypoint /bin/sh "$IMAGE_NAME" -c 'echo "image dir : $(stat -c "%u:%g %a" /nodeapp/img)"; echo "cert dir  : $(stat -c "%u:%g %a" /nodeapp/cert)"; ls -ln /nodeapp/cert'
 
       - name: Run QSEoW Docker command (amd64 image)
         run: |
-          IMG_DIR="$HOME/bsi-bsi/img"
-          CERT_DIR="$HOME/bsi-bsi/cert"
           docker run --rm \
-            -v "$IMG_DIR:/nodeapp/img" \
-            -v "$CERT_DIR:/nodeapp/cert" \
+            -v "$IMG_VOLUME:/nodeapp/img" \
+            -v "$CERT_VOLUME:/nodeapp/cert" \
             "$IMAGE_NAME" \
             qseow create-sheet-thumbnails \
             --host "$BSI_HOST" \
@@ -902,25 +963,21 @@ jobs:
             --prefix "$BSI_PREFIX" \
             --log-level verbose
 
-      - name: Assert the thumbnails are owned by the runner user
+      # Read the results back out of the volume rather than off the runner's filesystem: with the
+      # daemon potentially on another machine, the runner cannot see them any other way. busybox
+      # find takes -user, not GNU find's -uid - getting that wrong produced a silent false pass
+      # when this was first written.
+      - name: Assert the thumbnails are owned by the expected user
         run: |
           set -euo pipefail
-          IMG_DIR="$HOME/bsi-bsi/img"
-          EXPECTED_UID=$(id -u)
+          docker run --rm -e EXPECTED_UID="$RUN_UID" -v "$IMG_VOLUME:/i" \
+            --entrypoint /bin/sh "$IMAGE_NAME" -c 'set -e; if [ -z "$(find /i -type f)" ]; then echo "::error::no files were written to the image volume"; exit 1; fi; WRONG=$(find /i -type f ! -user "$EXPECTED_UID"); if [ -n "$WRONG" ]; then echo "::error::files in the image volume are not owned by uid $EXPECTED_UID"; ls -ln $WRONG | head -5; exit 1; fi; find /i -type f -exec ls -ln {} + | head -10; echo "Every file in the image volume is owned by uid $EXPECTED_UID."'
 
-          if [ -z "$(find "$IMG_DIR" -type f -print -quit)" ]; then
-            echo "::error::no files were written to $IMG_DIR"
-            exit 1
-          fi
-
-          WRONG_OWNER=$(find "$IMG_DIR" -type f ! -uid "$EXPECTED_UID" -print -quit)
-          if [ -n "$WRONG_OWNER" ]; then
-            echo "::error::files under $IMG_DIR are not owned by uid $EXPECTED_UID"
-            find "$IMG_DIR" -type f ! -uid "$EXPECTED_UID" -exec ls -ln {} + | head -5
-            exit 1
-          fi
-
-          echo "Every file under $IMG_DIR is owned by uid $EXPECTED_UID."
+      # Unconditional: the certificate volume holds a private key, and a failed run is exactly when
+      # it would otherwise be left behind on a long-lived self-hosted runner.
+      - name: Remove the run's Docker volumes
+        if: always()
+        run: docker volume rm -f "$CERT_VOLUME" "$IMG_VOLUME" || true
 
       - name: Remove local Docker image
         run: docker image rm "$IMAGE_NAME" || true
