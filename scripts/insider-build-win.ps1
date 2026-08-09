@@ -29,14 +29,25 @@ if ($LASTEXITCODE -ne 0) { throw "signtool remove failed with exit code $LASTEXI
 npx postject "${env:DIST_FILE_NAME}.exe" NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 
 # -------------------
-# Sign the executable
+# Sign the executable.
+#
+# Disabled, so insider builds ship unsigned. That is a deliberate choice to leave alone here, but it
+# is worth knowing what it costs: because these lines never run, Windows signing is exercised
+# nowhere except an actual release. That is exactly how the timestamp URL below could be switched
+# from http to https in May and not be discovered until the 4.0.0 release failed in August.
+#
+# The URLs are corrected in step with release-win.ps1 so that uncommenting these does not
+# resurrect the same failure. time.certum.pl serves no HTTPS - port 443 refuses the connection -
+# and signtool answers `SignTool Error: Invalid Timestamp URL`. See release-win.ps1 for why plain
+# HTTP is correct here rather than a weakness.
+#
 # 1st signing
-# & $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr https://time.certum.pl /td sha256 /fd sha1 /v "./${env:DIST_FILE_NAME}.exe"
+# & $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr http://time.certum.pl /td sha256 /fd sha1 /v "./${env:DIST_FILE_NAME}.exe"
 # if ($LASTEXITCODE -ne 0) { throw "signtool sign (sha1) failed with exit code $LASTEXITCODE" }
 
 # -------------------
 # 2nd signing
-# & $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr https://time.certum.pl /td sha256 /fd sha256 /v "./${env:DIST_FILE_NAME}.exe"
+# & $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr http://time.certum.pl /td sha256 /fd sha256 /v "./${env:DIST_FILE_NAME}.exe"
 # if ($LASTEXITCODE -ne 0) { throw "signtool sign (sha256) failed with exit code $LASTEXITCODE" }
 
 # -------------------
