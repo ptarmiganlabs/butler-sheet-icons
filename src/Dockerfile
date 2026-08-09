@@ -22,7 +22,10 @@ FROM node:24-alpine
 LABEL maintainer="Göran Sander mountaindude@ptarmiganlabs.com"
 LABEL description="Creates thumbnail images based on sheets in QLik Sense applications."
 
-# Install Puppeteer dependencies for Alpine Linux
+# Install Puppeteer dependencies for Alpine Linux.
+#
+# su-exec is not a Puppeteer dependency: docker-entrypoint.sh uses it to drop privileges to the
+# owner of the mounted image directory. See that file for why (issue #915).
 RUN apk add --no-cache \
     chromium \
     nss \
@@ -30,7 +33,8 @@ RUN apk add --no-cache \
     harfbuzz \
     ca-certificates \
     font-dejavu \
-    tini
+    tini \
+    su-exec
 
 # Create and use non-root user (Alpine syntax) BEFORE copying files
 RUN addgroup -S nodejs && adduser -S -G nodejs nodejs
@@ -52,8 +56,24 @@ COPY --chown=nodejs:nodejs src/globals.js ./src/
 COPY --chown=nodejs:nodejs src/lib/ ./src/lib/
 COPY --chown=nodejs:nodejs package.json ./
 
-USER nodejs
+# Default mount point for --imagedir, created here so it has known ownership when nothing is
+# mounted over it.
+RUN mkdir -p /nodeapp/img && chown nodejs:nodejs /nodeapp/img
+
+COPY src/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# There is deliberately no `USER nodejs` here, and putting one back would reintroduce issue #915.
+#
+# The entrypoint has to start as root so it can drop privileges to whoever owns the bind-mounted
+# image directory - that is the whole fix, and it cannot be done from an unprivileged process. The
+# application itself still never runs as root: every path through docker-entrypoint.sh execs node
+# via su-exec as an unprivileged user, and a root-owned mount is refused rather than adopted.
+#
+# Scanners that judge an image by its final USER will flag this. If that matters in your
+# environment, run with `--user "$(id -u):$(id -g)"`; the entrypoint detects it is not root and
+# hands straight over.
 
 # Use tini as init to properly handle signals (allows Ctrl-C to work)
-ENTRYPOINT ["/sbin/tini", "--", "node", "src/butler-sheet-icons.js"]
+ENTRYPOINT ["/sbin/tini", "--", "/usr/local/bin/docker-entrypoint.sh"]
 
