@@ -578,6 +578,32 @@ jobs:
             --log-level verbose \
             --imagedir ./img
 
+      # No --user flag anywhere above: the image adopting the mount's owner by itself is the fix
+      # for issue #915, and this job passing unmodified is what proves it.
+      #
+      # Checking only that the command succeeded is not enough. It would also pass if the
+      # entrypoint had quietly run everything as root, which is the outcome most worth catching -
+      # root can write anywhere, and the thumbnails would land on the host owned by root.
+      - name: Assert the thumbnails are owned by the runner user
+        run: |
+          set -euo pipefail
+          IMG_DIR="$RUNNER_TEMP/bsi-img"
+          EXPECTED_UID=$(id -u)
+
+          if [ -z "$(find "$IMG_DIR" -type f -print -quit)" ]; then
+            echo "::error::no files were written to $IMG_DIR"
+            exit 1
+          fi
+
+          WRONG_OWNER=$(find "$IMG_DIR" -type f ! -uid "$EXPECTED_UID" -print -quit)
+          if [ -n "$WRONG_OWNER" ]; then
+            echo "::error::files under $IMG_DIR are not owned by uid $EXPECTED_UID"
+            find "$IMG_DIR" -type f ! -uid "$EXPECTED_UID" -exec ls -ln {} + | head -5
+            exit 1
+          fi
+
+          echo "Every file under $IMG_DIR is owned by uid $EXPECTED_UID."
+
   docker-qscloud-amd64:
     needs:
       - docker-build-on-ubuntu-amd64
@@ -629,6 +655,28 @@ jobs:
             --appid "$BSI_CLOUD_APP_ID" \
             --log-level verbose \
             --imagedir ./img
+
+      # See the same step in docker-qscloud-arm64 for why ownership is asserted and not just exit
+      # status.
+      - name: Assert the thumbnails are owned by the runner user
+        run: |
+          set -euo pipefail
+          IMG_DIR="$RUNNER_TEMP/bsi-img"
+          EXPECTED_UID=$(id -u)
+
+          if [ -z "$(find "$IMG_DIR" -type f -print -quit)" ]; then
+            echo "::error::no files were written to $IMG_DIR"
+            exit 1
+          fi
+
+          WRONG_OWNER=$(find "$IMG_DIR" -type f ! -uid "$EXPECTED_UID" -print -quit)
+          if [ -n "$WRONG_OWNER" ]; then
+            echo "::error::files under $IMG_DIR are not owned by uid $EXPECTED_UID"
+            find "$IMG_DIR" -type f ! -uid "$EXPECTED_UID" -exec ls -ln {} + | head -5
+            exit 1
+          fi
+
+          echo "Every file under $IMG_DIR is owned by uid $EXPECTED_UID."
 
   docker-qseow-arm64:
     needs:
@@ -779,6 +827,10 @@ jobs:
           printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$CERT_DIR/client_key.pem"
           chmod 600 "$CERT_DIR"/client*.pem
 
+      # See the assertion step below, and the same one in docker-qscloud-arm64. This job is the one
+      # that used to fail with "Missing certificate file(s)" rather than a permission error: the
+      # client certificate is written chmod 600 owned by the runner user, and the container user
+      # could not read it. Same root cause as the image directory (issue #915).
       - name: Run QSEoW Docker command (amd64 image)
         run: |
           IMG_DIR="$HOME/bsi-bsi/img"
@@ -807,6 +859,26 @@ jobs:
             --qliksensetag updateSheetThumbnail \
             --prefix "$BSI_PREFIX" \
             --log-level verbose
+
+      - name: Assert the thumbnails are owned by the runner user
+        run: |
+          set -euo pipefail
+          IMG_DIR="$HOME/bsi-bsi/img"
+          EXPECTED_UID=$(id -u)
+
+          if [ -z "$(find "$IMG_DIR" -type f -print -quit)" ]; then
+            echo "::error::no files were written to $IMG_DIR"
+            exit 1
+          fi
+
+          WRONG_OWNER=$(find "$IMG_DIR" -type f ! -uid "$EXPECTED_UID" -print -quit)
+          if [ -n "$WRONG_OWNER" ]; then
+            echo "::error::files under $IMG_DIR are not owned by uid $EXPECTED_UID"
+            find "$IMG_DIR" -type f ! -uid "$EXPECTED_UID" -exec ls -ln {} + | head -5
+            exit 1
+          fi
+
+          echo "Every file under $IMG_DIR is owned by uid $EXPECTED_UID."
 
       - name: Remove local Docker image
         run: docker image rm "$IMAGE_NAME" || true

@@ -8,6 +8,12 @@ Use these one-liners to exercise the Butler Sheet Icons Docker image the same wa
 
 - Docker Desktop or another Docker runtime that can run Linux containers.
 - Native Docker is assumed to work on both macOS and Windows. On Windows, Docker Desktop with the default Linux VM/WSL2 backend works best (Windows containers are still untested per `README.md`).
+
+> **These commands were written and verified against Docker Desktop**, which ignores file ownership on bind mounts. Docker on Linux does not, and that difference hid issue #915 for a long time: every mounted-`--imagedir` command here failed on a Linux host with `EACCES: permission denied, mkdir './img/...'` while passing on a Mac.
+>
+> The image now inspects the owner of the mounted image directory and runs as that user, so the commands below work unchanged on Linux too — see `src/docker-entrypoint.sh`. Two cases still need the operator's help, and both are worth reproducing when testing on Linux: a mount owned by `root` is deliberately not adopted, and an explicit `--user` is respected as given. Both report what to do rather than a bare permission error.
+>
+> When testing on macOS, remember that a pass here proves nothing about Linux ownership behaviour. The `docker-qscloud-*` and `docker-qseow-amd64` jobs in `ci.yaml` are the ones that exercise it, and they assert that the generated files end up owned by the calling user rather than merely that the command exited 0.
 - Required environment variables (for QS Cloud/QSEoW) must already be exported in the host shell.
   - macOS bash uses `$BSI_*` (for example `$BSI_CLOUD_TENANT_URL`).
   - Windows PowerShell uses `$env:BSI_*`.
