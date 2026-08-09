@@ -22,14 +22,24 @@ if ($LASTEXITCODE -ne 0) { throw "signtool remove failed with exit code $LASTEXI
 npx --no-install postject "${env:DIST_FILE_NAME}.exe" NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 
 # -------------------
-# Sign the executable
+# Sign the executable.
+#
+# The timestamp URL is http, not https, and has to stay that way: time.certum.pl serves no HTTPS at
+# all - port 443 refuses the connection - so signtool answers `SignTool Error: Invalid Timestamp
+# URL` and the release build fails. That is not a hypothetical; it is what broke the 4.0.0 release.
+#
+# This is not a security weakness, which is why an https "fix" keeps looking tempting. An RFC 3161
+# timestamp token is signed by the timestamping authority, so it is verified on its own signature
+# rather than on the transport, and signtool rejects a token that does not verify. Plain HTTP is
+# what the RFC expects and what essentially every public TSA offers.
+#
 # 1st signing
-& $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr https://time.certum.pl /td sha256 /fd sha1 /v "./${env:DIST_FILE_NAME}.exe"
+& $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr http://time.certum.pl /td sha256 /fd sha1 /v "./${env:DIST_FILE_NAME}.exe"
 if ($LASTEXITCODE -ne 0) { throw "signtool sign (sha1) failed with exit code $LASTEXITCODE" }
 
 # -------------------
 # 2nd signing
-& $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr https://time.certum.pl /td sha256 /fd sha256 /v "./${env:DIST_FILE_NAME}.exe"
+& $signtool sign /sha1 "$env:CODESIGN_WIN_THUMBPRINT" /tr http://time.certum.pl /td sha256 /fd sha256 /v "./${env:DIST_FILE_NAME}.exe"
 if ($LASTEXITCODE -ne 0) { throw "signtool sign (sha256) failed with exit code $LASTEXITCODE" }
 
 # -------------------
