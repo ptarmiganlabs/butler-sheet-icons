@@ -285,7 +285,7 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         return browser;
     }
 
-    test('launches puppeteer with v25-compatible options (headless: true, no acceptInsecureCerts)', async () => {
+    test('launches puppeteer with v25-compatible options (headless: true, acceptInsecureCerts)', async () => {
         setupHappyPath();
 
         await processCloudApp('test-app-id', defaultSaasInstance, defaultOptions);
@@ -295,11 +295,11 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
             expect.objectContaining({
                 executablePath: '/test/browser',
                 headless: true,
-                ignoreHTTPSErrors: true,
+                acceptInsecureCerts: true,
             })
         );
         expect(puppeteer.launch).not.toHaveBeenCalledWith(
-            expect.objectContaining({ acceptInsecureCerts: expect.anything() })
+            expect.objectContaining({ ignoreHTTPSErrors: expect.anything() })
         );
     });
 
