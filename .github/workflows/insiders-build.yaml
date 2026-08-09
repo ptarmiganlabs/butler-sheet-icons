@@ -41,7 +41,7 @@ jobs:
     runs-on: ${{ matrix.runs_on }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -91,7 +91,7 @@ jobs:
         if: |
           github.repository_owner == 'ptarmiganlabs' &&
           matrix.target == 'linux'
-        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        uses: github/codeql-action/upload-sarif@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
         with:
           sarif_file: snyk.sarif
 
