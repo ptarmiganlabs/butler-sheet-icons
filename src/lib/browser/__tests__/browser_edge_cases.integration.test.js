@@ -24,14 +24,34 @@ describe('edge cases and error handling', () => {
 
     /**
      * Test invalid browser input
-     * Should throw an error.
+     * Should throw an error naming the browser, not the version.
      */
     test(
         'install an invalid browser name',
         async () => {
+            // The message matters as much as the rejection here: an unsupported browser used to
+            // be reported as a version that could not be resolved, which sends the reader after
+            // the wrong option entirely.
             await expect(
-                browserInstall({ browser: 'invalid-browser', browserVersion: 'latest' })
-            ).rejects.toThrow();
+                browserInstall({ browser: 'invalid-browser', browserVersion: 'recommended' })
+            ).rejects.toThrow(/unsupported browser "invalid-browser"/i);
+        },
+        defaultTestTimeout
+    );
+
+    /**
+     * `latest` was the default before 3.12.0, so it is still in existing scripts and scheduled
+     * jobs. It now means the newest stable release. Covered here as well as in the unit suite
+     * because the alias is only useful if it survives a real lookup against the vendor's
+     * version service.
+     */
+    test(
+        'the legacy "latest" value still installs, and matches "stable"',
+        async () => {
+            const viaLatest = await browserInstall({ browser: 'chrome', browserVersion: 'latest' });
+            const viaStable = await browserInstall({ browser: 'chrome', browserVersion: 'stable' });
+
+            expect(viaLatest.buildId).toEqual(viaStable.buildId);
         },
         defaultTestTimeout
     );
@@ -60,8 +80,8 @@ describe('edge cases and error handling', () => {
         'concurrent browser installations',
         async () => {
             const installPromises = [
-                browserInstall({ browser: 'chrome', browserVersion: 'latest' }),
-                browserInstall({ browser: 'firefox', browserVersion: 'latest' }),
+                browserInstall({ browser: 'chrome', browserVersion: 'recommended' }),
+                browserInstall({ browser: 'firefox', browserVersion: 'recommended' }),
             ];
 
             const results = await Promise.all(installPromises);

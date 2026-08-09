@@ -2,9 +2,15 @@ import { jest, test, expect, describe, beforeEach } from '@jest/globals';
 import fs from 'fs-extra';
 import 'dotenv/config';
 
+// detectBrowserPlatform and resolveBuildId are stubs with no behaviour: they exist only so the
+// real browser-version.js can load. browser-uninstall.js interprets versions locally via
+// resolveLocalBrowserBuildId, which never touches the network; these tests pass explicit build
+// ids, which that function returns unchanged.
 jest.unstable_mockModule('@puppeteer/browsers', () => ({
     getInstalledBrowsers: jest.fn(),
     uninstall: jest.fn(),
+    detectBrowserPlatform: jest.fn(),
+    resolveBuildId: jest.fn(),
 }));
 const { getInstalledBrowsers, uninstall } = await import('@puppeteer/browsers');
 

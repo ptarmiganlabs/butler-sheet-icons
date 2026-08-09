@@ -39,7 +39,7 @@ describe('install/uninstall browser scenarios', () => {
             // Returns a browser object
             const browserInstallRes1 = await browserInstall({
                 browser: 'chrome',
-                browserVersion: 'latest',
+                browserVersion: 'recommended',
             });
             expect(browserInstallRes1).toBeTruthy();
 

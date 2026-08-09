@@ -1,10 +1,15 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserInstall } from '../../browser/browser-install.js';
+import {
+    VERSION_RECOMMENDED,
+    describeBrowserVersionOption,
+    parseBrowserVersionValue,
+} from '../../browser/browser-version.js';
 import { runCommand } from '../run-command.js';
 
 /**
- * Commander action that normalizes requested browser defaults and installs the browser.
+ * Commander action that installs the browser.
  *
  * @param {object} [options] - CLI options describing target browser and loglevel. Defaults to `{}`.
  * @param {import('commander').Command} cmd - Commander command object for downstream context.
@@ -14,19 +19,7 @@ import { runCommand } from '../run-command.js';
 const handleBrowserInstall = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
-    return runCommand('BROWSER MAIN 9', () => {
-        // Normalize browser version defaults
-        if (!options.browserVersion || options.browserVersion === '') {
-            if (options.browser === 'chrome') {
-                options.browserVersion = 'stable';
-            } else if (options.browser === 'firefox') {
-                options.browserVersion = 'latest';
-            }
-        }
-
-        // Install the browser
-        return browserInstall(options, cmd);
-    });
+    return runCommand('BROWSER MAIN 9', () => browserInstall(options, cmd));
 };
 
 /**
@@ -58,11 +51,12 @@ const buildBrowserInstallCommand = () => {
                 .env('BSI_BROWSER_I_BROWSER')
         )
         .addOption(
-            new Option(
-                '--browser-version <version>',
-                'Version (=build id) of the browser to install. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
-            )
-                .default('latest')
+            // The argParser maps a set-but-empty value onto the default: Commander lets a bare
+            // `BSI_BROWSER_I_BROWSER_VERSION=` line in a unit file beat .default(), and an empty
+            // string must mean "unset", not an error.
+            new Option('--browser-version <version>', describeBrowserVersionOption('install'))
+                .default(VERSION_RECOMMENDED)
+                .argParser(parseBrowserVersionValue)
                 .env('BSI_BROWSER_I_BROWSER_VERSION')
         );
 

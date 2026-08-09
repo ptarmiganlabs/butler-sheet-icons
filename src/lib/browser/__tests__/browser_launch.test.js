@@ -31,6 +31,36 @@ jest.unstable_mockModule('../browser-install.js', () => ({
 }));
 const { browserInstall } = await import('../browser-install.js');
 
+// Version resolution has its own suite. Stubbed here so these tests exercise the launch path
+// rather than a version service. isVersionKeyword mirrors the real module's semantics - a mock
+// with different semantics would let the keyword/pin distinction in the fallback logic rot
+// unnoticed. isVersionLookupFailure is a plain mock because the marker lives on errors the
+// tests construct themselves.
+jest.unstable_mockModule('../browser-version.js', () => ({
+    resolveBrowserVersion: jest.fn(async (browser, browserVersion) => ({
+        buildId: '150.0.7871.24',
+        source: 'recommended',
+        requested: browserVersion,
+        usedNetwork: false,
+    })),
+    isVersionKeyword: jest.fn((v) =>
+        [
+            'recommended',
+            'stable',
+            'latest',
+            'beta',
+            'dev',
+            'canary',
+            'nightly',
+            'devedition',
+            'esr',
+        ].includes(v)
+    ),
+    isVersionLookupFailure: jest.fn(() => false),
+    VERSION_RECOMMENDED: 'recommended',
+}));
+const { resolveBrowserVersion, isVersionLookupFailure } = await import('../browser-version.js');
+
 // Docker detection imports fs dynamically; existsSync drives which branch is taken.
 jest.unstable_mockModule('node:fs', () => ({
     default: { existsSync: jest.fn() },
@@ -62,11 +92,49 @@ const CONTEXT = {
     ErrorClass: TestError,
 };
 
-const OPTIONS = { browser: 'chrome', browserVersion: 'latest', headless: true };
+const OPTIONS = { browser: 'chrome', browserVersion: 'recommended', headless: true };
+
+/**
+ * Builds a stand-in Puppeteer browser handle.
+ *
+ * `version()` and `on()` are part of the contract `launchBrowserForApp` now relies on: it health
+ * checks the browser immediately after launch, and listens for an unexpected disconnect.
+ *
+ * @param {object} [overrides] - Properties to replace on the fake, e.g. a rejecting `version`.
+ *
+ * @returns {object} A browser-shaped object.
+ */
+function fakeBrowser(overrides = {}) {
+    return {
+        id: 'browser',
+        version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+        on: jest.fn(),
+        close: jest.fn().mockResolvedValue(undefined),
+        ...overrides,
+    };
+}
+
+/**
+ * Concatenates everything logged at error level.
+ *
+ * @returns {string} Combined error output.
+ */
+function errorOutput() {
+    return logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+}
 
 beforeEach(() => {
     jest.clearAllMocks();
     fs.existsSync.mockReturnValue(false);
+    resolveBrowserVersion.mockResolvedValue({
+        buildId: '150.0.7871.24',
+        source: 'recommended',
+        requested: 'recommended',
+        usedNetwork: false,
+    });
+    // clearMocks resets call history but not implementations, so a test that flips this to
+    // true would otherwise leak into its neighbours.
+    isVersionLookupFailure.mockImplementation(() => false);
 });
 
 describe('buildBrowserArgs', () => {
@@ -102,19 +170,140 @@ describe('resolveBrowserExecutablePath', () => {
             buildId: '138.0.0.1',
         });
 
-        expect(await resolveBrowserExecutablePath(OPTIONS)).toBe('/cached/chrome');
+        const result = await resolveBrowserExecutablePath(OPTIONS);
+
+        expect(result.executablePath).toBe('/cached/chrome');
         expect(browserInstall).not.toHaveBeenCalled();
+    });
+
+    // The build id has to travel back with the path: without it, a browser that cannot be driven
+    // is reported with nothing tying the failure to --browser-version (issue #878).
+    test('reports which build was selected, and where it came from', async () => {
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '138.0.0.1',
+        });
+
+        expect(await resolveBrowserExecutablePath(OPTIONS)).toEqual({
+            executablePath: '/cached/chrome',
+            browser: 'chrome',
+            buildId: '138.0.0.1',
+            source: 'cache',
+        });
+    });
+
+    test('searches the cache for the resolved build id', async () => {
+        detectAvailableBrowser.mockResolvedValue(null);
+        browserInstall.mockResolvedValue({ browser: 'chrome', buildId: '150.0.7871.24' });
+
+        await resolveBrowserExecutablePath(OPTIONS);
+
+        expect(detectAvailableBrowser).toHaveBeenCalledWith(OPTIONS, '150.0.7871.24');
     });
 
     test('installs when no browser is available', async () => {
         detectAvailableBrowser.mockResolvedValue(null);
         browserInstall.mockResolvedValue({ browser: 'chrome', buildId: '138.0.0.1' });
 
-        expect(await resolveBrowserExecutablePath(OPTIONS)).toBe('/downloaded/chrome');
+        const result = await resolveBrowserExecutablePath(OPTIONS);
+
+        expect(result.executablePath).toBe('/downloaded/chrome');
         expect(browserInstall).toHaveBeenCalledTimes(1);
         expect(computeExecutablePath).toHaveBeenCalledWith(
             expect.objectContaining({ browser: 'chrome', buildId: '138.0.0.1' })
         );
+    });
+
+    // Installing a different build than the cache was searched for would defeat the whole point
+    // of resolving once: the run could download a build, then not recognise it next time.
+    test('installs the same build id the cache was searched for', async () => {
+        detectAvailableBrowser.mockResolvedValue(null);
+        browserInstall.mockResolvedValue({ browser: 'chrome', buildId: '150.0.7871.24' });
+
+        await resolveBrowserExecutablePath(OPTIONS);
+
+        expect(browserInstall).toHaveBeenCalledWith(OPTIONS, undefined, '150.0.7871.24');
+    });
+});
+
+describe('resolveBrowserExecutablePath — keyword lookup failure', () => {
+    // A machine that cannot reach the version service used to work fine against whatever was in
+    // the cache. For floating keywords it must keep working, or moving to resolved build ids
+    // would strand offline installations.
+    test('falls back to any cached build when a keyword cannot be looked up', async () => {
+        resolveBrowserVersion.mockRejectedValue(new Error('getaddrinfo ENOTFOUND'));
+        isVersionLookupFailure.mockImplementation(() => true);
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '151.0.7922.77',
+        });
+
+        const result = await resolveBrowserExecutablePath(OPTIONS);
+
+        expect(result.buildId).toBe('151.0.7922.77');
+        // No build id passed, which is what tells detection to accept the newest cached build.
+        expect(detectAvailableBrowser).toHaveBeenCalledWith(OPTIONS, undefined);
+    });
+
+    // With nothing cached there is no way forward, and the resolution failure is the honest
+    // thing to report - an install error would send the reader after the wrong problem.
+    test('reports the lookup failure when the cache cannot help either', async () => {
+        const cause = new Error('getaddrinfo ENOTFOUND');
+        resolveBrowserVersion.mockRejectedValue(cause);
+        isVersionLookupFailure.mockImplementation(() => true);
+        detectAvailableBrowser.mockResolvedValue(null);
+
+        await expect(resolveBrowserExecutablePath(OPTIONS)).rejects.toBe(cause);
+        expect(browserInstall).not.toHaveBeenCalled();
+    });
+});
+
+describe('resolveBrowserExecutablePath — invalid version input (issue #878 review)', () => {
+    // The regression the review caught: the fallback used to swallow EVERY resolution error, so
+    // `--browser-version garbage` printed three errors saying the value was invalid and then
+    // completed successfully on whatever build happened to be cached - the exact
+    // build-nobody-chose failure mode this branch exists to remove.
+    test('a validation failure fails the run instead of using the cache', async () => {
+        const cause = new Error('Invalid --browser-version "garbage" for browser "chrome"');
+        resolveBrowserVersion.mockRejectedValue(cause);
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '151.0.7922.77',
+        });
+
+        await expect(
+            resolveBrowserExecutablePath({ ...OPTIONS, browserVersion: 'garbage' })
+        ).rejects.toBe(cause);
+
+        expect(detectAvailableBrowser).not.toHaveBeenCalled();
+        expect(browserInstall).not.toHaveBeenCalled();
+    });
+
+    // A pin is a promise: the user named a specific target, so substituting a cached build when
+    // the lookup fails would run something they explicitly did not choose. Only floating
+    // keywords may degrade.
+    test('a lookup failure on an explicit pin fails the run', async () => {
+        const cause = new Error('getaddrinfo ENOTFOUND');
+        resolveBrowserVersion.mockRejectedValue(cause);
+        isVersionLookupFailure.mockImplementation(() => true);
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '150.0.7871.24',
+        });
+
+        await expect(
+            resolveBrowserExecutablePath({ ...OPTIONS, browserVersion: '151' })
+        ).rejects.toBe(cause);
+
+        expect(detectAvailableBrowser).not.toHaveBeenCalled();
     });
 });
 
@@ -126,12 +315,12 @@ describe('launchBrowserForApp', () => {
             browser: 'chrome',
             buildId: '138.0.0.1',
         });
-        const fakeBrowser = { id: 'browser' };
-        puppeteer.launch.mockResolvedValue(fakeBrowser);
+        const launched = fakeBrowser();
+        puppeteer.launch.mockResolvedValue(launched);
 
         const browser = await launchBrowserForApp(OPTIONS, CONTEXT);
 
-        expect(browser).toBe(fakeBrowser);
+        expect(browser).toBe(launched);
         expect(puppeteer.launch).toHaveBeenCalledWith(
             expect.objectContaining({
                 executablePath: '/cached/chrome',
@@ -191,6 +380,116 @@ describe('launchBrowserForApp', () => {
     });
 });
 
+describe('launchBrowserForApp — unusable browser build (issue #878)', () => {
+    beforeEach(() => {
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '151.0.7922.109',
+        });
+    });
+
+    // The failure this whole change exists for. Chrome starts, launch() resolves, and the browser
+    // then dies on the first command. The old code had no check here at all, so the error
+    // surfaced much later as a bare protocol error in a catch that knew nothing about browsers.
+    test('fails at the browser layer when the build does not respond', async () => {
+        puppeteer.launch.mockResolvedValue(
+            fakeBrowser({
+                version: jest
+                    .fn()
+                    .mockRejectedValue(
+                        new Error('Protocol error (Browser.getVersion): Target closed')
+                    ),
+            })
+        );
+
+        await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow(TestError);
+    });
+
+    test('names the build that failed and the option that fixes it', async () => {
+        puppeteer.launch.mockResolvedValue(
+            fakeBrowser({
+                version: jest.fn().mockRejectedValue(new Error('Target closed')),
+            })
+        );
+
+        await launchBrowserForApp(OPTIONS, CONTEXT).catch(() => undefined);
+
+        const out = errorOutput();
+        expect(out).toContain('151.0.7922.109');
+        expect(out).toContain('--browser-version recommended');
+        expect(out).toContain('BSI_*_BROWSER_VERSION');
+    });
+
+    test('does not strand the dead browser process', async () => {
+        const launched = fakeBrowser({
+            version: jest.fn().mockRejectedValue(new Error('Target closed')),
+        });
+        puppeteer.launch.mockResolvedValue(launched);
+
+        await launchBrowserForApp(OPTIONS, CONTEXT).catch(() => undefined);
+
+        expect(launched.close).toHaveBeenCalled();
+    });
+
+    test('a healthy browser is returned without complaint', async () => {
+        const launched = fakeBrowser();
+        puppeteer.launch.mockResolvedValue(launched);
+
+        await expect(launchBrowserForApp(OPTIONS, CONTEXT)).resolves.toBe(launched);
+        expect(logger.error).not.toHaveBeenCalled();
+    });
+});
+
+describe('unexpected disconnect', () => {
+    /**
+     * Launches a browser and hands back the `disconnected` handler that was registered.
+     *
+     * @param {object} launched - Fake browser to launch.
+     *
+     * @returns {Promise<Function>} The registered handler.
+     */
+    async function launchAndGetDisconnectHandler(launched) {
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '151.0.7922.109',
+        });
+        puppeteer.launch.mockResolvedValue(launched);
+
+        await launchBrowserForApp(OPTIONS, CONTEXT);
+
+        const [, handler] = launched.on.mock.calls.find(([event]) => event === 'disconnected');
+        return handler;
+    }
+
+    // The health check only covers a build that is dead on the first command. Reports of this
+    // failure also name Target.createTarget and Emulation.setTouchEmulationEnabled, i.e. a
+    // browser that survives the check and dies on the next call.
+    test('explains a browser that dies after passing the health check', async () => {
+        const launched = fakeBrowser();
+        const handler = await launchAndGetDisconnectHandler(launched);
+
+        handler();
+
+        expect(errorOutput()).toContain('151.0.7922.109');
+    });
+
+    // Every successful run ends in a disconnect. Reporting those as "the build cannot be driven"
+    // would make the advice worthless.
+    test('stays quiet when Butler Sheet Icons closed the browser itself', async () => {
+        const launched = fakeBrowser();
+        const handler = await launchAndGetDisconnectHandler(launched);
+
+        await closeBrowserQuietly(launched, 'TEST');
+        handler();
+
+        expect(logger.error).not.toHaveBeenCalled();
+    });
+});
+
 describe('closeBrowserQuietly', () => {
     test('closes the browser', async () => {
         const browser = { close: jest.fn().mockResolvedValue(undefined) };
@@ -232,6 +531,12 @@ describe('log prefix shape', () => {
         // QSEoW passed 'QSEOW' and Cloud passed 'CLOUD APP:', against a template with no colon.
         // QSEoW therefore logged "QSEOW Could not launch ..." while Cloud logged
         // "CLOUD APP: Could not launch ...". The colon belongs in one place.
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '150.0.7871.24',
+        });
         puppeteer.launch.mockRejectedValue(new Error('no browser here'));
 
         await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow();

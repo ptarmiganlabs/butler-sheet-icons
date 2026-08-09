@@ -137,6 +137,10 @@ beforeAll(async () => {
 describe('qseow-process-app.js — puppeteer launch and click options', () => {
     const defaultOptions = {
         senseVersion: '2023-Nov',
+        // Always present in real runs: Commander supplies both via option defaults. The launch
+        // path treats their absence as a caller bug rather than silently picking a build.
+        browser: 'chrome',
+        browserVersion: 'recommended',
         imagedir: './img',
         host: 'test-server.example.com',
         logonuserdir: 'INTERNAL',
@@ -199,6 +203,10 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         return {
             newPage: jest.fn().mockResolvedValue(page),
             close: jest.fn().mockResolvedValue(true),
+            // launchBrowserForApp health checks the browser and listens for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
             _page: page,
         };
     }
@@ -640,6 +648,10 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
 describe('qseow-process-app.js — a sheet with no metadata does not abort the app', () => {
     const options = {
         senseVersion: '2023-Nov',
+        // Always present in real runs: Commander supplies both via option defaults. The launch
+        // path treats their absence as a caller bug rather than silently picking a build.
+        browser: 'chrome',
+        browserVersion: 'recommended',
         imagedir: './img',
         host: 'test-server.example.com',
         logonuserdir: 'INTERNAL',
@@ -741,6 +753,10 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
             $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
         };
         puppeteer.launch.mockResolvedValue({
+            // launchBrowserForApp health checks the browser and watches for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
             newPage: jest.fn().mockResolvedValue(page),
             close: jest.fn().mockResolvedValue(true),
         });
@@ -784,6 +800,10 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
 describe('qseow-process-app.js — a blurred thumbnail that cannot be created', () => {
     const options = {
         senseVersion: '2023-Nov',
+        // Always present in real runs: Commander supplies both via option defaults. The launch
+        // path treats their absence as a caller bug rather than silently picking a build.
+        browser: 'chrome',
+        browserVersion: 'recommended',
         imagedir: './img',
         host: 'test-server.example.com',
         logonuserdir: 'INTERNAL',
@@ -868,6 +888,10 @@ describe('qseow-process-app.js — a blurred thumbnail that cannot be created', 
         });
 
         puppeteer.launch.mockResolvedValue({
+            // launchBrowserForApp health checks the browser and watches for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
             newPage: jest.fn().mockResolvedValue({
                 setViewport: jest.fn().mockResolvedValue(true),
                 setDefaultTimeout: jest.fn().mockResolvedValue(true),

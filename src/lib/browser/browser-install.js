@@ -1,25 +1,19 @@
-import {
-    install,
-    resolveBuildId,
-    detectBrowserPlatform,
-    canDownload,
-    uninstall,
-} from '@puppeteer/browsers';
+import { install, detectBrowserPlatform, canDownload, uninstall } from '@puppeteer/browsers';
 import path from 'path';
 import { homedir } from 'os';
 import cliProgress from 'cli-progress';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
-import { getMostRecentUsableChromeBuildId } from './browser-list-available.js';
+import { resolveBrowserVersion } from './browser-version.js';
 import { alreadyReported } from '../util/reported-error.js';
 
 /**
  * Install a browser into the Puppeteer cache directory.
  *
- * Resolves a build ID (for `'latest'` Chrome this picks the most recent usable stable build),
- * downloads and unpacks the browser while showing a progress bar, and returns the installed
- * browser metadata on success.
+ * Downloads and unpacks the browser while showing a progress bar, and returns the installed
+ * browser metadata on success. The version is interpreted by `resolveBrowserVersion`, which is the
+ * only place in Butler Sheet Icons that reads a `--browser-version` value.
  *
  * Failure is signalled by throwing, never by a falsy return value: the single `return` is
  * guarded by `if (!browser) throw lastError;`. Callers that need to add context to a failure
@@ -27,17 +21,24 @@ import { alreadyReported } from '../util/reported-error.js';
  *
  * @param {object} options - Options object.
  * @param {string} options.browser - Browser to install (`chrome` or `firefox`).
- * @param {string} options.browserVersion - Browser version to install, or `latest` for Chrome to auto-pick the newest stable build.
+ * @param {string} options.browserVersion - Browser version to install: the keyword `recommended` or
+ * `stable`, or an explicit build id.
  * @param {string} [options.loglevel] - Optional log level override (`error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`).
  * @param {object} [_command] - Commander command instance (unused, kept for symmetry with other command handlers).
+ * @param {string} [resolvedBuildId] - Build id already resolved by the caller. Passing it keeps a
+ * single run to one resolution, so the build that is installed is the same one the cache was
+ * searched for.
  *
  * @returns {Promise<object>} Resolves with the installed browser metadata from `@puppeteer/browsers` (`browser`, `buildId`, `executablePath`, ...).
  *
  * @throws {Error} If required options are missing, the version cannot be resolved, the build is unavailable, or the install fails.
  */
-export const browserInstall = async (options, _command) => {
+export const browserInstall = async (options, _command, resolvedBuildId) => {
     try {
-        if (!options.browser || !options.browserVersion) {
+        // Optional chaining because a nullish options object has to produce this message rather
+        // than a TypeError about reading a property of null. Command handlers hand their options
+        // straight through, so whatever Commander gives them arrives here unfiltered.
+        if (!options?.browser || !options?.browserVersion) {
             throw new Error('Missing required options: "browser" and "browserVersion"');
         }
 
@@ -67,17 +68,9 @@ export const browserInstall = async (options, _command) => {
         const platform = await detectBrowserPlatform();
         logger.verbose(`Detected browser platform: ${platform}`);
 
-        let buildId;
-        if (options.browser === 'chrome') {
-            if (options.browserVersion === 'latest') {
-                // Get most recent stable Chrome build id that works with Puppeteer
-                buildId = await getMostRecentUsableChromeBuildId('stable');
-            } else {
-                buildId = await resolveBuildId(options.browser, platform, options.browserVersion);
-            }
-        } else if (options.browser === 'firefox') {
-            buildId = await resolveBuildId(options.browser, platform, options.browserVersion);
-        }
+        const buildId =
+            resolvedBuildId ??
+            (await resolveBrowserVersion(options.browser, options.browserVersion)).buildId;
 
         // Check if build id is valid
         if (!buildId) {

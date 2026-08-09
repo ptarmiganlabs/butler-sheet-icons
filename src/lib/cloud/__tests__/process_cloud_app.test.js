@@ -134,7 +134,7 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         includesheetpart: '1',
         schemaversion: '12.612.0',
         browser: 'chrome',
-        browserVersion: 'latest',
+        browserVersion: 'recommended',
         headless: true,
         pagewait: 0,
         loglevel: 'info',
@@ -191,6 +191,10 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         return {
             newPage: jest.fn().mockResolvedValue(page),
             close: jest.fn().mockResolvedValue(true),
+            // launchBrowserForApp health checks the browser and listens for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
             _page: page,
         };
     }
@@ -552,7 +556,7 @@ describe('process-cloud-app.js — a sheet with no metadata does not abort the a
         includesheetpart: '1',
         schemaversion: '12.612.0',
         browser: 'chrome',
-        browserVersion: 'latest',
+        browserVersion: 'recommended',
         headless: true,
         pagewait: 0,
         loglevel: 'info',
@@ -624,6 +628,10 @@ describe('process-cloud-app.js — a sheet with no metadata does not abort the a
             keyboard: { type: jest.fn().mockResolvedValue(true) },
         };
         puppeteer.launch.mockResolvedValue({
+            // launchBrowserForApp health checks the browser and watches for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
             newPage: jest.fn().mockResolvedValue(page),
             close: jest.fn().mockResolvedValue(true),
         });
@@ -726,6 +734,10 @@ describe('process-cloud-app.js — a failed upload must not update the sheets', 
         });
 
         puppeteer.launch.mockResolvedValue({
+            // launchBrowserForApp health checks the browser and watches for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
             newPage: jest.fn().mockResolvedValue({
                 setViewport: jest.fn().mockResolvedValue(true),
                 setDefaultTimeout: jest.fn().mockResolvedValue(true),
@@ -766,7 +778,7 @@ describe('process-cloud-app.js — a failed upload must not update the sheets', 
                 includesheetpart: '1',
                 schemaversion: '12.612.0',
                 browser: 'chrome',
-                browserVersion: 'latest',
+                browserVersion: 'recommended',
                 headless: true,
                 pagewait: 0,
                 loglevel: 'info',
@@ -827,6 +839,10 @@ describe('process-cloud-app.js — a sheet whose thumbnail cannot be produced', 
             on: jest.fn(),
         });
         puppeteer.launch.mockResolvedValue({
+            // launchBrowserForApp health checks the browser and watches for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
             newPage: jest.fn().mockResolvedValue({
                 setViewport: jest.fn().mockResolvedValue(true),
                 setDefaultTimeout: jest.fn().mockResolvedValue(true),
@@ -859,7 +875,7 @@ describe('process-cloud-app.js — a sheet whose thumbnail cannot be produced', 
         includesheetpart: '1',
         schemaversion: '12.612.0',
         browser: 'chrome',
-        browserVersion: 'latest',
+        browserVersion: 'recommended',
         headless: true,
         pagewait: 0,
         loglevel: 'info',
