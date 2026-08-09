@@ -1,0 +1,191 @@
+name: browser-flag-canary
+
+# Evidence gathering for issue #913 - "--single-process makes every screenshot hang on macOS
+# depending on machine state".
+#
+# The failure has never been seen in CI, and that is not luck: test-browser-macos takes no
+# screenshot at all, test-qscloud-macos runs on a hosted runner with no display to fall asleep, and
+# test-qseow-macos runs on the self-hosted Mac, which has so far only been asked to work while
+# somebody was logged in and using it. Every observation of the failure comes from that same Mac
+# late at night.
+#
+# This workflow puts the machine into the suspected state deliberately and runs the A/B, so the
+# decision to keep or drop the flag rests on a measurement. It changes no product code and touches
+# no Qlik environment.
+#
+# A job goes red only when screenshots fail *without* the flag. Reproducing the failure *with* the
+# flag is the expected result and is reported, not failed - a canary that is red for its own
+# findings gets ignored.
+
+on:
+  workflow_dispatch:
+    inputs:
+      browser_version:
+        description: 'Browser version to probe, e.g. recommended, stable, or a build id'
+        required: false
+        default: 'recommended'
+      suspend_session:
+        description: >-
+          Also probe with the GUI session suspended to the login window (fast user switching).
+          Disruptive: whoever is at the build Mac is switched out and has to log back in.
+        required: false
+        type: boolean
+        default: false
+  # The build Mac is idle and its display asleep in the small hours, which is exactly the state
+  # under suspicion - so a nightly run observes the failure without having to force anything.
+  # Remove this schedule once #913 is settled.
+  schedule:
+    - cron: '0 1 * * *'
+
+permissions: {}
+
+concurrency:
+  group: browser-flag-canary
+  cancel-in-progress: false
+
+jobs:
+  # The machine that has actually failed. Both legs run here, serialised by the runner itself.
+  probe-self-hosted:
+    permissions:
+      contents: read
+    # MUST stay in sync with test-qseow-macos in ci.yaml - the point is to probe the Mac that
+    # runs the real screenshot suite.
+    runs-on:
+      - self-hosted
+      - macos
+      - arm64
+      - mac-build2
+      - sp53
+    strategy:
+      fail-fast: false
+      matrix:
+        state:
+          # Whatever the machine happens to be in. On a scheduled 01:00 UTC run that is the
+          # unattended overnight state; on a manual run it is usually "somebody is logged in".
+          - as-is
+          - display-asleep
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: ''
+
+      # See the note on the other jobs: pins npm so the install is identical on every runner.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci --include=dev --include=prod
+
+      - name: Report host state before the probe
+        run: |
+          sw_vers
+          echo "arch            : $(uname -m)"
+          echo "console user    : $(stat -f%Su /dev/console)"
+          echo "launchd session : $(launchctl managername)"
+          echo "--- pmset -g ---"
+          pmset -g
+          echo "--- last display transitions ---"
+          pmset -g log | grep 'Display is turned' | tail -5
+
+      # pmset displaysleepnow needs no privileges and is undone by any input event, or by the
+      # caffeinate call in the always() step below.
+      - name: Put the display to sleep
+        if: matrix.state == 'display-asleep'
+        run: |
+          echo 'Sleeping the display, then settling for 20 s before probing.'
+          pmset displaysleepnow
+          sleep 20
+          pmset -g log | grep 'Display is turned' | tail -2
+
+      - name: Suspend the GUI session to the login window
+        if: matrix.state == 'display-asleep' && inputs.suspend_session
+        run: |
+          echo 'Switching to the login window - the session stays logged in, the runner keeps running.'
+          '/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession' -suspend
+          sleep 10
+
+      # Both values travel via env rather than being interpolated into the script: browser_version
+      # is workflow_dispatch input, i.e. attacker-controllable text, and pasting it into a shell
+      # line is the template-injection pattern zizmor exists to catch.
+      - name: Run the A/B probe
+        env:
+          PROBE_LABEL: ${{ matrix.state }}
+          PROBE_BROWSER_VERSION: ${{ inputs.browser_version || 'recommended' }}
+        run: |
+          node scripts/diag/browser-flag-probe.mjs \
+            --label "$PROBE_LABEL" \
+            --timeout 20000 \
+            --browser-version "$PROBE_BROWSER_VERSION" \
+            --artifact-dir "$RUNNER_TEMP/flag-probe"
+
+      # Unconditional: a probe that failed must not leave the build Mac with its display asleep for
+      # the next job, and the artifacts are most interesting precisely when the step above failed.
+      - name: Wake the display
+        if: always()
+        run: caffeinate -u -t 1
+
+      - name: Upload stack samples
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: flag-probe-self-hosted-${{ matrix.state }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/flag-probe/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  # Control. A hosted runner has no display to put to sleep and no persistent session, so this leg
+  # is expected to stay green throughout - which is what makes it worth having. If it ever goes
+  # red, the trigger is not the one we think it is.
+  probe-hosted:
+    permissions:
+      contents: read
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+
+      # See the note on the other jobs: pins npm so the install is identical on every runner.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci --include=dev --include=prod
+
+      - name: Run the A/B probe
+        env:
+          PROBE_BROWSER_VERSION: ${{ inputs.browser_version || 'recommended' }}
+        run: |
+          node scripts/diag/browser-flag-probe.mjs \
+            --label hosted-control \
+            --timeout 20000 \
+            --browser-version "$PROBE_BROWSER_VERSION" \
+            --artifact-dir "$RUNNER_TEMP/flag-probe"
+
+      - name: Upload stack samples
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: flag-probe-hosted-${{ github.run_id }}
+          path: ${{ runner.temp }}/flag-probe/
+          if-no-files-found: ignore
+          retention-days: 14
