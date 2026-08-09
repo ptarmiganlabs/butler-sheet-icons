@@ -10,8 +10,19 @@ COPY package*.json ./
 # Install production dependencies only
 RUN npm ci --omit=dev --ignore-scripts && \
     npm cache clean --force && \
-    # Remove documentation and unnecessary files from node_modules
-    find /build/node_modules -type f \( -name '*.md' -o -name 'LICENSE*' -o -name 'CHANGELOG*' -o -name '*.ts' -o -name '*.map' \) -delete && \
+    # Remove documentation and unnecessary files from node_modules.
+    #
+    # Licence files are deliberately NOT removed. The MIT and BSD licences that cover most of the
+    # dependency tree require their notice to travel with the code, so stripping them to save a few
+    # hundred KB in a 1.3 GB image traded a compliance obligation for nothing. The two exclusions
+    # matter for different reasons: the -iname guards keep LICENSE.md and similar from being caught
+    # by the '*.md' pattern, and 'LICENSE*' is no longer in the delete list at all.
+    #
+    # See src/licenses/NOTICE.md for what the image redistributes.
+    find /build/node_modules -type f \
+        \( -name '*.md' -o -name 'CHANGELOG*' -o -name '*.ts' -o -name '*.map' \) \
+        ! -iname 'licen[cs]e*' ! -iname 'copying*' ! -iname 'notice*' \
+        -delete && \
     # Remove test directories
     find /build/node_modules -type d \( -name test -o -name tests -o -name __tests__ -o -name '.github' \) -exec rm -rf {} + 2>/dev/null || true
 
@@ -55,6 +66,12 @@ COPY --chown=nodejs:nodejs src/butler-sheet-icons.js ./src/
 COPY --chown=nodejs:nodejs src/globals.js ./src/
 COPY --chown=nodejs:nodejs src/lib/ ./src/lib/
 COPY --chown=nodejs:nodejs package.json ./
+
+# Attribution for the third-party software this image redistributes - most importantly Chromium,
+# which is ~263 MB of BSD-3-Clause and assorted other licences. The Alpine package ships no licence
+# text of its own, so without this the image carried a browser with no notice attached to it.
+COPY --chown=nodejs:nodejs LICENSE ./licenses/butler-sheet-icons-LICENSE
+COPY --chown=nodejs:nodejs src/licenses/ ./licenses/
 
 # Default mount point for --imagedir, created here so it has known ownership when nothing is
 # mounted over it.
