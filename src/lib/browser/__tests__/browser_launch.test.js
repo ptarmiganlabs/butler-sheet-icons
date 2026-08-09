@@ -308,7 +308,7 @@ describe('resolveBrowserExecutablePath — invalid version input (issue #878 rev
 });
 
 describe('launchBrowserForApp', () => {
-    test('launches with the v25-compatible option shape', async () => {
+    test('asks Puppeteer to accept insecure certificates, under the name v25 understands', async () => {
         detectAvailableBrowser.mockResolvedValue({
             executablePath: '/cached/chrome',
             source: 'cache',
@@ -325,11 +325,16 @@ describe('launchBrowserForApp', () => {
             expect.objectContaining({
                 executablePath: '/cached/chrome',
                 headless: true,
-                ignoreHTTPSErrors: true,
+                acceptInsecureCerts: true,
             })
         );
+
+        // The old name is a no-op in puppeteer-core v25 - it was removed in v23 and unknown options
+        // are ignored without complaint, so passing it looked like certificate tolerance while
+        // providing none. Asserting its absence is what stops it being reinstated by a future edit
+        // that pattern-matches on older Puppeteer examples.
         expect(puppeteer.launch).not.toHaveBeenCalledWith(
-            expect.objectContaining({ acceptInsecureCerts: expect.anything() })
+            expect.objectContaining({ ignoreHTTPSErrors: expect.anything() })
         );
     });
 

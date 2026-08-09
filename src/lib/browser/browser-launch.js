@@ -307,9 +307,18 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
     let browser;
     try {
         browser = await puppeteer.launch({
+            // Puppeteer removed `ignoreHTTPSErrors` in v23 and replaced it with
+            // `acceptInsecureCerts`. Butler Sheet Icons kept passing the old name through the v25
+            // upgrade, and because Puppeteer ignores unknown options in silence, the intent behind
+            // that line - tolerate the self-signed certificates that are normal on a QSEoW server -
+            // had quietly stopped being expressed at all. Certificate tolerance was resting
+            // entirely on the --ignore-certificate-errors browser flag in BASE_BROWSER_ARGS.
+            //
+            // The name is not interchangeable: grep the installed puppeteer-core for
+            // `ignoreHTTPSErrors` and there are zero hits, in the code and in the type definitions.
+            acceptInsecureCerts: true,
             executablePath,
             headless,
-            ignoreHTTPSErrors: true,
             args: browserArgs,
         });
     } catch (err) {

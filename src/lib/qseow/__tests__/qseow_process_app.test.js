@@ -386,7 +386,7 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         expect(tagQuery).not.toContain("'exclude-thumbnail,R&D'");
     });
 
-    test('launches puppeteer with v25-compatible options (headless: true, no acceptInsecureCerts)', async () => {
+    test('launches puppeteer with v25-compatible options (headless: true, acceptInsecureCerts)', async () => {
         setupHappyPath();
 
         await qseowProcessApp('test-app-id', defaultOptions);
@@ -396,11 +396,15 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             expect.objectContaining({
                 executablePath: '/test/browser',
                 headless: true,
-                ignoreHTTPSErrors: true,
+                acceptInsecureCerts: true,
             })
         );
+
+        // Self-signed certificates are the norm on a QSEoW server, so this is the platform where
+        // getting the option name wrong matters most. `ignoreHTTPSErrors` was removed in Puppeteer
+        // v23 and is silently ignored, which is exactly why it survived the v25 upgrade unnoticed.
         expect(puppeteer.launch).not.toHaveBeenCalledWith(
-            expect.objectContaining({ acceptInsecureCerts: expect.anything() })
+            expect.objectContaining({ ignoreHTTPSErrors: expect.anything() })
         );
     });
 
