@@ -1,4 +1,3 @@
-import fs from 'fs';
 import { setupEnigmaConnection } from './cloud-enigma.js';
 import { logger, sleep } from '../../globals.js';
 import { qscloudUploadToApp } from './cloud-upload.js';
@@ -15,6 +14,7 @@ import {
     SHEET_LIST_FIELDS_WITH_SHOW_CONDITION,
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
+import { createAppImageDir } from '../util/image-dir.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
 
 // Selector paths to elements on login page
@@ -41,19 +41,13 @@ export const processCloudApp = async (appId, saasInstance, options) => {
     let sheetRun;
 
     // Create image directory on disk for this app
-    try {
-        fs.mkdirSync(`${options.imagedir}/cloud/${appId}`, { recursive: true });
-        logger.verbose(`Created cloud image directory '${options.imagedir}/cloud/${appId}'`);
-    } catch (err) {
-        if (err.stack) {
-            logger.error(`CREATE THUMBNAILS 1 (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`CREATE THUMBNAILS 1 (message): ${err.message}`);
-        } else {
-            logger.error(`CREATE THUMBNAILS 1: Error creating cloud image directory: ${err}`);
-        }
-        throw new Error('Error creating cloud image directory', { cause: err });
-    }
+    createAppImageDir({
+        imagedir: options.imagedir,
+        platform: 'cloud',
+        appId,
+        logPrefix: 'CREATE THUMBNAILS 1',
+        ErrorClass: CloudError,
+    });
     try {
         // Does the app have a thumbnail folder in its media library?
         logger.verbose(

@@ -1,4 +1,3 @@
-import fs from 'fs';
 import qrsInteract from 'qrs-interact';
 import { Jimp } from 'jimp';
 
@@ -16,6 +15,7 @@ import {
     SHEET_LIST_FIELDS_WITH_SHOW_CONDITION,
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
+import { createAppImageDir } from '../util/image-dir.js';
 import { qrsFilterAnyOf, qrsPathWithFilter, toFilterValueList } from './qrs-filter.js';
 
 const selectorLoginPageUserName = '#username-input';
@@ -153,20 +153,13 @@ export const qseowProcessApp = async (appId, options) => {
     // Create image directory for this app
     let blurFailures = 0;
 
-    try {
-        fs.mkdirSync(`${options.imagedir}/qseow/${appId}`, { recursive: true });
-        logger.verbose(`Created image QSEoW directory '${options.imagedir}/qseow/${appId}'`);
-    } catch (err) {
-        logger.error(`QSEOW CREATE THUMBNAILS 1: Error creating QSEoW image directory: ${err}`);
-        if (err.message) {
-            logger.error(`QSEOW CREATE THUMBNAILS 1 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`QSEOW CREATE THUMBNAILS 1 (stack): ${err.stack}`);
-        }
-
-        throw new Error('Error creating QSEoW image directory', { cause: err });
-    }
+    createAppImageDir({
+        imagedir: options.imagedir,
+        platform: 'qseow',
+        appId,
+        logPrefix: 'QSEOW CREATE THUMBNAILS 1',
+        ErrorClass: QseowError,
+    });
 
     try {
         // Get metadata about the app
