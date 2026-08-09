@@ -9,9 +9,12 @@ from /examples/docker and /guide/concepts/browser-detection-and-environment-vari
 
 Changed at publication:
   * The link to "What is inside the image" was dropped and replaced with plain text. That section
-    does not exist on the doc site - its draft still lives only on the unmerged branch
-    claude/docker-chromium-licensing-50d429 - and the site build does not catch dead #anchors.
-    Restore the link if that draft is ever published.
+    does not exist on the doc site yet, and the site build does not catch dead #anchors.
+
+    Its draft is docs/to-doc-site/docker-image-third-party-licences.md, which IS on main and is
+    still pending publication - the code half of that work merged as PR #937 and ships in 4.0.1.
+    Restore the link when that draft is published. (An earlier version of this note said the draft
+    was on an unmerged branch; that was read from a stale worktree predating the #937 merge.)
 
 Still open, and NOT a documentation problem:
   * --port is accepted by the CLI but never read anywhere in the codebase, so the web UI is always
