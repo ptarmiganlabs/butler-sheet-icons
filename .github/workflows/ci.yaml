@@ -555,6 +555,17 @@ jobs:
       - name: Load Docker image
         run: docker load --input "$IMAGE_TAR"
 
+      # Which user the container runs as is decided by who owns the mounted directory (issue #915),
+      # so that ownership is the first thing worth knowing when one of these jobs misbehaves. It
+      # was not recorded anywhere, which is how #915 came to assert that docker-qseow-amd64 shared
+      # the same root cause on the strength of an inference rather than a measurement.
+      - name: Report mounted directory ownership
+        run: |
+          IMG_DIR="$RUNNER_TEMP/bsi-img"
+          mkdir -p "$IMG_DIR"
+          echo "runner user : $(id)"
+          ls -lnd "$IMG_DIR"
+
       - name: Run QS Cloud commands (arm64 image)
         run: |
           IMG_DIR="$RUNNER_TEMP/bsi-img"
@@ -632,6 +643,14 @@ jobs:
 
       - name: Load Docker image
         run: docker load --input "$IMAGE_TAR"
+
+      # See the same step in docker-qscloud-arm64.
+      - name: Report mounted directory ownership
+        run: |
+          IMG_DIR="$RUNNER_TEMP/bsi-img"
+          mkdir -p "$IMG_DIR"
+          echo "runner user : $(id)"
+          ls -lnd "$IMG_DIR"
 
       - name: Run QS Cloud commands (amd64 image)
         run: |
@@ -827,10 +846,33 @@ jobs:
           printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$CERT_DIR/client_key.pem"
           chmod 600 "$CERT_DIR"/client*.pem
 
-      # See the assertion step below, and the same one in docker-qscloud-arm64. This job is the one
-      # that used to fail with "Missing certificate file(s)" rather than a permission error: the
-      # client certificate is written chmod 600 owned by the runner user, and the container user
-      # could not read it. Same root cause as the image directory (issue #915).
+      # This job has never passed. It fails with "Missing certificate file(s)" even though the
+      # files are plainly there, which points at the container user being unable to read them - the
+      # certificate is written mode 0600 above, so only its owner can.
+      #
+      # #915 asserted this was the same root cause as the image directory and would be fixed by the
+      # same change. It was not: the entrypoint shipped, the two QS Cloud jobs went green, and this
+      # one failed identically. That claim was an inference from the chmod, never a measurement, so
+      # the step below measures it instead of guessing again - on the host and from inside the
+      # image, as the unprivileged user the container actually runs as.
+      - name: Report mounted directory ownership and certificate readability
+        run: |
+          IMG_DIR="$HOME/bsi-bsi/img"
+          CERT_DIR="$HOME/bsi-bsi/cert"
+
+          echo "runner user : $(id)"
+          echo "HOME        : $HOME"
+          echo "--- host side ---"
+          ls -lnd "$IMG_DIR" "$CERT_DIR"
+          ls -ln "$CERT_DIR"
+
+          echo "--- inside the image, as the user it runs as by default ---"
+          docker run --rm \
+            -v "$IMG_DIR:/nodeapp/img" \
+            -v "$CERT_DIR:/nodeapp/cert" \
+            --entrypoint /bin/sh \
+            "$IMAGE_NAME" -c 'echo "image dir : $(stat -c "%u:%g %a" /nodeapp/img)"; echo "cert dir  : $(stat -c "%u:%g %a" /nodeapp/cert)"; ls -ln /nodeapp/cert; su-exec nodejs test -r /nodeapp/cert/client.pem && echo "nodejs CAN read client.pem" || echo "nodejs CANNOT read client.pem"; su-exec nodejs test -w /nodeapp/img && echo "nodejs CAN write the image dir" || echo "nodejs CANNOT write the image dir"'
+
       - name: Run QSEoW Docker command (amd64 image)
         run: |
           IMG_DIR="$HOME/bsi-bsi/img"
