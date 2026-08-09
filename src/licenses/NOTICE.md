@@ -20,22 +20,48 @@ Alpine package is recorded as `BSD-3-Clause`.
 | | |
 | --- | --- |
 | Licence of Chromium itself | BSD-3-Clause - full text in `chromium-LICENSE`, next to this file |
-| Licences of Chromium's ~740 bundled components | `chrome://credits`, inside the browser in this image |
+| Licences of Chromium's 740 bundled components | `chrome://credits`, inside the browser in this image - see below for how to read it |
 | Source | <https://chromium.googlesource.com/chromium/src/> |
 | Alpine packaging | <https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/community/chromium> |
 | Version in this image | run `chromium-browser --version` |
 
 Chromium incorporates code under a number of other licences besides BSD-3-Clause - including LGPL,
 MPL and MIT. Those components, and their licence texts, are enumerated on the `chrome://credits`
-page built into the browser binary. To read it:
+page built into the browser binary. In this image that page carries 740 components.
+
+To save it as a file you can open and search:
 
 ```bash
-docker run --rm --entrypoint /usr/bin/chromium-browser \
-    ptarmiganlabs/butler-sheet-icons:latest \
-    --headless --no-sandbox --remote-debugging-port=9222 about:blank
+docker run --rm --network none --entrypoint node \
+    ptarmiganlabs/butler-sheet-icons:latest --input-type=module -e "
+import puppeteer from 'puppeteer-core';
+const browser = await puppeteer.launch({
+  executablePath: '/usr/bin/chromium-browser',
+  headless: true,
+  args: ['--no-sandbox', '--disable-gpu'],
+});
+const page = await browser.newPage();
+await page.goto('chrome://credits', { waitUntil: 'domcontentloaded' });
+console.log(await page.content());
+await browser.close();
+" > chromium-credits.html
 ```
 
-then open `chrome://credits` against that browser.
+That writes about 18 MB of HTML holding all 740 components and their full licence texts, one
+`license` block per component. `--network none` is included to show that nothing is fetched from
+the internet - the page is built into the binary, so this works on an air-gapped host.
+
+The saved file references Chromium's own stylesheets by `chrome://` URL, which do not resolve
+anywhere else. Opened in an ordinary browser it therefore renders unstyled, with every licence text
+expanded inline rather than behind a collapsed control - which is what you want for a review, and
+means the file can be searched or printed as it stands.
+
+> The obvious approaches do not work, which is why this one is spelled out. `--dump-dom
+> chrome://credits` returns the New Tab page, as it does for every `chrome://` page including
+> `chrome://version`. Starting the browser with `--remote-debugging-port` and connecting from
+> outside the container does not work either: Chromium binds the debugging port to `127.0.0.1`
+> inside the container regardless of `--remote-debugging-address`, so publishing the port with
+> `-p` does not expose it. Driving the browser from inside the container, as above, avoids both.
 
 ### A note on media codecs
 
