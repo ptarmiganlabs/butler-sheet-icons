@@ -6,6 +6,21 @@
 In earlier versions, running the Docker image on a Linux host and mounting a folder for the thumbnails failed for **every** app in the run.
 :::
 
+<!--
+Correction made while publishing: the version gate is 4.0.0, not 3.12.0. The release-please PR was
+titled 3.12.0 while these drafts were written, then breaking changes recomputed the bump to a major
+and it shipped as 4.0.0. There is no 3.12.0. A version read from an open release PR title is
+provisional - check the merged release commit.
+
+Published 2026-08-09 to the doc site's `next` branch (butler-sheet-icons-docs#51), landing on
+/guide/advanced/docker ("Writing thumbnails to a mounted folder on Linux") and
+/guide/troubleshooting ("Permission denied writing thumbnails from the Docker image", which also
+covers the QSEoW certificate failure sharing this cause). The adoption log line, the deliberate
+refusal to adopt a root-owned mount and the explicit --user behaviour were all verified against
+src/docker-entrypoint.sh rather than taken from this draft; all matched.
+-->
+
+
 ## Summary
 
 The documented way to get thumbnails out of the container is to mount a folder from the host:

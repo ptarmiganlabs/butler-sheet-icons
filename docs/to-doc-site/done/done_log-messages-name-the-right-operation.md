@@ -7,6 +7,17 @@ been corrected.
 Nothing about how Butler Sheet Icons behaves has changed — only what it writes to the log. This
 page matters if you search your logs for these lines, or if log monitoring alerts on them.
 
+<!--
+Published 2026-08-09 to the doc site's `next` branch (butler-sheet-icons-docs#51), condensed into a
+single "Log messages changed in BSI 4.0.0" section under a new "Reading the Logs" heading on
+/guide/troubleshooting rather than given a page of its own - it is pure log text with no behaviour
+change, and the audience is specifically operators whose monitoring matches the old strings.
+
+Not published: the note that the same wording was corrected on the QSEoW side "though no command
+exposes it there yet". That is an implementation detail with nothing for an administrator to act
+on. Revisit if a QSEoW remove-sheet-icons command is ever exposed.
+-->
+
 ## Removing sheet icons no longer claims to be updating them
 
 When removing sheet icons, the log said the icons had been updated or generated:

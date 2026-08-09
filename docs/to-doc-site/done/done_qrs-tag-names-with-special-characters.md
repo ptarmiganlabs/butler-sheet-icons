@@ -13,6 +13,22 @@ This affects `butler-sheet-icons qseow create-sheet-thumbnails` and these option
 | `--exclude-sheet-tag` | `BSI_QSEOW_CST_EXCLUDE_SHEET_TAG` |
 | `--contentlibrary`    | `BSI_QSEOW_CST_CONTENT_LIBRARY`   |
 
+<!--
+Published 2026-08-09 to the doc site's `next` branch (butler-sheet-icons-docs#51). Landed on
+/guide/concepts/sheet-exclusion (danger callout for the several-exclude-tags case, warning callout
+for punctuation), /guide/troubleshooting ("Tag or content library name fails or matches nothing",
+carrying the per-character error table) and /reference/qseow.
+
+Verified against src/lib/qseow/qrs-filter.js rather than taken on trust: qrsFilterAnyOf now emits
+`(tags.name eq 'A' or tags.name eq 'B')` where it previously interpolated the single literal
+'A,B'; qrsFilterValue backslash-escapes before the whole filter is encodeURIComponent-ed; and the
+three options listed above are exactly the ones reaching those helpers. All correct as written.
+
+The silent multi-tag case was given the strongest callout on the site, because an affected reader
+has no signal at all - the run reported success while updating every sheet they had tagged to keep
+out.
+-->
+
 ## What went wrong before
 
 **An ampersand stopped the command.** A tag named `R&D` produced this, and no apps were
