@@ -33,6 +33,8 @@ When the user does authorise a commit:
 - **ALWAYS** use Conventional Commits (`type: subject`). This is functional, not cosmetic: release-please derives the changelog and the version bump from the type. `feat` gives a minor bump, `fix` a patch, `feat!` or a `BREAKING CHANGE:` footer a major.
 - Types configured in `release-please-config.json`: `feat`, `fix`, `chore`, `docs`, `build`, `refactor` (hidden from the changelog). Anything else parses but will not appear where you expect.
 - Explain **why** in the body — the diff already shows what changed.
+- **NEVER** give a pull request a Conventional Commits title. Commit subjects use `type: subject`; PR titles are ordinary sentences. PRs land as merge commits, and GitHub copies the PR title into the merge commit _body_. release-please cannot parse the merge subject, falls back to the body, and emits a **duplicate changelog entry** for every such PR — the 4.0.0 release PR listed 154 entries for 128 real changes and had to be cleaned by hand.
+- If a conventional PR title is genuinely needed, strip the merge body instead: `gh pr merge --merge --body ""`. **ALWAYS** prefer the title rule, since it also covers merges done through the GitHub web UI.
 
 ## GitNexus Code Intelligence
 
