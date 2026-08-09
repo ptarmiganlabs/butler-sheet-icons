@@ -66,11 +66,18 @@ This is the standing instruction for "update the doc site from `docs/to-doc-site
 
 **This is not a bulk pass.** Every file is approved individually before anything is written — see step 1.
 
-### 1. Inventory the pending drafts and get approval
+### 1. Establish scope, then get approval
 
-Before reading deeply, before editing anything, list what is there and get a decision on each file.
+Before reading deeply, before editing anything, work out which files are in scope and get a decision on each one.
 
-Work through steps 2–4 far enough to form a recommendation, then present a table covering **every** unprefixed file:
+**Scope comes from how the request was phrased:**
+
+| Request | Files in scope |
+|---|---|
+| "Process `<filename>.md`" — a named file | **That file only.** Do not inventory the rest. Name the other pending drafts in one line at the end so nothing is forgotten, and leave them alone. |
+| "Update the doc site from `docs/to-doc-site`" — no file named | **Every** unprefixed file in this folder. |
+
+Work through steps 2–4 far enough to form a recommendation, then present a table covering the files in scope:
 
 | Draft | Recommendation | Target page(s) | Why |
 |---|---|---|---|
