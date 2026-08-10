@@ -281,7 +281,7 @@ const buildQseowCommand = () => {
         )
         .addOption(
             new Option(
-                '--blur-sheet-tag <value>',
+                '--blur-sheet-tag <value...>',
                 'Sheets with one or more of these tags set will be blurred in the sheet icon update.'
             ).env('BSI_QSEOW_CST_BLUR_SHEET_TAG')
         )

@@ -398,6 +398,44 @@ describe('variadic sheet-number options collect into arrays', () => {
     });
 });
 
+describe('sheet-tag options accept several tags on both platforms', () => {
+    // --blur-sheet-tag was declared `<value>` while its --exclude-sheet-tag sibling was
+    // `<value...>`. A scalar option stops after one value, so a second tag was parsed as a
+    // positional argument and Commander aborted with `too many arguments` before the action
+    // handler ran - on qscloud that meant the "not supported" warning never printed. See #840.
+    const cases = [
+        ['qseow', () => buildQseowCommand(), 'excludeSheetTag', '--exclude-sheet-tag'],
+        ['qseow', () => buildQseowCommand(), 'blurSheetTag', '--blur-sheet-tag'],
+        ['qscloud', () => buildQscloudCommand(), 'excludeSheetTag', '--exclude-sheet-tag'],
+        ['qscloud', () => buildQscloudCommand(), 'blurSheetTag', '--blur-sheet-tag'],
+    ];
+
+    describe.each(cases)('%s %s', (platform, build, optionKey, flag) => {
+        /**
+         * Resolves the `create-sheet-thumbnails` subcommand for the platform under test.
+         *
+         * @returns {import('commander').Command} The subcommand carrying the sheet-tag options.
+         */
+        const subcommand = () =>
+            build().commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails');
+
+        test('keeps every tag when several are supplied', () => {
+            const opts = parseOptionInIsolation(subcommand(), flag, ['Secret', 'Draft']);
+            expect(opts[optionKey]).toEqual(['Secret', 'Draft']);
+        });
+
+        test('yields a one-element array for a single tag', () => {
+            const opts = parseOptionInIsolation(subcommand(), flag, ['Secret']);
+            expect(opts[optionKey]).toEqual(['Secret']);
+        });
+
+        test('keeps a tag name containing spaces and punctuation intact', () => {
+            const opts = parseOptionInIsolation(subcommand(), flag, ["Q1'25 R&D"]);
+            expect(opts[optionKey]).toEqual(["Q1'25 R&D"]);
+        });
+    });
+});
+
 describe('qseow command', () => {
     beforeEach(() => {
         jest.clearAllMocks();
