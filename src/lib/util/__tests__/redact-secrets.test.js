@@ -130,11 +130,57 @@ describe('redactSensitivePatterns', () => {
     test('redacts Bearer / Basic / Token headers', () => {
         const a = 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.fake.sig';
         const b = 'Authorization: Basic dXNlcjpwYXNz';
-        const c = 'Token abcdefghijklmnop';
+        const c = 'Authorization: Token abcdefghijklmnop';
 
         expect(redactSensitivePatterns(a)).toMatch(/Bearer\s+\[REDACTED\]/);
         expect(redactSensitivePatterns(b)).toMatch(/Basic\s+\[REDACTED\]/);
         expect(redactSensitivePatterns(c)).toMatch(/Token\s+\[REDACTED\]/);
+    });
+
+    test('redacts an Authorization header however it is spelled or quoted', () => {
+        // The stringified-config form: what reaches the log when a caller does
+        // JSON.stringify(err) on an axios error.
+        expect(
+            redactSensitivePatterns('{"Authorization":"Bearer eyJhbGciOiJIUzI1NiJ9.fake.sig"}')
+        ).toBe('{"Authorization":"Bearer [REDACTED]"}');
+        expect(redactSensitivePatterns('proxy-authorization: Basic dXNlcjpwYXNz')).toBe(
+            'proxy-authorization: Basic [REDACTED]'
+        );
+    });
+
+    test('redacts a bare scheme when what follows is credential-shaped', () => {
+        // No Authorization header name in front, as in a stack trace or a server
+        // error. Mixed case, digits, dots and long lowercase runs are credentials.
+        expect(redactSensitivePatterns('Basic dXNlcjpwYXNz')).toBe('Basic [REDACTED]');
+        expect(redactSensitivePatterns('bearer eyJhbGciOi.payload.sig')).toBe('bearer [REDACTED]');
+        expect(redactSensitivePatterns('Token abcdefghijklmnopqrstuvwxyz')).toBe(
+            'Token [REDACTED]'
+        );
+    });
+
+    test('leaves prose that merely contains a scheme keyword alone', () => {
+        // Issue #949: the rule used to eat the word after `token`, so the message
+        // an operator gets for a missing --apikey read "API token [REDACTED] is
+        // required" - as though a token value had been found and hidden.
+        for (const text of [
+            'API token parameter is required',
+            'the token parameter',
+            'Basic authentication is required',
+            'no token available for tenant',
+            'token successfully refreshed',
+            'Token retrieval failed',
+        ]) {
+            expect(redactSensitivePatterns(text)).toBe(text);
+        }
+    });
+
+    test('does not redact a bare scheme followed by a plain lowercase word', () => {
+        // The deliberate cost of the fix above (issue #949): an all-lowercase
+        // credential of 8-23 characters, with no Authorization header name and no
+        // `token=` delimiter, is indistinguishable from an English word and is
+        // left alone. Qlik Cloud API keys are JWTs, so they stay covered by the
+        // cases above. Change this test only alongside that trade-off.
+        expect(redactSensitivePatterns('Token abcdefghijklmnop')).toBe('Token abcdefghijklmnop');
     });
 
     test('redacts common key=value secret patterns', () => {
