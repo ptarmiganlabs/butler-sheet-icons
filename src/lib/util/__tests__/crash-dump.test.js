@@ -14,13 +14,16 @@ jest.unstable_mockModule('../../../globals.js', () => ({
     isSea: false,
 }));
 
-const { writeCrashDump } = await import('../crash-dump.js');
+const { writeCrashDump, resetCrashDumpLimit } = await import('../crash-dump.js');
 const { logger } = await import('../../../globals.js');
 
 let tmpDir;
 
 beforeEach(async () => {
     jest.clearAllMocks();
+    // The dump cap is per-process, so the allowance has to be restored for each
+    // case or a suite this size trips the limit partway through.
+    resetCrashDumpLimit();
     tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'bsi-crash-'));
     process.env.BSI_CRASH_DUMP_DIR = tmpDir;
     process.env.BSI_CRASH_DUMP_ENABLE = '1';
@@ -34,6 +37,7 @@ afterEach(async () => {
     delete process.env.BSI_CRASH_DUMP_ENABLE;
     delete process.env.BSI_CRASH_DUMP_CREATE_JSON;
     delete process.env.BSI_CRASH_DUMP_CREATE_TEXT;
+    delete process.env.BSI_CRASH_DUMP_MAX_PER_PROCESS;
 });
 
 /**
@@ -188,6 +192,23 @@ describe('writeCrashDump', () => {
         expect(writtenCalls.length).toBeGreaterThan(0);
     });
 
+    test('never rejects, even when every filesystem call fails', async () => {
+        // The fatal handlers lean on this: a crash dump that rejected would
+        // feed the handler that asked for it (issue #946). The property was
+        // true but untested, so it was one refactor away from being lost.
+        const mkdirSync = jest.spyOn(fs, 'mkdirSync').mockImplementation(() => {
+            throw new Error('ENOSPC: no space left on device');
+        });
+        const writeFile = jest
+            .spyOn(fs.promises, 'writeFile')
+            .mockRejectedValue(new Error('ENOSPC: no space left on device'));
+
+        await expect(writeCrashDump(new Error('boom'), 'manual')).resolves.toBeUndefined();
+
+        mkdirSync.mockRestore();
+        writeFile.mockRestore();
+    });
+
     test('does not throw on a totally broken error input', async () => {
         // Pass a value whose constructor access itself throws.
         const hostile = Object.create(null);
@@ -202,5 +223,106 @@ describe('writeCrashDump', () => {
         });
 
         await expect(writeCrashDump(hostile, 'manual')).resolves.toBeUndefined();
+    });
+});
+
+describe('per-process dump cap (issue #946)', () => {
+    /**
+     * Counts the JSON dumps written to the temp dir so far.
+     *
+     * @returns {Promise<number>} Number of `.json` dump files.
+     */
+    const countJsonDumps = async () =>
+        (await listDumps()).filter((f) => f.endsWith('.json')).length;
+
+    test('stops writing once the limit is reached', async () => {
+        process.env.BSI_CRASH_DUMP_MAX_PER_PROCESS = '3';
+
+        for (let i = 0; i < 50; i += 1) {
+            await writeCrashDump(new Error(`boom ${i}`), 'manual');
+        }
+
+        expect(await countJsonDumps()).toBe(3);
+    });
+
+    test('the dumps written before the limit are complete, not truncated', async () => {
+        process.env.BSI_CRASH_DUMP_MAX_PER_PROCESS = '2';
+
+        await writeCrashDump(new Error('first'), 'manual');
+        await writeCrashDump(new Error('second'), 'manual');
+        await writeCrashDump(new Error('third, over the limit'), 'manual');
+
+        const files = (await listDumps()).filter((f) => f.endsWith('.json'));
+        expect(files).toHaveLength(2);
+
+        const messages = await Promise.all(
+            files.map(
+                async (f) =>
+                    JSON.parse(await fs.promises.readFile(path.join(tmpDir, f), 'utf8')).error
+                        .message
+            )
+        );
+        expect(messages.sort()).toEqual(['first', 'second']);
+    });
+
+    test('logs once when the limit is reached, not once per refused dump', async () => {
+        process.env.BSI_CRASH_DUMP_MAX_PER_PROCESS = '1';
+
+        for (let i = 0; i < 20; i += 1) {
+            await writeCrashDump(new Error(`boom ${i}`), 'manual');
+        }
+
+        const limitLines = logger.error.mock.calls.filter((c) =>
+            String(c[0] ?? '').includes('Limit of 1 dumps per process reached')
+        );
+        expect(limitLines).toHaveLength(1);
+    });
+
+    test('0 means no limit', async () => {
+        process.env.BSI_CRASH_DUMP_MAX_PER_PROCESS = '0';
+
+        for (let i = 0; i < 15; i += 1) {
+            await writeCrashDump(new Error(`boom ${i}`), 'manual');
+        }
+
+        expect(await countJsonDumps()).toBe(15);
+    });
+
+    test('defaults to 10 when the variable is unset', async () => {
+        delete process.env.BSI_CRASH_DUMP_MAX_PER_PROCESS;
+
+        for (let i = 0; i < 25; i += 1) {
+            await writeCrashDump(new Error(`boom ${i}`), 'manual');
+        }
+
+        expect(await countJsonDumps()).toBe(10);
+    });
+
+    test.each([['not-a-number'], ['-1'], ['2.5'], ['']])(
+        'falls back to the default for the invalid value %p',
+        async (value) => {
+            // A typo in an env var must not silently remove the backstop.
+            process.env.BSI_CRASH_DUMP_MAX_PER_PROCESS = value;
+
+            for (let i = 0; i < 25; i += 1) {
+                await writeCrashDump(new Error(`boom ${i}`), 'manual');
+            }
+
+            expect(await countJsonDumps()).toBe(10);
+        }
+    );
+
+    test('resetCrashDumpLimit allows writing again', async () => {
+        process.env.BSI_CRASH_DUMP_MAX_PER_PROCESS = '2';
+
+        await writeCrashDump(new Error('a'), 'manual');
+        await writeCrashDump(new Error('b'), 'manual');
+        await writeCrashDump(new Error('refused'), 'manual');
+        expect(await countJsonDumps()).toBe(2);
+
+        resetCrashDumpLimit();
+        await writeCrashDump(new Error('c'), 'manual');
+
+        expect(await countJsonDumps()).toBe(3);
     });
 });

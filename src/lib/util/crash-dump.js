@@ -24,6 +24,7 @@
  * - `BSI_CRASH_DUMP_DIR`               (default: `crash_dumps`) — output dir
  * - `BSI_CRASH_DUMP_CREATE_JSON`       (default: `1`) — emit JSON file
  * - `BSI_CRASH_DUMP_CREATE_TEXT`       (default: `1`) — emit plain text file
+ * - `BSI_CRASH_DUMP_MAX_PER_PROCESS`   (default: `10`) — `0` for no limit
  */
 
 import fs from 'node:fs';
@@ -44,10 +45,31 @@ import { redactSensitivePatterns } from './redact-secrets.js';
 const CRASH_DUMP_WRITE_TIMEOUT_MS = 5000;
 
 /**
+ * Default cap on how many crash dumps a single process may write.
+ *
+ * A backstop against a runaway caller, not a feature: issue #946 saw one process
+ * write 479,178 dump files because nothing counted them. The fatal handlers in
+ * `fatal-handlers.js` already guarantee one dump per run, so reaching this limit
+ * means some other caller is looping, and refusing to write is the right answer.
+ * Ten leaves ample room for deliberate `manual` dumps while still being a cap.
+ */
+const DEFAULT_MAX_DUMPS_PER_PROCESS = 10;
+
+/**
  * Per-process counter to ensure filename uniqueness when multiple crashes occur
  * within the same millisecond (e.g. multiple fatal handlers firing simultaneously).
+ *
+ * Strictly monotonic for the life of the process, and deliberately separate from
+ * the cap below: filenames are only unique if this never goes backwards, whereas
+ * the cap accounting has to be resettable for tests.
  */
 let crashDumpCounter = 0;
+
+/** How many dumps have been written against the current cap allowance. */
+let dumpsAgainstLimit = 0;
+
+/** True once the "limit reached" message has been logged, so it is logged once. */
+let limitReachedLogged = false;
 
 /**
  * List of environment variable names that trigger crash-dump functionality.
@@ -57,6 +79,7 @@ const ENV_ENABLE = 'BSI_CRASH_DUMP_ENABLE';
 const ENV_DIR = 'BSI_CRASH_DUMP_DIR';
 const ENV_CREATE_JSON = 'BSI_CRASH_DUMP_CREATE_JSON';
 const ENV_CREATE_TEXT = 'BSI_CRASH_DUMP_CREATE_TEXT';
+const ENV_MAX_PER_PROCESS = 'BSI_CRASH_DUMP_MAX_PER_PROCESS';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,6 +96,25 @@ function envBool(value) {
     if (typeof value !== 'string') return false;
     const v = value.trim().toLowerCase();
     return v === '1' || v === 'true' || v === 'yes';
+}
+
+/**
+ * Parse the per-process dump limit from its env var.
+ *
+ * Anything that is not a non-negative integer falls back to the default, on the
+ * principle that a typo in an env var should not silently remove the backstop.
+ *
+ * @param {string|undefined} value - Raw env-var value.
+ *
+ * @returns {number} The limit, where `0` means no limit.
+ */
+function parseMaxDumps(value) {
+    if (typeof value !== 'string' || value.trim() === '') return DEFAULT_MAX_DUMPS_PER_PROCESS;
+
+    const parsed = Number(value.trim());
+    if (!Number.isInteger(parsed) || parsed < 0) return DEFAULT_MAX_DUMPS_PER_PROCESS;
+
+    return parsed;
 }
 
 /**
@@ -179,6 +221,27 @@ export async function writeCrashDump(error, source) {
 
         if (!enable) return;
         if (!createJson && !createText) return;
+
+        // Backstop against a caller that loops. Checked before anything is
+        // built or written, so a runaway costs nothing but a function call.
+        const maxDumps = parseMaxDumps(process.env[ENV_MAX_PER_PROCESS]);
+        if (maxDumps > 0 && dumpsAgainstLimit >= maxDumps) {
+            if (!limitReachedLogged) {
+                limitReachedLogged = true;
+                const message = `CRASH DUMP: Limit of ${maxDumps} dumps per process reached, no further dumps will be written. Set ${ENV_MAX_PER_PROCESS} to raise or remove the limit.`;
+                try {
+                    if (logger) {
+                        logger.error(message);
+                    } else {
+                        console.error(message);
+                    }
+                } catch {
+                    console.error(message);
+                }
+            }
+            return;
+        }
+        dumpsAgainstLimit += 1;
 
         // ----------------------------------------------------------------
         // Build the crash dump payload
@@ -347,4 +410,22 @@ export async function writeCrashDump(error, source) {
     } catch {
         // writeCrashDump must never throw
     }
+}
+
+/**
+ * Restores the full per-process dump allowance and the "limit reached" log latch.
+ *
+ * Exists for tests, which share module state across the cases in a file and
+ * would otherwise trip the cap partway through a suite. Production code never
+ * calls this: the cap is meant to last a process.
+ *
+ * Deliberately does not touch the filename counter. Winding that back would let
+ * a later dump reuse an earlier dump's name, and since the files are written
+ * with the exclusive-create `wx` flag the later dump would be silently dropped.
+ *
+ * @returns {void}
+ */
+export function resetCrashDumpLimit() {
+    dumpsAgainstLimit = 0;
+    limitReachedLogged = false;
 }
