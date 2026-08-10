@@ -50,6 +50,7 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 | Work in the Qscloud area | `.claude/skills/generated/qscloud/SKILL.md` |
 | Work in the Qseow area | `.claude/skills/generated/qseow/SKILL.md` |
 | Work in the Util area | `.claude/skills/generated/util/SKILL.md` |
+| Work in the Diag area | `.claude/skills/generated/diag/SKILL.md` |
 
 <!-- gitnexus:end -->
 
