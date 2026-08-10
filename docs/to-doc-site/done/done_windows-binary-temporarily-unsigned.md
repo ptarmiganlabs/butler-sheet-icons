@@ -53,3 +53,12 @@ Files offered anywhere else are not published by Ptarmigan Labs, and without a s
 A replacement certificate is being obtained. When it is in place, Windows releases will be signed again and this page will be withdrawn. No change on your side will be needed — simply download the newer release.
 
 The macOS binary continues to be signed and notarized by Apple throughout, and Linux releases are distributed as archives, where code signing is not customary.
+
+<!--
+NOT PUBLISHED - stale.
+
+Retired without publishing on 2026-08-10. scripts/release-win.ps1 has two live
+`signtool sign` calls and none commented out, so the Windows release binary is
+signed again and this draft would have told users the opposite. The live doc
+site never carried the claim, so there was nothing to correct.
+-->
