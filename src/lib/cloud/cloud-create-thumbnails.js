@@ -21,8 +21,10 @@ import { runOverApps } from '../util/run-over-apps.js';
  * @param {string} options.schemaversion - Version of the QS schema.
  * @param {string} options.browser - Name of browser to use for rendering thumbnails.
  * @param {string} options.browserVersion - Version of browser to use for rendering thumbnails.
- * @param {string} options.blurSheetStatus - Which sheet statuses should be blurred.
+ * @param {Array<string>} options.blurSheetStatus - Sheet statuses to blur. Variadic, and defaulted to `[]` by Commander.
  * @param {Array<string>} options.blurSheetNumber - Sheet numbers (1=first sheet) to blur.
+ * @param {string|string[]} options.excludeSheetTag - Tags for sheets to exclude. Read only to warn: Qlik Sense Cloud cannot tag individual sheets, so the option is accepted and ignored.
+ * @param {string|string[]} options.blurSheetTag - Tags for sheets whose thumbnail should be blurred. Read only to warn, for the same reason.
  * @param {string} options.blurFactor - Blur factor.
  *
  * @returns {Promise<boolean>} Resolves to `true` if thumbnails were created successfully, `false` otherwise.
