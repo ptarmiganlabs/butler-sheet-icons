@@ -1,11 +1,13 @@
 // filepath: /Users/goran/code/butler-sheet-icons/src/__tests__/butler-sheet-icons.test.js
-import { test, expect, describe, jest, beforeEach } from '@jest/globals';
+import { test, expect, describe, jest, beforeEach, afterEach } from '@jest/globals';
 import 'dotenv/config';
 import {} from 'commander';
 import {} from '../globals.js';
 import childProcess from 'child_process';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 // Mock all the imported modules that are used in the main file
 jest.mock('../globals.js', () => ({
@@ -142,5 +144,112 @@ describe('butler-sheet-icons CLI', () => {
         const result = execCLI(['browser', '--help']);
         expect(result.status).toBe(0);
         expect(result.stdout).toContain('list-available');
+    });
+});
+
+/** Printed by the child once the handlers are installed, to prove it got that far. */
+const HANDLERS_READY = '__bsi_fatal_handlers_installed__';
+
+describe('fatal error safety net, end to end (issue #946)', () => {
+    // No mocks here: a real child process, the real handlers, the real crash
+    // dump writer, and a real directory on disk. Measured against the handlers
+    // as they were before the fix, this burst wrote 400 files.
+    let dumpDir;
+
+    beforeEach(() => {
+        dumpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bsi-fatal-e2e-'));
+    });
+
+    afterEach(() => {
+        fs.rmSync(dumpDir, { recursive: true, force: true });
+    });
+
+    /**
+     * Runs a child process that installs the real fatal handlers and then
+     * emits a burst of unhandled rejections.
+     *
+     * @param {number} rejectionCount - How many rejections the child should produce.
+     *
+     * @returns {import('child_process').SpawnSyncReturns<string>} The `spawnSync` result.
+     */
+    const runFatalBurst = (rejectionCount) => {
+        const __dirname = path.dirname(fileURLToPath(import.meta.url));
+        const handlersPath = path.resolve(__dirname, '../lib/util/fatal-handlers.js');
+        // A bare Windows path is not a valid ESM specifier — `import 'C:\...'`
+        // fails with ERR_UNSUPPORTED_ESM_URL_SCHEME. Feed the loader a file URL
+        // on every platform.
+        const handlersUrl = pathToFileURL(handlersPath).href;
+        const source = [
+            `import { installFatalHandlers } from ${JSON.stringify(handlersUrl)};`,
+            'installFatalHandlers();',
+            `console.log(${JSON.stringify(HANDLERS_READY)});`,
+            `for (let i = 0; i < ${rejectionCount}; i += 1) Promise.reject(new Error('boom ' + i));`,
+        ].join('\n');
+
+        const result = childProcess.spawnSync('node', ['--input-type=module', '-e', source], {
+            encoding: 'utf-8',
+            timeout: 30000,
+            env: {
+                ...process.env,
+                BSI_CRASH_DUMP_DIR: dumpDir,
+                BSI_CRASH_DUMP_ENABLE: '1',
+                BSI_CRASH_DUMP_CREATE_JSON: '1',
+                BSI_CRASH_DUMP_CREATE_TEXT: '1',
+            },
+        });
+
+        // A child that never got as far as installing the handlers would fail
+        // every assertion below as "no crash dumps written", which points at
+        // the wrong thing entirely. Fail here instead, quoting the child.
+        if (!result.stdout?.includes(HANDLERS_READY)) {
+            throw new Error(
+                [
+                    'The child process did not reach installFatalHandlers().',
+                    `status: ${result.status}, signal: ${result.signal}`,
+                    `stdout: ${result.stdout}`,
+                    `stderr: ${result.stderr}`,
+                ].join('\n')
+            );
+        }
+
+        return result;
+    };
+
+    test('a burst of 200 unhandled rejections writes exactly one crash dump', () => {
+        const result = runFatalBurst(200);
+
+        const files = fs.readdirSync(dumpDir);
+        expect(files.filter((f) => f.endsWith('.json'))).toHaveLength(1);
+        expect(files.filter((f) => f.endsWith('.txt'))).toHaveLength(1);
+        expect(files).toHaveLength(2);
+
+        // Zero-byte dumps were the visible symptom in the issue. Both files
+        // must have actually been written, not merely created.
+        for (const file of files) {
+            expect(fs.statSync(path.join(dumpDir, file)).size).toBeGreaterThan(0);
+        }
+
+        expect(result.status).toBe(1);
+    });
+
+    test('the process exits with code 1 rather than hanging', () => {
+        const result = runFatalBurst(1);
+
+        // `spawnSync` reports a timeout kill via `signal`, so a null signal is
+        // the assertion that the process ended on its own.
+        expect(result.signal).toBeNull();
+        expect(result.status).toBe(1);
+    });
+
+    test('a single FATAL line is logged, naming the first failure only', () => {
+        const result = runFatalBurst(200);
+
+        // The winston console transport writes every level to stdout.
+        const fatalLines = result.stdout
+            .split('\n')
+            .filter((line) => line.includes('FATAL: Unhandled promise rejection'));
+
+        expect(fatalLines).toHaveLength(1);
+        expect(fatalLines[0]).toContain('boom 0');
     });
 });
