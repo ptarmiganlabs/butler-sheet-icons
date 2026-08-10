@@ -14,7 +14,6 @@ import { runCommand } from '../run-command.js';
 const handleBrowserListInstalled = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
-    logger.verbose(`appid=${options.appid}`);
     return runCommand('BROWSER MAIN 6', () => browserInstalled(options, cmd));
 };
 
@@ -32,7 +31,7 @@ const buildBrowserListInstalledCommand = () => {
         )
         .action(handleBrowserListInstalled)
         .addOption(
-            new Option('--loglevel, --log-level <level>', 'Log level')
+            new Option('--log-level, --loglevel <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
                 .env('BSI_BROWSER_LI_LOG_LEVEL')

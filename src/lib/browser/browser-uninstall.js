@@ -24,10 +24,6 @@ import { resolveLocalBrowserBuildId, VERSION_RECOMMENDED } from './browser-versi
  */
 export const browserUninstall = async (options) => {
     try {
-        // Set log level
-        if (options.loglevel === undefined || options.logLevel) {
-            options.loglevel = options.logLevel;
-        }
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting browser uninstallation');
@@ -106,10 +102,6 @@ export const browserUninstall = async (options) => {
  */
 export const browserUninstallAll = async (options) => {
     try {
-        // Set log level
-        if (options.loglevel === undefined || options.logLevel) {
-            options.loglevel = options.logLevel;
-        }
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting uninstallation of all browsers');

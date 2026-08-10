@@ -42,10 +42,6 @@ export const browserInstall = async (options, _command, resolvedBuildId) => {
             throw new Error('Missing required options: "browser" and "browserVersion"');
         }
 
-        // Set log level
-        if (options.loglevel === undefined || options.logLevel) {
-            options.loglevel = options.logLevel;
-        }
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting browser install');

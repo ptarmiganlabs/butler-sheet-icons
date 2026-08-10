@@ -89,8 +89,12 @@ describe('browserInstalled', () => {
         expect(setLoggingLevel).toHaveBeenCalledWith('debug');
     });
 
-    test('accepts the camelCase logLevel spelling commander produces', async () => {
-        await browserInstalled({ logLevel: 'verbose' });
+    test('reads loglevel, the name commander now stores the option under', async () => {
+        // The option is declared `--log-level, --loglevel <level>`, and Commander takes the
+        // *second* long form as the attribute name, so it stores `loglevel` directly. Twelve
+        // handlers used to carry an alias shim mapping `logLevel` onto `loglevel`; the
+        // declaration order makes that unnecessary. See the binding test in commands.test.js.
+        await browserInstalled({ loglevel: 'verbose' });
 
         expect(setLoggingLevel).toHaveBeenCalledWith('verbose');
     });

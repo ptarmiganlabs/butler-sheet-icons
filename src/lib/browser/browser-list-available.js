@@ -137,10 +137,6 @@ function mapPlatformToChrome(puppeteerPlatform) {
  */
 export async function browserListAvailable(options) {
     try {
-        // Set log level
-        if (options.loglevel === undefined || options.logLevel) {
-            options.loglevel = options.logLevel;
-        }
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting check for available browser versions');

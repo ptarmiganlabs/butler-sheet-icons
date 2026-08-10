@@ -32,10 +32,6 @@ export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
     let failedCount = 0;
 
     try {
-        // Set log level
-        if (options.loglevel === undefined || options.logLevel) {
-            options.loglevel = options.logLevel;
-        }
         setLoggingLevel(options.loglevel);
 
         // Get array of all available collections

@@ -30,10 +30,6 @@ import { runOverApps } from '../util/run-over-apps.js';
  */
 export const qscloudCreateThumbnails = async (options) => {
     try {
-        // Set log level
-        if (options.loglevel === undefined || options.logLevel) {
-            options.loglevel = options.logLevel;
-        }
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Cloud');
