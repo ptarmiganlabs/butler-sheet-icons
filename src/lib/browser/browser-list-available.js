@@ -1,6 +1,5 @@
 import { detectBrowserPlatform, canDownload } from '@puppeteer/browsers';
-import path from 'path';
-import { homedir } from 'os';
+import { getBrowserCacheDir } from './browser-cache-dir.js';
 import axios from 'axios';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
@@ -162,7 +161,7 @@ export async function browserListAvailable(options) {
             throw new Error(`Invalid browser "${options.browser}"`);
         }
 
-        const browserPath = path.join(homedir(), '.cache/puppeteer');
+        const browserPath = getBrowserCacheDir();
         logger.debug(`Browser cache path: ${browserPath}`);
 
         // Get current platform
@@ -312,7 +311,7 @@ export async function getMostRecentUsableChromeBuildId(channel) {
             throw new Error(`Invalid Chrome release channel "${channel}"`);
         }
 
-        const browserPath = path.join(homedir(), '.cache/puppeteer');
+        const browserPath = getBrowserCacheDir();
         logger.debug(`Get most recent usable Chrome build ID: Browser cache path: ${browserPath}`);
 
         // Get current platform

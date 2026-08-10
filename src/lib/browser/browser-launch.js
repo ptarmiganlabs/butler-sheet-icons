@@ -1,6 +1,5 @@
 import puppeteer from 'puppeteer-core';
-import path from 'node:path';
-import { homedir } from 'node:os';
+import { getBrowserCacheDir } from './browser-cache-dir.js';
 import { computeExecutablePath } from '@puppeteer/browsers';
 
 import { logger } from '../../globals.js';
@@ -152,7 +151,7 @@ const resolveRequestedBuildId = async (options) => {
  * this in a platform-specific typed error carrying the app id.
  */
 export const resolveBrowserExecutablePath = async (options) => {
-    const browserPath = path.join(homedir(), '.cache/puppeteer');
+    const browserPath = getBrowserCacheDir();
     logger.debug(`Browser cache path: ${browserPath}`);
 
     const { buildId: requestedBuildId, resolveError } = await resolveRequestedBuildId(options);

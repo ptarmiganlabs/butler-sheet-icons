@@ -2,17 +2,21 @@ import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 import path from 'path';
 
 const getInstalledBrowsers = jest.fn();
+const detectBrowserPlatform = jest.fn(() => 'mac_arm');
 
-jest.unstable_mockModule('@puppeteer/browsers', () => ({ getInstalledBrowsers }));
+jest.unstable_mockModule('@puppeteer/browsers', () => ({
+    getInstalledBrowsers,
+    detectBrowserPlatform,
+}));
 
 jest.unstable_mockModule('os', () => ({
     default: { homedir: () => '/home/tester' },
     homedir: () => '/home/tester',
 }));
 
-jest.unstable_mockModule('../../util/redact-secrets.js', () => ({
-    redactOptions: jest.fn((options) => options),
-}));
+// redact-secrets is deliberately NOT mocked. One of the two problems issue #887
+// set out to fix is that redaction mangled this function's result, and a stub
+// that returns its input unchanged cannot show whether that is still true.
 
 jest.unstable_mockModule('../../../globals.js', () => ({
     logger: {
@@ -28,6 +32,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 }));
 
 const { logger, setLoggingLevel } = await import('../../../globals.js');
+const { redactValue } = await import('../../util/redact-secrets.js');
 const { browserInstalled } = await import('../browser-installed.js');
 
 const INSTALLED = [
@@ -35,18 +40,35 @@ const INSTALLED = [
         browser: 'chrome',
         buildId: '121.0.6167.85',
         platform: 'mac_arm',
-        path: '/home/tester/.cache/puppeteer/chrome/mac_arm-121.0.6167.85/chrome',
+        path: '/home/tester/.cache/puppeteer/chrome/mac_arm-121.0.6167.85',
+        executablePath:
+            '/home/tester/.cache/puppeteer/chrome/mac_arm-121.0.6167.85/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
     },
 ];
 
 beforeEach(() => {
     jest.clearAllMocks();
+    detectBrowserPlatform.mockReturnValue('mac_arm');
     getInstalledBrowsers.mockResolvedValue(INSTALLED);
 });
 
 describe('browserInstalled', () => {
-    test('returns the list of installed browsers', async () => {
-        await expect(browserInstalled({ loglevel: 'info' })).resolves.toEqual(INSTALLED);
+    test('returns the installed builds as plain data', async () => {
+        await expect(browserInstalled({ loglevel: 'info' })).resolves.toEqual([
+            { ...INSTALLED[0], isCurrentPlatform: true },
+        ]);
+    });
+
+    test('the result survives redaction, which the class instances did not', async () => {
+        // redactValue() collapses any object whose prototype is not
+        // Object.prototype to '***redacted***', so passing the previous
+        // InstalledBrowser instances through redactOptions() turned real
+        // diagnostic data into redaction markers. This is issue #887's first
+        // problem, asserted against the real redactor rather than the stub.
+        const result = await browserInstalled({ loglevel: 'info' });
+
+        expect(redactValue(result)).toEqual(result);
+        expect(JSON.stringify(result)).toContain('121.0.6167.85');
     });
 
     test('returns an empty list when nothing is installed', async () => {
@@ -117,5 +139,36 @@ describe('browserInstalled', () => {
 
     test('rejects rather than crashing when called with no options', async () => {
         await expect(browserInstalled(undefined)).rejects.toThrow();
+    });
+});
+
+describe('platform awareness', () => {
+    // getInstalledBrowsers() does not filter by platform, so a cache copied
+    // between machines or mounted into a container genuinely can hold builds
+    // that cannot run here. Nothing in the data said so before.
+    test('marks a build downloaded for another platform as unusable here', async () => {
+        detectBrowserPlatform.mockReturnValue('mac_arm');
+        getInstalledBrowsers.mockResolvedValue([
+            { ...INSTALLED[0], platform: 'win64' },
+            INSTALLED[0],
+        ]);
+
+        const result = await browserInstalled({ loglevel: 'info' });
+
+        expect(result.map((b) => [b.platform, b.isCurrentPlatform])).toEqual([
+            ['win64', false],
+            ['mac_arm', true],
+        ]);
+    });
+
+    test('reports every build as usable when the host platform cannot be detected', async () => {
+        // Absence of evidence, not evidence of absence. Reporting false here
+        // would label every cached build "cannot run here" on a platform
+        // @puppeteer/browsers simply does not recognise.
+        detectBrowserPlatform.mockReturnValue(undefined);
+
+        const result = await browserInstalled({ loglevel: 'info' });
+
+        expect(result[0].isCurrentPlatform).toBe(true);
     });
 });

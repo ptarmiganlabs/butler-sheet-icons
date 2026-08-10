@@ -1,6 +1,5 @@
 import { getInstalledBrowsers, uninstall } from '@puppeteer/browsers';
-import path from 'path';
-import { homedir } from 'os';
+import { getBrowserCacheDir } from './browser-cache-dir.js';
 import fs from 'fs-extra';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
@@ -47,7 +46,7 @@ export const browserUninstall = async (options) => {
             );
         }
 
-        const browserPath = path.join(homedir(), '.cache/puppeteer');
+        const browserPath = getBrowserCacheDir();
 
         logger.debug(`Browser cache path: ${browserPath}`);
 
@@ -109,7 +108,7 @@ export const browserUninstallAll = async (options) => {
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
-        const browserPath = path.join(homedir(), '.cache/puppeteer');
+        const browserPath = getBrowserCacheDir();
         logger.debug(`Browser cache path: ${browserPath}`);
 
         // Get list of all installed browsers
