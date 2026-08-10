@@ -256,6 +256,36 @@ describe('fatal error safety net, end to end (issue #946)', () => {
     });
 });
 
+/**
+ * Spawns the CLI once per distinct argument/environment pair, reusing the
+ * result for every assertion that needs it.
+ *
+ * Several assertions below examine different aspects of the same run - the exit
+ * code, the guidance text, the absence of a stack trace, the absence of escape
+ * codes. Spawning a fresh process for each cost ~3.5 s apiece on the Windows
+ * runner, where process creation is far more expensive than on Linux, and took
+ * this file from 4 s to 56 s. Caching keeps the assertions separate, which is
+ * what makes a failure legible, without paying for the separation.
+ *
+ * @param {string[]} args - CLI arguments.
+ * @param {object} options - `spawnSync` options, as for {@link execCLI}.
+ *
+ * @returns {import('child_process').SpawnSyncReturns<string>} The cached `spawnSync` result.
+ */
+const cachedCLI = (() => {
+    const cache = new Map();
+
+    return (args, options) => {
+        const key = JSON.stringify([args, options.env, options.input, options.timeout]);
+
+        if (!cache.has(key)) {
+            cache.set(key, execCLI(args, options));
+        }
+
+        return cache.get(key);
+    };
+})();
+
 // The rows of the #900 verification matrix that a machine can check. The
 // Windows console rows - code pages, PowerShell hosts, cursor redraw - need a
 // human looking at a screen, but everything below runs unattended on both
@@ -276,7 +306,7 @@ describe('interactive mode without a terminal', () => {
         // The single most important property in the whole feature. A wizard
         // blocking on a closed stdin inside a scheduled container run is an
         // outage, not a cosmetic problem.
-        const result = execCLI(['interactive'], {
+        const result = cachedCLI(['interactive'], {
             input: '',
             timeout: 20000,
             env: NON_TTY_ENV,
@@ -290,7 +320,7 @@ describe('interactive mode without a terminal', () => {
     });
 
     test('explains why, and how to proceed, rather than just failing', () => {
-        const result = execCLI(['interactive'], { input: '', timeout: 20000, env: NON_TTY_ENV });
+        const result = cachedCLI(['interactive'], { input: '', timeout: 20000, env: NON_TTY_ENV });
         const output = result.stdout + result.stderr;
 
         expect(output).toContain('needs a terminal');
@@ -300,7 +330,7 @@ describe('interactive mode without a terminal', () => {
     test('the explanation carries no stack trace', () => {
         // The guidance is already a complete explanation. Issue #785 was about
         // exactly this kind of noise drowning the useful line.
-        const result = execCLI(['interactive'], { input: '', timeout: 20000, env: NON_TTY_ENV });
+        const result = cachedCLI(['interactive'], { input: '', timeout: 20000, env: NON_TTY_ENV });
         const output = result.stdout + result.stderr;
 
         expect(output).not.toContain('    at ');
@@ -321,7 +351,7 @@ describe('interactive mode without a terminal', () => {
     test('redirected output carries no escape codes', () => {
         // False for the whole program until the console transport learned to
         // check isTTY, so this guards every command, not just this one.
-        const result = execCLI(['interactive'], { input: '', timeout: 20000, env: NON_TTY_ENV });
+        const result = cachedCLI(['interactive'], { input: '', timeout: 20000, env: NON_TTY_ENV });
 
         expect(result.stdout).not.toMatch(ESCAPE_CODE);
         expect(result.stderr).not.toMatch(ESCAPE_CODE);
@@ -348,7 +378,7 @@ describe('interactive --self-test', () => {
         // Exiting 0 here is what lets this be the CI check guarding the non-TTY
         // path. The capability report is complete and useful without prompts;
         // only the prompt gallery needs a terminal.
-        const result = execCLI(['interactive', '--self-test'], {
+        const result = cachedCLI(['interactive', '--self-test'], {
             input: '',
             timeout: 30000,
             env: SELF_TEST_ENV,
@@ -359,7 +389,7 @@ describe('interactive --self-test', () => {
     });
 
     test('reports the capabilities that decide how the wizard renders', () => {
-        const result = execCLI(['interactive', '--self-test'], {
+        const result = cachedCLI(['interactive', '--self-test'], {
             input: '',
             timeout: 30000,
             env: SELF_TEST_ENV,
@@ -378,7 +408,7 @@ describe('interactive --self-test', () => {
     });
 
     test('skips the prompt gallery, saying why', () => {
-        const result = execCLI(['interactive', '--self-test'], {
+        const result = cachedCLI(['interactive', '--self-test'], {
             input: '',
             timeout: 30000,
             env: SELF_TEST_ENV,

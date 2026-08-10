@@ -145,14 +145,13 @@ describe('readWindowsCodePage', () => {
     });
 });
 
+// Every assertion here pins the symbol set explicitly. Letting the real
+// detector decide would make these tests agree with whichever host ran them:
+// is-unicode-supported reads process.env directly, so it says yes on the ubuntu
+// runner and no on the windows one, and an assertion of "norc" would pass on one
+// and fail on the other. That is the whole reason BSI_ASCII_ONLY exists, and it
+// applies to the tests as much as to CI.
 describe('the rendered matrices', () => {
-    test('show both symbol columns when the terminal can render Unicode', () => {
-        const out = selfTest.formatSymbolMatrix();
-
-        expect(out).toContain('unicode');
-        expect(out).toContain('ascii');
-    });
-
     test('omit the Unicode column when the ASCII set is in use', () => {
         // Printing characters the terminal has just told us it cannot render
         // would be the very mojibake this command exists to detect.
@@ -164,19 +163,30 @@ describe('the rendered matrices', () => {
         expect(offending).toEqual([]);
     });
 
-    test('show the ASCII column even when Unicode is available, for comparison', () => {
+    test('show both columns when Unicode is available, for comparison', () => {
         // The support case: an administrator whose Unicode column renders as
         // boxes has demonstrated detection was wrong, with no version guessing.
         const out = selfTest.formatSymbolMatrix(UNICODE_SYMBOLS);
 
+        expect(out).toContain('in use: unicode');
         expect(out).toContain(UNICODE_SYMBOLS.cursor);
         expect(out).toContain(ASCII_SYMBOLS.done);
     });
 
     test('border sample follows the symbol set', () => {
-        expect(selfTest.formatBorderMatrix({})).toContain('norc');
-        expect(selfTest.formatBorderMatrix({ [ASCII_ONLY_ENV]: '1' })).not.toContain('norc');
-        expect(selfTest.formatBorderMatrix({ [ASCII_ONLY_ENV]: '1' })).toContain('ramac');
+        const unicodeTerminal = () => true;
+        const asciiTerminal = () => false;
+
+        expect(selfTest.formatBorderMatrix({}, unicodeTerminal)).toContain('norc');
+        expect(selfTest.formatBorderMatrix({}, asciiTerminal)).not.toContain('norc');
+        expect(selfTest.formatBorderMatrix({}, asciiTerminal)).toContain('ramac');
+    });
+
+    test('the ASCII override wins over a terminal that claims Unicode support', () => {
+        const out = selfTest.formatBorderMatrix({ [ASCII_ONLY_ENV]: '1' }, () => true);
+
+        expect(out).not.toContain('norc');
+        expect(out).toContain('ramac');
     });
 });
 
@@ -195,7 +205,9 @@ describe('renderStaticReport', () => {
     });
 
     test('includes the capability report and every matrix', () => {
-        const report = selfTest.renderStaticReport(pipedDeps());
+        // Forced to ASCII so the content is the same on every host. Without it
+        // the assertions would quietly describe whichever runner executed them.
+        const report = selfTest.renderStaticReport(pipedDeps({ [ASCII_ONLY_ENV]: '1' }));
 
         expect(report).toContain('self-test');
         expect(report).toContain('Interactive mode');

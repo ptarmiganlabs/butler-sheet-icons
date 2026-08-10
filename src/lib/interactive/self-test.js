@@ -217,11 +217,12 @@ export const formatSymbolMatrix = (symbols = getSymbols()) => {
  * only when this terminal can render it.
  *
  * @param {object} [env] - Environment, used to report which set is in use.
+ * @param {Function} [detect] - Unicode detection function. Injectable so tests do not depend on the host running them.
  *
  * @returns {string} The formatted sample.
  */
-export const formatBorderMatrix = (env = process.env) => {
-    const inUse = tableBorderName(env);
+export const formatBorderMatrix = (env = process.env, detect = undefined) => {
+    const inUse = detect ? tableBorderName(env, detect) : tableBorderName(env);
     const shown = inUse === 'ramac' ? ['ramac'] : ['norc', 'ramac'];
 
     let out = `  (in use: ${inUse})\n`;
