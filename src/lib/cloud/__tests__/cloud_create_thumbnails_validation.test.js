@@ -82,3 +82,59 @@ describe('cloud-create-thumbnails.js — includesheetpart validation', () => {
         expect(await rejectedByValidation(value)).toBe(true);
     });
 });
+
+// Both tag options are registered for the qscloud command but no Cloud code has ever read them:
+// Qlik Sense Cloud has no way to tag an individual sheet. They used to pass silently, so an
+// operator could believe a rule was in force that never was. See issue #840.
+describe('cloud-create-thumbnails.js — sheet tag options are unsupported on QS Cloud', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    /**
+     * Runs the function with the given options and returns everything logged as a warning.
+     *
+     * @param {object} overrides - Option values to add to a minimal valid set.
+     *
+     * @returns {Promise<string>} All warning messages, newline-joined.
+     */
+    async function warningsFor(overrides) {
+        await qscloudCreateThumbnails(
+            {
+                includesheetpart: '1',
+                loglevel: 'info',
+                tenanturl: 'test.eu.qlikcloud.com',
+                apikey: 'test-key',
+                ...overrides,
+            },
+            {}
+        ).catch(() => undefined);
+
+        return logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+    }
+
+    test.each([
+        ['--exclude-sheet-tag', 'excludeSheetTag'],
+        ['--blur-sheet-tag', 'blurSheetTag'],
+    ])('warns that %s is ignored', async (flag, optionKey) => {
+        const warned = await warningsFor({ [optionKey]: ['some-tag'] });
+
+        expect(warned).toContain(`${flag} is not supported for Qlik Sense Cloud`);
+    });
+
+    test('accepts a bare string as well as an array', async () => {
+        const warned = await warningsFor({ blurSheetTag: 'some-tag' });
+
+        expect(warned).toContain('--blur-sheet-tag is not supported');
+    });
+
+    test.each([
+        ['the options are absent', {}],
+        ['an empty environment variable yields a blank entry', { blurSheetTag: [''] }],
+        ['an empty array is passed', { blurSheetTag: [], excludeSheetTag: [] }],
+    ])('stays silent when %s', async (_label, overrides) => {
+        const warned = await warningsFor(overrides);
+
+        expect(warned).not.toContain('not supported for Qlik Sense Cloud');
+    });
+});
