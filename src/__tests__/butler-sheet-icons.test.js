@@ -7,7 +7,7 @@ import childProcess from 'child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 // Mock all the imported modules that are used in the main file
 jest.mock('../globals.js', () => ({
@@ -147,6 +147,9 @@ describe('butler-sheet-icons CLI', () => {
     });
 });
 
+/** Printed by the child once the handlers are installed, to prove it got that far. */
+const HANDLERS_READY = '__bsi_fatal_handlers_installed__';
+
 describe('fatal error safety net, end to end (issue #946)', () => {
     // No mocks here: a real child process, the real handlers, the real crash
     // dump writer, and a real directory on disk. Measured against the handlers
@@ -172,13 +175,18 @@ describe('fatal error safety net, end to end (issue #946)', () => {
     const runFatalBurst = (rejectionCount) => {
         const __dirname = path.dirname(fileURLToPath(import.meta.url));
         const handlersPath = path.resolve(__dirname, '../lib/util/fatal-handlers.js');
+        // A bare Windows path is not a valid ESM specifier — `import 'C:\...'`
+        // fails with ERR_UNSUPPORTED_ESM_URL_SCHEME. Feed the loader a file URL
+        // on every platform.
+        const handlersUrl = pathToFileURL(handlersPath).href;
         const source = [
-            `import { installFatalHandlers } from ${JSON.stringify(handlersPath)};`,
+            `import { installFatalHandlers } from ${JSON.stringify(handlersUrl)};`,
             'installFatalHandlers();',
+            `console.log(${JSON.stringify(HANDLERS_READY)});`,
             `for (let i = 0; i < ${rejectionCount}; i += 1) Promise.reject(new Error('boom ' + i));`,
         ].join('\n');
 
-        return childProcess.spawnSync('node', ['--input-type=module', '-e', source], {
+        const result = childProcess.spawnSync('node', ['--input-type=module', '-e', source], {
             encoding: 'utf-8',
             timeout: 30000,
             env: {
@@ -189,6 +197,22 @@ describe('fatal error safety net, end to end (issue #946)', () => {
                 BSI_CRASH_DUMP_CREATE_TEXT: '1',
             },
         });
+
+        // A child that never got as far as installing the handlers would fail
+        // every assertion below as "no crash dumps written", which points at
+        // the wrong thing entirely. Fail here instead, quoting the child.
+        if (!result.stdout?.includes(HANDLERS_READY)) {
+            throw new Error(
+                [
+                    'The child process did not reach installFatalHandlers().',
+                    `status: ${result.status}, signal: ${result.signal}`,
+                    `stdout: ${result.stdout}`,
+                    `stderr: ${result.stderr}`,
+                ].join('\n')
+            );
+        }
+
+        return result;
     };
 
     test('a burst of 200 unhandled rejections writes exactly one crash dump', () => {
