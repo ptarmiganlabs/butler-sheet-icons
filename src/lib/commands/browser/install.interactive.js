@@ -43,6 +43,11 @@ export default {
                 ...version,
                 type: 'search',
                 message: 'Which build should be installed?',
+                // The inherited hint is the full --browser-version description,
+                // four sentences explaining the keyword and version formats a
+                // user would have to type. The picker makes all of that moot:
+                // the choices are the answer to what it was explaining.
+                hint: 'Type to filter, or take one of the first two entries.',
                 needs: ['browser'],
                 choices: async ({ answers }) => {
                     const published = await fetchAvailableVersions({

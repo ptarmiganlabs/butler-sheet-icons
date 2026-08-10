@@ -126,3 +126,31 @@ describe('SEA bundling', () => {
         }
     });
 });
+
+describe('the menu themes itself', () => {
+    test('does not fall back to the library default tick', async () => {
+        // Regression guard. The menu used to be asked without a theme, so it
+        // ticked with @inquirer's U+2714 while every prompt after it used the
+        // repo's U+2713 - and, far worse, it never consulted the ASCII symbol
+        // set, so it would have mojibaked on exactly the consoles the fallback
+        // exists for while the rest of the wizard rendered correctly.
+        const { runMenu } = await import('../menu.js');
+        const { UNICODE_SYMBOLS } = await import('../symbols.js');
+
+        let seenTheme;
+        const runtime = {
+            write: () => {},
+            ask: async (_spec, config) => {
+                seenTheme = config.theme;
+
+                return null;
+            },
+        };
+
+        await runMenu({ runtime });
+
+        expect(seenTheme).toBeDefined();
+        expect(seenTheme.prefix.done).toContain(UNICODE_SYMBOLS.done);
+        expect(seenTheme.icon.cursor).toBe(UNICODE_SYMBOLS.cursor);
+    });
+});

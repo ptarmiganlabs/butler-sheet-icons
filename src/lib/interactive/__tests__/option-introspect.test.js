@@ -239,6 +239,27 @@ describe('splitDescription', () => {
         expect(hint).toBe('Use list-installed to see what is there.');
     });
 
+    test('does not mistake an abbreviation for the end of the question', () => {
+        // Taking the first full stop turned this into the question "Browser to
+        // install (e.g.", which is worse than not splitting at all.
+        const { message, hint } = splitDescription(
+            'Browser to install (e.g. "chrome" or "firefox"). Use list-installed to see them.'
+        );
+
+        expect(message).toBe('Browser to install (e.g. "chrome" or "firefox").');
+        expect(hint).toBe('Use list-installed to see them.');
+    });
+
+    test('no real command produces a question cut mid-abbreviation', () => {
+        for (const { command } of LEAVES) {
+            for (const spec of specsFromCommand(command)) {
+                expect(`${spec.key}: ${/\b(?:e\.g|i\.e|etc|vs)\.$/i.test(spec.message)}`).toBe(
+                    `${spec.key}: false`
+                );
+            }
+        }
+    });
+
     test('copes with a description that is a single phrase', () => {
         expect(splitDescription('Log level')).toEqual({ message: 'Log level', hint: undefined });
     });

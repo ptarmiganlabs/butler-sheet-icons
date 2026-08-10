@@ -51,8 +51,28 @@ export const isTrueFalseOption = (option) => option.flags.includes('<true|false>
 export const splitDescription = (description = '') => {
     const text = String(description).trim();
     const firstLine = text.split('\n')[0].trim();
-    const match = firstLine.match(/^(.*?[.?!])(\s+.*)?$/);
-    const message = (match ? match[1] : firstLine).trim();
+
+    // A sentence ends at .?! only when what follows starts a new sentence, and
+    // when the full stop is not part of an abbreviation. Both halves are
+    // needed: taking the first full stop turned "Browser to install (e.g.
+    // "chrome" or "firefox")." into the question "Browser to install (e.g.",
+    // which is worse than not splitting at all.
+    const sentenceEnd = /[.?!](?=\s+["(A-Z]|$)/g;
+    let end = -1;
+    let match;
+
+    while ((match = sentenceEnd.exec(firstLine)) !== null) {
+        const candidate = firstLine.slice(0, match.index + 1);
+
+        if (/\b(?:e\.g|i\.e|etc|vs|approx|no|fig)\.$/i.test(candidate)) {
+            continue;
+        }
+
+        end = match.index + 1;
+        break;
+    }
+
+    const message = (end > 0 ? firstLine.slice(0, end) : firstLine).trim();
     const hint = text.slice(message.length).trim();
 
     return { message: message || text, hint: hint || undefined };

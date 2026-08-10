@@ -88,8 +88,13 @@ const resolveChoices = async (spec, ctx) => {
  * @returns {object} Configuration for the runtime.
  */
 const configFor = (spec, choices, theme) => {
-    const message = spec.hint ? `${spec.message} ${spec.hint}` : spec.message;
-    const config = { message, theme };
+    // The hint is deliberately NOT folded into the message. Several option
+    // descriptions in this codebase run to three or four sentences, and
+    // appending them produced a prompt several lines long with the actual
+    // question lost at the front of it. The driver prints the hint on its own
+    // dimmed line instead, where it reads as supporting detail rather than as
+    // part of what is being asked.
+    const config = { message: spec.message, theme };
 
     if (spec.type === 'confirm') {
         config.default = Boolean(spec.default);
@@ -188,6 +193,16 @@ export const askQuestions = async (specs, ctx = {}, { runtime = defaultRuntime }
         }
 
         const { choices, spec: asked } = await resolveChoices(spec, context);
+
+        // A blank line between steps. Answered prompts collapse to a single
+        // line and stay on screen, so without this the transcript becomes an
+        // undifferentiated block in which the question being asked now is hard
+        // to pick out from the ones already answered.
+        runtime.write('\n');
+
+        if (asked.hint) {
+            runtime.write(`  ${theme.style.help(asked.hint)}\n`);
+        }
 
         const raw = await runtime.ask(asked, configFor(asked, choices, theme));
 

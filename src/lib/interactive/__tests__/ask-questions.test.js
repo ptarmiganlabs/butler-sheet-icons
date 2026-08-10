@@ -50,12 +50,26 @@ describe('askQuestions', () => {
         expect(runtime.asked.map((a) => a.key)).toEqual(['host', 'port']);
     });
 
-    test('passes the hint along with the question', async () => {
+    test('shows the hint beside the question, not inside it', async () => {
+        // Several option descriptions run to three or four sentences. Folding
+        // them into the message produced a prompt several lines long with the
+        // actual question lost at the front of it.
         const runtime = scriptedRuntime({ k: 'x' });
         await askQuestions([spec({ hint: 'Use list-installed to see them.' })], ctx(), { runtime });
 
-        expect(runtime.asked[0].message).toContain('A question?');
-        expect(runtime.asked[0].message).toContain('list-installed');
+        expect(runtime.asked[0].message).toBe('A question?');
+        expect(runtime.output()).toContain('list-installed');
+    });
+
+    test('separates each step with a blank line', async () => {
+        // Answered prompts collapse to one line and stay on screen, so without
+        // this the transcript becomes a block in which the question being asked
+        // now is hard to pick out from the ones already answered.
+        const runtime = scriptedRuntime({ a: '1', b: '2' });
+
+        await askQuestions([spec({ key: 'a' }), spec({ key: 'b' })], ctx(), { runtime });
+
+        expect(runtime.written.filter((line) => line === '\n')).toHaveLength(2);
     });
 
     test('skips a question whose `when` says it does not apply', async () => {
