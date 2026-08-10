@@ -4,9 +4,18 @@
  * depending on machine state".
  *
  * The failure is not reproducible on demand: the same machine, the same Chrome build and the same
- * code passed a few hours before it failed. Every data point so far lines up with the state of the
- * host's display and login session, but that is correlation. This probe exists to turn it into
- * evidence, so the flag is removed on a measurement rather than on a hunch.
+ * code passed a few hours before it failed. This probe was written to turn a correlation into a
+ * measurement, so that the flag would be removed on evidence rather than on a hunch.
+ *
+ * It did its job, and the answer was negative. The hypothesis at the time - display sleep, and idle
+ * session state more broadly - was disconfirmed on the build Mac, once by forcing the display
+ * asleep and once by an unattended overnight sample with the idle assertion genuinely decayed and
+ * the display off for over three hours. #913 was closed with the trigger unidentified, and
+ * `--single-process` is still added on every non-Windows, non-Docker launch.
+ *
+ * Kept because the flag is still in the product and the failure was never explained. Run it against
+ * a machine showing the symptom - every app failing with `Page.captureScreenshot timed out`. See
+ * .github/workflows/browser-flag-canary.yaml for the fuller history and for how to read a result.
  *
  * What it does, per trial:
  *

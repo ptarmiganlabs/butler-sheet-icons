@@ -1,21 +1,57 @@
 name: browser-flag-canary
 
-# Evidence gathering for issue #913 - "--single-process makes every screenshot hang on macOS
-# depending on machine state".
+# On-demand A/B test of the `--single-process` Chromium flag on macOS.
 #
-# The failure has never been seen in CI, and that is not luck: test-browser-macos takes no
-# screenshot at all, test-qscloud-macos runs on a hosted runner with no display to fall asleep, and
-# test-qseow-macos runs on the self-hosted Mac, which has so far only been asked to work while
-# somebody was logged in and using it. Every observation of the failure comes from that same Mac
-# late at night.
+# ---------------------------------------------------------------------------------------------
+# Why this exists, and why it is still here after the issue was closed
+# ---------------------------------------------------------------------------------------------
 #
-# This workflow puts the machine into the suspected state deliberately and runs the A/B, so the
-# decision to keep or drop the flag rests on a measurement. It changes no product code and touches
-# no Qlik environment.
+# Issue #913 reported that `--single-process` made every screenshot hang on macOS until
+# puppeteer's 180 s protocol timeout, failing 100% of apps in a run. It was real and it was
+# isolated: bare puppeteer, `about:blank`, no BSI code, same machine and same Chrome build minutes
+# apart - with the flag it never completed, without it, 31 ms.
 #
-# A job goes red only when screenshots fail *without* the flag. Reproducing the failure *with* the
-# flag is the expected result and is reported, not failed - a canary that is red for its own
-# findings gets ignored.
+# What was never established is *what state* triggers it. The failure was only ever observed on one
+# laptop, and this workflow was built to reproduce it somewhere measurable. It did not:
+#
+#   - Forcing the display asleep on the build Mac (2026-08-09): no difference.
+#   - A genuinely unattended overnight sample - `userIsActive=0`, display asleep 3 h 13 min
+#     (2026-08-10): no difference. `--single-process` was the *fastest* of the three trials.
+#
+# So the display-sleep / idle-session hypothesis is disconfirmed on the one machine that can be
+# instrumented, and #913 was closed as "not planned" with the trigger unidentified. `--single-process`
+# is still in `buildBrowserArgs` and still added on every non-Windows, non-Docker launch.
+#
+# This is kept, rather than deleted with the issue, because the flag is still in the product and the
+# failure was never explained. If it recurs, this and `scripts/diag/browser-flag-probe.mjs` are the
+# instruments - already written, already exercised - and running one is far cheaper than rebuilding
+# them under pressure. Most valuably, the probe runs `sample(1)` against the wedged browser process
+# on a hang and keeps the stack, which is the one piece of evidence the whole investigation never
+# managed to obtain.
+#
+# ---------------------------------------------------------------------------------------------
+# Running it
+# ---------------------------------------------------------------------------------------------
+#
+# Manual only. Run it when a macOS host is suspected of the #913 symptom - every app in a run
+# failing with `Page.captureScreenshot timed out` - ideally on the machine showing the symptom, in
+# the state it shows it. Nothing here touches product code or any Qlik environment.
+#
+# Reading the result:
+#
+#   - A job goes red **only** when screenshots fail *without* the flag. Reproducing the failure
+#     *with* the flag is the finding, and is reported rather than failed: a canary that goes red for
+#     its own findings gets ignored.
+#   - "No difference observed in this state" means the machine was not in the failing state - not
+#     that the flag is fine. Absence of the symptom proves nothing on its own.
+#   - Ignore the `as-is` leg's readings when both legs run. The matrix legs share the self-hosted
+#     runner, and `display-asleep` ends with a `caffeinate` that wakes the display seconds before
+#     `as-is` starts - so `as-is` reports "just woken", not the state the machine was found in. That
+#     was observed in the 2026-08-10 run. Fix the scoping before trusting it.
+#
+# The context CI cannot give you: `test-browser-macos` takes no screenshot at all, `test-qscloud-macos`
+# runs on a hosted runner with no display to fall asleep, and `test-qseow-macos` runs on the
+# self-hosted Mac only while it is in use. None of them would ever have caught this.
 
 on:
   workflow_dispatch:
@@ -31,11 +67,12 @@ on:
         required: false
         type: boolean
         default: false
-  # The build Mac is idle and its display asleep in the small hours, which is exactly the state
-  # under suspicion - so a nightly run observes the failure without having to force anything.
-  # Remove this schedule once #913 is settled.
-  schedule:
-    - cron: '0 1 * * *'
+
+# There was a nightly schedule here while #913 was open, to catch the build Mac in its unattended
+# overnight state without anyone having to force it. It ran, produced the clean negative result
+# recorded above, and was removed with the issue - a canary firing every night against a question
+# nobody is asking wakes the build Mac's display and burns self-hosted runner time for nothing.
+# Restore it if the symptom comes back and needs sampling over several nights.
 
 permissions: {}
 
