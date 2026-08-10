@@ -1,5 +1,6 @@
-import { getInstalledBrowsers, uninstall } from '@puppeteer/browsers';
+import { uninstall } from '@puppeteer/browsers';
 import { getBrowserCacheDir } from './browser-cache-dir.js';
+import { getBrowserInventory } from './browser-inventory.js';
 import fs from 'fs-extra';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
@@ -50,37 +51,73 @@ export const browserUninstall = async (options) => {
 
         logger.debug(`Browser cache path: ${browserPath}`);
 
-        // Get list of all installed browsers
-        const browsersInstalled = await getInstalledBrowsers({
-            cacheDir: browserPath,
-        });
+        const inventory = await getBrowserInventory({ cacheDir: browserPath });
 
-        // Get specifics of browser to be uninstalled
-        const browserToUninstall = browsersInstalled.find(
+        // The cache is keyed by platform as well as by build, so the same build
+        // id can legitimately appear more than once - a cache directory copied
+        // between machines, or mounted into a container, is enough.
+        const matches = inventory.filter(
             (browser) => browser.browser === options.browser && browser.buildId === buildId
         );
 
-        // Check if browser to uninstall was found
-        if (browserToUninstall) {
-            logger.info(
-                `Uninstalling browser: ${browserToUninstall.browser}, build id=${browserToUninstall.buildId}, platform=${browserToUninstall.platform}, path=${browserToUninstall.path}`
-            );
-
-            await uninstall({
-                browser: browserToUninstall.browser,
-                buildId: browserToUninstall.buildId,
-                cacheDir: browserPath,
-            });
-
-            logger.info(
-                `Browser "${browserToUninstall.browser}", version "${browserToUninstall.buildId}" uninstalled.`
-            );
-        } else {
+        if (matches.length === 0) {
             logger.info(
                 `Browser not found in cache: ${options.browser} build ${buildId}. Use "butler-sheet-icons browser list-installed" to see what is installed.`
             );
             return false;
         }
+
+        // Prefer the build that can actually run here. Previously this was
+        // whichever entry the filesystem happened to list first.
+        const browserToUninstall =
+            matches.find((browser) => browser.isCurrentPlatform) ?? matches[0];
+
+        if (matches.length > 1) {
+            logger.warn(
+                `Build ${buildId} is cached for ${matches.length} platforms (${matches
+                    .map((browser) => browser.platform)
+                    .join(
+                        ', '
+                    )}). Removing the "${browserToUninstall.platform}" build; re-run to remove the next one.`
+            );
+        }
+
+        logger.info(
+            `Uninstalling browser: ${browserToUninstall.browser}, build id=${browserToUninstall.buildId}, platform=${browserToUninstall.platform}, path=${browserToUninstall.path}`
+        );
+
+        await uninstall({
+            browser: browserToUninstall.browser,
+            buildId: browserToUninstall.buildId,
+            // Without this, `platform` is auto-detected as the *host* platform,
+            // so removing a build downloaded for another platform targeted a
+            // directory that does not exist. The call then succeeded silently
+            // and the build stayed on disk (issue #892).
+            platform: browserToUninstall.platform,
+            cacheDir: browserPath,
+        });
+
+        // Report what happened, not what was attempted. `uninstall()` resolves
+        // whether or not it removed anything, so the only honest way to claim
+        // success is to look again.
+        const remaining = await getBrowserInventory({ cacheDir: browserPath });
+        const stillCached = remaining.some(
+            (browser) =>
+                browser.browser === browserToUninstall.browser &&
+                browser.buildId === browserToUninstall.buildId &&
+                browser.platform === browserToUninstall.platform
+        );
+
+        if (stillCached) {
+            logger.error(
+                `Browser "${browserToUninstall.browser}", version "${browserToUninstall.buildId}" (built for ${browserToUninstall.platform}) could not be removed. It is still in the cache at ${browserToUninstall.path}.`
+            );
+            return false;
+        }
+
+        logger.info(
+            `Browser "${browserToUninstall.browser}", version "${browserToUninstall.buildId}" uninstalled.`
+        );
 
         return true;
     } catch (err) {
@@ -111,10 +148,7 @@ export const browserUninstallAll = async (options) => {
         const browserPath = getBrowserCacheDir();
         logger.debug(`Browser cache path: ${browserPath}`);
 
-        // Get list of all installed browsers
-        const browsersInstalled = await getInstalledBrowsers({
-            cacheDir: browserPath,
-        });
+        const browsersInstalled = await getBrowserInventory({ cacheDir: browserPath });
 
         // Check if any browsers are installed
         if (browsersInstalled.length > 0) {
@@ -135,6 +169,12 @@ export const browserUninstallAll = async (options) => {
                     await uninstall({
                         browser: browser.browser,
                         buildId: browser.buildId,
+                        // Same fix as browserUninstall: without an explicit
+                        // platform this targets the host's directory, so a
+                        // foreign-platform build is skipped silently. Here the
+                        // emptyDir below would eventually remove it anyway, but
+                        // only after reporting a removal that did not happen.
+                        platform: browser.platform,
                         cacheDir: browserPath,
                     });
                 } catch (err) {
