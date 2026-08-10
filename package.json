@@ -38,6 +38,7 @@
         "screenshot"
     ],
     "dependencies": {
+        "@inquirer/prompts": "^8.5.2",
         "@puppeteer/browsers": "^3.0.0",
         "axios": "^1.18.1",
         "cli-progress": "^3.12.0",
@@ -46,8 +47,10 @@
         "enigma.js": "^2.14.0",
         "form-data": "^4.0.6",
         "fs-extra": "^11.4.0",
+        "is-unicode-supported": "^2.1.0",
         "jimp": "^1.6.1",
         "os": "^0.1.2",
+        "picocolors": "^1.1.1",
         "puppeteer-core": "^25.4.0",
         "qrs-interact": "^6.3.1",
         "table": "^6.9.0",
