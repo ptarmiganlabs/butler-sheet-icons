@@ -14,7 +14,6 @@
 * cap how many crash dumps a single run can write ([15f7fc6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/15f7fc69461400cedd0c32985fa7b6aaff5d7be0)), closes [#946](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/946)
 * **cli:** validate --includesheetpart at parse time in both backends ([e27b326](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e27b32655f85f0d106dbd528f80b208390eaefd2)), closes [#891](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/891)
 * give a working way to read the Chromium credits page ([1c1220c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1c1220c4fa1c347442b78ce133fd6abb910febe8))
-* give a working way to read the Chromium credits page ([bbac868](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bbac868939aa705d7d3583c79dcd75f46bb79755))
 * look up the sheets named by --blur-sheet-tag on QSEoW ([c332e13](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c332e13436d276b7bd9f495b5b418b6a383ba2ff))
 * make --skip-login take effect ([b461562](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b461562ba9c4968a160200bf8d4c6ccd2f392eb5)), closes [#890](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/890)
 * make the crash dump end-to-end test run on Windows ([e54ddeb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e54ddebbfef934bd2f8cbca90ef45869c13ef9b7)), closes [#946](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/946)
@@ -34,7 +33,6 @@
 
 ### Miscellaneous
 
-* keep the GitNexus index fresh with git hooks ([62dba80](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/62dba803614b7908764a8ba77e06f656bb989aba))
 * keep the GitNexus index fresh with git hooks ([ec2f477](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ec2f4779852c5c7b5ae7a83b4847397679253e2f)), closes [#829](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/829)
 * refresh generated GitNexus skill files ([cd02e21](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cd02e21ca3a7e932ea10f27082ed565949a327a9))
 * retire the flag canary's nightly schedule, and say why it is kept ([9c93385](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9c933859c93c62b8291c7da0dcca4d06b4ca82c2))
@@ -47,11 +45,8 @@
 * cover the per-app QRS lookups in the staged page ([7c24880](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7c24880593cfd5f1ed0f25f721d008d97c18c42c))
 * document the sheet tag options the Cloud thumbnail command reads ([d4b58ef](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d4b58ef975cfeec30f32f939d07eb2322a1e4b86))
 * mark the browser version selection draft as published ([9b82e81](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9b82e81e2f661f004d76b7f20a4d8e0b228e1407))
-* mark the browser version selection draft as published ([20a3ab9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/20a3ab93118f137c2fe7fdf2a6f4b812e99ac0df))
 * mark the Docker licences page as published ([853bc09](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/853bc09f671fff5c0650f6ac6ac9596e2a17b063))
 * mark the exclude and blur sheet number draft as published ([8f636d2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8f636d2c612450a530593b82862e0efd8f107bfd))
-* mark the exclude and blur sheet number draft as published ([a060855](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a06085544ecced38d517b4332e183abeeed3e864))
-* mark the four Docker drafts as published ([335134e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/335134e668a677ae5a396a349a6acf63fac6da30))
 * mark the four Docker drafts as published ([1b59574](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1b59574d7d1e58df35b67830d9263cc816f1b3e7)), closes [#936](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/936)
 * mark the last three staged drafts as published ([caa87b4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/caa87b4dc3de0f7dc8fd4851f7e93aa21135f4f4))
 * scope a publishing pass to the file that was actually named ([5e66cf6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5e66cf665ba90243fe695a1e73ce4016446eff01))
