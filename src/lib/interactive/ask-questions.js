@@ -78,8 +78,86 @@ const resolveChoices = async (spec, ctx) => {
     }
 };
 
+// The text shown for a choice, which may be a bare value or a {name, value}.
+const labelOf = (choice) =>
+    typeof choice === 'object' && choice !== null ? choice.name : String(choice);
+
+// Whether a default is worth pre-filling.
+const hasDefault = (spec) => spec.default !== undefined && spec.default !== '';
+
+/**
+ * Per-type configuration, keyed by prompt type.
+ *
+ * A lookup rather than a chain of conditionals: each prompt's configuration is
+ * independent of every other's, and phase 2 adds both types and per-type
+ * behaviour to this. An if-chain grows a branch each time; a table grows a row.
+ */
+const CONFIG_BUILDERS = Object.freeze({
+    confirm: (spec) => ({ default: Boolean(spec.default) }),
+
+    checkbox: (spec, choices) => {
+        const chosen = new Set(splitEntries(spec.default).map(String));
+        const check = (value) => chosen.has(String(value));
+
+        return {
+            choices: (choices ?? []).map((choice) =>
+                typeof choice === 'object' && choice !== null
+                    ? { ...choice, checked: check(choice.value) }
+                    : { value: choice, name: String(choice), checked: check(choice) }
+            ),
+            ...(spec.validate ? { validate: spec.validate } : {}),
+        };
+    },
+
+    select: (spec, choices) => ({
+        choices: choices ?? [],
+        ...(hasDefault(spec) ? { default: spec.default } : {}),
+    }),
+
+    // `search` takes a source function rather than a list, so a fixed list is
+    // wrapped into one.
+    search: (spec, choices) => {
+        const list = choices ?? [];
+
+        return {
+            source: async (term) =>
+                term
+                    ? list.filter((choice) =>
+                          labelOf(choice).toLowerCase().includes(term.toLowerCase())
+                      )
+                    : list,
+        };
+    },
+});
+
+// input, password, list and number all take text and validate it.
+const textConfig = (spec) => {
+    const config = {};
+
+    if (hasDefault(spec)) {
+        config.default =
+            spec.type === 'list' ? splitEntries(spec.default).join(', ') : spec.default;
+    }
+
+    if (spec.validate) {
+        config.validate =
+            spec.type === 'list' ? (value) => spec.validate(splitEntries(value)) : spec.validate;
+    } else if (spec.required) {
+        config.validate = (value) =>
+            String(value ?? '').trim().length > 0 ? true : 'This one is required.';
+    }
+
+    return config;
+};
+
 /**
  * Build the configuration one prompt type expects.
+ *
+ * The hint is deliberately NOT folded into the message. Several option
+ * descriptions in this codebase run to three or four sentences, and appending
+ * them produced a prompt several lines long with the actual question lost at
+ * the front of it. The driver prints the hint on its own dimmed line instead,
+ * where it reads as supporting detail rather than as part of the question.
  *
  * @param {import('./option-introspect.js').QuestionSpec} spec - The question.
  * @param {Array|undefined} choices - Resolved choices.
@@ -87,73 +165,11 @@ const resolveChoices = async (spec, ctx) => {
  *
  * @returns {object} Configuration for the runtime.
  */
-const configFor = (spec, choices, theme) => {
-    // The hint is deliberately NOT folded into the message. Several option
-    // descriptions in this codebase run to three or four sentences, and
-    // appending them produced a prompt several lines long with the actual
-    // question lost at the front of it. The driver prints the hint on its own
-    // dimmed line instead, where it reads as supporting detail rather than as
-    // part of what is being asked.
-    const config = { message: spec.message, theme };
-
-    if (spec.type === 'confirm') {
-        config.default = Boolean(spec.default);
-
-        return config;
-    }
-
-    if (spec.type === 'checkbox') {
-        const chosen = new Set(splitEntries(spec.default).map(String));
-
-        config.choices = (choices ?? []).map((choice) =>
-            typeof choice === 'object' && choice !== null
-                ? { ...choice, checked: chosen.has(String(choice.value)) }
-                : { value: choice, name: String(choice), checked: chosen.has(String(choice)) }
-        );
-        if (spec.validate) config.validate = spec.validate;
-
-        return config;
-    }
-
-    if (spec.type === 'select') {
-        config.choices = choices ?? [];
-        if (spec.default !== undefined && spec.default !== '') config.default = spec.default;
-
-        return config;
-    }
-
-    if (spec.type === 'search') {
-        // `search` takes a source function rather than a list, so a fixed list
-        // is wrapped into one.
-        const list = choices ?? [];
-        config.source = async (term) =>
-            !term
-                ? list
-                : list.filter((choice) => {
-                      const label = typeof choice === 'object' ? choice.name : String(choice);
-
-                      return label.toLowerCase().includes(term.toLowerCase());
-                  });
-
-        return config;
-    }
-
-    // input, password, list, number
-    if (spec.default !== undefined && spec.default !== '') {
-        config.default =
-            spec.type === 'list' ? splitEntries(spec.default).join(', ') : spec.default;
-    }
-    if (spec.validate) {
-        config.validate =
-            spec.type === 'list' ? (value) => spec.validate(splitEntries(value)) : spec.validate;
-    }
-    if (spec.required && !spec.validate) {
-        config.validate = (value) =>
-            String(value ?? '').trim().length > 0 ? true : 'This one is required.';
-    }
-
-    return config;
-};
+const configFor = (spec, choices, theme) => ({
+    message: spec.message,
+    theme,
+    ...(CONFIG_BUILDERS[spec.type] ?? textConfig)(spec, choices),
+});
 
 /**
  * Ask a list of questions and collect the answers.

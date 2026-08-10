@@ -45,7 +45,7 @@ export const readWindowsCodePage = (platform = process.platform, run = execFileS
     try {
         // "Active code page: 65001"
         const output = String(run('chcp.com', { encoding: 'utf8', timeout: 5000 }));
-        const match = output.match(/(\d{3,5})/);
+        const match = /(\d{3,5})/.exec(output);
 
         return match ? match[1] : output.trim();
     } catch {

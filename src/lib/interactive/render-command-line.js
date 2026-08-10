@@ -7,6 +7,12 @@ const SECRET_KEYS = new Set(BSI_SECRET_KEYS.map((key) => key.toLowerCase()));
 export const HIDDEN = '<hidden>';
 
 /**
+ * How a single quote is expressed inside a single-quoted shell word: close the
+ * quote, escape the character, reopen. String.raw so the backslash is literal.
+ */
+const ESCAPED_SINGLE_QUOTE = String.raw`'\''`;
+
+/**
  * Quote one argv word for a shell, if it needs it.
  *
  * POSIX single-quoting, and only when the word contains something a shell would
@@ -30,7 +36,7 @@ export const quoteArg = (word) => {
 
     // Single quotes protect everything except a single quote itself, which has
     // to be closed, escaped and reopened.
-    return `'${text.replaceAll("'", `'\\''`)}'`;
+    return `'${text.replaceAll("'", ESCAPED_SINGLE_QUOTE)}'`;
 };
 
 /**
