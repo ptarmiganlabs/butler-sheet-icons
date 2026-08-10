@@ -13,6 +13,7 @@ import {
     SHEET_LIST_FIELDS_EXTENDED,
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
+import { getAppIdsByCollection } from './cloud-apps.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Cloud app.
@@ -214,38 +215,9 @@ export const qscloudRemoveSheetIcons = async (options) => {
         // If --collection exists we should loop over all matching apps.
         // If --collection does not exist the app specified by --appid should be processed.
         if (options.collectionid && options.collectionid.length > 0) {
-            // Get index of specified collection among the existin ones.
-            const allCollections = await saasInstance.Get('collections');
-            logger.debug(`Collections:\n${JSON.stringify(allCollections, null, 2)}`);
-
-            const index = allCollections.map((e) => e.id).indexOf(options.collectionid);
-
-            if (index === -1) {
-                // Collection not found
-                logger.error(`Collection '${options.collectionid}' does not exist - aborting`);
-                throw Error('Collection does not exist');
-            } else {
-                // Collection found
-                logger.verbose(`Collection '${options.collectionid}' exists`);
-
-                // Get all items within collection
-                const collectionItems = await saasInstance.Get(
-                    `collections/${options.collectionid}/items`
-                );
-
-                // Process all apps in this collection
-
-                for (const item of collectionItems) {
-                    // Is item an app?
-                    if (item.resourceType === 'app') {
-                        appIdsToProcess.push(item.resourceAttributes.id);
-                    } else {
-                        logger.verbose(
-                            `Skipping collection item ${item.id} as it is not an app: ${item.resourceType}`
-                        );
-                    }
-                }
-            }
+            const apps = await getAppIdsByCollection(saasInstance, options.collectionid);
+            logger.verbose(`Collection '${options.collectionid}' exists`);
+            appIdsToProcess.push(...apps.map((app) => app.id));
         }
 
         return await runOverApps(
