@@ -14,14 +14,21 @@ export const ASCII_ONLY_ENV = 'BSI_ASCII_ONLY';
 /**
  * Symbols for terminals that render Unicode correctly.
  *
- * Text symbols only, never emoji. Emoji are double-width: `"✅ chrome"` measures
- * width 9 for 8 code units while `"✔ chrome"` measures 8 for 8, so an emoji in
- * a status column silently breaks the alignment of every row after it.
+ * Nothing here may be Extended_Pictographic. That is a stricter rule than
+ * Unicode's own width model justifies, and it is the rule because a real
+ * terminal disproved the looser one: U+2714 HEAVY CHECK MARK and U+2716 HEAVY
+ * MULTIPLICATION X are both text-presentation by default, yet Windows Terminal
+ * renders them from its emoji font - in colour, at double width - which shifted
+ * every following column by one. A character's default presentation does not
+ * bind the font that draws it, so `Emoji_Presentation` is not a safe test.
+ *
+ * U+2713 CHECK MARK and U+2717 BALLOT X carry no pictographic property at all
+ * and are drawn from the text font everywhere.
  */
 export const UNICODE_SYMBOLS = Object.freeze({
     cursor: '❯',
-    done: '✔',
-    failed: '✖',
+    done: '✓',
+    failed: '✗',
     rule: '─',
     checked: '◉',
     unchecked: '◯',

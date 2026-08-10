@@ -43,21 +43,21 @@ describe('the symbol sets', () => {
         expect([...UNICODE_SYMBOLS.checked]).toHaveLength([...UNICODE_SYMBOLS.unchecked].length);
     });
 
-    test('carry nothing with emoji presentation, which would break alignment', () => {
-        // "✅ chrome" measures width 9 for 8 code units, while "✔ chrome"
-        // measures 8 for 8. The property that predicts that is
-        // Emoji_Presentation, not Extended_Pictographic: ✔ and ✖ are both
-        // Extended_Pictographic yet render as single-width text, which is
-        // exactly why they are the right symbols to use. U+FE0F is checked
-        // separately because it forces emoji presentation onto a character
-        // that would otherwise be text-default.
-        const emojiPresentation = /\p{Emoji_Presentation}|️/u;
+    test('carry nothing pictographic, which a font may draw as double-width emoji', () => {
+        // Extended_Pictographic deliberately, not the narrower
+        // Emoji_Presentation. This test used to allow the latter, on the
+        // reasoning that U+2714 and U+2716 are text-presentation by default and
+        // therefore single-width. A screenshot from Windows Terminal disproved
+        // it: both were drawn from the emoji font, in colour, at double width,
+        // shifting every following column by one. Default presentation does not
+        // bind the font, so the conservative property is the correct one.
+        const pictographic = /\p{Extended_Pictographic}|\p{Emoji_Presentation}|️/u;
 
         for (const set of [UNICODE_SYMBOLS, ASCII_SYMBOLS]) {
             for (const [name, value] of Object.entries(set)) {
                 const entries = Array.isArray(value) ? value : [value];
                 for (const entry of entries) {
-                    expect(`${name}: ${emojiPresentation.test(entry)}`).toBe(`${name}: false`);
+                    expect(`${name}: ${pictographic.test(entry)}`).toBe(`${name}: false`);
                 }
             }
         }
