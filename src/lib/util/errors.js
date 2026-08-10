@@ -3,8 +3,8 @@
  *
  * Library code throws these instead of calling `process.exit(1)` so that:
  *
- *   1. The top-level `process.on('uncaughtException')` handler in
- *      `src/butler-sheet-icons.js` is the single source of process exit
+ *   1. The `uncaughtException` handler installed by
+ *      `src/lib/util/fatal-handlers.js` is the single source of process exit
  *      logic. Crash dumps, log lines, and exit codes live in one place.
  *   2. Test code can `await expect(promise).rejects.toThrow(<ErrorClass>)`
  *      instead of monkey-patching `process.exit` (which never worked
