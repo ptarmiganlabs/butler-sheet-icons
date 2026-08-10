@@ -18,9 +18,10 @@ import {
  * that were created during the previous step in the process.
  * @param {string} appId - The ID of the QSEoW app to process.
  * @param {object} options - Configuration options for processing the app.
- * @param {Array<object>} [tagSheetAppMetadata] - Sheet metadata from QRS for sheets carrying the
- * tag named by `--blur-sheet-tag`, each entry exposing `engineObjectId`. Defaults to empty so the
- * tag rule simply matches nothing when the caller has not looked it up.
+ * @param {Array<object>} [tagSheetAppMetadata] - Sheet metadata from QRS for sheets carrying a tag
+ * named by `--blur-sheet-tag`, each entry exposing `engineObjectId`. This is the blur-tag set, not
+ * the exclude-tag one: passing the latter would blur every sheet the operator asked to skip.
+ * Defaults to empty so the tag rule matches nothing when the caller has not looked it up.
  *
  * @returns {Promise<void>} Resolves when every sheet that had a generated thumbnail was
  *     updated.
@@ -40,14 +41,6 @@ export const qseowUpdateSheetThumbnails = async (
 
     try {
         logger.verbose(`Starting update of sheet icons for app ${appId}`);
-
-        // Warn rather than silently ignore: --blur-sheet-tag is accepted by the CLI but nothing
-        // looks the tag up yet, so the rule below can never match. See issue #840.
-        if (options.blurSheetTag && tagSheetAppMetadata.length === 0) {
-            logger.warn(
-                '--blur-sheet-tag is not yet implemented for QSEoW and will be ignored. See https://github.com/ptarmiganlabs/butler-sheet-icons/issues/840'
-            );
-        }
 
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
@@ -135,9 +128,9 @@ export const qseowUpdateSheetThumbnails = async (
                                 }
 
                                 // Should this sheet be blurred based on tags?
-                                // tagSheetAppMetadata is an array of sheet objects, each exposing engineObjectId.
-                                // It arrives empty unless the caller looked the tag up, which nothing does yet -
-                                // see issue #840. Until then the rule matches nothing rather than throwing.
+                                // tagSheetAppMetadata is an array of sheet objects, each exposing
+                                // engineObjectId, looked up by the caller against --blur-sheet-tag.
+                                // It arrives empty when no tag was given, so the rule matches nothing.
                                 if (options.blurSheetTag && blurSheet === false) {
                                     blurSheet = isSheetTagged(tagSheetAppMetadata, sheet);
                                     if (blurSheet) {

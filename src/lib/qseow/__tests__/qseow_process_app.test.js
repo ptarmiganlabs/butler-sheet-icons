@@ -386,6 +386,120 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         expect(tagQuery).not.toContain("'exclude-thumbnail,R&D'");
     });
 
+    // --blur-sheet-tag was accepted by the CLI but nothing ever looked the tag up, so the blur
+    // rule could never match. See issue #840.
+    describe('--blur-sheet-tag lookup (issue #840)', () => {
+        test('queries QRS for the blur tag when one is supplied', async () => {
+            const paths = await qrsPathsFor({ blurSheetTag: ['blur-me'] });
+
+            expect(paths.some((path) => path.includes("tags.name eq 'blur-me'"))).toBe(true);
+        });
+
+        test.each([
+            ['the option is absent', undefined],
+            ['an empty environment variable yields a blank entry', ['']],
+            ['an empty array is passed programmatically', []],
+        ])('skips the blur-tag lookup when %s', async (_label, blurSheetTag) => {
+            const paths = await qrsPathsFor({ blurSheetTag, excludeSheetTag: undefined });
+
+            expect(paths.some((path) => path.includes('tags.name eq'))).toBe(false);
+        });
+
+        test('uses an or-group when several blur tags are given', async () => {
+            const paths = await qrsPathsFor({ blurSheetTag: ['blur-me', 'R&D'] });
+
+            const tagQuery = paths.find((path) => path.includes("tags.name eq 'blur-me'"));
+
+            expect(tagQuery).toContain("(tags.name eq 'blur-me' or tags.name eq 'R&D')");
+            expect(tagQuery).not.toContain("'blur-me,R&D'");
+        });
+
+        test('asks for the exclude tag and the blur tag as two separate queries', async () => {
+            // One combined lookup would lose track of which rule a sheet matched.
+            const paths = await qrsPathsFor({
+                excludeSheetTag: ['exclude-me'],
+                blurSheetTag: ['blur-me'],
+            });
+
+            expect(paths.some((path) => path.includes("tags.name eq 'exclude-me'"))).toBe(true);
+            expect(paths.some((path) => path.includes("tags.name eq 'blur-me'"))).toBe(true);
+            expect(
+                paths.some((path) => path.includes('exclude-me') && path.includes('blur-me'))
+            ).toBe(false);
+        });
+
+        test('reports the matched-sheet count at info so a mistyped tag is visible', async () => {
+            // The silent no-op this closes: with a misspelled tag the run logged exactly what a
+            // run without the option logs, and the blur rule failing open publishes readable
+            // thumbnails. A count of 0 on every app is the signal that the tag matched nothing.
+            await qrsPathsFor({ blurSheetTag: ['blur-me'], excludeSheetTag: undefined });
+
+            const infos = logger.info.mock.calls.map((call) => String(call[0]));
+
+            expect(
+                infos.some(
+                    (line) =>
+                        line.includes('--blur-sheet-tag') &&
+                        line.includes('0') &&
+                        line.includes('blur-me')
+                )
+            ).toBe(true);
+        });
+
+        test('does not report a count for an option that was not supplied', async () => {
+            await qrsPathsFor({ blurSheetTag: undefined, excludeSheetTag: undefined });
+
+            const infos = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+
+            expect(infos).not.toContain('Sheets carrying a tag named by');
+        });
+
+        test('hands the blur-tag sheets to the thumbnail update, never the exclude-tag ones', async () => {
+            // The regression this guards: the obvious fix was to pass the exclude-tag metadata
+            // that was already in scope, which would have blurred every sheet the operator
+            // asked to leave alone - a silent wrong answer in place of a loud crash.
+            const blurTagged = [{ id: 'r1', engineObjectId: 'engine-blur-1' }];
+            const excludeTagged = [{ id: 'r2', engineObjectId: 'engine-exclude-1' }];
+
+            const mockGet = jest.fn().mockImplementation((encodedPath) => {
+                const path = decodeURIComponent(encodedPath);
+                if (path.includes('app?filter=id eq')) {
+                    return Promise.resolve({ body: [{ id: 'test-app-id', name: 'Test App' }] });
+                }
+                if (path.includes("tags.name eq 'blur-me'")) {
+                    return Promise.resolve({ body: blurTagged });
+                }
+                if (path.includes("tags.name eq 'exclude-me'")) {
+                    return Promise.resolve({ body: excludeTagged });
+                }
+                if (path.includes('app/object/full?filter=objectType eq')) {
+                    return Promise.resolve({
+                        body: [{ id: 'sheet-id-1', engineObjectId: 'engine-sheet-id-1' }],
+                    });
+                }
+                return Promise.resolve({ body: [] });
+            });
+
+            qrsInteract.mockImplementation(() => ({ Get: mockGet }));
+            wireEnigmaSession();
+            puppeteer.launch.mockResolvedValue(buildMockBrowser());
+            qseowUpdateSheetThumbnails.mockResolvedValue(true);
+
+            await qseowProcessApp('test-app-id', {
+                ...defaultOptions,
+                excludeSheetTag: ['exclude-me'],
+                blurSheetTag: ['blur-me'],
+            });
+
+            expect(qseowUpdateSheetThumbnails).toHaveBeenCalledWith(
+                expect.anything(),
+                'test-app-id',
+                expect.anything(),
+                blurTagged
+            );
+        });
+    });
+
     test('launches puppeteer with v25-compatible options (headless: true, acceptInsecureCerts)', async () => {
         setupHappyPath();
 

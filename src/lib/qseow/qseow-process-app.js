@@ -18,6 +18,58 @@ import { withEngineSession } from '../util/engine-session.js';
 import { createAppImageDir } from '../util/image-dir.js';
 import { qrsFilterAnyOf, qrsPathWithFilter, toFilterValueList } from './qrs-filter.js';
 
+/**
+ * Looks up the sheets in an app that carry any of the supplied tags.
+ *
+ * Both `--exclude-sheet-tag` and `--blur-sheet-tag` need exactly this, against the same endpoint,
+ * differing only in which option supplies the tags. They are kept as two separate queries rather
+ * than one combined lookup because the two rules have to stay distinguishable: a sheet carrying
+ * the exclude tag must not become a blurred sheet, and vice versa.
+ *
+ * Only worth asking when tags were actually supplied. Querying with none used to ask for a tag
+ * literally named `undefined`, which costs a round trip per app and, on a site that happens to
+ * have a tag by that name, would act on sheets nobody nominated.
+ *
+ * @param {object} qrsInteractInstance - Configured `qrs-interact` instance.
+ * @param {string} appSheetsFilter - Filter term restricting results to sheets in one app.
+ * @param {string|string[]|undefined} tagOption - Raw CLI option value naming the tags.
+ * @param {string} optionName - The option's CLI spelling, used only in log messages.
+ *
+ * @returns {Promise<Array<object>>} Sheet metadata objects exposing `engineObjectId`, empty when
+ *     no tags were supplied.
+ */
+const getSheetsTaggedWith = async (qrsInteractInstance, appSheetsFilter, tagOption, optionName) => {
+    // Variadic options arrive as arrays, so the tag term has to be an `or` group over every tag
+    // given: interpolating the array produced `tags.name eq 'A,B'`, one literal matching no tag.
+    const tags = toFilterValueList(tagOption);
+
+    if (tags.length === 0) {
+        logger.debug(`No ${optionName} supplied, skipping the QRS lookup for tagged sheets`);
+        return [];
+    }
+
+    const tagFilter = `${appSheetsFilter} and ${qrsFilterAnyOf('tags.name', tags)}`;
+    logger.debug(`GET sheets tagged for ${optionName}: app/object/full?filter=${tagFilter}`);
+
+    const response = await qrsInteractInstance.Get(qrsPathWithFilter('app/object/full', tagFilter));
+    const taggedSheets = response.body;
+
+    // Report the count at the default log level whenever the option was used. A misspelled tag
+    // otherwise produces a run byte-identical to one where the option was never passed - the
+    // silent-no-op that made issue #840 hard to notice - and for the blur rule that means
+    // publishing readable thumbnails the operator believed were hidden.
+    //
+    // Deliberately info rather than warn: a run spanning many apps will legitimately find no
+    // tagged sheets in most of them, and a per-app warning for a normal outcome is the kind of
+    // noise that teaches operators to ignore warnings. A mistyped tag shows up as a trail of
+    // zeroes across every app instead.
+    logger.info(
+        `Sheets carrying a tag named by ${optionName}: ${taggedSheets.length} (tags: ${tags.join(', ')})`
+    );
+
+    return taggedSheets;
+};
+
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
 const selectorLoginPageLoginButton = '#loginbtn';
@@ -85,7 +137,8 @@ const xpathLogoutButton2025Nov =
  * @param {string} options.logonuserdir - User directory for login.
  * @param {string} options.logonuserid - User ID for login.
  * @param {string} options.logonpwd - Password for login.
- * @param {string} options.excludeSheetTag - Tags for sheets to exclude from processing.
+ * @param {string|string[]} options.excludeSheetTag - Tags for sheets to exclude from processing.
+ * @param {string|string[]} options.blurSheetTag - Tags for sheets whose thumbnail should be blurred.
  * @param {Array<string>} options.excludeSheetNumber - Sheet numbers to exclude.
  * @param {Array<string>} options.excludeSheetTitle - Sheet titles to exclude.
  * @param {Array<string>} options.excludeSheetStatus - Sheet statuses to exclude.
@@ -176,33 +229,23 @@ export const qseowProcessApp = async (appId, options) => {
 
         const appSheetsFilter = `objectType eq 'sheet' and app.id eq ${appId}`;
 
-        // Get metadata for the app sheets that should be excluded based on sheet tags.
-        //
-        // Only worth asking when tags were actually supplied. This used to run for every app
-        // whatever the operator passed: with --exclude-sheet-tag absent it queried for a tag
-        // literally named `undefined`, which costs a round trip per app and, on a site that
-        // happens to have a tag by that name, would have excluded sheets nobody asked to exclude.
-        //
-        // --exclude-sheet-tag is variadic, so this has to be an `or` group over every tag given:
-        // interpolating the array produced `tags.name eq 'A,B'`, one literal matching no tag.
-        const excludeSheetTags = toFilterValueList(options.excludeSheetTag);
-        let tagSheetAppMetadata = [];
+        // Get metadata for the app sheets that should be excluded based on sheet tags, and
+        // separately for those that should be blurred. Two lookups, deliberately: the exclude tag
+        // and the blur tag name different sets of sheets, and conflating them would blur every
+        // sheet the operator asked to leave alone.
+        const tagSheetAppMetadata = await getSheetsTaggedWith(
+            qrsInteractInstance,
+            appSheetsFilter,
+            options.excludeSheetTag,
+            '--exclude-sheet-tag'
+        );
 
-        if (excludeSheetTags.length > 0) {
-            const tagFilter = `${appSheetsFilter} and ${qrsFilterAnyOf(
-                'tags.name',
-                excludeSheetTags
-            )}`;
-            logger.debug(`GET tagSheetAppMetadata: app/object/full?filter=${tagFilter}`);
-            const tagSheetResponse = await qrsInteractInstance.Get(
-                qrsPathWithFilter('app/object/full', tagFilter)
-            );
-            tagSheetAppMetadata = tagSheetResponse.body;
-        } else {
-            logger.debug(
-                'No --exclude-sheet-tag supplied, skipping the QRS lookup for tagged sheets'
-            );
-        }
+        const blurTagSheetAppMetadata = await getSheetsTaggedWith(
+            qrsInteractInstance,
+            appSheetsFilter,
+            options.blurSheetTag,
+            '--blur-sheet-tag'
+        );
 
         // Create mapping between repo db sheet id and engine sheet id
         let mapRepoEngineSheetIdTmp1 = await qrsInteractInstance.Get(
@@ -581,11 +624,11 @@ export const qseowProcessApp = async (appId, options) => {
         // Upload to QSEoW content library
         await qseowUploadToContentLibrary(createdFiles, appId, options);
 
-        // Update sheets in app
-        // tagSheetAppMetadata is deliberately not passed: it is queried on options.excludeSheetTag,
-        // so handing it to the blur-by-tag rule would blur sheets carrying the *exclude* tag. See
-        // issue #840 - --blur-sheet-tag needs its own QRS lookup before it can work.
-        await qseowUpdateSheetThumbnails(createdFiles, appId, options);
+        // Update sheets in app.
+        // The blur-tag metadata is passed, never the exclude-tag metadata: they are queried on
+        // different options, and handing the exclude set to the blur rule would blur sheets
+        // carrying the *exclude* tag. See issue #840.
+        await qseowUpdateSheetThumbnails(createdFiles, appId, options, blurTagSheetAppMetadata);
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {

@@ -22,7 +22,6 @@ import { runOverApps } from '../util/run-over-apps.js';
  * @param {string} options.browser - Name of browser to use for rendering thumbnails.
  * @param {string} options.browserVersion - Version of browser to use for rendering thumbnails.
  * @param {string} options.blurSheetStatus - Which sheet statuses should be blurred.
- * @param {string} options.blurSheetTag - Which sheet tags should be blurred.
  * @param {Array<string>} options.blurSheetNumber - Sheet numbers (1=first sheet) to blur.
  * @param {string} options.blurFactor - Blur factor.
  *
@@ -36,6 +35,25 @@ export const qscloudCreateThumbnails = async (options) => {
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
+
+        // Qlik Sense Cloud has no way to tag an individual sheet, so the two tag-based sheet
+        // rules cannot be honoured here. Both options are accepted by the parser for
+        // compatibility with existing scripts, and both have always done nothing - say so rather
+        // than let the operator believe a rule is in force. See issue #840.
+        for (const [optionName, value] of [
+            ['--exclude-sheet-tag', options.excludeSheetTag],
+            ['--blur-sheet-tag', options.blurSheetTag],
+        ]) {
+            // Commander hands these over as a bare string, an array, or - from an empty
+            // environment variable - an array holding one empty string. Only a real tag warns.
+            const tags = (Array.isArray(value) ? value : [value]).filter(Boolean);
+
+            if (tags.length > 0) {
+                logger.warn(
+                    `${optionName} is not supported for Qlik Sense Cloud and will be ignored: individual sheets cannot be tagged there. Use the sheet number, title or status options instead.`
+                );
+            }
+        }
 
         const appIdsToProcess = [];
 

@@ -101,30 +101,20 @@ describe('qseowUpdateSheetThumbnails — --blur-sheet-tag handling (issue #840)'
         ).resolves.toBeUndefined();
     });
 
-    test('warns that the option is ignored rather than silently dropping it', async () => {
+    test('no longer warns that the option is unimplemented, now that the caller looks it up', async () => {
+        // The function used to warn that --blur-sheet-tag was ignored, which was honest while
+        // nothing queried the tag. qseowProcessApp now does, so the warning would be false.
         wireEnigmaWithOneSheet();
 
-        await qseowUpdateSheetThumbnails(CREATED_FILES, 'test-app-id', {
-            ...BASE_OPTIONS,
-            blurSheetTag: 'some-tag',
-        });
+        await qseowUpdateSheetThumbnails(
+            CREATED_FILES,
+            'test-app-id',
+            { ...BASE_OPTIONS, blurSheetTag: 'some-tag' },
+            [{ engineObjectId: 'engine-sheet-1' }]
+        );
 
         const warned = logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
-        expect(warned).toContain(BLUR_TAG_WARNING);
-    });
-
-    test('warns once per call, not once per sheet', async () => {
-        wireEnigmaWithOneSheet();
-
-        await qseowUpdateSheetThumbnails(CREATED_FILES, 'test-app-id', {
-            ...BASE_OPTIONS,
-            blurSheetTag: 'some-tag',
-        });
-
-        const blurTagWarnings = logger.warn.mock.calls.filter((call) =>
-            String(call[0]).includes(BLUR_TAG_WARNING)
-        );
-        expect(blurTagWarnings).toHaveLength(1);
+        expect(warned).not.toContain(BLUR_TAG_WARNING);
     });
 
     test('stays silent when blurSheetTag is not set', async () => {
@@ -151,8 +141,7 @@ describe('qseowUpdateSheetThumbnails — --blur-sheet-tag handling (issue #840)'
     });
 
     test('blurs the sheet when supplied metadata matches its engine object id, and does not warn', async () => {
-        // The parameter exists so a caller that has looked the tag up can drive the rule.
-        // Nothing does that yet (#840), but the plumbing has to work for the fix to be real.
+        // qseowProcessApp looks the blur tag up in QRS and passes the result here.
         const sheetObj = wireEnigmaWithOneSheet('engine-sheet-1');
 
         await qseowUpdateSheetThumbnails(
