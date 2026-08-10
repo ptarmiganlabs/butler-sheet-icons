@@ -4,6 +4,9 @@ import { runCommand } from '../commands/run-command.js';
 import { assertInteractiveCapable } from './tty.js';
 import { isPromptCancellation } from './prompt-runtime.js';
 import { runSelfTest } from './self-test.js';
+import { runMenu } from './menu.js';
+import { runInteractive } from './index.js';
+import { withQuietLogging } from './quiet.js';
 
 /**
  * Run the self-test, treating a cancelled prompt as a normal way to leave.
@@ -21,6 +24,37 @@ const runSelfTestUnlessCancelled = async () => {
     } catch (err) {
         if (isPromptCancellation(err)) {
             logger.info('Self-test cancelled.');
+
+            return true;
+        }
+
+        throw err;
+    }
+};
+
+/**
+ * Show the menu and run whatever is chosen, treating Ctrl-C as leaving.
+ *
+ * The console logger is pinned while questions are on screen, because winston
+ * and the prompts share stdout and a log line landing mid-redraw corrupts it.
+ * It is restored before the chosen command runs, so the worker's own output -
+ * and `browser install`'s progress bar - behave exactly as they do from the
+ * plain CLI.
+ *
+ * @returns {Promise<boolean>} `true` unless the command itself reported failure.
+ */
+const runWizardUnlessCancelled = async () => {
+    try {
+        const path = await withQuietLogging(() => runMenu());
+
+        if (!path) {
+            return true;
+        }
+
+        return await runInteractive({ path });
+    } catch (err) {
+        if (isPromptCancellation(err)) {
+            logger.info('Cancelled. Nothing was changed.');
 
             return true;
         }
@@ -53,14 +87,7 @@ const handleInteractive = async (options = {}, _cmd) => {
             // anything else happens.
             assertInteractiveCapable();
 
-            // Placeholder until the browser wizards land. Deliberately not a
-            // menu over an empty registry, which would be a worse lie than
-            // saying plainly that there is nothing to run yet.
-            logger.info(
-                'Interactive wizards are not available in this build. Run "butler-sheet-icons interactive --self-test" to check what this terminal supports.'
-            );
-
-            return true;
+            return runWizardUnlessCancelled();
         },
         // The guidance from assertInteractiveCapable is already a complete
         // explanation, so print it alone. The default handler would add the

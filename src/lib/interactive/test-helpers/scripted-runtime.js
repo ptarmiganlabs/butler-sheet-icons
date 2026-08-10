@@ -82,6 +82,16 @@ export const scriptedRuntime = (script = {}) => {
             }
 
             const queue = queueFor(spec);
+
+            if (queue.length === 0) {
+                // Distinct from "every answer was rejected": this is a question
+                // asked more times than the script anticipated, which happens
+                // when a flow loops - a restart at the review step, say.
+                throw new Error(
+                    `scriptedRuntime: "${spec.key}" was asked again but the script has no answer left. Queue another one.`
+                );
+            }
+
             let lastVerdict;
 
             while (queue.length > 0) {
