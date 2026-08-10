@@ -21,7 +21,11 @@ jest.unstable_mockModule('../cloud-test-connection.js', () => ({
     qscloudTestConnection: jest.fn().mockResolvedValue(true),
 }));
 
-jest.unstable_mockModule('../cloud-repo.js', () => ({ default: jest.fn() }));
+const Get = jest.fn();
+const QlikSaas = jest.fn(function QlikSaasMock() {
+    this.Get = Get;
+});
+jest.unstable_mockModule('../cloud-repo.js', () => ({ default: QlikSaas }));
 
 jest.unstable_mockModule('../process-cloud-app.js', () => ({
     processCloudApp: jest.fn().mockResolvedValue(true),
@@ -98,5 +102,103 @@ describe('qscloudCreateThumbnails app loop', () => {
         await expect(qscloudCreateThumbnails({ ...OPTIONS })).resolves.toBe(false);
 
         expect(errorLog()).toContain('CLOUD CREATE THUMBNAILS 2');
+    });
+
+    describe('multiple apps via --collectionid', () => {
+        /**
+         * Points the mocked `Get` at a tenant with one collection holding the given items.
+         *
+         * @param {Array<object>} items - Items the collection should report.
+         *
+         * @returns {void}
+         */
+        const withCollectionItems = (items) => {
+            Get.mockImplementation(async (path) => {
+                if (path === 'collections') return [{ id: 'collection-1' }];
+                if (path === 'collections/collection-1/items') return items;
+                return [];
+            });
+        };
+
+        beforeEach(() => {
+            Get.mockReset();
+        });
+
+        test('passes every app in the collection to the loop', async () => {
+            runOverApps.mockResolvedValue(true);
+            withCollectionItems([
+                { resourceType: 'app', resourceAttributes: { id: 'app-a', name: 'Alpha' } },
+                { resourceType: 'app', resourceAttributes: { id: 'app-b', name: 'Beta' } },
+            ]);
+
+            await qscloudCreateThumbnails({
+                ...OPTIONS,
+                appid: '',
+                collectionid: 'collection-1',
+            });
+
+            expect(runOverApps.mock.calls[0][0]).toEqual(['app-a', 'app-b']);
+        });
+
+        test('skips collection items that are not apps', async () => {
+            runOverApps.mockResolvedValue(true);
+            withCollectionItems([
+                { resourceType: 'app', resourceAttributes: { id: 'app-a', name: 'Alpha' } },
+                { id: 'item-ds', resourceType: 'dataset' },
+            ]);
+
+            await qscloudCreateThumbnails({
+                ...OPTIONS,
+                appid: '',
+                collectionid: 'collection-1',
+            });
+
+            expect(runOverApps.mock.calls[0][0]).toEqual(['app-a']);
+        });
+
+        test('returns false when the collection does not exist', async () => {
+            runOverApps.mockResolvedValue(true);
+            Get.mockResolvedValue([{ id: 'some-other-collection' }]);
+
+            await expect(
+                qscloudCreateThumbnails({
+                    ...OPTIONS,
+                    appid: '',
+                    collectionid: 'collection-1',
+                })
+            ).resolves.toBe(false);
+
+            expect(errorLog()).toContain('collection-1');
+        });
+
+        test('reports failure when the collection resolves to no apps at all', async () => {
+            runOverApps.mockResolvedValue(false);
+            withCollectionItems([]);
+
+            await expect(
+                qscloudCreateThumbnails({
+                    ...OPTIONS,
+                    appid: '',
+                    collectionid: 'collection-1',
+                })
+            ).resolves.toBe(false);
+
+            expect(runOverApps).toHaveBeenCalledWith([], expect.any(Object), expect.any(Function));
+        });
+
+        test('an explicitly named --appid still runs when the collection is empty', async () => {
+            runOverApps.mockResolvedValue(true);
+            withCollectionItems([]);
+
+            await expect(
+                qscloudCreateThumbnails({
+                    ...OPTIONS,
+                    appid: 'test-app-id',
+                    collectionid: 'collection-1',
+                })
+            ).resolves.toBe(true);
+
+            expect(runOverApps.mock.calls[0][0]).toEqual(['test-app-id']);
+        });
     });
 });
