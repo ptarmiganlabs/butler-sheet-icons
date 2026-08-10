@@ -18,6 +18,7 @@ import { withEngineSession } from '../util/engine-session.js';
 import { createAppImageDir } from '../util/image-dir.js';
 import { qrsFilterAnyOf, qrsPathWithFilter, toFilterValueList } from './qrs-filter.js';
 import { qrsGetList } from './qrs-response.js';
+import { QSEOW_SHEET_PART_SELECTORS } from './sheet-parts.js';
 
 /**
  * Looks up the sheets in an app that carry any of the supplied tags.
@@ -454,22 +455,11 @@ export const qseowProcessApp = async (appId, options) => {
                                 const fileName = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}.png`;
                                 const fileNameShort = `thumbnail-${appId}-${iSheetNum}.png`;
 
-                                let selector = '';
-                                if (options.includesheetpart === '1') {
-                                    // 1: Only chart part of sheet (no sheet title, selections or app info)
-                                    selector = '#grid-wrap';
-                                } else if (options.includesheetpart === '2') {
-                                    // 2: Include sheet title  (no selections or app info)
-                                    selector =
-                                        '#qv-stage-container > div > div.qv-panel-content.flex-row';
-                                } else if (options.includesheetpart === '3') {
-                                    // 3: Include sheet title and selection bar (no app info)
-                                    selector = '#qv-stage-container > div';
-                                } else if (options.includesheetpart === '4') {
-                                    // 4: Take screen shot of entire sheet, including sheet title, top menu and status bars.
-                                    // or: await page.screenshot({ path: fileName });
-                                    selector = '#qv-page-container';
-                                }
+                                // Which part of the sheet to capture. The map is the single source
+                                // of truth for the values --includesheetpart accepts - see
+                                // sheet-parts.js.
+                                const selector =
+                                    QSEOW_SHEET_PART_SELECTORS[options.includesheetpart];
 
                                 // Ensure that the element we're interested in is loaded
                                 await page.waitForSelector(selector);
