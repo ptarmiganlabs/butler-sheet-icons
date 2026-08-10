@@ -1,6 +1,5 @@
 import { getInstalledBrowsers, getVersionComparator } from '@puppeteer/browsers';
-import path from 'path';
-import { homedir } from 'os';
+import { getBrowserCacheDir } from './browser-cache-dir.js';
 import fs from 'fs';
 
 import { logger } from '../../globals.js';
@@ -94,7 +93,7 @@ export const detectAvailableBrowser = async (options, resolvedBuildId) => {
         }
 
         // Priority 2: Check for cached browsers in Puppeteer cache
-        const browserPath = path.join(homedir(), '.cache/puppeteer');
+        const browserPath = getBrowserCacheDir();
         logger.debug(`Checking for cached browsers in: ${browserPath}`);
 
         const installedBrowsers = await getInstalledBrowsers({

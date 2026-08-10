@@ -1,6 +1,5 @@
 import { detectBrowserPlatform, canDownload } from '@puppeteer/browsers';
-import path from 'path';
-import { homedir } from 'os';
+import { getBrowserCacheDir } from './browser-cache-dir.js';
 import axios from 'axios';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
@@ -122,6 +121,67 @@ function mapPlatformToChrome(puppeteerPlatform) {
 }
 
 /**
+ * Fetch the browser versions the vendor currently publishes.
+ *
+ * Fetching only: no availability checking, no per-version logging. That
+ * separation is the point. The availability check is one HTTP request per
+ * version, run strictly serially, and it exists purely to decide the log level
+ * of each printed line - so a caller that just wants the list (an interactive
+ * version picker, say) previously had to wait for hundreds of round trips it
+ * had no use for.
+ *
+ * The `logPrefix` exists so the two callers keep their debug output exactly as
+ * it was. `getMostRecentUsableChromeBuildId` prefixes its lines and
+ * `browserListAvailable` does not; sharing the fetch without it would have
+ * quietly rewritten one of them.
+ *
+ * @param {object} options - An options object.
+ * @param {string} options.browser - Browser to list versions for (`chrome` or `firefox`).
+ * @param {string} options.channel - Chrome release channel. Ignored for Firefox.
+ * @param {string} [options.logPrefix] - Prefix for this function's debug lines.
+ *
+ * @returns {Promise<Array<{version: string, name: string}>>} Published versions, newest first, as the API returns them.
+ *
+ * @throws {Error} If the version history API cannot be reached or returns something unusable.
+ */
+export async function fetchAvailableVersions({ browser, channel, logPrefix = '' }) {
+    // Firefox has no version history lookup yet. Returning the same shape as
+    // the Chrome branch - rather than an object with no `name` - means no
+    // consumer has to special-case a missing field.
+    if (browser === 'firefox') {
+        return [{ version: 'latest', name: 'firefox/latest' }];
+    }
+
+    // The real detectBrowserPlatform is synchronous, so this await does nothing
+    // - but it is what the code did before this function was extracted, and
+    // dropping it would change what a promise-returning stub does. Left as-is
+    // to keep this a behaviour-preserving extraction.
+    const platform = await detectBrowserPlatform();
+    logger.debug(`${logPrefix}Detected browser platform: ${platform}`);
+
+    const chromePlatform = mapPlatformToChrome(platform);
+    logger.debug(`${logPrefix}Mapped Chrome API platform: ${chromePlatform}`);
+
+    const url = `https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${channel}/versions`;
+    logger.debug(`Get Chrome versions from: ${url}`);
+
+    let response;
+    try {
+        response = await axios({ method: 'get', responseType: 'json', url });
+    } catch (err) {
+        // Scoped to the request so that a caller's own validation errors are
+        // never reported as connectivity problems.
+        logVersionHistoryFailure(err);
+        throw err;
+    }
+
+    const versions = extractVersions(response);
+    logger.debug(`Chrome versions: ${JSON.stringify(versions, null, 2)}`);
+
+    return versions;
+}
+
+/**
  * List all available browser versions.
  *
  * For Chrome, the available versions are fetched from the Chrome version history API and filtered
@@ -162,16 +222,8 @@ export async function browserListAvailable(options) {
             throw new Error(`Invalid browser "${options.browser}"`);
         }
 
-        const browserPath = path.join(homedir(), '.cache/puppeteer');
+        const browserPath = getBrowserCacheDir();
         logger.debug(`Browser cache path: ${browserPath}`);
-
-        // Get current platform
-        const platform = await detectBrowserPlatform();
-        logger.debug(`Detected browser platform: ${platform}`);
-
-        // Map platform to Chrome API compatible value
-        const chromePlatform = mapPlatformToChrome(platform);
-        logger.debug(`Mapped Chrome API platform: ${chromePlatform}`);
 
         // Get versions for the selected browser
         let browsersAvailable = [];
@@ -202,27 +254,10 @@ export async function browserListAvailable(options) {
             //     "nextPageToken": ""
             // }
 
-            logger.debug(
-                `Get Chrome versions from: https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${options.channel}/versions`
-            );
-
-            const axiosConfig = {
-                method: 'get',
-                responseType: 'json',
-                url: `https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${options.channel}/versions`,
-            };
-
-            let response;
-            try {
-                response = await axios(axiosConfig);
-            } catch (err) {
-                // Scoped to the request so that this module's own validation errors, thrown
-                // earlier in the same try, are never reported as connectivity problems.
-                logVersionHistoryFailure(err);
-                throw err;
-            }
-            browsersAvailable = extractVersions(response);
-            logger.debug(`Chrome versions: ${JSON.stringify(browsersAvailable, null, 2)}`);
+            browsersAvailable = await fetchAvailableVersions({
+                browser: options.browser,
+                channel: options.channel,
+            });
 
             // Output Chrome versions and names to info log
             if (browsersAvailable.length > 0) {
@@ -312,41 +347,14 @@ export async function getMostRecentUsableChromeBuildId(channel) {
             throw new Error(`Invalid Chrome release channel "${channel}"`);
         }
 
-        const browserPath = path.join(homedir(), '.cache/puppeteer');
+        const browserPath = getBrowserCacheDir();
         logger.debug(`Get most recent usable Chrome build ID: Browser cache path: ${browserPath}`);
 
-        // Get current platform
-        const platform = await detectBrowserPlatform();
-        logger.debug(
-            `Get most recent usable Chrome build ID: Detected browser platform: ${platform}`
-        );
-
-        // Map platform to Chrome API compatible value
-        const chromePlatform = mapPlatformToChrome(platform);
-        logger.debug(
-            `Get most recent usable Chrome build ID: Mapped Chrome API platform: ${chromePlatform}`
-        );
-
-        logger.debug(
-            `Get Chrome versions from: https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${channel}/versions`
-        );
-
-        const axiosConfig = {
-            method: 'get',
-            responseType: 'json',
-            url: `https://versionhistory.googleapis.com/v1/chrome/platforms/${chromePlatform}/channels/${channel}/versions`,
-        };
-
-        let response;
-        try {
-            response = await axios(axiosConfig);
-        } catch (err) {
-            // Scoped to the request, as in browserListAvailable above.
-            logVersionHistoryFailure(err);
-            throw err;
-        }
-        const browsersAvailable = extractVersions(response);
-        logger.debug(`Chrome versions: ${JSON.stringify(browsersAvailable, null, 2)}`);
+        const browsersAvailable = await fetchAvailableVersions({
+            browser: 'chrome',
+            channel,
+            logPrefix: 'Get most recent usable Chrome build ID: ',
+        });
 
         // Output Chrome versions and names to info log
         if (browsersAvailable.length > 0) {

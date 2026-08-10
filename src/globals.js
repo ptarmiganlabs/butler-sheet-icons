@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import 'dotenv/config';
 import { redactSensitivePatterns, redactValue } from './lib/util/redact-secrets.js';
+import { isColourEnabled } from './lib/util/colour.js';
 
 const require = createRequire(import.meta.url);
 const LEVEL = Symbol.for('level');
@@ -119,6 +120,14 @@ const sanitizeFormat = winston.format((info) => {
     return info;
 });
 
+// Colourise only when stdout is really a terminal. `colorize()` rewrites
+// `info.level` to carry ANSI codes, and the printf below interpolates that
+// value, so applying it unconditionally put escape sequences into every
+// redirected log file, scheduler transcript and captured CI log. Deciding once
+// here, at load time, keeps the transport consistent for the life of the
+// process - the stream cannot become a terminal later.
+const colourConsole = isColourEnabled();
+
 logTransports.push(
     new winston.transports.Console({
         name: 'console',
@@ -127,7 +136,7 @@ logTransports.push(
             winston.format.errors({ stack: true }),
             sanitizeFormat(),
             winston.format.timestamp(),
-            winston.format.colorize(),
+            ...(colourConsole ? [winston.format.colorize()] : []),
             winston.format.simple(),
             winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
         ),

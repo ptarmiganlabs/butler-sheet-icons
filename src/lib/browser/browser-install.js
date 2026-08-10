@@ -1,6 +1,5 @@
 import { install, detectBrowserPlatform, canDownload, uninstall } from '@puppeteer/browsers';
-import path from 'path';
-import { homedir } from 'os';
+import { getBrowserCacheDir } from './browser-cache-dir.js';
 import cliProgress from 'cli-progress';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } from '../../globals.js';
@@ -58,7 +57,7 @@ export const browserInstall = async (options, _command, resolvedBuildId) => {
         );
 
         // Install browser
-        const browserPath = path.join(homedir(), '.cache/puppeteer');
+        const browserPath = getBrowserCacheDir();
         logger.debug(`Browser cache path: ${browserPath}`);
 
         const platform = await detectBrowserPlatform();

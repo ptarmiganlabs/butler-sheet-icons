@@ -1,10 +1,15 @@
 import { jest, test, expect, describe, beforeEach } from '@jest/globals';
 import fs from 'fs-extra';
 
-// detectBrowserPlatform and resolveBuildId are stubs with no behaviour: they exist only so the
-// real browser-version.js can be imported. Uninstall's version handling is deliberately local -
-// resolveLocalBrowserBuildId never touches the network - and the tests below assert that these
-// two stubs are never called.
+// resolveBuildId is a stub with no behaviour: it exists only so the real
+// browser-version.js can be imported. Uninstall's version handling is
+// deliberately local - resolveLocalBrowserBuildId never touches the network -
+// and the tests below assert that it is never called.
+//
+// detectBrowserPlatform is different. It used to be in the same category, but
+// the inventory now calls it to work out which cached builds can run here. That
+// is a local, synchronous read of process.platform and process.arch, so the
+// offline guarantee is untouched; only the network lookup ever mattered.
 jest.unstable_mockModule('@puppeteer/browsers', () => ({
     getInstalledBrowsers: jest.fn(),
     uninstall: jest.fn(),
@@ -13,6 +18,27 @@ jest.unstable_mockModule('@puppeteer/browsers', () => ({
 }));
 const { getInstalledBrowsers, uninstall, detectBrowserPlatform, resolveBuildId } =
     await import('@puppeteer/browsers');
+
+/**
+ * Makes the cache appear to change as uninstall() removes things from it.
+ *
+ * Uninstall now re-reads the cache afterwards and reports on what it finds, so
+ * a test whose cache never changes is describing a failed removal. Feeding the
+ * successive states explicitly is what keeps "it worked" and "it was attempted"
+ * distinguishable.
+ *
+ * @param {...Array} states - One array of cached builds per read, in order.
+ *
+ * @returns {void}
+ */
+const cacheReads = (...states) => {
+    getInstalledBrowsers.mockReset();
+    for (const state of states) {
+        getInstalledBrowsers.mockResolvedValueOnce(state);
+    }
+    // Any read past the ones listed sees the final state.
+    getInstalledBrowsers.mockResolvedValue(states.at(-1) ?? []);
+};
 
 jest.unstable_mockModule('../../../globals.js', () => ({
     logger: {
@@ -41,9 +67,7 @@ describe('browserUninstall — version interpretation (issue #878 review)', () =
 
     test('uninstalls the recommended build by keyword, without any network lookup', async () => {
         const pinned = getRecommendedBuildId('chrome');
-        getInstalledBrowsers.mockResolvedValue([
-            { browser: 'chrome', buildId: pinned, platform: 'mac_arm', path: '/p/1' },
-        ]);
+        cacheReads([{ browser: 'chrome', buildId: pinned, platform: 'mac_arm', path: '/p/1' }], []);
         uninstall.mockResolvedValue(undefined);
 
         const result = await browserUninstall({ browser: 'chrome', browserVersion: 'recommended' });
@@ -51,7 +75,6 @@ describe('browserUninstall — version interpretation (issue #878 review)', () =
         expect(result).toBe(true);
         expect(uninstall).toHaveBeenCalledWith(expect.objectContaining({ buildId: pinned }));
         expect(resolveBuildId).not.toHaveBeenCalled();
-        expect(detectBrowserPlatform).not.toHaveBeenCalled();
     });
 
     // `stable` and `latest` resolve to whatever the vendor currently publishes - almost never a
@@ -74,9 +97,10 @@ describe('browserUninstall — version interpretation (issue #878 review)', () =
     );
 
     test('matches an exact build id against the cache', async () => {
-        getInstalledBrowsers.mockResolvedValue([
-            { browser: 'chrome', buildId: '151.0.7922.77', platform: 'mac_arm', path: '/p/1' },
-        ]);
+        cacheReads(
+            [{ browser: 'chrome', buildId: '151.0.7922.77', platform: 'mac_arm', path: '/p/1' }],
+            []
+        );
         uninstall.mockResolvedValue(undefined);
 
         const result = await browserUninstall({
@@ -91,7 +115,7 @@ describe('browserUninstall — version interpretation (issue #878 review)', () =
     });
 
     test('reports a build that is not cached without throwing', async () => {
-        getInstalledBrowsers.mockResolvedValue([
+        cacheReads([
             { browser: 'chrome', buildId: '151.0.7922.77', platform: 'mac_arm', path: '/p/1' },
         ]);
 
@@ -102,6 +126,94 @@ describe('browserUninstall — version interpretation (issue #878 review)', () =
 
         expect(result).toBe(false);
         expect(uninstall).not.toHaveBeenCalled();
+    });
+});
+
+describe('browserUninstall — platform handling (issue #892)', () => {
+    const FOREIGN = {
+        browser: 'chrome',
+        buildId: '151.0.7922.77',
+        platform: 'win64',
+        path: '/p/win',
+    };
+    const LOCAL = {
+        browser: 'chrome',
+        buildId: '151.0.7922.77',
+        platform: 'mac_arm',
+        path: '/p/mac',
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        detectBrowserPlatform.mockReturnValue('mac_arm');
+        uninstall.mockResolvedValue(undefined);
+    });
+
+    test('names the platform of the build being removed', async () => {
+        // UninstallOptions.platform is documented "auto-detected", so leaving it
+        // out targeted the *host* platform's directory. For a build downloaded
+        // elsewhere that directory does not exist, the call resolved anyway, and
+        // the build stayed on disk while success was reported.
+        cacheReads([FOREIGN], []);
+
+        await browserUninstall({ browser: 'chrome', browserVersion: '151.0.7922.77' });
+
+        expect(uninstall).toHaveBeenCalledWith(expect.objectContaining({ platform: 'win64' }));
+    });
+
+    test('reports failure when the build is still cached afterwards', async () => {
+        // The heart of the bug: uninstall() resolves whether or not it removed
+        // anything, so the only honest way to claim success is to look again.
+        cacheReads([FOREIGN], [FOREIGN]);
+
+        const result = await browserUninstall({
+            browser: 'chrome',
+            browserVersion: '151.0.7922.77',
+        });
+
+        expect(result).toBe(false);
+
+        const errors = logger.error.mock.calls.map(([msg]) => msg).join('\n');
+        expect(errors).toContain('could not be removed');
+        expect(errors).toContain('win64');
+        expect(errors).toContain('/p/win');
+    });
+
+    test('prefers the build that can run here when one id is cached for two platforms', async () => {
+        // Previously this was whichever entry the filesystem listed first.
+        cacheReads([FOREIGN, LOCAL], [FOREIGN]);
+
+        const result = await browserUninstall({
+            browser: 'chrome',
+            browserVersion: '151.0.7922.77',
+        });
+
+        expect(result).toBe(true);
+        expect(uninstall).toHaveBeenCalledWith(expect.objectContaining({ platform: 'mac_arm' }));
+    });
+
+    test('says so when a build id is cached for more than one platform', async () => {
+        cacheReads([FOREIGN, LOCAL], [FOREIGN]);
+
+        await browserUninstall({ browser: 'chrome', browserVersion: '151.0.7922.77' });
+
+        const warnings = logger.warn.mock.calls.map(([msg]) => msg).join('\n');
+        expect(warnings).toContain('2 platforms');
+        expect(warnings).toContain('win64');
+        expect(warnings).toContain('re-run');
+    });
+
+    test('removes a foreign-platform build when it is the only match', async () => {
+        // Foreign builds stay removable on purpose - wanting the disk space
+        // back is a perfectly good reason to delete a build you cannot run.
+        cacheReads([FOREIGN], []);
+
+        const result = await browserUninstall({
+            browser: 'chrome',
+            browserVersion: '151.0.7922.77',
+        });
+
+        expect(result).toBe(true);
     });
 });
 

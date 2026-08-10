@@ -38,15 +38,20 @@ describe('browserUninstall function', () => {
     });
 
     test('should successfully uninstall a browser that exists', async () => {
-        // Mock installed browsers
-        getInstalledBrowsers.mockResolvedValue([
-            {
-                browser: 'chrome',
-                buildId: '123.0.0.0',
-                platform: 'linux',
-                path: '/path/to/chrome',
-            },
-        ]);
+        // The cache is read twice: once to find the build, and once afterwards
+        // to check it actually went away. A mock that returns the same list
+        // both times describes a removal that did not happen, which is the
+        // failure issue #892 was about - so the second read is empty here.
+        getInstalledBrowsers
+            .mockResolvedValueOnce([
+                {
+                    browser: 'chrome',
+                    buildId: '123.0.0.0',
+                    platform: 'linux',
+                    path: '/path/to/chrome',
+                },
+            ])
+            .mockResolvedValue([]);
 
         // Mock successful uninstall
         uninstall.mockResolvedValue(undefined);
@@ -64,6 +69,10 @@ describe('browserUninstall function', () => {
         expect(uninstall).toHaveBeenCalledWith({
             browser: 'chrome',
             buildId: '123.0.0.0',
+            // The platform of the matched build, not the host's. Omitting it
+            // let @puppeteer/browsers auto-detect, which targeted a directory
+            // that does not exist for a build downloaded elsewhere (#892).
+            platform: 'linux',
             cacheDir: expect.any(String),
         });
     });
