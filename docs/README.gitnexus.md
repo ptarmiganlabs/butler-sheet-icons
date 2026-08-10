@@ -2,7 +2,7 @@
 
 How GitNexus is run in this repository, and the one command you must not use.
 
-This mirrors the setup in [butler-sos](https://github.com/ptarmiganlabs/butler-sos); keep the two in step when changing either.
+This mirrors the setup in [butler-sos](https://github.com/ptarmiganlabs/butler-sos); keep the two in step when changing either — with one deliberate divergence, the hook mechanism, explained under [Automatic re-indexing](#automatic-re-indexing).
 
 ## Never run a bare `npx gitnexus analyze`
 
@@ -24,6 +24,14 @@ npm run gitnexus:install
 
 This is the only command allowed to download the package. Everything else runs under `npx --no-install`, which executes an already-present copy and never fetches one.
 
+Then install the git hooks, which is what keeps the index current afterwards:
+
+```bash
+pre-commit install
+```
+
+Both are per-clone. Until the first is run the hooks are inert by design; until the second is run nothing fires at all — including this repo's ggshield secret scan, which is installed by the same command.
+
 ## Commands
 
 | Command | What it does |
@@ -35,7 +43,7 @@ This is the only command allowed to download the package. Everything else runs u
 
 Extra arguments are forwarded, so `npm run gitnexus:index -- --embeddings` works.
 
-There is also an internal `check` subcommand that reports through its exit code and prints nothing. Nothing calls it yet — it is the interface the git hooks in issue #829 will use.
+There is also an internal `check` subcommand that reports through its exit code and prints nothing. `scripts/gitnexus-reindex.sh` uses it to tell "GitNexus is not installed in this clone" apart from "the re-index failed".
 
 ## Everything routes through `scripts/gitnexus.js`
 
@@ -83,12 +91,30 @@ It is also worktree-aware. A linked worktree under `.claude/worktrees/` never ca
 
 ## Version pinning
 
-The version is pinned deliberately. An unpinned `npx gitnexus` executes whatever the registry serves at that moment — a new major, or a compromised release — with no repository change and no review. That matters more once re-indexing runs from a git hook (issue #829).
+The version is pinned deliberately. An unpinned `npx gitnexus` executes whatever the registry serves at that moment — a new major, or a compromised release — with no repository change and no review. That matters more now that re-indexing runs from a git hook.
 
 Bump `GITNEXUS_VERSION` in `scripts/gitnexus.js`, and bump butler-sos to match.
 
 ## Automatic re-indexing
 
-Not set up here yet. butler-sos keeps its index current with husky-installed `post-commit`, `post-merge`, `post-rewrite` and `post-checkout` hooks. Adopting the same is tracked in issue #829.
+Four git hooks — `post-commit`, `post-merge`, `post-rewrite` and `post-checkout` — run `scripts/gitnexus-reindex.sh`, which re-indexes incrementally. Between them they cover every routine way the working tree changes. They are declared in `.pre-commit-config.yaml` and installed by `pre-commit install`.
 
-Until then, run `npm run gitnexus:index` when a GitNexus tool reports the index is stale.
+The script never blocks a git operation: every failure path exits 0.
+
+### Why pre-commit and not husky
+
+butler-sos does this with husky, and porting that here would have been a mistake. husky works by pointing `core.hooksPath` at `.husky/_`, which takes `.git/hooks` out of the picture entirely — and that is where this repo's ggshield secret scan lives. The result would have been auto-reindexing bought at the price of a silently disabled secret scan, with nothing to announce the trade.
+
+That is not hypothetical. In butler-sos `core.hooksPath` is `.husky/_`, `.git/hooks` holds no non-sample hooks, and there is no `.husky/pre-commit`, so nothing runs at commit time. It cost that repo nothing only because its `.pre-commit-config.yaml` had been dead since 2022. Ours is current.
+
+The pre-commit framework supports the same four hook types natively, so this needed no new dependency, no `prepare` script and no devDependency — just a `repo: local` entry.
+
+### What the script decides, and why
+
+- **Inert until `npm run gitnexus:install`.** A hook that downloaded and executed a package after every commit would be a supply-chain surface. The download stays opt-in per clone; `node scripts/gitnexus.js check` probes for an already-present copy without fetching one.
+- **A missing index is left alone.** A full build is far too slow for a hook, so an absent `.gitnexus/` gets one line of advice rather than a blocked commit.
+- **A lost lock race is retried once.** The MCP server holds the KuzuDB index open during an agent session, and a write from the hook can lose that race. Silently accepting a stale index would defeat the point.
+- **Linked worktrees are skipped.** Worktrees share `.git`, so git fires these hooks there too — but a worktree has no `.gitnexus/` of its own. The index lives in, and describes, the canonical checkout, which a commit made in a worktree does not touch; re-indexing from there would be a no-op that still costs a write and can lose the lock race. The work reaches the index when the branch is merged in the canonical checkout, where `post-merge` fires.
+- **Only branch checkouts count.** `post-checkout` also fires for `git checkout -- <file>`, which changes nothing worth re-indexing.
+
+One thing does not port verbatim from butler-sos: git hands `post-checkout` three positional arguments, whereas pre-commit passes them as `PRE_COMMIT_CHECKOUT_TYPE`, `PRE_COMMIT_FROM_REF` and `PRE_COMMIT_TO_REF`. A copied `[ "$3" = "1" ]` test would read an unset variable and re-index on every file checkout.

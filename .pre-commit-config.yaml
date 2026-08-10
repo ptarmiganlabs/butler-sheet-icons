@@ -3,6 +3,23 @@
 # versions into a clear "upgrade pre-commit" message.
 minimum_pre_commit_version: '3.2.0'
 
+# `pre-commit install` wires up the pre-commit hook and nothing else by default, which
+# would leave the four post-* hooks below installed in config but never fired. Naming
+# the types here means a plain `pre-commit install` sets up all five.
+default_install_hook_types:
+    - pre-commit
+    - post-commit
+    - post-merge
+    - post-rewrite
+    - post-checkout
+
+# A hook that names no stages runs at *every* installed stage. Before the post-* hooks
+# below existed that was harmless, because only pre-commit was installed; now it means
+# every commit, merge, checkout and rebase prints a "Skipped (no files to check)" line
+# for each file-based hook. Default them to pre-commit; the one hook that belongs
+# elsewhere names its own stages and is unaffected.
+default_stages: [pre-commit]
+
 repos:
     - repo: https://github.com/gitguardian/ggshield
       rev: v1.53.0
@@ -26,6 +43,23 @@ repos:
                     sea-prep.blob|
                     build.cjs
                 )$
+
+          # Keeps the GitNexus index current instead of relying on an agent to notice
+          # it has gone stale. Inert until `npm run gitnexus:install` has been run in
+          # the clone, and never blocks a git operation — see the script's header and
+          # docs/README.gitnexus.md.
+          #
+          # always_run/pass_filenames are both required: the post-* stages hand a hook
+          # no file list, so the default behaviour would be to skip it entirely.
+          - id: gitnexus-reindex
+            name: gitnexus re-index
+            entry: scripts/gitnexus-reindex.sh
+            language: script
+            stages: [post-commit, post-merge, post-rewrite, post-checkout]
+            always_run: true
+            pass_filenames: false
+            verbose: true
+
     - repo: https://github.com/pre-commit/pre-commit-hooks
       rev: v6.0.0 # Use the ref you want to point at
       hooks:
