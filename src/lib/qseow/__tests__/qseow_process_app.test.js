@@ -460,6 +460,68 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         expect(puppeteer.launch).not.toHaveBeenCalled();
     });
 
+    describe('--port reaches the web URL', () => {
+        beforeEach(() => {
+            jest.clearAllMocks();
+            detectAvailableBrowser.mockResolvedValue({
+                executablePath: '/test/browser',
+                source: 'system',
+                browser: 'chrome',
+                buildId: 'system-installed',
+            });
+            browserInstall.mockReset();
+        });
+
+        /**
+         * Runs the app and returns the URL the browser was pointed at.
+         *
+         * @param {object} overrides - Option overrides merged over defaultOptions.
+         *
+         * @returns {Promise<string>} The URL passed to page.goto.
+         */
+        const gotoUrl = async (overrides) => {
+            const mockGet = jest.fn();
+            qrsInteract.mockImplementation(() => ({ Get: mockGet }));
+            wireQrsGetSequence(mockGet);
+            wireEnigmaSession();
+            const browser = buildMockBrowser();
+            puppeteer.launch.mockResolvedValue(browser);
+
+            await qseowProcessApp('test-app-id', { ...defaultOptions, ...overrides });
+
+            return String(browser._page.goto.mock.calls[0][0]);
+        };
+
+        test('includes the port when --port is given', async () => {
+            // --port is the web port, distinct from --engineport and --qrsport. It was declared
+            // and parsed but never reached the URL, so a server on a non-standard web port could
+            // not be reached at all.
+            const url = await gotoUrl({ port: '8443' });
+
+            expect(url).toBe('https://test-server.example.com:8443/sense/app/test-app-id');
+        });
+
+        test('omits the port when --port is not given', async () => {
+            const url = await gotoUrl({});
+
+            expect(url).toBe('https://test-server.example.com/sense/app/test-app-id');
+        });
+
+        test('places the port before the virtual proxy prefix', async () => {
+            // The prefixed and unprefixed URLs are built in separate branches, so both need
+            // covering - the port belongs to the origin, ahead of the prefix path segment.
+            const url = await gotoUrl({ port: '8443', prefix: 'sso' });
+
+            expect(url).toBe('https://test-server.example.com:8443/sso/sense/app/test-app-id');
+        });
+
+        test('applies to http as well as https', async () => {
+            const url = await gotoUrl({ port: '8080', secure: 'false' });
+
+            expect(url).toBe('http://test-server.example.com:8080/sense/app/test-app-id');
+        });
+    });
+
     describe('session and sheet-list wiring', () => {
         beforeEach(() => {
             jest.clearAllMocks();

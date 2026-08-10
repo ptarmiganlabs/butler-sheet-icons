@@ -138,10 +138,6 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
  */
 export const qseowRemoveSheetIcons = async (options) => {
     try {
-        // Set log level
-        if (options.loglevel === undefined || options.logLevel) {
-            options.loglevel = options.logLevel;
-        }
         setLoggingLevel(options.loglevel);
 
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');

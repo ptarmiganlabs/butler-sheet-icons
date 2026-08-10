@@ -46,10 +46,35 @@ describe('qseowVerifyContentLibraryExists', () => {
         await expect(qseowVerifyContentLibraryExists(OPTIONS)).resolves.toBe(false);
     });
 
-    test('returns false on a non-200 response, even with a populated body', async () => {
+    test('throws on a non-success status instead of calling the library missing', async () => {
+        // 403 means the service account may not read content libraries, not that this one is
+        // absent. Reporting it as absent sent the operator to create a library that already
+        // exists and that someone else can see perfectly well.
         Get.mockResolvedValue({ statusCode: 403, body: [{ name: 'BSI thumbnails' }] });
 
-        await expect(qseowVerifyContentLibraryExists(OPTIONS)).resolves.toBe(false);
+        await expect(qseowVerifyContentLibraryExists(OPTIONS)).rejects.toThrow();
+    });
+
+    describe('a QRS response that cannot be read', () => {
+        test.each([
+            ['an error object', { statusCode: 200, body: { error: 'proxy failure' } }],
+            ['null', { statusCode: 200, body: null }],
+            ['an HTML error page', { statusCode: 200, body: '<html>502 Bad Gateway</html>' }],
+        ])('%s is not reported as a missing library', async (_label, response) => {
+            // Each of these used to produce a different wrong answer from the same guard:
+            // the object read as "does not exist", null threw a TypeError, and the HTML string
+            // read as EXISTS - because a non-empty string has a length greater than zero - so a
+            // 502 page made the run proceed to upload thumbnails that could not land.
+            Get.mockResolvedValue(response);
+
+            await expect(qseowVerifyContentLibraryExists(OPTIONS)).rejects.toThrow();
+        });
+
+        test('an empty list still means the library is simply absent', async () => {
+            Get.mockResolvedValue({ statusCode: 200, body: [] });
+
+            await expect(qseowVerifyContentLibraryExists(OPTIONS)).resolves.toBe(false);
+        });
     });
 
     test('filters QRS by the content library name', async () => {

@@ -2,6 +2,7 @@ import qrsInteract from 'qrs-interact';
 
 import { logger } from '../../globals.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
+import { qrsGetList } from './qrs-response.js';
 import { qrsFilterAnyOf, qrsPathWithFilter } from './qrs-filter.js';
 
 /**
@@ -27,18 +28,20 @@ export const qseowVerifyContentLibraryExists = async (options) => {
         const apiUrl = qrsPathWithFilter('/contentlibrary', qrsFilterAnyOf('name', contentlibrary));
         logger.debug(`API URL: ${apiUrl}`);
 
-        // Test if content library already exists
-        const result = await qrsInteractInstance.Get(apiUrl);
+        // qrsGetList throws when QRS answers with something that is not a list, so an empty
+        // result here means "no library matched the filter" and nothing else. That distinction
+        // matters: the caller turns `false` into "Content library '<name>' does not exist -
+        // aborting", which is the wrong advice, and the wrong thing to go fix, when the real
+        // problem is that QRS or a proxy in front of it returned something unreadable.
+        const matches = await qrsGetList(qrsInteractInstance, apiUrl);
 
-        if (result.statusCode === 200 && result.body.length > 0) {
-            // Content library found
+        if (matches.length > 0) {
             logger.debug(`Content library '${contentlibrary}' exists`);
             return true;
-        } else {
-            // Content library not found
-            logger.debug(`Content library '${contentlibrary}' does not exist`);
-            return false;
         }
+
+        logger.debug(`Content library '${contentlibrary}' does not exist`);
+        return false;
     } catch (err) {
         if (err.stack) {
             logger.error(`QSEOW CONTENT LIBRARY 1 (stack): ${err.stack}`);

@@ -153,7 +153,12 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                         await sleep(options.pagewait * 1000);
                         await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-1.png` });
                         // Should login be skipped?
-                        if (options.skiplogin === true) {
+                        //
+                        // `skipLogin`, not `skiplogin`: Commander camel-cases a hyphenated long
+                        // flag, so `--skip-login` lands on `options.skipLogin`. Reading the
+                        // run-together spelling gave `undefined`, so this branch was unreachable
+                        // and login was always attempted - see issue #890.
+                        if (options.skipLogin === true) {
                             logger.info('Skipping login as --skip-login is set to true');
                         } else {
                             // Enter credentials

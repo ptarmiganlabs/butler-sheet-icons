@@ -129,7 +129,7 @@ describe('browserUninstall function', () => {
         await expect(browserUninstall(options)).rejects.toThrow(getInstalledError);
     });
 
-    test('should set log level from options.logLevel if options.loglevel is undefined', async () => {
+    test('sets the log level from options.loglevel, the name commander stores', async () => {
         // Mock installed browsers
         getInstalledBrowsers.mockResolvedValue([
             {
@@ -146,7 +146,9 @@ describe('browserUninstall function', () => {
         const options = {
             browser: 'chrome',
             browserVersion: '123.0.0.0',
-            logLevel: 'debug', // Using logLevel instead of loglevel
+            // `loglevel`, not `logLevel`: the option is declared `--log-level, --loglevel`
+            // and Commander uses the second long form as the attribute name.
+            loglevel: 'debug',
         };
 
         await browserUninstall(options);
@@ -292,12 +294,14 @@ describe('browserUninstallAll function', () => {
         await expect(browserUninstallAll(options)).rejects.toThrow(getInstalledError);
     });
 
-    test('should set log level from options.logLevel if options.loglevel is undefined', async () => {
+    test('sets the log level from options.loglevel, the name commander stores', async () => {
         // Mock installed browsers
         getInstalledBrowsers.mockResolvedValue([]);
 
         const options = {
-            logLevel: 'debug', // Using logLevel instead of loglevel
+            // `loglevel`, not `logLevel`: the option is declared `--log-level, --loglevel`
+            // and Commander uses the second long form as the attribute name.
+            loglevel: 'debug',
         };
 
         await browserUninstallAll(options);

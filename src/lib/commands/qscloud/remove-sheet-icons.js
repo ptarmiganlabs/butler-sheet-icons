@@ -30,7 +30,7 @@ const buildCloudRemoveSheetIconsCommand = () => {
         .description('Remove all sheet icons from a Qlik Sense Cloud app.')
         .action(handleCloudRemoveSheetIcons)
         .addOption(
-            new Option('--loglevel, --log-level <level>', 'Log level')
+            new Option('--log-level, --loglevel <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
                 .env('BSI_QSCLOUD_RSI_LOG_LEVEL')

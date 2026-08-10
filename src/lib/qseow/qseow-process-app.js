@@ -275,19 +275,26 @@ export const qseowProcessApp = async (appId, options) => {
                         let appUrl;
                         let hubUrl;
 
-                        if (options.secure === 'true' || options.secure === true) {
-                            appUrl = 'https://';
-                        } else {
-                            appUrl = 'http://';
-                        }
-                        hubUrl = appUrl;
+                        const scheme =
+                            options.secure === 'true' || options.secure === true
+                                ? 'https://'
+                                : 'http://';
+
+                        // --port is the web port, distinct from --engineport (4747) and --qrsport
+                        // (4242). It was declared and parsed but never reached the URL, so a
+                        // server on a non-standard web port could not be reached at all. Built
+                        // once here rather than in each branch below, so the app and hub URLs
+                        // cannot disagree about which host they are talking to.
+                        const origin = options.port
+                            ? `${scheme}${options.host}:${options.port}`
+                            : `${scheme}${options.host}`;
 
                         if (options.prefix && options.prefix.length > 0) {
-                            appUrl = `${appUrl + options.host}/${options.prefix}/sense/app/${appId}`;
-                            hubUrl = `${hubUrl + options.host}/${options.prefix}/hub`;
+                            appUrl = `${origin}/${options.prefix}/sense/app/${appId}`;
+                            hubUrl = `${origin}/${options.prefix}/hub`;
                         } else {
-                            appUrl = `${appUrl + options.host}/sense/app/${appId}`;
-                            hubUrl = `${hubUrl + options.host}/hub`;
+                            appUrl = `${origin}/sense/app/${appId}`;
+                            hubUrl = `${origin}/hub`;
                         }
 
                         logger.debug(`App URL: ${appUrl}`);

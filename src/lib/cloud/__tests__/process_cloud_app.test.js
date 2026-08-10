@@ -338,6 +338,58 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         expect(logged).not.toContain('Error closing session');
     });
 
+    describe('--skip-login (issue #890)', () => {
+        beforeEach(() => {
+            jest.clearAllMocks();
+            detectAvailableBrowser.mockResolvedValue({
+                executablePath: '/test/browser',
+                source: 'system',
+                browser: 'chrome',
+                buildId: 'system-installed',
+            });
+            browserInstall.mockReset();
+        });
+
+        test('skips the login form when skipLogin is set', async () => {
+            // The flag was read as options.skiplogin, which Commander never sets, so this branch
+            // was unreachable and credentials were typed even for an operator already signed in.
+            const browser = setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                skipLogin: true,
+            });
+
+            expect(browser._page.keyboard.type).not.toHaveBeenCalled();
+            const atInfo = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(atInfo).toContain('Skipping login as --skip-login is set to true');
+        });
+
+        test('types credentials when skipLogin is false', async () => {
+            const browser = setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                skipLogin: false,
+            });
+
+            expect(browser._page.keyboard.type).toHaveBeenCalledWith('test-user');
+        });
+
+        test('does not honour the run-together spelling', async () => {
+            // Guards the fix from being "helpfully" reverted: skiplogin is not a name Commander
+            // ever produces, so honouring it would resurrect the confusion behind #890.
+            const browser = setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                skiplogin: true,
+            });
+
+            expect(browser._page.keyboard.type).toHaveBeenCalled();
+        });
+    });
+
     describe('session and sheet-list wiring', () => {
         beforeEach(() => {
             jest.clearAllMocks();

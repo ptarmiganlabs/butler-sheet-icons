@@ -1,5 +1,12 @@
 import { describe, test, expect, beforeEach, afterEach, jest, beforeAll } from '@jest/globals';
 import { Command, InvalidArgumentError } from 'commander';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Root of the platform code that consumes CLI options, resolved from this file so the
+// option-name guard below does not depend on the working directory jest was started in.
+const PLATFORM_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 const loggerMock = {
     info: jest.fn(),
@@ -676,5 +683,189 @@ describe('exit code reflects whether the command succeeded', () => {
         await handleCloudRemoveSheetIcons({}, {});
 
         expect(process.exitCode).toBe(1);
+    });
+});
+
+describe('option keys match the property names the code reads (issue #890)', () => {
+    /**
+     * Every command that declares the log-level option, resolved from its real builder.
+     *
+     * @returns {Array<[string, import('commander').Command]>} Name/command pairs.
+     */
+    /**
+     * Finds a subcommand by name.
+     *
+     * @param {import('commander').Command} parent - Platform command, e.g. `qseow`.
+     * @param {string} name - Subcommand name.
+     *
+     * @returns {import('commander').Command|undefined} The subcommand, if present.
+     */
+    const sub = (parent, name) => parent.commands.find((cmd) => cmd.name() === name);
+
+    // Lazy thunks: test.each() is evaluated when the describe block is built, which happens
+    // before beforeAll() has resolved the dynamic imports.
+    const EVERY_COMMAND = [
+        [
+            'qseow create-sheet-thumbnails',
+            () => sub(buildQseowCommand(), 'create-sheet-thumbnails'),
+        ],
+        [
+            'qscloud create-sheet-thumbnails',
+            () => sub(buildQscloudCommand(), 'create-sheet-thumbnails'),
+        ],
+        ['qscloud list-collections', () => sub(buildQscloudCommand(), 'list-collections')],
+        ['qscloud remove-sheet-icons', () => sub(buildQscloudCommand(), 'remove-sheet-icons')],
+        ['browser install', () => sub(buildBrowserCommand(), 'install')],
+        ['browser list-available', () => sub(buildBrowserCommand(), 'list-available')],
+        ['browser list-installed', () => sub(buildBrowserCommand(), 'list-installed')],
+        ['browser uninstall', () => sub(buildBrowserCommand(), 'uninstall')],
+        ['browser uninstall-all', () => sub(buildBrowserCommand(), 'uninstall-all')],
+    ];
+
+    /**
+     * Finds the log-level option on a command, whichever slot Commander put it in.
+     *
+     * @param {import('commander').Command} command - Command to search.
+     *
+     * @returns {import('commander').Option|undefined} The option, if declared.
+     */
+    const logLevelOption = (command) =>
+        command.options.find((opt) => opt.long === '--loglevel' || opt.short === '--loglevel');
+
+    describe('--skip-login', () => {
+        /**
+         * The declared `--skip-login` option, taken from the real command builder.
+         *
+         * @returns {import('commander').Option} The declared option.
+         */
+        const skipLoginOption = () =>
+            buildQscloudCommand()
+                .commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails')
+                .options.find((opt) => opt.long === '--skip-login');
+
+        test('is stored under skipLogin, which is what process-cloud-app.js reads', () => {
+            // The bug in #890: the flag was read as `options.skiplogin`, which Commander never
+            // sets, so the skip branch was unreachable and login was always attempted. Asserted
+            // against the real declared Option rather than a hand-built options object - a mock
+            // would happily carry whichever spelling the test author chose.
+            expect(skipLoginOption().attributeName()).toBe('skipLogin');
+        });
+
+        test('parses to a real boolean, so the === true check is right', () => {
+            const parent = new Command();
+            parent.exitOverride();
+            parent.addOption(skipLoginOption());
+            parent.parse(['node', 'test', '--skip-login']);
+
+            expect(parent.opts().skipLogin).toBe(true);
+        });
+
+        test('defaults to false rather than undefined', () => {
+            expect(skipLoginOption().defaultValue).toBe(false);
+        });
+    });
+
+    describe('the log-level option', () => {
+        // Declared `--log-level, --loglevel <level>`. Commander takes the *second* long form as
+        // the attribute name, so this stores `loglevel` - the spelling ~40 reads already use.
+        // With the forms the other way round it stored `logLevel`, and twelve handlers each
+        // carried an alias shim to bridge the gap. A handler added without the shim silently
+        // called setLoggingLevel(undefined).
+        test.each(EVERY_COMMAND)('%s stores it as loglevel', (_name, build) => {
+            const option = logLevelOption(build());
+
+            expect(option).toBeDefined();
+            expect(option.attributeName()).toBe('loglevel');
+        });
+
+        test.each(EVERY_COMMAND)('%s accepts both spellings', (_name, build) => {
+            const option = logLevelOption(build());
+
+            for (const spelling of ['--loglevel', '--log-level']) {
+                const parent = new Command();
+                parent.exitOverride();
+                parent.addOption(option);
+                parent.parse(['node', 'test', spelling, 'debug']);
+
+                expect(parent.opts().loglevel).toBe('debug');
+            }
+        });
+
+        test('no command stores it under logLevel any more', () => {
+            // The shims are gone, so a command that reverted to the old flag order would leave
+            // every downstream `options.loglevel` read undefined.
+            const wrong = EVERY_COMMAND.filter(([, build]) =>
+                build().options.some((opt) => opt.attributeName() === 'logLevel')
+            );
+
+            expect(wrong.map(([name]) => name)).toEqual([]);
+        });
+    });
+
+    describe('every option the platform code reads is actually declared', () => {
+        // The guard #890 asked for. Both bugs it catches were invisible to every other kind of
+        // test: a hand-built options object in a unit test carries whichever spelling its author
+        // chose, so it agrees with the reader and the mismatch never surfaces.
+        //
+        // Scoped to src/lib/{cloud,qseow,browser} because those consume CLI options directly.
+        // Deliberately no allowlist - it currently passes with none, and an allowlist is where a
+        // rule like this rots.
+        const optionReads = () => {
+            const files = [];
+            const walkDir = (dir) => {
+                for (const entry of readdirSync(dir, { withFileTypes: true })) {
+                    const full = join(dir, entry.name);
+                    if (entry.isDirectory()) {
+                        if (entry.name !== '__tests__') walkDir(full);
+                    } else if (entry.name.endsWith('.js')) {
+                        files.push(full);
+                    }
+                }
+            };
+            ['cloud', 'qseow', 'browser'].forEach((area) => walkDir(join(PLATFORM_ROOT, area)));
+
+            const found = new Map();
+            for (const file of files) {
+                readFileSync(file, 'utf8')
+                    .split('\n')
+                    .forEach((line, index) => {
+                        const trimmed = line.trim();
+                        // Skip comments and JSDoc: they document option names loosely, and a
+                        // stale doc line is a different problem from a broken read.
+                        if (trimmed.startsWith('*') || trimmed.startsWith('//')) return;
+                        for (const match of line.matchAll(/\boptions\??\.([a-zA-Z_][\w]*)/g)) {
+                            if (!found.has(match[1])) {
+                                found.set(match[1], `${file}:${index + 1}`);
+                            }
+                        }
+                    });
+            }
+            return found;
+        };
+
+        const declaredNames = () => {
+            const names = new Set();
+            const collect = (command) => {
+                command.options.forEach((opt) => names.add(opt.attributeName()));
+                command.commands.forEach(collect);
+            };
+            [buildQseowCommand(), buildQscloudCommand(), buildBrowserCommand()].forEach(collect);
+            return names;
+        };
+
+        test('no options.<name> read has a name commander never stores', () => {
+            const declared = declaredNames();
+            const unmatched = [...optionReads().entries()]
+                .filter(([name]) => !declared.has(name))
+                .map(([name, where]) => `options.${name} (${where})`);
+
+            expect(unmatched).toEqual([]);
+        });
+
+        test('the scan actually found something, so an empty pass is not a false negative', () => {
+            // Without this, a broken walk or regex would make the test above pass vacuously.
+            expect(optionReads().size).toBeGreaterThan(30);
+            expect(declaredNames().size).toBeGreaterThan(30);
+        });
     });
 });

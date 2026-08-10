@@ -36,7 +36,7 @@ const buildBrowserInstallCommand = () => {
         )
         .action(handleBrowserInstall)
         .addOption(
-            new Option('--loglevel, --log-level <level>', 'Log level')
+            new Option('--log-level, --loglevel <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
                 .env('BSI_BROWSER_I_LOG_LEVEL')

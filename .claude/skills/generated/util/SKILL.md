@@ -1,16 +1,16 @@
 ---
 name: util
-description: "Skill for the Util area of butler-sheet-icons. 34 symbols across 12 files."
+description: "Skill for the Util area of butler-sheet-icons. 31 symbols across 10 files."
 ---
 
 # Util
 
-34 symbols | 12 files | Cohesion: 91%
+31 symbols | 10 files | Cohesion: 92%
 
 ## When to Use
 
 - Working with code in `src/`
-- Understanding how qscloudUpdateSheetThumbnails, getCertFilePaths, getEnigmaSchema work
+- Understanding how qscloudTestConnection, qscloudUploadToApp, getCertFilePaths work
 - Modifying util-related functionality
 
 ## Key Files
@@ -23,8 +23,8 @@ description: "Skill for the Util area of butler-sheet-icons. 34 symbols across 1
 | `src/lib/util/errors.js` | BsiError, CertError, EnigmaError, CloudError |
 | `src/lib/util/redact-secrets.js` | isSecretKey, redactValue, redactOptions, redactSensitivePatterns |
 | `src/globals.js` | sanitizeLogValue, sanitizeFormat |
-| `src/lib/util/error-categorizer.js` | getErrorCategory, getErrorMetadata |
-| `src/lib/cloud/cloud-updatesheets.js` | qscloudUpdateSheetThumbnails |
+| `src/lib/cloud/cloud-test-connection.js` | qscloudTestConnection |
+| `src/lib/cloud/cloud-upload.js` | qscloudUploadToApp |
 | `src/lib/util/cert.js` | getCertFilePaths |
 | `src/lib/util/enigma-util.js` | getEnigmaSchema |
 
@@ -32,11 +32,11 @@ description: "Skill for the Util area of butler-sheet-icons. 34 symbols across 1
 
 Start here when exploring this area:
 
-- **`qscloudUpdateSheetThumbnails`** (Function) — `src/lib/cloud/cloud-updatesheets.js:24`
+- **`qscloudTestConnection`** (Function) — `src/lib/cloud/cloud-test-connection.js:31`
+- **`qscloudUploadToApp`** (Function) — `src/lib/cloud/cloud-upload.js:29`
 - **`getCertFilePaths`** (Function) — `src/lib/util/cert.js:18`
 - **`getEnigmaSchema`** (Function) — `src/lib/util/enigma-util.js:45`
 - **`redactValue`** (Function) — `src/lib/util/redact-secrets.js:89`
-- **`redactOptions`** (Function) — `src/lib/util/redact-secrets.js:126`
 
 ## Key Symbols
 
@@ -46,7 +46,8 @@ Start here when exploring this area:
 | `CertError` | Class | `src/lib/util/errors.js` | 43 |
 | `EnigmaError` | Class | `src/lib/util/errors.js` | 59 |
 | `CloudError` | Class | `src/lib/util/errors.js` | 75 |
-| `qscloudUpdateSheetThumbnails` | Function | `src/lib/cloud/cloud-updatesheets.js` | 24 |
+| `qscloudTestConnection` | Function | `src/lib/cloud/cloud-test-connection.js` | 31 |
+| `qscloudUploadToApp` | Function | `src/lib/cloud/cloud-upload.js` | 29 |
 | `getCertFilePaths` | Function | `src/lib/util/cert.js` | 18 |
 | `getEnigmaSchema` | Function | `src/lib/util/enigma-util.js` | 45 |
 | `redactValue` | Function | `src/lib/util/redact-secrets.js` | 89 |
@@ -58,25 +59,26 @@ Start here when exploring this area:
 | `logVerbose` | Function | `src/lib/util/log-error.js` | 110 |
 | `logDebug` | Function | `src/lib/util/log-error.js` | 121 |
 | `writeCrashDump` | Function | `src/lib/util/crash-dump.js` | 161 |
-| `getErrorCategory` | Function | `src/lib/util/error-categorizer.js` | 32 |
-| `getErrorMetadata` | Function | `src/lib/util/error-categorizer.js` | 81 |
-| `markReported` | Function | `src/lib/util/reported-error.js` | 32 |
 | `present` | Function | `src/lib/util/env-check.js` | 167 |
+| `formatSecret` | Function | `src/lib/util/env-check.js` | 106 |
+| `checkEnv` | Function | `src/lib/util/env-check.js` | 129 |
 
 ## Execution Flows
 
 | Flow | Type | Steps |
 |------|------|-------|
-| `BrowserInstall → GetErrorCategory` | cross_community | 4 |
-| `BrowserInstall → MarkReported` | cross_community | 4 |
 | `SanitizeFormat → IsSecretKey` | intra_community | 4 |
-| `BrowserListAvailable → GetErrorCategory` | cross_community | 3 |
-| `BrowserListAvailable → MarkReported` | cross_community | 3 |
 | `RedactOptions → IsSecretKey` | intra_community | 3 |
 | `SanitizeFormat → RedactSensitivePatterns` | intra_community | 3 |
 
+## Connected Areas
+
+| Area | Connections |
+|------|-------------|
+| Browser | 1 calls |
+
 ## How to Explore
 
-1. `gitnexus_context({name: "qscloudUpdateSheetThumbnails"})` — see callers and callees
+1. `gitnexus_context({name: "qscloudTestConnection"})` — see callers and callees
 2. `gitnexus_query({query: "util"})` — find related execution flows
 3. Read key files listed above for implementation details

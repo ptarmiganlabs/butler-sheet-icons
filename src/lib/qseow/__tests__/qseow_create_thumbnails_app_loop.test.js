@@ -113,6 +113,28 @@ describe('qseowCreateThumbnails app loop', () => {
             return Get;
         };
 
+        test.each([
+            ['an error object', { error: 'proxy failure' }],
+            ['null', null],
+            ['an HTML error page', '<html>502 Bad Gateway</html>'],
+        ])('reports %s as a QRS failure, not as an app list', async (_label, body) => {
+            // The tag lookup used to reach straight into `.body` and call `.map` on it, so an
+            // unreadable QRS reply surfaced as `TypeError: result.body.map is not a function`
+            // - an internal error naming nothing the operator could act on. Reading through
+            // qrsGetList makes the response itself the reported problem.
+            const Get = wireQrs();
+            Get.mockResolvedValue({ statusCode: 200, body });
+            runOverApps.mockResolvedValue(true);
+
+            await expect(
+                qseowCreateThumbnails({ ...OPTIONS, appid: '', qliksensetag: 'BSI' })
+            ).resolves.toBe(false);
+
+            const errors = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(errors).toMatch(/unusable response|is not a function/);
+            expect(errors).toContain('unusable response');
+        });
+
         test('encodes the tag so an ampersand cannot truncate the query string', async () => {
             // Raw, the `&` starts a new query parameter and QRS answers
             // 400::Missing parameter value(s) - verified against a live QSEoW.

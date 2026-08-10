@@ -19,10 +19,6 @@ import { qscloudTestConnection } from './cloud-test-connection.js';
  */
 export const qscloudListCollections = async (options) => {
     try {
-        // Set log level
-        if (options.loglevel === undefined || options.logLevel) {
-            options.loglevel = options.logLevel;
-        }
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting listing of available collections');

@@ -2,6 +2,7 @@ import qrsInteract from 'qrs-interact';
 
 import { logger } from '../../globals.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
+import { qrsGetList } from './qrs-response.js';
 import { qrsFilterAnyOf, qrsPathWithFilter } from './qrs-filter.js';
 
 /**
@@ -38,7 +39,9 @@ export const getAppIdsByTag = async (options) => {
     // tag containing punctuation.
     logger.debug(`GETAPPS 1: app/full?filter=${filter}`);
 
-    const result = await qrsInteractInstance.Get(qrsPathWithFilter('app/full', filter));
+    // Through qrsGetList, so a QRS response that is not a list fails as itself rather than as
+    // `TypeError: result.body.map is not a function` from somewhere further down.
+    const apps = await qrsGetList(qrsInteractInstance, qrsPathWithFilter('app/full', filter));
 
-    return result.body.map((app) => app.id);
+    return apps.map((app) => app.id);
 };

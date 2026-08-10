@@ -16,10 +16,6 @@ import { redactOptions } from '../util/redact-secrets.js';
  */
 export async function browserInstalled(options) {
     try {
-        // Set log level
-        if (options.loglevel === undefined || options.logLevel) {
-            options.loglevel = options.logLevel;
-        }
         setLoggingLevel(options.loglevel);
 
         logger.verbose('Starting check for installed browser');

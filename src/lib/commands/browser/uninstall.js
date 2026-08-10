@@ -31,7 +31,7 @@ const buildBrowserUninstallCommand = () => {
         )
         .action(handleBrowserUninstall)
         .addOption(
-            new Option('--loglevel, --log-level <level>', 'Log level')
+            new Option('--log-level, --loglevel <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
                 .env('BSI_BROWSER_UI_LOG_LEVEL')

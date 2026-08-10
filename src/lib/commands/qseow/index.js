@@ -21,7 +21,6 @@ const handleQseowCreateSheetThumbnails = async (options = {}, command) => {
     logger.info(`App version: ${appVersion}`);
 
     logger.verbose(`appid=${options.appid}`);
-    logger.verbose(`itemid=${options.itemid}`);
     return runCommand('QSEOW MAIN 1', () => qseowCreateThumbnails(options, command));
 };
 
@@ -41,7 +40,7 @@ const buildQseowCommand = () => {
         )
         .action(handleQseowCreateSheetThumbnails)
         .addOption(
-            new Option('--loglevel, --log-level <level>', 'Log level')
+            new Option('--log-level, --loglevel <level>', 'Log level')
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
                 .env('BSI_LOG_LEVEL')
