@@ -135,7 +135,14 @@ describe('the menu themes itself', () => {
         // set, so it would have mojibaked on exactly the consoles the fallback
         // exists for while the rest of the wizard rendered correctly.
         const { runMenu } = await import('../menu.js');
-        const { UNICODE_SYMBOLS } = await import('../symbols.js');
+        const { getSymbols } = await import('../symbols.js');
+
+        // Compared against whatever this host resolves to, not against the
+        // Unicode set. is-unicode-supported says no on the windows runner and
+        // yes on ubuntu, so pinning either one asserts something about the
+        // machine rather than about the menu - which is the mistake this very
+        // file exists to guard against, made twice already on this branch.
+        const symbols = getSymbols();
 
         let seenTheme;
         const runtime = {
@@ -150,7 +157,11 @@ describe('the menu themes itself', () => {
         await runMenu({ runtime });
 
         expect(seenTheme).toBeDefined();
-        expect(seenTheme.prefix.done).toContain(UNICODE_SYMBOLS.done);
-        expect(seenTheme.icon.cursor).toBe(UNICODE_SYMBOLS.cursor);
+        expect(seenTheme.prefix.done).toContain(symbols.done);
+        expect(seenTheme.icon.cursor).toBe(symbols.cursor);
+        // The regression itself: @inquirer's default ticks with U+2714, which
+        // is drawn from the emoji font at double width on some terminals and
+        // never consults the ASCII fallback.
+        expect(seenTheme.prefix.done).not.toContain('✔');
     });
 });
