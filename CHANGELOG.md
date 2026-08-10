@@ -1,5 +1,67 @@
 # Changelog
 
+## [4.1.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v4.0.0...butler-sheet-icons-v4.1.0) (2026-08-10)
+
+
+### Features
+
+* accept several tags in --blur-sheet-tag on both platforms ([a0cd1c5](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a0cd1c5b1fdc1b72a212bcf3315c474bd2aa78b9))
+* say that the sheet tag options do nothing on Qlik Sense Cloud ([3595e1f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3595e1f3e4b3ee9c9a27d0a667d0b231f8b8dc71))
+
+
+### Bug Fixes
+
+* cap how many crash dumps a single run can write ([15f7fc6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/15f7fc69461400cedd0c32985fa7b6aaff5d7be0)), closes [#946](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/946)
+* **cli:** validate --includesheetpart at parse time in both backends ([e27b326](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e27b32655f85f0d106dbd528f80b208390eaefd2)), closes [#891](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/891)
+* give a working way to read the Chromium credits page ([1c1220c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1c1220c4fa1c347442b78ce133fd6abb910febe8))
+* give a working way to read the Chromium credits page ([bbac868](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bbac868939aa705d7d3583c79dcd75f46bb79755))
+* look up the sheets named by --blur-sheet-tag on QSEoW ([c332e13](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c332e13436d276b7bd9f495b5b418b6a383ba2ff))
+* make --skip-login take effect ([b461562](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b461562ba9c4968a160200bf8d4c6ccd2f392eb5)), closes [#890](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/890)
+* make the crash dump end-to-end test run on Windows ([e54ddeb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e54ddebbfef934bd2f8cbca90ef45869c13ef9b7)), closes [#946](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/946)
+* options and error messages that named the wrong thing ([#890](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/890) and the same class) ([f22e498](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f22e49849c58532a520a961fb41a9e1cc47ea3b4))
+* read the three per-app QRS lookups through qrsGetList ([94e0e9d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/94e0e9d53903d8922d29557a34fb639e4d7132fe))
+* restore certificate tolerance lost in the Puppeteer v25 upgrade ([8f62efb](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8f62efb9ea0b56471d0f501b07460c2b9fd4382d))
+* send --port to the QSEoW hub and app URLs ([42f1895](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/42f189577c308fadaafa82a122c50053276d42ef))
+* ship Docker image licence notices, and restore certificate tolerance lost in the Puppeteer v25 upgrade ([fbab43b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fbab43b303294d05556da8d7faf921fa12edb3f0))
+* ship the licence notices for the software bundled in the Docker image ([5caaaaa](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5caaaaa231947e89995a9cde49098156cf3635ed))
+* ship the Windows release unsigned rather than not at all ([3f00ea4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3f00ea4f5885654bb0f0f6c0dbb072b91c65a6ab))
+* sign Windows releases against the timestamp URL Certum actually serves ([8e24866](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8e248665961a1946b09b9940b7c6fc5974293878))
+* stop a burst of fatal errors writing a crash dump for each one ([a424a9f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a424a9f40637ba83b60df2ee85887f66a0414ec0)), closes [#946](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/946)
+* stop an unreadable QRS reply looking like a missing content library ([40064ba](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/40064ba64a42d9fdcc4b93b52907f32bad3ab1b2))
+* stop log redaction eating the word after "token" ([ebb1415](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ebb1415b5a6c7104c58e3cd40e8ae83ee1b1bc48)), closes [#949](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/949)
+* tell an unreadable certificate apart from a missing one ([bf554ab](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bf554ab5d1c046f31da04dc55f343fbbc61a26cb))
+
+
+### Miscellaneous
+
+* keep the GitNexus index fresh with git hooks ([62dba80](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/62dba803614b7908764a8ba77e06f656bb989aba))
+* keep the GitNexus index fresh with git hooks ([ec2f477](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ec2f4779852c5c7b5ae7a83b4847397679253e2f)), closes [#829](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/829)
+* refresh generated GitNexus skill files ([cd02e21](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cd02e21ca3a7e932ea10f27082ed565949a327a9))
+* retire the flag canary's nightly schedule, and say why it is kept ([9c93385](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9c933859c93c62b8291c7da0dcca4d06b4ca82c2))
+* turn Windows code signing off until a certificate is available ([990c0b8](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/990c0b82ba25a667aba5dcb76c788bb49327a637))
+
+
+### Documentation
+
+* correct the note about the pending licences draft ([184b872](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/184b872b3e92576c566f1aa9bb72c8b6269173a7))
+* cover the per-app QRS lookups in the staged page ([7c24880](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7c24880593cfd5f1ed0f25f721d008d97c18c42c))
+* document the sheet tag options the Cloud thumbnail command reads ([d4b58ef](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d4b58ef975cfeec30f32f939d07eb2322a1e4b86))
+* mark the browser version selection draft as published ([9b82e81](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9b82e81e2f661f004d76b7f20a4d8e0b228e1407))
+* mark the browser version selection draft as published ([20a3ab9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/20a3ab93118f137c2fe7fdf2a6f4b812e99ac0df))
+* mark the Docker licences page as published ([853bc09](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/853bc09f671fff5c0650f6ac6ac9596e2a17b063))
+* mark the exclude and blur sheet number draft as published ([8f636d2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8f636d2c612450a530593b82862e0efd8f107bfd))
+* mark the exclude and blur sheet number draft as published ([a060855](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a06085544ecced38d517b4332e183abeeed3e864))
+* mark the four Docker drafts as published ([335134e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/335134e668a677ae5a396a349a6acf63fac6da30))
+* mark the four Docker drafts as published ([1b59574](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1b59574d7d1e58df35b67830d9263cc816f1b3e7)), closes [#936](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/936)
+* mark the last three staged drafts as published ([caa87b4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/caa87b4dc3de0f7dc8fd4851f7e93aa21135f4f4))
+* scope a publishing pass to the file that was actually named ([5e66cf6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5e66cf665ba90243fe695a1e73ce4016446eff01))
+* stage a page on blurring sheets by tag ([ee250f6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ee250f62a282a5266b64c755e3747e8802136ccb))
+* stage a page on the options and messages that told you the wrong thing ([bdaad0b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bdaad0bc06a4cb78876c453269b1022fcff4a2a6))
+* stage a page on the run that would not stop writing crash dumps ([132d8c0](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/132d8c0fcc3da1f1a5aae8d3eec63fa1d16b4a25)), closes [#946](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/946)
+* stage a page on the two options that never worked ([bc4e945](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bc4e9453a72aa83bda8547fc75154aa92935611e))
+* stage the log line that hid the word you needed ([509e791](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/509e791e964254e3cc3df395459b138509ee7dd5))
+* stop PR titles duplicating every changelog entry ([a1394b9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a1394b901a6f997226cba5ab890595e198f936fa))
+
 ## [4.0.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v3.11.0...butler-sheet-icons-v4.0.0) (2026-08-09)
 
 
