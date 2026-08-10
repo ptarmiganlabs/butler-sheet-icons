@@ -5,6 +5,7 @@ import { qscloudTestConnection } from './cloud-test-connection.js';
 import { processCloudApp } from './process-cloud-app.js';
 import { runOverApps } from '../util/run-over-apps.js';
 import { getAppIdsByCollection } from './cloud-apps.js';
+import { CLOUD_SHEET_PARTS } from './sheet-parts.js';
 
 /**
  * Create thumbnails for Qlik Sense Cloud (QSC).
@@ -66,8 +67,10 @@ export const qscloudCreateThumbnails = async (options) => {
         // downstream in sheet-screenshot.js - see a consistent type.
         options.includesheetpart = String(options.includesheetpart);
 
-        // If --includesheetpart has been specifed it should contain a valid value
-        if (!['1', '2', '4'].includes(options.includesheetpart)) {
+        // CLI callers are validated at parse time by the .choices() on the option definition,
+        // built from the same list. This check protects programmatic and test callers that
+        // bypass Commander.
+        if (!CLOUD_SHEET_PARTS.includes(options.includesheetpart)) {
             logger.error(
                 `Invalid --includesheetpart paramater: ${options.includesheetpart}. Aborting`
             );

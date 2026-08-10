@@ -1,6 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
+import { QSEOW_SHEET_PARTS } from '../../qseow/sheet-parts.js';
 import {
     VERSION_RECOMMENDED,
     describeBrowserVersionOption,
@@ -228,11 +229,7 @@ const buildQseowCommand = () => {
                 '--includesheetpart <value>',
                 'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3=2 + selection bar, 4=3 + menu bar'
             )
-                .argParser((value) =>
-                    parsePositiveInteger(value, {
-                        errorMessage: 'Include sheet part must be a non-negative integer.',
-                    })
-                )
+                .choices(QSEOW_SHEET_PARTS)
                 .default('1')
                 .makeOptionMandatory()
                 .env('BSI_QSEOW_CST_INCLUDE_SHEET_PART')

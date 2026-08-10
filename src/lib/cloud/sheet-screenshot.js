@@ -1,6 +1,7 @@
 import { Jimp } from 'jimp';
 
 import { sleep } from '../../globals.js';
+import { CLOUD_SHEET_PART_SELECTORS } from './sheet-parts.js';
 
 /**
  * Takes a screenshot of a sheet and creates a blurred version.
@@ -34,15 +35,9 @@ export async function takeSheetScreenshot(
 
     const fileName = `${imgDir}/cloud/${appId}/thumbnail-${iSheetNum}.png`;
     const fileNameShort = `thumbnail-${iSheetNum}.png`;
-    let selector = '';
-
-    if (options.includesheetpart === '1') {
-        selector = '#grid-wrap';
-    } else if (options.includesheetpart === '2') {
-        selector = '#qs-page-container';
-    } else if (options.includesheetpart === '4') {
-        selector = '#qv-page-container';
-    }
+    // Which part of the sheet to capture. The map is the single source of truth for the values
+    // --includesheetpart accepts - see sheet-parts.js.
+    const selector = CLOUD_SHEET_PART_SELECTORS[options.includesheetpart];
 
     await page.waitForSelector(selector);
     const sheetMainPart = await page.$(selector);

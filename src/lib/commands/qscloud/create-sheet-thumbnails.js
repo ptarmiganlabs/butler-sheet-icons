@@ -1,6 +1,7 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qscloudCreateThumbnails } from '../../cloud/cloud-create-thumbnails.js';
+import { CLOUD_SHEET_PARTS } from '../../cloud/sheet-parts.js';
 import {
     VERSION_RECOMMENDED,
     describeBrowserVersionOption,
@@ -128,12 +129,7 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 '--includesheetpart <value>',
                 'Which part of sheets should be used to take screenshots. 1=object area only, 2=1 + sheet title, 3 not used, 4=full screen'
             )
-                .argParser((value) =>
-                    parsePositiveInteger(value, {
-                        errorMessage: 'Include sheet part must be a non-negative integer.',
-                    })
-                )
-                .choices(['1', '2', '4'])
+                .choices(CLOUD_SHEET_PARTS)
                 .default('1')
                 .makeOptionMandatory()
                 .env('BSI_QSCLOUD_CST_INCLUDE_SHEET_PART')

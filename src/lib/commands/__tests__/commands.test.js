@@ -208,17 +208,17 @@ const parseOptionInIsolation = (command, flag, argv) => {
     return parent.opts();
 };
 
-describe('--browser-version defaults (issue #878)', () => {
-    /**
-     * Resolves the `create-sheet-thumbnails` subcommand for a platform.
-     *
-     * @param {import('commander').Command} parent - Platform command, e.g. `qseow`.
-     *
-     * @returns {import('commander').Command} The thumbnail subcommand.
-     */
-    const thumbnailCommand = (parent) =>
-        parent.commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails');
+/**
+ * Resolves the `create-sheet-thumbnails` subcommand for a platform.
+ *
+ * @param {import('commander').Command} parent - Platform command, e.g. `qseow`.
+ *
+ * @returns {import('commander').Command} The thumbnail subcommand.
+ */
+const thumbnailCommand = (parent) =>
+    parent.commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails');
 
+describe('--browser-version defaults (issue #878)', () => {
     // Asserted against the declared Option rather than a handler, because that is where the
     // default actually lives. Butler Sheet Icons shipped with `.default('latest')` here and a
     // handler that tried to correct it but never could, and no test covered the value that a
@@ -335,8 +335,7 @@ describe('--browser choices', () => {
         ['qseow', () => buildQseowCommand()],
         ['qscloud', () => buildQscloudCommand()],
     ])('%s create-sheet-thumbnails offers chrome only', (_name, build) => {
-        const command = build().commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails');
-        const option = command.options.find((opt) => opt.long === '--browser');
+        const option = thumbnailCommand(build()).options.find((opt) => opt.long === '--browser');
 
         expect(option.argChoices).toEqual(['chrome']);
     });
@@ -348,6 +347,143 @@ describe('--browser choices', () => {
         const option = build().options.find((opt) => opt.long === '--browser');
 
         expect(option.argChoices).toEqual(['chrome', 'firefox']);
+    });
+});
+
+describe('--includesheetpart choices (issue #891)', () => {
+    test('qseow accepts 1, 2, 3 and 4', () => {
+        const cmd = thumbnailCommand(buildQseowCommand());
+
+        for (const value of ['1', '2', '3', '4']) {
+            const opts = parseOptionInIsolation(cmd, '--includesheetpart', [value]);
+            expect(opts.includesheetpart).toBe(value);
+        }
+    });
+
+    test('qseow rejects values outside 1-4', () => {
+        const cmd = thumbnailCommand(buildQseowCommand());
+
+        for (const value of ['0', '5', '9', 'abc']) {
+            expect(() => parseOptionInIsolation(cmd, '--includesheetpart', [value])).toThrow(
+                /allowed choices/i
+            );
+        }
+    });
+
+    test('qseow argChoices lists the valid values', () => {
+        const option = thumbnailCommand(buildQseowCommand()).options.find(
+            (opt) => opt.long === '--includesheetpart'
+        );
+
+        expect(option.argChoices).toEqual(['1', '2', '3', '4']);
+    });
+
+    test('qscloud accepts 1, 2 and 4', () => {
+        const cmd = thumbnailCommand(buildQscloudCommand());
+
+        for (const value of ['1', '2', '4']) {
+            const opts = parseOptionInIsolation(cmd, '--includesheetpart', [value]);
+            expect(opts.includesheetpart).toBe(value);
+        }
+    });
+
+    test('qscloud rejects value 3, which is unused on Cloud', () => {
+        const cmd = thumbnailCommand(buildQscloudCommand());
+
+        expect(() => parseOptionInIsolation(cmd, '--includesheetpart', ['3'])).toThrow(
+            /allowed choices/i
+        );
+    });
+
+    test('qscloud rejects other invalid values', () => {
+        const cmd = thumbnailCommand(buildQscloudCommand());
+
+        for (const value of ['0', '5', '9', 'abc']) {
+            expect(() => parseOptionInIsolation(cmd, '--includesheetpart', [value])).toThrow(
+                /allowed choices/i
+            );
+        }
+    });
+
+    test('qscloud argChoices lists the valid values', () => {
+        const option = thumbnailCommand(buildQscloudCommand()).options.find(
+            (opt) => opt.long === '--includesheetpart'
+        );
+
+        expect(option.argChoices).toEqual(['1', '2', '4']);
+    });
+
+    test('qscloud --includesheetpart error comes from choices, not a custom argParser', () => {
+        // .choices() overwrites parseArg in Commander, so a custom argParser declared before
+        // .choices() never runs. The dead parser was removed; verify the error message is the
+        // choices validator's, not the old "must be a non-negative integer" message.
+        const cmd = thumbnailCommand(buildQscloudCommand());
+        const parse = () => parseOptionInIsolation(cmd, '--includesheetpart', ['abc']);
+
+        expect(parse).toThrow(/allowed choices/i);
+        expect(parse).not.toThrow(/non-negative integer/i);
+    });
+
+    // The environment variable is how this option is set in practice: the CI workflow, the
+    // documented docker examples and any scheduled job all use BSI_..._INCLUDE_SHEET_PART rather
+    // than passing the flag. Commander runs the same parseArg for env values as for argv, but via
+    // a separate listener and with a different message, so argv coverage alone would not notice
+    // the env path losing its validation.
+    const envCases = [
+        ['qseow', () => buildQseowCommand(), 'BSI_QSEOW_CST_INCLUDE_SHEET_PART', '3'],
+        ['qscloud', () => buildQscloudCommand(), 'BSI_QSCLOUD_CST_INCLUDE_SHEET_PART', '4'],
+    ];
+
+    /**
+     * Parses `--includesheetpart` with only an environment variable set, restoring the previous
+     * value afterwards so the variable cannot leak into other tests.
+     *
+     * @param {() => import('commander').Command} build - Builds the platform command.
+     * @param {string} envVar - Environment variable backing the option.
+     * @param {string} value - Value to place in the environment variable.
+     *
+     * @returns {object} The parsed options object.
+     */
+    const parseFromEnv = (build, envVar, value) => {
+        const saved = process.env[envVar];
+        process.env[envVar] = value;
+
+        try {
+            const option = thumbnailCommand(build()).options.find(
+                (opt) => opt.long === '--includesheetpart'
+            );
+            const parent = new Command();
+            parent.exitOverride();
+            parent.addOption(option);
+            parent.parse(['node', 'test']);
+
+            return parent.opts();
+        } finally {
+            if (saved === undefined) {
+                delete process.env[envVar];
+            } else {
+                process.env[envVar] = saved;
+            }
+        }
+    };
+
+    test.each(envCases)('%s accepts a valid value from the env var', (_n, build, envVar, valid) => {
+        expect(parseFromEnv(build, envVar, valid).includesheetpart).toBe(valid);
+    });
+
+    test.each(envCases)('%s rejects an invalid value from the env var', (_n, build, envVar) => {
+        // Asserted on "from env" as well as the choices text, so this cannot pass by accidentally
+        // exercising the command-line path: Commander words the two messages differently.
+        expect(() => parseFromEnv(build, envVar, '9')).toThrow(/allowed choices/i);
+        expect(() => parseFromEnv(build, envVar, '9')).toThrow(
+            new RegExp(`value '9' from env '${envVar}' is invalid`)
+        );
+    });
+
+    test('qscloud rejects 3 from the env var, the value only QSEoW supports', () => {
+        expect(() =>
+            parseFromEnv(() => buildQscloudCommand(), 'BSI_QSCLOUD_CST_INCLUDE_SHEET_PART', '3')
+        ).toThrow(/allowed choices/i);
     });
 });
 

@@ -5,6 +5,7 @@ import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { qseowProcessApp } from './qseow-process-app.js';
 import { runOverApps } from '../util/run-over-apps.js';
 import { getAppIdsByTag } from './qseow-app-lookup.js';
+import { QSEOW_SHEET_PARTS } from './sheet-parts.js';
 
 /**
  * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW).
@@ -42,8 +43,10 @@ export const qseowCreateThumbnails = async (options) => {
         // qseow-process-app.js - see a consistent type.
         options.includesheetpart = String(options.includesheetpart);
 
-        // If --includesheetpart has been specifed it should contain a valid value
-        if (!['1', '2', '3', '4'].includes(options.includesheetpart)) {
+        // CLI callers are validated at parse time by the .choices() on the option definition,
+        // built from the same list. This check protects programmatic and test callers that
+        // bypass Commander.
+        if (!QSEOW_SHEET_PARTS.includes(options.includesheetpart)) {
             logger.error(
                 `Invalid --includesheetpart paramater: ${options.includesheetpart}. Aborting`
             );
