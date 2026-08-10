@@ -78,10 +78,10 @@ a bare host name for the engine connection and the repository API, each of which
 separately from `--engineport` and `--qrsport`. A `--host` containing `:8443` breaks both of those
 connections. `--port` is the only correct place for the web port.
 
-## Two failures that named the wrong cause
+## Three failures that named the wrong cause
 
-Separately from the options above, two checks reported the wrong reason when they went wrong,
-and both sent you looking in the wrong place. Nothing about a working run changes.
+Separately from the options above, three checks reported the wrong reason when they went wrong,
+and each sent you looking in the wrong place. Nothing about a working run changes.
 
 ### An unreadable certificate is no longer called a missing one
 
@@ -143,6 +143,45 @@ Icons and QRS — a reverse proxy or load balancer — is answering instead of Q
 
 The same protection applies to the app lookup behind `--qliksensetag`, which previously failed
 with an internal error naming nothing useful.
+
+### Per-app lookups no longer fail as internal errors
+
+Client-managed Qlik Sense only. Before generating thumbnails for an app, Butler Sheet Icons asks
+QRS three questions: what the app is called, which of its sheets carry the tags named by
+`--exclude-sheet-tag` and `--blur-sheet-tag`, and how the sheet ids in the repository map to the
+ones the engine uses. All three assumed the answer would be a list.
+
+When the answer was something else — an error object from QRS, or a reply from something other
+than Qlik Sense sitting in front of it — each failed in its own unhelpful way:
+
+| Lookup             | What you were told                                                                     |
+| ------------------ | -------------------------------------------------------------------------------------- |
+| Sheet id mapping   | `TypeError: mapRepoEngineSheetIdTmp1.forEach is not a function`                          |
+| App name           | The run reported `App name: "undefined"` and **carried on**, generating thumbnails anyway |
+| Tagged sheets      | A sheet count that was never real, then a failure part-way through the sheets            |
+
+The middle one is the one worth knowing about: the run looked like it was working.
+
+**Now** all three report the response as the problem, naming the request, and the app stops before
+a browser is started or a Qlik Sense session is opened:
+
+```
+QRS returned an unusable response for "app?filter=id%20eq%20<app id>": expected a list, got string
+```
+
+Other apps in the same run are unaffected — the run continues to the next one and reports how many
+failed, as it does for any other per-app failure.
+
+**What to check.** Same as above: whether the account named by `--apiuserid` and `--apiuserdir`
+may read apps and app objects, and whether something between Butler Sheet Icons and QRS is
+answering instead of Qlik Sense.
+
+An app that genuinely cannot be found is now named as that, rather than failing later inside the
+Qlik Sense session:
+
+```
+QSEoW app <app id> was not found in the Qlik Sense repository. Check --appid, and that the account named by --apiuserdir/--apiuserid may read the app.
+```
 
 ## A message that hid the one word you needed
 
