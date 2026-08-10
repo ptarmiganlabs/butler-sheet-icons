@@ -155,6 +155,32 @@ describe('qscloudRemoveSheetIcons', () => {
         });
     });
 
+    describe('no app selection', () => {
+        test('returns false when neither --appid nor --collectionid is provided', async () => {
+            await expect(
+                qscloudRemoveSheetIcons({
+                    ...BASE_OPTIONS,
+                    appid: '',
+                    collectionid: '',
+                })
+            ).resolves.toBe(false);
+
+            const errors = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(errors).toContain('No apps to process');
+            expect(errors).toContain('Check the --appid and --collectionid options');
+        });
+
+        test('never connects to the engine when no apps are specified', async () => {
+            await qscloudRemoveSheetIcons({
+                ...BASE_OPTIONS,
+                appid: '',
+                collectionid: '',
+            });
+
+            expect(enigmaCreate).not.toHaveBeenCalled();
+        });
+    });
+
     describe('single app via --appid', () => {
         test('returns true after processing the app', async () => {
             wireEnigma([makeSheet('sheet-1', 1)]);
