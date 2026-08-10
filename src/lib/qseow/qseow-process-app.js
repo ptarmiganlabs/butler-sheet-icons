@@ -17,6 +17,7 @@ import {
 import { withEngineSession } from '../util/engine-session.js';
 import { createAppImageDir } from '../util/image-dir.js';
 import { qrsFilterAnyOf, qrsPathWithFilter, toFilterValueList } from './qrs-filter.js';
+import { qrsGetList } from './qrs-response.js';
 
 /**
  * Looks up the sheets in an app that carry any of the supplied tags.
@@ -37,6 +38,8 @@ import { qrsFilterAnyOf, qrsPathWithFilter, toFilterValueList } from './qrs-filt
  *
  * @returns {Promise<Array<object>>} Sheet metadata objects exposing `engineObjectId`, empty when
  *     no tags were supplied.
+ *
+ * @throws {QseowError} When QRS answers with something that is not a list.
  */
 const getSheetsTaggedWith = async (qrsInteractInstance, appSheetsFilter, tagOption, optionName) => {
     // Variadic options arrive as arrays, so the tag term has to be an `or` group over every tag
@@ -51,8 +54,13 @@ const getSheetsTaggedWith = async (qrsInteractInstance, appSheetsFilter, tagOpti
     const tagFilter = `${appSheetsFilter} and ${qrsFilterAnyOf('tags.name', tags)}`;
     logger.debug(`GET sheets tagged for ${optionName}: app/object/full?filter=${tagFilter}`);
 
-    const response = await qrsInteractInstance.Get(qrsPathWithFilter('app/object/full', tagFilter));
-    const taggedSheets = response.body;
+    // Through qrsGetList: the count logged below is taken with `.length`, and a reply that is not
+    // a list answers that with a plausible number rather than failing - a quoted JSON string would
+    // report its character count as though that many sheets carried the tag.
+    const taggedSheets = await qrsGetList(
+        qrsInteractInstance,
+        qrsPathWithFilter('app/object/full', tagFilter)
+    );
 
     // Report the count at the default log level whenever the option was used. A misspelled tag
     // otherwise produces a run byte-identical to one where the option was never passed - the
@@ -224,8 +232,18 @@ export const qseowProcessApp = async (appId, options) => {
         // Get app top level metadata
         const appMetadataPath = qrsPathWithFilter('app', `id eq ${appId}`);
         logger.debug(`GET app top level metadata: ${appMetadataPath}`);
-        let appMetadata = await qrsInteractInstance.Get(appMetadataPath);
-        appMetadata = appMetadata.body;
+        const appMetadata = await qrsGetList(qrsInteractInstance, appMetadataPath);
+
+        // An empty list is a real answer - the filter matched no app - but the two reads of
+        // appMetadata[0] further down sit inside the engine session, so leaving it unchecked
+        // spends a session and an openDoc before failing with `Cannot read properties of
+        // undefined`. In practice the engine refuses first, since the QRS lookup and the session
+        // use the same service identity; this is here so the invariant holds for the next reader.
+        if (appMetadata.length === 0) {
+            throw new QseowError(
+                `QSEoW app ${appId} was not found in the Qlik Sense repository. Check --appid, and that the account named by --apiuserdir/--apiuserid may read the app.`
+            );
+        }
 
         const appSheetsFilter = `objectType eq 'sheet' and app.id eq ${appId}`;
 
@@ -248,15 +266,15 @@ export const qseowProcessApp = async (appId, options) => {
         );
 
         // Create mapping between repo db sheet id and engine sheet id
-        let mapRepoEngineSheetIdTmp1 = await qrsInteractInstance.Get(
+        const repoSheets = await qrsGetList(
+            qrsInteractInstance,
             qrsPathWithFilter('app/object/full', appSheetsFilter)
         );
-        mapRepoEngineSheetIdTmp1 = mapRepoEngineSheetIdTmp1.body;
 
-        // mapRepoEngineSheetIdTmp1 is an array of sheet objects, each object has properties called 'id' and 'engineObjectId'
+        // repoSheets is an array of sheet objects, each object has properties called 'id' and 'engineObjectId'
         // Create a new bidirectional map between repo db sheet id and engine sheet id
         const mapRepoEngineSheetId = new Map();
-        mapRepoEngineSheetIdTmp1.forEach((element) => {
+        repoSheets.forEach((element) => {
             mapRepoEngineSheetId.set(element.id, element.engineObjectId);
             mapRepoEngineSheetId.set(element.engineObjectId, element.id);
         });
@@ -388,7 +406,7 @@ export const qseowProcessApp = async (appId, options) => {
 
                         // Loop over all sheets in app, processing each one unless excluded
                         for (const sheet of sheets) {
-                            // Get repository db sheet id from mapRepoEngineSheetIdTmp1, using sheet.qInfo.qId as key
+                            // Get repository db sheet id from mapRepoEngineSheetId, using sheet.qInfo.qId as key
                             const repoDbSheetId = mapRepoEngineSheetId.get(sheet.qInfo.qId);
                             const engineSheetId = sheet.qInfo.qId;
 

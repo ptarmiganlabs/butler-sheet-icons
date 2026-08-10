@@ -1117,3 +1117,153 @@ describe('qseow-process-app.js — a blurred thumbnail that cannot be created', 
         );
     });
 });
+
+describe('qseow-process-app.js — a QRS reply that is not a list', () => {
+    // The three per-app lookups used to read `.body` straight off the qrs-interact result. A
+    // reply that parsed as JSON but was not an array then flowed on: the sheet-id map blew up as
+    // `TypeError: ... .forEach is not a function`, the app-metadata read reported
+    // `App name: "undefined"` and carried on, and the tag lookup reported a fabricated sheet
+    // count. Reading through qrsGetList makes the response itself the reported problem.
+    //
+    // Only the 200-with-wrong-shape case is reachable: qrs-interact rejects every other status,
+    // and its unguarded JSON.parse throws on a non-JSON body before the promise resolves.
+    const options = {
+        senseVersion: '2023-Nov',
+        browser: 'chrome',
+        browserVersion: 'recommended',
+        imagedir: './img',
+        host: 'test-server.example.com',
+        logonuserdir: 'INTERNAL',
+        logonuserid: 'sa_api',
+        logonpwd: 'password',
+        excludeSheetNumber: [],
+        excludeSheetTitle: [],
+        excludeSheetStatus: [],
+        includesheetpart: '1',
+        pagewait: 0,
+        secure: true,
+        prefix: '',
+        headless: true,
+        blurFactor: 5,
+        loglevel: 'info',
+    };
+
+    const APP_METADATA = [{ id: 'test-app-id', name: 'Test App', published: true }];
+    const SHEET_ROWS = [{ id: 'sheet-id-1', engineObjectId: 'engine-sheet-id-1' }];
+
+    /**
+     * Wires the mock stack with one QRS lookup answering a caller-supplied body.
+     *
+     * Everything is re-established here rather than shared with the blocks above, because this
+     * file does not reset between describes and earlier tests leave mocks in a failure state.
+     *
+     * @param {'appMetadata'|'tagLookup'|'sheetMap'} target - Which lookup should misbehave.
+     * @param {object|Array<object>|string|number|null} body - The body that lookup should answer
+     *     with. Anything but an array is what the assertions are about.
+     *
+     * @returns {void}
+     */
+    function wireBadBody(target, body) {
+        jest.clearAllMocks();
+
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/test/browser',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+        qseowUploadToContentLibrary.mockResolvedValue(true);
+        qseowUpdateSheetThumbnails.mockResolvedValue(true);
+
+        const mockGet = jest.fn().mockImplementation((encodedPath) => {
+            const path = decodeURIComponent(encodedPath);
+
+            if (path.includes('app?filter=id eq')) {
+                return Promise.resolve({
+                    statusCode: 200,
+                    body: target === 'appMetadata' ? body : APP_METADATA,
+                });
+            }
+            if (path.includes('tags.name eq')) {
+                return Promise.resolve({
+                    statusCode: 200,
+                    body: target === 'tagLookup' ? body : [],
+                });
+            }
+            if (path.includes('app/object/full?filter=objectType eq')) {
+                return Promise.resolve({
+                    statusCode: 200,
+                    body: target === 'sheetMap' ? body : SHEET_ROWS,
+                });
+            }
+            return Promise.resolve({ statusCode: 200, body: [] });
+        });
+
+        qrsInteract.mockImplementation(() => ({ Get: mockGet }));
+    }
+
+    const badBodies = [
+        ['an error object', { error: 'proxy failure' }],
+        ['null', null],
+        ['a quoted JSON string', 'Unauthorized'],
+        ['a number', 42],
+    ];
+
+    describe.each(badBodies)('%s from the sheet-id map lookup', (_label, body) => {
+        test('fails the app naming QRS, before any engine session or browser', async () => {
+            wireBadBody('sheetMap', body);
+
+            await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow(
+                /unusable response/
+            );
+
+            // The point of failing here rather than downstream: nothing has been spent yet.
+            expect(enigma.create).not.toHaveBeenCalled();
+            expect(puppeteer.launch).not.toHaveBeenCalled();
+        });
+    });
+
+    test('names the endpoint that answered badly, not the symptom', async () => {
+        wireBadBody('sheetMap', { error: 'proxy failure' });
+
+        await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow(
+            /app%2Fobject%2Ffull|app\/object\/full/
+        );
+    });
+
+    test('app metadata: fails instead of reporting the app name as undefined', async () => {
+        // This was the genuine silent wrong answer. A quoted string made appMetadata[0] the
+        // first character, so `.name` was undefined and the run continued to completion -
+        // taking screenshots and repointing sheet icons for an app it could not describe.
+        wireBadBody('appMetadata', 'Unauthorized');
+
+        await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow(/unusable response/);
+
+        const infos = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(infos).not.toContain('App name: "undefined"');
+        expect(enigma.create).not.toHaveBeenCalled();
+    });
+
+    test('app metadata: an empty list names the app and --appid', async () => {
+        wireBadBody('appMetadata', []);
+
+        await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow(
+            /test-app-id[\s\S]*--appid/
+        );
+
+        expect(enigma.create).not.toHaveBeenCalled();
+    });
+
+    test('tag lookup: refuses to report a fabricated sheet count', async () => {
+        // A quoted string has a .length, so the count line added to expose a mistyped tag
+        // would have reported its character count as though that many sheets carried the tag.
+        wireBadBody('tagLookup', 'Unauthorized');
+
+        await expect(
+            qseowProcessApp('test-app-id', { ...options, excludeSheetTag: ['exclude-me'] })
+        ).rejects.toThrow(/unusable response/);
+
+        const infos = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(infos).not.toContain('Sheets carrying a tag named by');
+    });
+});
