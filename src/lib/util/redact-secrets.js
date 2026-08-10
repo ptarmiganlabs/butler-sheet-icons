@@ -14,6 +14,12 @@
  *     credentials, `Authorization: Bearer …` headers, and key=value
  *     patterns such as `password=…` or `api_key=…` in any string.
  *
+ * The free-text layer has to tell a credential apart from a sentence that
+ * happens to contain the word `token`. It does so by context: after an
+ * `Authorization:` header name anything goes, while a bare `Bearer`/`Basic`/
+ * `Token` only redacts what follows if it does not look like an English word.
+ * See `isProseWord()` and issue #949.
+ *
  * Both layers are best-effort: a determined attacker could craft values
  * that evade either, but normal Qlik Sense / Qlik Cloud / Qlik config
  * shapes are covered.
@@ -71,6 +77,23 @@ const REDACTED = '***redacted***';
 function isSecretKey(name) {
     if (typeof name !== 'string') return false;
     return SECRET_KEY_SET.has(name.toLowerCase());
+}
+
+/**
+ * Tests whether the text following a bare auth scheme keyword reads as ordinary
+ * prose rather than as a credential.
+ *
+ * Credentials are base64, hex, JWTs or UUIDs: mixed case, digits, dots or
+ * dashes. A run of plain lowercase letters short enough to be a word
+ * (`parameter`, `authentication`, `available`) is prose. The 24-letter ceiling
+ * keeps longer lowercase runs — too long to be an English word — on the
+ * redacted side.
+ *
+ * @param {string} value - The text following an auth scheme keyword.
+ * @returns {boolean} `true` when the value looks like prose rather than a credential.
+ */
+function isProseWord(value) {
+    return /^[a-z]{1,23}$/.test(value);
 }
 
 /**
@@ -142,8 +165,33 @@ export function redactSensitivePatterns(text) {
     // 1. URLs with embedded credentials: protocol://user:pass@host
     result = result.replace(/([\w+.-]+:\/\/)[^@\s]+@/g, '$1[REDACTED]@');
 
-    // 2. Bearer / Basic / Token authorization headers
-    result = result.replace(/\b(Bearer|Basic|Token)\s+[A-Za-z0-9+/=._-]{8,}/gi, '$1 [REDACTED]');
+    // 2a. Authorization headers. The header name in front of the scheme settles
+    //     the question: whatever follows is a credential, whatever it looks like.
+    //     The optional quotes cover the stringified-config form
+    //     (`"Authorization": "Bearer …"`) that reaches the log when a caller does
+    //     `JSON.stringify(err)` - see the note in cloud-repo-request.js.
+    result = result.replace(
+        /\b((?:proxy-)?authorization["']?\s*[:=]\s*["']?)(bearer|basic|token)(\s+)[A-Za-z0-9+/=._~-]+/gi,
+        '$1$2$3[REDACTED]'
+    );
+
+    // 2b. A bare scheme word, as it appears in a stack trace or a server error.
+    //     With no header name there is nothing to say the next word is a
+    //     credential rather than prose: `Token` also matches the English word
+    //     `token`, which turned "API token parameter is required" into
+    //     "API token [REDACTED] is required" - the message an operator gets when
+    //     --apikey (or BSI_QSCLOUD_CST_APIKEY) is empty, with the one useful word
+    //     removed (issue #949).
+    //
+    //     The prose test has to live in a callback. This regex is
+    //     case-insensitive, so an inline `(?![a-z]+\b)` lookahead would fold to
+    //     any case and match base64 such as `dXNlcjpwYXNz`, silently disabling
+    //     the rule for real credentials.
+    result = result.replace(
+        /\b(Bearer|Basic|Token)(\s+)([A-Za-z0-9+/=._-]{8,})/gi,
+        (match, scheme, space, value) =>
+            isProseWord(value) ? match : `${scheme}${space}[REDACTED]`
+    );
 
     // 3. Common key=value secret patterns (query strings, connection strings, etc.)
     //    Matches: password=, passwd=, pwd=, logonpwd=, secret=, token=, api_key=,

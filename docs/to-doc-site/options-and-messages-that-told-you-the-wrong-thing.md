@@ -1,8 +1,9 @@
 # Options and error messages that told you the wrong thing
 
-Four fixes in this release share a theme: Butler Sheet Icons accepted something, or reported
-something, that did not match what it actually did. Two options were silently ignored, and two
-checks blamed the wrong cause when they failed.
+Five fixes in this release share a theme: Butler Sheet Icons accepted something, or reported
+something, that did not match what it actually did. Two options were silently ignored, two
+checks blamed the wrong cause when they failed, and one message removed the word that would
+have explained it.
 
 Nothing about a run that already works changes. Read the section matching anything you recognise.
 
@@ -142,3 +143,48 @@ Icons and QRS — a reverse proxy or load balancer — is answering instead of Q
 
 The same protection applies to the app lookup behind `--qliksensetag`, which previously failed
 with an internal error naming nothing useful.
+
+## A message that hid the one word you needed
+
+Butler Sheet Icons strips secrets out of everything it writes — log lines, error messages, crash
+dumps. Passwords, API keys and the `Authorization` header sent to Qlik Sense are replaced with
+`[REDACTED]` before anything reaches disk or screen.
+
+That stripping was too eager. It removed whatever word happened to follow `token`, `bearer` or
+`basic`, whether or not the word was a secret — and ordinary English sentences contain those
+words too.
+
+The message you get when the Qlik Sense Cloud API key is empty was one of them.
+
+**Before:**
+
+```
+CLOUD CREATE THUMBNAILS 2 (stack): Error: API token [REDACTED] is required
+```
+
+That reads as though Butler Sheet Icons found a token and hid it from you. It had not. The word
+it removed was `parameter`, which was the part telling you what was actually wrong.
+
+**Now:**
+
+```
+CLOUD CREATE THUMBNAILS 2 (stack): Error: API token parameter is required
+```
+
+Any message could be affected, not just this one. Phrases such as "no token available for
+tenant" or "Basic authentication is required" lost a word the same way.
+
+**Secrets are still removed.** An `Authorization` header is still redacted whatever follows it,
+and so is anything that looks like a credential — a Qlik Sense Cloud API key, which is a long
+mixed-case string with dots in it, is untouched by this change. What is now left alone is plain
+lowercase text of the kind that only ever appears in a sentence. Passwords, API keys and
+credentials in URLs are handled by separate rules that did not change at all.
+
+**What to check.** Nothing, before or after upgrading. If you have ever seen `[REDACTED]` in the
+middle of a sentence and wondered which secret of yours was in that log line, the answer is that
+there was none — it was this.
+
+**Where this message comes from.** The Qlik Sense Cloud commands accept the API key as
+`--apikey` or as the environment variable `BSI_QSCLOUD_CST_APIKEY`. An environment variable that
+is set but empty — a typo in a name, a secret store that returned nothing — passes the
+"was it supplied?" check and fails this one instead. That is the common route to this message.
