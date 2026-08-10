@@ -84,6 +84,13 @@ export const runInteractive = async ({
     // about without anyone editing the wizard.
     const specs = specsFromCommand(command);
 
+    // Said once, up front. There is no way back to a previous question - the
+    // prompt library has no such gesture - so the two things a user can do
+    // instead have to be discoverable before they need them, not after.
+    runtime.write(
+        `\n${theme.style.help('Ctrl+C cancels. Nothing is changed until you confirm at the end, where you can also start over.')}\n`
+    );
+
     for (;;) {
         const asked = wizard.refine ? wizard.refine(specs, { answers: presetOptions }) : specs;
         const raw = await askQuestions(asked, { symbols, theme, answers: {} }, { runtime });

@@ -264,3 +264,20 @@ describe('the install wizard', () => {
         expect(runtime.output()).toContain('butler-sheet-icons browser install\n');
     });
 });
+
+describe('discoverability', () => {
+    test('says up front how to get out, since there is no way back a step', async () => {
+        // The prompt library has no back gesture, so the two things a user can
+        // do instead have to be visible before they need them. "Start over" at
+        // the review is otherwise invisible until you reach it.
+        const runtime = scriptedRuntime({ _build: MAC_BUILD, _review: 'cancel' });
+
+        await runInteractive({ path: 'browser uninstall', runtime });
+
+        const output = runtime.output();
+        expect(output).toContain('Ctrl+C');
+        expect(output).toContain('start over');
+        // Before the review, which is the only place the alternative appears.
+        expect(output.indexOf('Ctrl+C')).toBeLessThan(output.indexOf('Review'));
+    });
+});
