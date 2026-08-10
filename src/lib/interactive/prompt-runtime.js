@@ -109,6 +109,31 @@ const write = (text) => {
 };
 
 /**
+ * Error names the prompt library uses when the user stops rather than answers.
+ *
+ * Ctrl-C, Ctrl-D and a closed stdin all land here.
+ */
+const CANCELLATION_NAMES = new Set(['ExitPromptError', 'AbortPromptError', 'CancelPromptError']);
+
+/**
+ * Whether a failure is the user deciding to stop, rather than something broken.
+ *
+ * Pressing Ctrl-C in a wizard is a normal way to leave it, and without this the
+ * library's own wording reaches the user - "User force closed the prompt with 0
+ * null" is a real message it produces, and it reads like a crash.
+ *
+ * Matched on `name` rather than `instanceof`, deliberately: an import of the
+ * error class would put a second file on the wrong side of the boundary this
+ * module exists to hold, for no gain. The names are part of the library's
+ * public surface.
+ *
+ * @param {Error|unknown} err - The error to test.
+ *
+ * @returns {boolean} True when the user cancelled.
+ */
+export const isPromptCancellation = (err) => CANCELLATION_NAMES.has(err?.name);
+
+/**
  * The runtime used when a real user is at a real terminal.
  *
  * Injected rather than imported by the driver, so tests substitute a scripted

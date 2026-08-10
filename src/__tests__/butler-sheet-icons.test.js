@@ -53,10 +53,11 @@ jest.mock('../lib/browser/browser-list-available.js', () => ({
  * Runs the butler-sheet-icons CLI in a child process and returns the result.
  *
  * @param {string[]} [args] - CLI arguments to pass to the spawned process. Defaults to `[]`.
+ * @param {object} [options] - Extra `spawnSync` options, merged over the defaults. Use `env` to override the environment and `input`/`timeout` to prove a command does not block.
  *
  * @returns {import('child_process').SpawnSyncReturns<string>} The `spawnSync` result containing `status`, `stdout`, `stderr`, etc.
  */
-const execCLI = (args = []) => {
+const execCLI = (args = [], options = {}) => {
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const cliPath = path.resolve(__dirname, '../butler-sheet-icons.js');
@@ -65,6 +66,7 @@ const execCLI = (args = []) => {
     const result = childProcess.spawnSync('node', [cliPath, ...args], {
         encoding: 'utf-8',
         env: process.env,
+        ...options,
     });
 
     return result;
@@ -251,5 +253,190 @@ describe('fatal error safety net, end to end (issue #946)', () => {
 
         expect(fatalLines).toHaveLength(1);
         expect(fatalLines[0]).toContain('boom 0');
+    });
+});
+
+// The rows of the #900 verification matrix that a machine can check. The
+// Windows console rows - code pages, PowerShell hosts, cursor redraw - need a
+// human looking at a screen, but everything below runs unattended on both
+// ubuntu-latest and windows-latest via pr-unit-tests.yaml, which is what stops
+// these properties from silently regressing between manual passes.
+describe('interactive mode without a terminal', () => {
+    // spawnSync gives the child a pipe for stdin and stdout, so every run in
+    // this block is non-TTY by construction - no pty harness needed.
+    const NON_TTY_ENV = { ...process.env };
+    delete NON_TTY_ENV.BSI_NO_INTERACTIVE;
+    delete NON_TTY_ENV.BSI_ASCII_ONLY;
+    delete NON_TTY_ENV.NO_COLOR;
+    delete NON_TTY_ENV.FORCE_COLOR;
+
+    const ESCAPE_CODE = new RegExp(`${String.fromCharCode(27)}\\[`);
+
+    test('fails fast instead of hanging on a stdin that will never answer', () => {
+        // The single most important property in the whole feature. A wizard
+        // blocking on a closed stdin inside a scheduled container run is an
+        // outage, not a cosmetic problem.
+        const result = execCLI(['interactive'], {
+            input: '',
+            timeout: 20000,
+            env: NON_TTY_ENV,
+        });
+
+        // spawnSync reports a timeout kill via `signal`, so a null signal is
+        // the assertion that the process ended on its own rather than being
+        // killed after blocking.
+        expect(result.signal).toBeNull();
+        expect(result.status).toBe(1);
+    });
+
+    test('explains why, and how to proceed, rather than just failing', () => {
+        const result = execCLI(['interactive'], { input: '', timeout: 20000, env: NON_TTY_ENV });
+        const output = result.stdout + result.stderr;
+
+        expect(output).toContain('needs a terminal');
+        expect(output).toContain('docker run -it');
+    });
+
+    test('the explanation carries no stack trace', () => {
+        // The guidance is already a complete explanation. Issue #785 was about
+        // exactly this kind of noise drowning the useful line.
+        const result = execCLI(['interactive'], { input: '', timeout: 20000, env: NON_TTY_ENV });
+        const output = result.stdout + result.stderr;
+
+        expect(output).not.toContain('    at ');
+    });
+
+    test('BSI_NO_INTERACTIVE is honoured independently of terminal detection', () => {
+        const result = execCLI(['interactive'], {
+            input: '',
+            timeout: 20000,
+            env: { ...NON_TTY_ENV, BSI_NO_INTERACTIVE: '1' },
+        });
+
+        expect(result.signal).toBeNull();
+        expect(result.status).toBe(1);
+        expect(result.stdout + result.stderr).toContain('BSI_NO_INTERACTIVE');
+    });
+
+    test('redirected output carries no escape codes', () => {
+        // False for the whole program until the console transport learned to
+        // check isTTY, so this guards every command, not just this one.
+        const result = execCLI(['interactive'], { input: '', timeout: 20000, env: NON_TTY_ENV });
+
+        expect(result.stdout).not.toMatch(ESCAPE_CODE);
+        expect(result.stderr).not.toMatch(ESCAPE_CODE);
+    });
+
+    test('NO_COLOR is honoured', () => {
+        const result = execCLI(['browser', 'list-installed'], {
+            timeout: 20000,
+            env: { ...NON_TTY_ENV, NO_COLOR: '1' },
+        });
+
+        expect(result.stdout).not.toMatch(ESCAPE_CODE);
+    });
+});
+
+describe('interactive --self-test', () => {
+    const SELF_TEST_ENV = { ...process.env };
+    delete SELF_TEST_ENV.BSI_ASCII_ONLY;
+    delete SELF_TEST_ENV.BSI_NO_INTERACTIVE;
+
+    const NON_ASCII_PATTERN = /[^\x20-\x7e\r\n\t]/;
+
+    test('succeeds with no terminal, so it can run unattended', () => {
+        // Exiting 0 here is what lets this be the CI check guarding the non-TTY
+        // path. The capability report is complete and useful without prompts;
+        // only the prompt gallery needs a terminal.
+        const result = execCLI(['interactive', '--self-test'], {
+            input: '',
+            timeout: 30000,
+            env: SELF_TEST_ENV,
+        });
+
+        expect(result.signal).toBeNull();
+        expect(result.status).toBe(0);
+    });
+
+    test('reports the capabilities that decide how the wizard renders', () => {
+        const result = execCLI(['interactive', '--self-test'], {
+            input: '',
+            timeout: 30000,
+            env: SELF_TEST_ENV,
+        });
+
+        for (const row of [
+            'stdin is a terminal',
+            'typeof stdout.hasColors',
+            'colour enabled',
+            'unicode symbols in use',
+            'table border set',
+            'available',
+        ]) {
+            expect(result.stdout).toContain(row);
+        }
+    });
+
+    test('skips the prompt gallery, saying why', () => {
+        const result = execCLI(['interactive', '--self-test'], {
+            input: '',
+            timeout: 30000,
+            env: SELF_TEST_ENV,
+        });
+
+        expect(result.stdout).toContain('skipped');
+    });
+
+    test('emits nothing outside printable ASCII when the fallback is forced', () => {
+        // "No mojibake" as a mechanical assertion rather than a screenshot -
+        // the only degradation criterion checkable without a human at a Windows
+        // console.
+        const result = execCLI(['interactive', '--self-test'], {
+            input: '',
+            timeout: 30000,
+            env: { ...SELF_TEST_ENV, BSI_ASCII_ONLY: '1' },
+        });
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).not.toMatch(NON_ASCII_PATTERN);
+    });
+});
+
+describe('adding interactive mode changes nothing that already worked', () => {
+    test('bare invocation still prints help and exits 1', () => {
+        const result = execCLI([]);
+
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain('Usage:');
+    });
+
+    test('the new command is discoverable from top-level help', () => {
+        const result = execCLI(['--help']);
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('interactive');
+    });
+
+    test('--self-test stays out of help, being a diagnostic rather than a feature', () => {
+        const result = execCLI(['interactive', '--help']);
+
+        expect(result.status).toBe(0);
+        expect(result.stdout).not.toContain('--self-test');
+    });
+
+    test('the browser commands are untouched', () => {
+        const result = execCLI(['browser', '--help']);
+
+        expect(result.status).toBe(0);
+        for (const leaf of [
+            'install',
+            'uninstall',
+            'uninstall-all',
+            'list-installed',
+            'list-available',
+        ]) {
+            expect(result.stdout).toContain(leaf);
+        }
+        expect(result.stdout).not.toContain('interactive');
     });
 });
