@@ -161,5 +161,6 @@ export const saveEnvFile = async ({
         backupPath: backedUp ? backupPath : undefined,
         updated: changed.updated,
         added: changed.added,
+        superseded: changed.superseded ?? [],
     };
 };

@@ -37,13 +37,18 @@ describe('what the merge must not touch', () => {
 });
 
 describe('the cases that would silently corrupt a file', () => {
-    test('replaces a multiline value as one unit, leaving no orphan', () => {
-        // Replacing only the opening line would leave the tail behind as a
-        // fragment, which parses as garbage or breaks the rest of the file.
+    test('leaves a multiline value alone and appends the new one instead', () => {
+        // Rewriting a value that spans lines means guessing where it ends, and
+        // every destructive bug this file has had came from guessing wrong and
+        // deleting what it guessed over. The old block is left untouched; the
+        // new value is appended, and dotenv's last-one-wins rule makes it the
+        // effective one. Nothing is deleted to achieve that.
         const current = [`OWNED=${DQ}line one`, `line two${DQ}`, 'AFTER=intact'].join('\n') + '\n';
-        const { contents } = apply(current, [{ name: 'OWNED', line: "OWNED='new'" }]);
 
-        expect(contents).not.toContain('line two');
+        const { contents, superseded } = apply(current, [{ name: 'OWNED', line: "OWNED='new'" }]);
+
+        expect(superseded).toEqual(['OWNED']);
+        expect(contents).toContain('line two');
         expect(parse(contents)).toEqual({ OWNED: 'new', AFTER: 'intact' });
     });
 
@@ -190,16 +195,19 @@ describe('malformed and Windows files', () => {
         expect(contents).toContain('THIRD=keep me');
     });
 
-    test('a genuine multiline value is still consumed whole', () => {
-        // The other half of the same rule, and the case a naive "stop at a line
-        // that looks like an assignment" fix would break: dotenv reads this as
-        // one value of `line one\nB=two`.
-        const current = [`A=${DQ}line one`, `B=two${DQ}`, 'C=3'].join('\n') + '\n';
+    test('a line inside someone else\u2019s multiline value is never rewritten', () => {
+        // The reason the scan still exists at all. dotenv reads this as a single
+        // value of `line one\nOWNED=inside`, so the middle line is not an
+        // assignment - rewriting it would corrupt the value it sits in.
+        const current =
+            [`OTHER=${DQ}line one`, 'OWNED=inside', `line three${DQ}`, 'AFTER=intact'].join('\n') +
+            '\n';
 
-        const { contents } = apply(current, [{ name: 'A', line: "A='new'" }]);
+        const { contents, updated } = apply(current, [{ name: 'OWNED', line: "OWNED='new'" }]);
 
-        expect(contents).not.toContain('B=two');
-        expect(parse(contents)).toEqual({ A: 'new', C: '3' });
+        expect(updated).toEqual([]);
+        expect(contents).toContain('OWNED=inside');
+        expect(parse(contents).AFTER).toBe('intact');
     });
 
     test('a CRLF file with no trailing newline still gets CRLF additions', () => {
@@ -221,14 +229,20 @@ describe('malformed and Windows files', () => {
 
 describe('locateAssignments', () => {
     test('ignores keys it was not asked about', () => {
-        const found = locateAssignments(['A=1', 'B=2'], new Set(['A']));
+        const { found } = locateAssignments(['A=1', 'B=2'], new Set(['A']));
 
         expect([...found.keys()]).toEqual(['A']);
     });
 
-    test('reports the full range of a multiline value', () => {
-        const found = locateAssignments([`A=${DQ}one`, 'two', `three${DQ}`], new Set(['A']));
+    test('reports a key whose value spans lines rather than locating it', () => {
+        // Not locatable means not rewritten, which is the whole point: the
+        // caller appends instead.
+        const { found, spanning } = locateAssignments(
+            [`A=${DQ}one`, 'two', `three${DQ}`],
+            new Set(['A'])
+        );
 
-        expect(found.get('A')).toMatchObject({ start: 0, end: 2 });
+        expect(found.has('A')).toBe(false);
+        expect([...spanning]).toEqual(['A']);
     });
 });
