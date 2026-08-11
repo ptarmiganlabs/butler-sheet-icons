@@ -44,7 +44,7 @@ Start here when exploring this area:
 | `buildQscloudCommand` | Function | `src/lib/commands/qscloud/index.js` | 10 |
 | `buildCloudListCollectionsCommand` | Function | `src/lib/commands/qscloud/list-collections.js` | 24 |
 | `buildCloudRemoveSheetIconsCommand` | Function | `src/lib/commands/qscloud/remove-sheet-icons.js` | 25 |
-| `buildQseowCommand` | Function | `src/lib/commands/qseow/index.js` | 35 |
+| `buildQseowCommand` | Function | `src/lib/commands/qseow/index.js` | 36 |
 
 ## Execution Flows
 
