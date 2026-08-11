@@ -10,12 +10,12 @@
  *
  * This is a **line-level edit, not a parse and rewrite**. Values belonging to
  * keys this command does not own are never read, re-quoted or reformatted - the
- * bytes are carried across untouched. That is what makes merging safe here,
- * where a full round-trip through a parser would risk changing someone else's
- * settings as a side effect of saving ours.
+ * bytes are carried across untouched, line endings included. That is what makes
+ * merging safe here, where a full round-trip through a parser would risk
+ * changing someone else's settings as a side effect of saving ours.
  *
- * Three details of `dotenv`'s format drive the implementation, all checked
- * against the version this repo depends on rather than assumed:
+ * Four details of the format drive the implementation, all checked by running
+ * the code against them rather than reasoning about them:
  *
  * - **The last occurrence of a key wins**, not the first. Replacing an earlier
  *   duplicate would leave the file parsing to the old value, so the *last* one
@@ -24,12 +24,57 @@
  *   matcher has to allow the prefix - and preserves it, since it is presumably
  *   there because something else sources the file.
  * - **A quoted value may span physical lines.** Replacing only the first line of
- *   one would leave the remainder behind as an orphan fragment, corrupting the
- *   file. A key's entry is therefore a line *range*, not a line.
+ *   one would leave the remainder behind as an orphan fragment, so a key's entry
+ *   is a line *range*. But an *unterminated* quote must not be read that way: it
+ *   would make the range run to the end of the file and the replacement would
+ *   delete everything after it. A stray quote in a hand-edited file is entirely
+ *   ordinary, so that case falls back to treating the line as a single line.
+ * - **Line endings are per line.** A `.env` written on Windows is CRLF, and
+ *   `.` does not match `\r` in JavaScript - so matching against the raw line
+ *   silently found nothing at all and appended a duplicate of every setting on
+ *   every save. Each line is matched with its ending stripped and rewritten with
+ *   the ending it had.
  */
 
 /** Matches the start of an assignment, capturing the optional export and the key. */
 const ASSIGNMENT = /^(\s*(?:export\s+)?)([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
+
+/**
+ * Split a file into lines, keeping each line's own ending separate from its text.
+ *
+ * Preserving the ending per line rather than normalising the file is what lets
+ * an unrelated line be written back byte for byte, including in a file that
+ * mixes the two conventions.
+ *
+ * @param {string} text - The file contents.
+ *
+ * @returns {{text: string, eol: string}[]} One entry per line.
+ */
+const toLines = (text) =>
+    text
+        .split('\n')
+        .map((line) =>
+            line.endsWith('\r')
+                ? { text: line.slice(0, -1), eol: '\r\n' }
+                : { text: line, eol: '\n' }
+        );
+
+/**
+ * The line ending a file predominantly uses, for lines being added to it.
+ *
+ * Blank entries are ignored, because splitting a file that ends in a newline
+ * always yields a final empty one - counting it made a one-line CRLF file look
+ * evenly split and additions came out LF.
+ *
+ * @param {{text: string, eol: string}[]} lines - The parsed lines.
+ *
+ * @returns {string} `'\r\n'` or `'\n'`.
+ */
+const dominantEol = (lines) => {
+    const real = lines.filter((line) => line.text !== '');
+
+    return real.filter((line) => line.eol === '\r\n').length > real.length / 2 ? '\r\n' : '\n';
+};
 
 /**
  * Whether a value fragment leaves a quote open at the end of the line.
@@ -51,36 +96,57 @@ const opensQuote = (fragment) => {
 };
 
 /**
+ * Find where a quoted value that opened on this line closes.
+ *
+ * @param {{text: string}[]} lines - The parsed lines.
+ * @param {number} start - Index of the line the quote opened on.
+ * @param {string} quote - The quote character to close.
+ *
+ * @returns {number|undefined} Index of the closing line, or undefined when it never closes.
+ */
+const findClosingLine = (lines, start, quote) => {
+    for (let index = start + 1; index < lines.length; index += 1) {
+        if (lines[index].text.includes(quote)) {
+            return index;
+        }
+    }
+
+    return undefined;
+};
+
+/**
  * Find the line range each key occupies, keeping only the effective one.
  *
- * @param {string[]} lines - The file, split into lines.
+ * @param {{text: string}[]|string[]} lines - The file's lines, parsed or raw.
  * @param {Set<string>} keys - Keys to look for.
  *
  * @returns {Map<string, {start: number, end: number, prefix: string}>} Where each key lives.
  */
 export const locateAssignments = (lines, keys) => {
+    // Accepts raw strings too, so the exported helper stays usable on its own.
+    const parsed = lines.map((line) => (typeof line === 'string' ? { text: line } : line));
     const found = new Map();
 
-    for (let index = 0; index < lines.length; index += 1) {
-        const match = ASSIGNMENT.exec(lines[index]);
+    for (let index = 0; index < parsed.length; index += 1) {
+        const match = ASSIGNMENT.exec(parsed[index].text);
 
         if (!match) {
             continue;
         }
 
         const [, prefix, key, valueFragment] = match;
-        let end = index;
         const openQuote = opensQuote(valueFragment);
+        let end = index;
 
         if (openQuote) {
-            // Consume until the quote closes, so a multiline value is replaced
-            // as one unit rather than leaving its tail behind.
-            while (end + 1 < lines.length && !lines[end + 1].includes(openQuote)) {
-                end += 1;
-            }
+            const closing = findClosingLine(parsed, index, openQuote);
 
-            if (end + 1 < lines.length) {
-                end += 1;
+            // An unterminated quote is a malformed line, not a value running to
+            // the end of the file. Treating it as the latter would put every
+            // remaining line inside this key's range, and replacing the key
+            // would then delete all of them.
+            if (closing !== undefined) {
+                end = closing;
             }
         }
 
@@ -97,6 +163,9 @@ export const locateAssignments = (lines, keys) => {
     return found;
 };
 
+/** Header written above settings appended to a file that did not have them. */
+export const ADDED_HEADER = '# Added by the Butler Sheet Icons wizard';
+
 /**
  * Merge a set of `NAME=value` assignments into an existing file's contents.
  *
@@ -106,7 +175,8 @@ export const locateAssignments = (lines, keys) => {
  * @returns {{contents: string, updated: string[], added: string[]}} The new contents and what changed.
  */
 export const mergeEnvContents = (current, assignments) => {
-    const lines = current.split('\n');
+    const lines = toLines(current);
+    const eol = dominantEol(lines);
     const byName = new Map(assignments.map((entry) => [entry.name, entry]));
     const located = locateAssignments(lines, new Set(byName.keys()));
 
@@ -115,10 +185,7 @@ export const mergeEnvContents = (current, assignments) => {
     const replacements = new Map();
 
     for (const [name, where] of located) {
-        replacements.set(where.start, {
-            ...where,
-            line: `${where.prefix}${byName.get(name).line}`,
-        });
+        replacements.set(where.start, { ...where, name });
         updated.push(name);
     }
 
@@ -128,7 +195,12 @@ export const mergeEnvContents = (current, assignments) => {
         const replacement = replacements.get(index);
 
         if (replacement) {
-            out.push(replacement.line);
+            out.push({
+                text: `${replacement.prefix}${byName.get(replacement.name).line}`,
+                // The ending of the line the value ended on, so a rewritten
+                // multiline value does not change the file's convention.
+                eol: lines[replacement.end].eol,
+            });
             // Skip the rest of a multiline value, which the new line replaces.
             index = replacement.end;
             continue;
@@ -142,22 +214,29 @@ export const mergeEnvContents = (current, assignments) => {
     if (missing.length > 0) {
         // Trailing blank lines are dropped before appending so the additions do
         // not drift further from the content each time the file is saved.
-        while (out.length > 0 && out[out.length - 1].trim() === '') {
+        while (out.length > 0 && out[out.length - 1].text.trim() === '') {
             out.pop();
         }
 
-        out.push('', `# Added by the Butler Sheet Icons wizard`);
+        // Only once. Saving a second command's settings into the same file would
+        // otherwise stack a fresh blank line and header above each batch.
+        if (!out.some((line) => line.text.trim() === ADDED_HEADER)) {
+            out.push({ text: '', eol }, { text: ADDED_HEADER, eol });
+        }
 
         for (const entry of missing) {
-            out.push(entry.line);
+            out.push({ text: entry.line, eol });
             added.push(entry.name);
         }
     }
 
-    const contents = out.join('\n');
+    const contents = out
+        .map((line, index) => (index === out.length - 1 ? line.text : `${line.text}${line.eol}`))
+        .join('');
+    const trailing = out.length > 0 ? out[out.length - 1].eol : eol;
 
     return {
-        contents: contents.endsWith('\n') ? contents : `${contents}\n`,
+        contents: contents.endsWith('\n') ? contents : `${contents}${trailing}`,
         updated,
         added,
     };

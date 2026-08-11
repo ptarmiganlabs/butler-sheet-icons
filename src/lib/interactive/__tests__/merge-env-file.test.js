@@ -75,7 +75,7 @@ describe('adding what is not there', () => {
         expect(added).toEqual(['B']);
     });
 
-    test('does not accumulate blank lines when saved repeatedly', () => {
+    test('does not accumulate blank lines when the same key is saved repeatedly', () => {
         let contents = 'EXISTING=x\n';
 
         for (let i = 0; i < 3; i += 1) {
@@ -86,10 +86,81 @@ describe('adding what is not there', () => {
         expect(parse(contents)).toEqual({ EXISTING: 'x', NEW: 'y' });
     });
 
+    test('writes the header once when different keys are added over several saves', () => {
+        // The realistic pattern - one command's settings, then another's - and
+        // the one the test above misses: saving the *same* key twice is an
+        // update the second time, so it never reaches the appending branch.
+        let contents = 'EXISTING=x\n';
+
+        contents = apply(contents, [{ name: 'A', line: "A='1'" }]).contents;
+        contents = apply(contents, [{ name: 'B', line: "B='2'" }]).contents;
+
+        expect(contents.match(/Added by/g)).toHaveLength(1);
+        expect(parse(contents)).toEqual({ EXISTING: 'x', A: '1', B: '2' });
+    });
+
     test('handles an empty file', () => {
         const { contents } = apply('', [{ name: 'A', line: "A='1'" }]);
 
         expect(parse(contents)).toEqual({ A: '1' });
+    });
+});
+
+describe('malformed and Windows files', () => {
+    test('an unterminated quote does not swallow the rest of the file', () => {
+        // The range for a quoted value runs to its closing quote. When there is
+        // no closing quote, reading it that way puts every remaining line inside
+        // the key's range - and replacing the key then deletes all of them. A
+        // stray quote in a hand-edited .env is entirely ordinary.
+        const current =
+            [`OWNED=${DQ}never closed`, 'OTHER=keep me', '# my notes', 'THIRD=also keep'].join(
+                '\n'
+            ) + '\n';
+
+        const { contents } = apply(current, [{ name: 'OWNED', line: "OWNED='new'" }]);
+
+        expect(contents).toContain('OTHER=keep me');
+        expect(contents).toContain('# my notes');
+        expect(contents).toContain('THIRD=also keep');
+    });
+
+    test('a CRLF file is updated in place, not appended to', () => {
+        // `.` does not match \r in JavaScript, so matching the raw line found
+        // nothing at all: every setting was treated as absent and appended, and
+        // the file grew a duplicate on every save. Qlik Sense Enterprise runs on
+        // Windows, so a .env touched by Notepad is the likely case there.
+        const current = ['OWNED=old', 'OTHER=keep me'].join('\r\n') + '\r\n';
+
+        const { contents, updated, added } = apply(current, [
+            { name: 'OWNED', line: "OWNED='new'" },
+        ]);
+
+        expect(updated).toEqual(['OWNED']);
+        expect(added).toEqual([]);
+        expect(contents).not.toContain('OWNED=old');
+        expect(parse(contents).OWNED).toBe('new');
+    });
+
+    test('a CRLF file keeps CRLF endings', () => {
+        const current = 'OWNED=old\r\nOTHER=keep me\r\n';
+
+        const { contents } = apply(current, [{ name: 'OWNED', line: "OWNED='new'" }]);
+
+        expect(contents).toContain("OWNED='new'\r\n");
+        expect(contents).toContain('OTHER=keep me\r\n');
+    });
+
+    test('an LF file is not given CRLF endings', () => {
+        const { contents } = apply('OWNED=old\n', [{ name: 'OWNED', line: "OWNED='new'" }]);
+
+        expect(contents).not.toContain('\r');
+    });
+
+    test('a CRLF file gains new settings with CRLF endings too', () => {
+        const { contents } = apply('EXISTING=x\r\n', [{ name: 'NEW', line: "NEW='y'" }]);
+
+        expect(contents).toContain("NEW='y'\r\n");
+        expect(parse(contents)).toEqual({ EXISTING: 'x', NEW: 'y' });
     });
 });
 
