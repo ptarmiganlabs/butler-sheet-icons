@@ -3,6 +3,7 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
 import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
+import { listCollections } from './cloud-apps.js';
 
 /**
  * Lists all available collections in the Qlik Sense Cloud tenant.
@@ -69,7 +70,7 @@ export const qscloudListCollections = async (options) => {
         // Get all available collections
         let allCollections;
         try {
-            allCollections = await saasInstance.Get('collections');
+            allCollections = await listCollections(saasInstance);
         } catch (err) {
             if (err.stack) {
                 logger.error(`LIST COLLECTIONS 2 (stack): ${err.stack}`);
@@ -161,8 +162,7 @@ export const qscloudVerifyCollectionExists = async (options) => {
         const saasInstance = new QlikSaas(cloudConfig);
 
         // Get all available collections
-        const allCollections = await saasInstance.Get('collections');
-        logger.debug(`COLLECTION EXISTS: Collections:\n${JSON.stringify(allCollections, null, 2)}`);
+        const allCollections = await listCollections(saasInstance);
 
         // Get index of specified collection among the existing ones.
         const index = allCollections.map((e) => e.id).indexOf(options.collectionid);
