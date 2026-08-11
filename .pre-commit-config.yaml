@@ -37,6 +37,7 @@ repos:
             files: '\.(js|json|ya?ml|md)$'
             exclude: |
                 (?x)^(
+                    .claude/skills/.*|
                     .github/.*|
                     CHANGELOG.md|
                     docs/.*|
