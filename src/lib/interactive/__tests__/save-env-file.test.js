@@ -300,7 +300,12 @@ describe('saveEnvFile', () => {
         await expect(stat(join(dir, BACKUP_FILE))).rejects.toThrow();
     });
 
-    test('restricts permissions when credentials were written', async () => {
+    // Windows has no POSIX permission bits - Node reports 0o666 whatever the
+    // file was created with - so on that runner this asserts something about the
+    // operating system rather than about the code.
+    const posixOnly = process.platform === 'win32' ? test.skip : test;
+
+    posixOnly('restricts permissions when credentials were written', async () => {
         const runtime = runtimeAnswering([true]);
 
         await saveEnvFile({

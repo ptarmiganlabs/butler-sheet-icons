@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import { formatReviewTable, cellFor } from '../review-table.js';
 import { specsFromCommand } from '../option-introspect.js';
 import { leafCommandAt } from '../command-tree.js';
-import { ASCII_ONLY_ENV } from '../symbols.js';
+import { ASCII_ONLY_ENV, tableBorderName } from '../symbols.js';
 
 const specs = () => specsFromCommand(leafCommandAt('qscloud create-sheet-thumbnails'), { env: {} });
 
@@ -72,8 +72,14 @@ describe('formatReviewTable', () => {
         expect(render({})).toBe('');
     });
 
-    test('draws box borders when the terminal can take them', () => {
-        expect(render({ tenanturl: 't' })).toContain('─');
+    test('uses the border set this host can actually render', () => {
+        // Derived from tableBorderName() rather than pinned to the Unicode set:
+        // is-unicode-supported says no on the Windows runner and yes on ubuntu,
+        // so asserting box-drawing characters outright tests the machine rather
+        // than the table. Same trap the menu-theme test was fixed for.
+        const out = render({ tenanturl: 't' });
+
+        expect(out).toContain(tableBorderName() === 'norc' ? '─' : '+---');
     });
 
     test('falls back to pure ASCII when it cannot', () => {
