@@ -1,4 +1,4 @@
-import { writeFile, chmod, stat, copyFile } from 'node:fs/promises';
+import { writeFile, stat, copyFile, rename, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { formatEnvFile } from './render-env-file.js';
 
@@ -20,11 +20,16 @@ const existing = async (path) => {
         const info = await stat(path);
 
         return { exists: true, size: info.size, modified: info.mtime };
-    } catch {
-        // Anything unreadable is treated as absent. The write that follows will
-        // fail with its own error if the path is a directory or unwritable,
-        // which says more than a guess made here would.
-        return { exists: false };
+    } catch (err) {
+        if (err?.code === 'ENOENT') {
+            return { exists: false };
+        }
+
+        // Anything else - EACCES on the directory, a transient failure on a
+        // network share - is not absence. Treating it as absence would skip both
+        // the overwrite confirmation and the backup for a file that is really
+        // there, which is the one case where those matter most.
+        throw err;
     }
 };
 
@@ -110,19 +115,27 @@ export const saveEnvFile = async ({
         }
     );
 
-    await writeFile(path, formatEnvFile(commandPath, specs, answers, { includeSecrets }), 'utf8');
+    // Written to a temporary file and renamed over the target, rather than
+    // written in place and chmod'd afterwards. Two reasons, both real: a file
+    // created with the default umask and restricted a moment later is readable
+    // by every account on the machine in between, and chmod cannot close that
+    // window when the file already exists and keeps its old mode through the
+    // write. Rename carries the temporary file's mode with it, so the
+    // credentials never exist at a looser permission than they end at. It also
+    // makes the replacement atomic: an interrupted save leaves the previous file
+    // intact rather than a half-written one.
+    const temporary = `${path}.tmp-${process.pid}`;
 
-    if (includeSecrets) {
-        // Best effort: a filesystem that cannot express these permissions is not
-        // a reason to refuse to save, but it is a reason not to claim the file
-        // is protected when it may not be.
-        try {
-            await chmod(path, 0o600);
-        } catch {
-            runtime.write(
-                `${theme.style.error('Could not restrict permissions on the file. Check them yourself before leaving credentials in it.')}\n`
-            );
-        }
+    try {
+        await writeFile(temporary, formatEnvFile(commandPath, specs, answers, { includeSecrets }), {
+            encoding: 'utf8',
+            mode: includeSecrets ? 0o600 : 0o644,
+        });
+        await rename(temporary, path);
+    } catch (err) {
+        await rm(temporary, { force: true });
+
+        throw err;
     }
 
     return {

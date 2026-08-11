@@ -7,6 +7,49 @@ const SECRET_KEYS = new Set(BSI_SECRET_KEYS.map((key) => key.toLowerCase()));
 export const SECRET_PLACEHOLDER = '<set this yourself>';
 
 /**
+ * Quote a value so `dotenv` reads back exactly what went in.
+ *
+ * Writing values bare is silently lossy, which is worse than noisily broken.
+ * Checked against the `dotenv` this repo depends on: `PWD=pass#word` parses as
+ * `pass`, because everything from an unquoted `#` is a comment; leading and
+ * trailing spaces are stripped; and a value containing a newline splits into a
+ * second, bogus `KEY=VALUE` line. A `#` in a password is entirely ordinary, and
+ * the resulting failure - authentication rejected on the next run - points
+ * nowhere near the saved file.
+ *
+ * The two quoting styles are not interchangeable, which is the part worth
+ * knowing. **Single quotes are fully literal**: `#`, spaces, double quotes and
+ * backslashes all survive untouched, and only a single quote cannot appear.
+ * **Double quotes** expand `\n` and `\r` but leave backslashes otherwise alone,
+ * so they are the only way to carry a newline - and cannot contain a double
+ * quote, since `\"` is *not* unescaped.
+ *
+ * A value containing a newline, a single quote and a double quote therefore
+ * cannot be represented at all. That returns undefined so the caller can say so
+ * rather than write something that will be read back wrong.
+ *
+ * @param {unknown} raw - The value to quote.
+ *
+ * @returns {string|undefined} The quoted value, or undefined when `dotenv` cannot carry it.
+ */
+export const quoteEnvValue = (raw) => {
+    const value = String(raw);
+
+    if (/[\r\n]/.test(value)) {
+        // Only double quotes carry a newline, and they cannot carry a `"`.
+        return value.includes('"')
+            ? undefined
+            : `"${value.replaceAll('\r', String.raw`\r`).replaceAll('\n', String.raw`\n`)}"`;
+    }
+
+    if (!value.includes("'")) {
+        return `'${value}'`;
+    }
+
+    return value.includes('"') ? undefined : `"${value}"`;
+};
+
+/**
  * Whether a question's answer belongs in a saved `.env`.
  *
  * @param {import('./option-introspect.js').QuestionSpec} spec - The question.
@@ -23,6 +66,22 @@ const savable = (spec) => Boolean(spec.option?.envVar);
  * @returns {boolean} True for a secret.
  */
 const isSecret = (spec) => spec.secret || SECRET_KEYS.has(spec.key.toLowerCase());
+
+/**
+ * Render one `NAME=value` line, or a commented explanation when it cannot be one.
+ *
+ * @param {string} name - The environment variable.
+ * @param {unknown} value - The value to write.
+ *
+ * @returns {string} The line to write.
+ */
+const assign = (name, value) => {
+    const quoted = quoteEnvValue(value);
+
+    return quoted === undefined
+        ? `# ${name} could not be written: the value contains a newline, a single quote and a double quote,\n# which dotenv cannot represent. Set it yourself before running.`
+        : `${name}=${quoted}`;
+};
 
 /**
  * Render a set of answers as the contents of a `.env` file.
@@ -89,7 +148,9 @@ export const formatEnvFile = (
 
             wroteSecret = true;
             lines.push(
-                `${spec.option.envVar}=${includeSecrets ? answers[spec.key] : SECRET_PLACEHOLDER}`
+                includeSecrets
+                    ? assign(spec.option.envVar, answers[spec.key])
+                    : `${spec.option.envVar}=${quoteEnvValue(SECRET_PLACEHOLDER)}`
             );
             continue;
         }
@@ -99,9 +160,8 @@ export const formatEnvFile = (
         }
 
         const answer = answers[spec.key];
-        const value = Array.isArray(answer) ? answer.join(',') : String(answer);
 
-        lines.push(`${spec.option.envVar}=${value}`);
+        lines.push(assign(spec.option.envVar, Array.isArray(answer) ? answer.join(',') : answer));
     }
 
     if (wroteSecret && !includeSecrets) {

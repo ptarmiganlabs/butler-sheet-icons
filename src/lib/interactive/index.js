@@ -152,14 +152,29 @@ export const runInteractive = async ({
                 break;
             }
 
-            const saved = await saveEnvFile({
-                commandPath: path,
-                specs,
-                answers,
-                runtime,
-                theme,
-                cwd,
-            });
+            // Saving is optional, so a filesystem that will not cooperate must
+            // not cost the operator the answers they have just given. Without
+            // this, a read-only directory unwinds all the way out of the wizard
+            // through runCommand and every answer is lost - for a step they
+            // could have skipped.
+            let saved;
+
+            try {
+                saved = await saveEnvFile({
+                    commandPath: path,
+                    specs,
+                    answers,
+                    runtime,
+                    theme,
+                    cwd,
+                });
+            } catch (err) {
+                runtime.write(
+                    `\n  ${symbols.failed} Could not save: ${err?.message ?? err}\n  ${theme.style.help('Your answers are still here - choose Run it, or try saving again.')}\n`
+                );
+
+                continue;
+            }
 
             runtime.write(
                 saved.saved

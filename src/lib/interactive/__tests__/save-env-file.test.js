@@ -2,7 +2,8 @@ import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import { mkdtemp, readFile, writeFile, stat, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { formatEnvFile, SECRET_PLACEHOLDER } from '../render-env-file.js';
+import dotenv from 'dotenv';
+import { formatEnvFile, SECRET_PLACEHOLDER, quoteEnvValue } from '../render-env-file.js';
 import { saveEnvFile, ENV_FILE, BACKUP_FILE } from '../save-env-file.js';
 import { specsFromCommand } from '../option-introspect.js';
 import { leafCommandAt } from '../command-tree.js';
@@ -58,15 +59,17 @@ describe('formatEnvFile', () => {
     test('writes the environment variable each option declares', () => {
         const file = formatEnvFile(PATH, specs(), ANSWERS);
 
-        expect(file).toContain('BSI_QSCLOUD_CST_TENANTURL=acme.eu.qlikcloud.com');
-        expect(file).toContain('BSI_QSCLOUD_CST_IMAGE_DIR=./shots');
+        // Quoted, because bare values are silently lossy - dotenv reads
+        // everything after an unquoted '#' as a comment. See quoteEnvValue.
+        expect(file).toContain("BSI_QSCLOUD_CST_TENANTURL='acme.eu.qlikcloud.com'");
+        expect(file).toContain("BSI_QSCLOUD_CST_IMAGE_DIR='./shots'");
     });
 
     test('joins a variadic value with commas, not spaces', () => {
         // Commander wraps an environment variable in a one-element array without
         // splitting it, so a space-separated list would come back as one value.
         // Commas are what --appid's parser splits on - the trap #895 fixed.
-        expect(formatEnvFile(PATH, specs(), ANSWERS)).toContain('APP_ID=app-a,app-b');
+        expect(formatEnvFile(PATH, specs(), ANSWERS)).toContain("APP_ID='app-a,app-b'");
     });
 
     test('leaves credentials out by default, with a placeholder and an explanation', () => {
@@ -86,6 +89,88 @@ describe('formatEnvFile', () => {
 
     test('names the command it was written for', () => {
         expect(formatEnvFile(PATH, specs(), ANSWERS)).toContain(`butler-sheet-icons ${PATH}`);
+    });
+});
+
+describe('a saved file reads back as what was saved', () => {
+    // The property the module claims: a saved file reproduces the run, rather
+    // than approximately reproducing it. Asserting substrings is not enough -
+    // writing values bare passed every such test while dotenv silently
+    // truncated `pass#word` to `pass`.
+    const AWKWARD = {
+        tenanturl: 'acme.eu.qlikcloud.com',
+        apikey: 'pass#word',
+        contentlibrary: 'Butler sheet thumbnails',
+        imagedir: './img with spaces/',
+        appid: ['app-a', 'app-b'],
+    };
+
+    test.each([
+        ['a hash, which starts a comment when unquoted', 'apikey', 'pass#word'],
+        ['surrounding spaces, which are otherwise stripped', 'imagedir', '  ./img  '],
+        ['a double quote', 'apikey', 'pa"ss'],
+        ['a single quote', 'apikey', "pa'ss"],
+        ['a backslash', 'imagedir', String.raw`C:\Qlik\img`],
+        ['an equals sign', 'apikey', 'a=b=c'],
+        ['a newline', 'apikey', 'line1\nline2'],
+    ])('survives %s', (_label, key, value) => {
+        const file = formatEnvFile(
+            PATH,
+            specs(),
+            { ...AWKWARD, [key]: value },
+            {
+                includeSecrets: true,
+            }
+        );
+        const parsed = dotenv.parse(Buffer.from(file));
+        const envVar = specs().find((spec) => spec.key === key).option.envVar;
+
+        expect(parsed[envVar]).toBe(value);
+    });
+
+    test('a variadic value reads back as the same list', () => {
+        const file = formatEnvFile(PATH, specs(), AWKWARD, { includeSecrets: true });
+        const parsed = dotenv.parse(Buffer.from(file));
+
+        expect(parsed.BSI_QSCLOUD_CST_APP_ID).toBe('app-a,app-b');
+    });
+
+    test('every written value reads back identically', () => {
+        const file = formatEnvFile(PATH, specs(), AWKWARD, { includeSecrets: true });
+        const parsed = dotenv.parse(Buffer.from(file));
+
+        expect(parsed.BSI_QSCLOUD_CST_TENANTURL).toBe(AWKWARD.tenanturl);
+        expect(parsed.BSI_QSCLOUD_CST_APIKEY).toBe(AWKWARD.apikey);
+        expect(parsed.BSI_QSCLOUD_CST_CONTENT_LIBRARY ?? parsed.BSI_QSCLOUD_CST_IMAGE_DIR).toBe(
+            AWKWARD.imagedir
+        );
+    });
+
+    test('says so rather than lying when a value cannot be represented', () => {
+        // A newline plus both quote characters has no faithful form in dotenv.
+        // Writing something that reads back wrong is the failure being avoided.
+        const impossible = `line1\nhas'both"quotes`;
+        const file = formatEnvFile(
+            PATH,
+            specs(),
+            { ...AWKWARD, apikey: impossible },
+            {
+                includeSecrets: true,
+            }
+        );
+
+        expect(dotenv.parse(Buffer.from(file)).BSI_QSCLOUD_CST_APIKEY).toBeUndefined();
+        expect(file).toContain('could not be written');
+    });
+});
+
+describe('quoteEnvValue', () => {
+    test('leaves a plain value readable rather than over-quoting', () => {
+        expect(quoteEnvValue('chrome')).toBe("'chrome'");
+    });
+
+    test('gives up rather than corrupting the impossible case', () => {
+        expect(quoteEnvValue(`a\nb'c"d`)).toBeUndefined();
     });
 });
 
