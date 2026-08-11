@@ -84,6 +84,12 @@ export const runInteractive = async ({
     // about without anyone editing the wizard.
     const specs = specsFromCommand(command);
 
+    // Named by flag rather than by storage key, because the flag is what the
+    // user typed. Secrets are named but never shown.
+    const prefilled = specs
+        .filter((spec) => spec.key in presetOptions)
+        .map((spec) => spec.option?.long ?? spec.key);
+
     // Said once, up front. There is no way back to a previous question - the
     // prompt library has no such gesture - so the two things a user can do
     // instead have to be discoverable before they need them, not after.
@@ -91,9 +97,28 @@ export const runInteractive = async ({
         `\n${theme.style.help('Ctrl+C cancels. Nothing is changed until you confirm at the end, where you can also start over.')}\n`
     );
 
+    if (prefilled.length > 0) {
+        runtime.write(
+            `${theme.style.help(`Already supplied, so not asked about again: ${prefilled.join(', ')}.`)}\n`
+        );
+    }
+
     for (;;) {
-        const asked = wizard.refine ? wizard.refine(specs, { answers: presetOptions }) : specs;
-        const raw = await askQuestions(asked, { symbols, theme, answers: {} }, { runtime });
+        const refined = wizard.refine ? wizard.refine(specs, { answers: presetOptions }) : specs;
+
+        // Anything already given on the command line or through a BSI_*
+        // environment variable is an answer, not a question. Dropped here rather
+        // than in `refine`, so every wizard composes with `-i` without having to
+        // remember to.
+        const asked = refined.filter((spec) => !(spec.key in presetOptions));
+
+        const raw = await askQuestions(
+            // Seeded with what is already known, so a later `when` or `choices`
+            // sees the pre-filled answers as well as the typed ones.
+            asked,
+            { symbols, theme, answers: { ...presetOptions } },
+            { runtime }
+        );
         const answers = {
             ...presetOptions,
             ...(wizard.finalize ? wizard.finalize(raw, { specs }) : raw),

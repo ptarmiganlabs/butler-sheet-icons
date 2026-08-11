@@ -1,5 +1,6 @@
 import { BSI_SECRET_KEYS } from '../util/redact-secrets.js';
 import { fromOption, validateEntries } from './validators.js';
+import { isInteractiveOption } from './interactive-option.js';
 
 const SECRET_KEYS = new Set(BSI_SECRET_KEYS.map((key) => key.toLowerCase()));
 
@@ -204,7 +205,14 @@ export const specFromOption = (option, { env = process.env } = {}) => {
  * @throws {Error} If two options on the command would store under the same key.
  */
 export const specsFromCommand = (command, { env = process.env } = {}) => {
-    const specs = command.options.map((option) => specFromOption(option, { env }));
+    const specs = command.options
+        // The flag that opened the wizard is not one of the wizard's questions.
+        // Left in, it becomes a confirm reading "Answer questions instead of
+        // assembling a command line?", and - worse - `--interactive` is emitted
+        // into the echoed command line, so the line the wizard tells you to
+        // reuse would re-enter the wizard rather than run the command.
+        .filter((option) => !isInteractiveOption(option))
+        .map((option) => specFromOption(option, { env }));
     const seen = new Set();
 
     for (const spec of specs) {

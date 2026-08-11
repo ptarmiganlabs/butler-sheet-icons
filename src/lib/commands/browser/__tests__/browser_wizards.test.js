@@ -173,6 +173,65 @@ describe('the uninstall wizard', () => {
     });
 });
 
+describe('options already supplied on the command line', () => {
+    // What makes `-i` compose rather than merely exist:
+    // `bsi browser install --browser firefox -i` should ask which build, not
+    // which browser.
+    test('are not asked about again', async () => {
+        const runtime = scriptedRuntime({ browserVersion: '151.0.7922.47', _review: 'cancel' });
+
+        await runInteractive({
+            path: 'browser install',
+            presetOptions: { browser: 'firefox' },
+            runtime,
+        });
+
+        expect(runtime.asked.map((a) => a.key)).toEqual(['browserVersion', '_review']);
+    });
+
+    test('are still visible to the questions that follow', async () => {
+        // The pre-filled answer has to reach `choices`, or the version list
+        // would be fetched for the wrong browser.
+        const runtime = scriptedRuntime({ browserVersion: '151.0.7922.47', _review: 'cancel' });
+
+        await runInteractive({
+            path: 'browser install',
+            presetOptions: { browser: 'firefox' },
+            runtime,
+        });
+
+        expect(fetchAvailableVersions).toHaveBeenCalledWith(
+            expect.objectContaining({ browser: 'firefox' })
+        );
+    });
+
+    test('and reach the command that finally runs', async () => {
+        const runtime = scriptedRuntime({ browserVersion: '151.0.7922.47', _review: 'run' });
+
+        await runInteractive({
+            path: 'browser install',
+            presetOptions: { browser: 'firefox' },
+            runtime,
+        });
+
+        expect(browserInstall).toHaveBeenCalledWith(
+            expect.objectContaining({ browser: 'firefox', browserVersion: '151.0.7922.47' })
+        );
+    });
+
+    test('are named up front, so it is clear why they were skipped', async () => {
+        const runtime = scriptedRuntime({ browserVersion: '151.0.7922.47', _review: 'cancel' });
+
+        await runInteractive({
+            path: 'browser install',
+            presetOptions: { browser: 'firefox' },
+            runtime,
+        });
+
+        expect(runtime.written.join('')).toContain('--browser');
+    });
+});
+
 describe('the install wizard', () => {
     test('offers published versions without the serial availability check', async () => {
         // browserListAvailable runs one request per version, strictly serially,

@@ -5,6 +5,7 @@ import { buildQseowCommand } from './lib/commands/qseow/index.js';
 import { buildQscloudCommand } from './lib/commands/qscloud/index.js';
 import { buildBrowserCommand } from './lib/commands/browser/index.js';
 import { buildInteractiveCommand } from './lib/interactive/interactive-command.js';
+import { relaxMandatoryOptionsIfInteractive } from './lib/interactive/mandatory-relaxation.js';
 
 // Process-level safety net: catch any error that escapes all try/catch blocks,
 // write a crash dump, and exit with code 1. Installed before anything else so
@@ -29,6 +30,12 @@ const program = new Command();
     program.addCommand(buildQscloudCommand());
     program.addCommand(buildBrowserCommand());
     program.addCommand(buildInteractiveCommand());
+
+    // Must happen before the parse: Commander rejects a command line missing a
+    // mandatory option before any hook or handler runs, so `-i` would never be
+    // reached. Does nothing at all unless the command line asks for a wizard,
+    // and restores what it changed before any handler runs.
+    relaxMandatoryOptionsIfInteractive(program, process.argv);
 
     await program.parseAsync(process.argv);
 })();

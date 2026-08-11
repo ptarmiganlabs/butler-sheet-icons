@@ -1,6 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import { everyLeafCommand, leafCommandAt } from '../command-tree.js';
 import { specsFromCommand, specFromOption, splitDescription } from '../option-introspect.js';
+import { isInteractiveOption, INTERACTIVE_OPTION_ATTRIBUTE } from '../interactive-option.js';
 
 const ENV_SNAPSHOT = { ...process.env };
 
@@ -49,12 +50,16 @@ describe('command-tree', () => {
 });
 
 describe('every option yields exactly one question', () => {
+    // Every option except the flag that opens the wizard, which is not one of
+    // the wizard's own questions.
+    const askableOptions = (command) => command.options.filter((o) => !isInteractiveOption(o));
+
     test.each(EVERY_COMMAND)('%s', (_path, command) => {
         const specs = specsFromCommand(command);
 
         // The regression net behind "adding a CLI option gets a prompt for
         // free". If this ever fails, an option has become unaskable.
-        expect(specs).toHaveLength(command.options.length);
+        expect(specs).toHaveLength(askableOptions(command).length);
         expect(specs.every((spec) => spec.message.length > 0)).toBe(true);
     });
 
@@ -62,8 +67,29 @@ describe('every option yields exactly one question', () => {
         const specs = specsFromCommand(command);
 
         expect(specs.map((spec) => spec.key)).toEqual(
-            command.options.map((option) => option.attributeName())
+            askableOptions(command).map((option) => option.attributeName())
         );
+    });
+});
+
+describe('the interactive flag is never a question', () => {
+    // Two things go wrong if it is. The user is asked "Answer questions instead
+    // of assembling a command line?" while already answering questions, and
+    // `--interactive` is emitted into the echoed command line - so the line the
+    // wizard prints as the way to reproduce the run would instead re-open the
+    // wizard when pasted back.
+    test.each(EVERY_COMMAND)('%s', (_path, command) => {
+        expect(specsFromCommand(command).map((spec) => spec.key)).not.toContain(
+            INTERACTIVE_OPTION_ATTRIBUTE
+        );
+    });
+
+    test('and the commands that offer it really do declare it, so this is not vacuous', () => {
+        const withFlag = EVERY_COMMAND.filter(([, command]) =>
+            command.options.some(isInteractiveOption)
+        );
+
+        expect(withFlag.length).toBeGreaterThan(0);
     });
 });
 

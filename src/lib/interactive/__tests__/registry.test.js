@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { everyLeafCommand } from '../command-tree.js';
 import { specsFromCommand } from '../option-introspect.js';
 import { INTERACTIVE_COMMANDS, NOT_INTERACTIVE, loadWizard } from '../registry.js';
+import { isInteractiveOption, INTERACTIVE_OPTION_ATTRIBUTE } from '../interactive-option.js';
 
 const REGISTRY_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', 'registry.js');
 const REGISTERED = Object.keys(INTERACTIVE_COMMANDS);
@@ -36,6 +37,34 @@ describe('every command is accounted for', () => {
         for (const [path, reason] of Object.entries(NOT_INTERACTIVE)) {
             expect(`${path}: ${reason.length > 20}`).toBe(`${path}: true`);
         }
+    });
+});
+
+describe('-i is offered exactly where a wizard exists', () => {
+    // Two failures this rules out, one in each direction. A command advertising
+    // -i with no wizard behind it reaches loadWizard() and throws at the moment
+    // the user asked for help. A command with a wizard but no -i leaves the
+    // wizard reachable only through the `interactive` menu, which is the gap
+    // this phase exists to close.
+    test.each(everyLeafCommand().map(({ path, command }) => [path, command]))(
+        '%s',
+        (path, command) => {
+            const declaresFlag = command.options.some(isInteractiveOption);
+            const registered = path in INTERACTIVE_COMMANDS;
+
+            expect(`${path}: -i=${declaresFlag}`).toBe(`${path}: -i=${registered}`);
+        }
+    );
+
+    test('the flag is a real short option, not a long one in the short slot', () => {
+        // `--log-level, --loglevel` is declared that way and Commander stores
+        // the first long form in `.short`, so "has a short flag" is not by
+        // itself evidence that -i parses as -i.
+        const [{ command }] = everyLeafCommand().filter(({ path }) => path in INTERACTIVE_COMMANDS);
+        const flag = command.options.find(isInteractiveOption);
+
+        expect(flag.short).toBe('-i');
+        expect(flag.attributeName()).toBe(INTERACTIVE_OPTION_ATTRIBUTE);
     });
 });
 

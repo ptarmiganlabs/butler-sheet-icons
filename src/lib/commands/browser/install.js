@@ -7,6 +7,7 @@ import {
     parseBrowserVersionValue,
 } from '../../browser/browser-version.js';
 import { runCommand } from '../run-command.js';
+import { addInteractiveOption } from '../../interactive/interactive-option.js';
 
 /**
  * Commander action that installs the browser.
@@ -18,6 +19,17 @@ import { runCommand } from '../run-command.js';
  */
 const handleBrowserInstall = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
+
+    // Optional chaining, not `options.interactive`: the default parameter only
+    // covers `undefined`, and a null options bag has to keep reaching
+    // runCommand() to be reported as a failure rather than thrown from here.
+    if (options?.interactive) {
+        // Loaded on demand; see the note in uninstall.js for why this import is
+        // not at module scope.
+        const { launchInteractive } = await import('../../interactive/launch.js');
+
+        return launchInteractive('BROWSER MAIN 9', 'browser install', cmd);
+    }
 
     return runCommand('BROWSER MAIN 9', () => browserInstall(options, cmd));
 };
@@ -59,6 +71,10 @@ const buildBrowserInstallCommand = () => {
                 .argParser(parseBrowserVersionValue)
                 .env('BSI_BROWSER_I_BROWSER_VERSION')
         );
+
+    // The version picker is the reason: `--browser-version` accepts hundreds of
+    // build ids that are impossible to recall, and the wizard searches them.
+    addInteractiveOption(command);
 
     return command;
 };
