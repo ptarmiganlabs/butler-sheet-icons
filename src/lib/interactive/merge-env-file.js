@@ -10,12 +10,12 @@
  *
  * This is a **line-level edit, not a parse and rewrite**. Values belonging to
  * keys this command does not own are never read, re-quoted or reformatted - the
- * bytes are carried across untouched. That is what makes merging safe here,
- * where a full round-trip through a parser would risk changing someone else's
- * settings as a side effect of saving ours.
+ * bytes are carried across untouched, line endings included. That is what makes
+ * merging safe here, where a full round-trip through a parser would risk
+ * changing someone else's settings as a side effect of saving ours.
  *
- * Three details of `dotenv`'s format drive the implementation, all checked
- * against the version this repo depends on rather than assumed:
+ * Four details of the format drive the implementation, all checked by running
+ * the code against them rather than reasoning about them:
  *
  * - **The last occurrence of a key wins**, not the first. Replacing an earlier
  *   duplicate would leave the file parsing to the old value, so the *last* one
@@ -24,12 +24,66 @@
  *   matcher has to allow the prefix - and preserves it, since it is presumably
  *   there because something else sources the file.
  * - **A quoted value may span physical lines.** Replacing only the first line of
- *   one would leave the remainder behind as an orphan fragment, corrupting the
- *   file. A key's entry is therefore a line *range*, not a line.
+ *   one would leave the remainder behind as an orphan fragment, so a key's entry
+ *   is a line *range*. But an *unterminated* quote must not be read that way: it
+ *   would make the range run to the end of the file and the replacement would
+ *   delete everything after it. A stray quote in a hand-edited file is entirely
+ *   ordinary, so that case falls back to treating the line as a single line.
+ * - **Line endings are per line.** A `.env` written on Windows is CRLF, and
+ *   `.` does not match `\r` in JavaScript - so matching against the raw line
+ *   silently found nothing at all and appended a duplicate of every setting on
+ *   every save. Each line is matched with its ending stripped and rewritten with
+ *   the ending it had.
  */
+
+import dotenv from 'dotenv';
 
 /** Matches the start of an assignment, capturing the optional export and the key. */
 const ASSIGNMENT = /^(\s*(?:export\s+)?)([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
+
+/**
+ * Split a file into lines, keeping each line's own ending separate from its text.
+ *
+ * Preserving the ending per line rather than normalising the file is what lets
+ * an unrelated line be written back byte for byte, including in a file that
+ * mixes the two conventions.
+ *
+ * @param {string} text - The file contents.
+ *
+ * @returns {{text: string, eol: string}[]} One entry per line.
+ */
+const toLines = (text) => {
+    const parts = text.split('\n');
+
+    return parts.map((line, index) => {
+        // Split consumes every newline, so only the final part can have lacked
+        // one. That distinction matters for working out the file's convention.
+        const terminated = index < parts.length - 1;
+
+        return line.endsWith('\r')
+            ? { text: line.slice(0, -1), eol: '\r\n', terminated }
+            : { text: line, eol: '\n', terminated };
+    });
+};
+
+/**
+ * The line ending a file predominantly uses, for lines being added to it.
+ *
+ * Blank entries are ignored, because splitting a file that ends in a newline
+ * always yields a final empty one - counting it made a one-line CRLF file look
+ * evenly split and additions came out LF.
+ *
+ * @param {{text: string, eol: string}[]} lines - The parsed lines.
+ *
+ * @returns {string} `'\r\n'` or `'\n'`.
+ */
+const dominantEol = (lines) => {
+    // A line with no terminator carries no evidence either way, and counting it
+    // as LF made a CRLF file whose last line lacks a newline come out as LF.
+    const real = lines.filter((line) => line.text !== '' && line.terminated);
+
+    return real.filter((line) => line.eol === '\r\n').length > real.length / 2 ? '\r\n' : '\n';
+};
 
 /**
  * Whether a value fragment leaves a quote open at the end of the line.
@@ -51,51 +105,114 @@ const opensQuote = (fragment) => {
 };
 
 /**
+ * Find where a quoted value that opened on this line closes.
+ *
+ * @param {{text: string}[]} lines - The parsed lines.
+ * @param {number} start - Index of the line the quote opened on.
+ * @param {string} quote - The quote character to close.
+ *
+ * @returns {number|undefined} Index of the closing line, or undefined when it never closes.
+ */
+/**
+ * Whether a line ends a quoted value that opened earlier.
+ *
+ * @param {string} text - The line's text, without its ending.
+ * @param {string} quote - The quote character that opened the value.
+ *
+ * @returns {boolean} True when the value closes on this line.
+ */
+const closesQuote = (text, quote) => {
+    const at = text.indexOf(quote);
+
+    if (at === -1) {
+        return false;
+    }
+
+    // Only whitespace or a comment may follow the closing quote. Checked against
+    // dotenv: `B=two"` after an opening quote is absorbed into the value, while
+    // `OTHER=say "hi` stays a separate setting - so a quote with content after
+    // it does not close anything, and treating it as a closer deletes a real
+    // setting when the value is replaced.
+    const rest = text.slice(at + 1).trim();
+
+    return rest === '' || rest.startsWith('#');
+};
+
+const findClosingLine = (lines, start, quote) => {
+    for (let index = start + 1; index < lines.length; index += 1) {
+        if (closesQuote(lines[index].text, quote)) {
+            return index;
+        }
+    }
+
+    return undefined;
+};
+
+/**
  * Find the line range each key occupies, keeping only the effective one.
  *
- * @param {string[]} lines - The file, split into lines.
+ * @param {{text: string}[]|string[]} lines - The file's lines, parsed or raw.
  * @param {Set<string>} keys - Keys to look for.
  *
- * @returns {Map<string, {start: number, end: number, prefix: string}>} Where each key lives.
+ * @returns {{found: Map<string, {line: number, prefix: string}>, spanning: Set<string>}}
+ *     Where each single-line key lives, and which keys' values span lines.
  */
 export const locateAssignments = (lines, keys) => {
+    // Accepts raw strings too, so the exported helper stays usable on its own.
+    const parsed = lines.map((line) => (typeof line === 'string' ? { text: line } : line));
     const found = new Map();
+    const spanning = new Set();
 
-    for (let index = 0; index < lines.length; index += 1) {
-        const match = ASSIGNMENT.exec(lines[index]);
+    for (let index = 0; index < parsed.length; index += 1) {
+        const match = ASSIGNMENT.exec(parsed[index].text);
 
         if (!match) {
             continue;
         }
 
         const [, prefix, key, valueFragment] = match;
-        let end = index;
         const openQuote = opensQuote(valueFragment);
 
-        if (openQuote) {
-            // Consume until the quote closes, so a multiline value is replaced
-            // as one unit rather than leaving its tail behind.
-            while (end + 1 < lines.length && !lines[end + 1].includes(openQuote)) {
-                end += 1;
+        if (!openQuote) {
+            if (keys.has(key)) {
+                // Overwrites any earlier sighting, which is what "last one wins"
+                // requires: rewriting an earlier duplicate would leave the file
+                // still parsing to the later value.
+                found.set(key, { line: index, prefix });
             }
 
-            if (end + 1 < lines.length) {
-                end += 1;
-            }
+            continue;
         }
+
+        // The value continues onto later lines. The scan below exists solely to
+        // step over them: a line inside someone else's value can look exactly
+        // like an assignment, and rewriting it would corrupt the value it sits
+        // in. It is deliberately *not* used as a replacement extent - that was
+        // the source of every destructive bug this file has had, because a scan
+        // that guessed the end wrong deleted everything it had guessed over.
+        const closing = findClosingLine(parsed, index, openQuote);
 
         if (keys.has(key)) {
-            // Overwrites any earlier sighting, which is what "last one wins"
-            // requires: rewriting an earlier duplicate would leave the file
-            // still parsing to the later value.
-            found.set(key, { start: index, end, prefix });
+            // A key of ours whose existing value spans lines is left exactly as
+            // it is. The new value is appended instead, and dotenv's last-one-
+            // wins rule makes it the effective one - so the setting takes effect
+            // without this code ever rewriting a multiline value.
+            spanning.add(key);
+            found.delete(key);
         }
 
-        index = end;
+        // An unterminated quote is a malformed line, not a value running to the
+        // end of the file, so nothing is skipped in that case.
+        if (closing !== undefined) {
+            index = closing;
+        }
     }
 
-    return found;
+    return { found, spanning };
 };
+
+/** Header written above settings appended to a file that did not have them. */
+export const ADDED_HEADER = '# Added by the Butler Sheet Icons wizard';
 
 /**
  * Merge a set of `NAME=value` assignments into an existing file's contents.
@@ -103,22 +220,30 @@ export const locateAssignments = (lines, keys) => {
  * @param {string} current - The existing file contents.
  * @param {Array<{name: string, line: string}>} assignments - Lines to apply, already quoted.
  *
- * @returns {{contents: string, updated: string[], added: string[]}} The new contents and what changed.
+ * @returns {{contents: string, updated: string[], added: string[], superseded: string[]}}
+ *     The new contents and what changed.
  */
 export const mergeEnvContents = (current, assignments) => {
-    const lines = current.split('\n');
+    const lines = toLines(current);
+    const eol = dominantEol(lines);
     const byName = new Map(assignments.map((entry) => [entry.name, entry]));
-    const located = locateAssignments(lines, new Set(byName.keys()));
+    const { found, spanning } = locateAssignments(lines, new Set(byName.keys()));
+
+    // What each assignment is meant to read back as, taken from the line itself
+    // so the check below cannot drift from what is being written.
+    const expected = new Map(
+        assignments.map((entry) => [
+            entry.name,
+            dotenv.parse(Buffer.from(`${entry.line}\n`))[entry.name],
+        ])
+    );
 
     const updated = [];
     const added = [];
     const replacements = new Map();
 
-    for (const [name, where] of located) {
-        replacements.set(where.start, {
-            ...where,
-            line: `${where.prefix}${byName.get(name).line}`,
-        });
+    for (const [name, where] of found) {
+        replacements.set(where.line, { ...where, name });
         updated.push(name);
     }
 
@@ -128,37 +253,91 @@ export const mergeEnvContents = (current, assignments) => {
         const replacement = replacements.get(index);
 
         if (replacement) {
-            out.push(replacement.line);
-            // Skip the rest of a multiline value, which the new line replaces.
-            index = replacement.end;
+            out.push({
+                text: `${replacement.prefix}${byName.get(replacement.name).line}`,
+                eol: lines[index].eol,
+                terminated: lines[index].terminated,
+            });
             continue;
         }
 
         out.push(lines[index]);
     }
 
-    const missing = assignments.filter((entry) => !located.has(entry.name));
+    // A key whose existing value spans lines counts as missing, so the new value
+    // is appended rather than written over the old one.
+    const missing = assignments.filter((entry) => !found.has(entry.name));
 
     if (missing.length > 0) {
-        // Trailing blank lines are dropped before appending so the additions do
-        // not drift further from the content each time the file is saved.
-        while (out.length > 0 && out[out.length - 1].trim() === '') {
-            out.pop();
-        }
+        const newLines = missing.map((entry) => ({ text: entry.line, eol }));
+        const headerAt = out.findIndex((line) => line.text.trim() === ADDED_HEADER);
 
-        out.push('', `# Added by the Butler Sheet Icons wizard`);
+        added.push(...missing.map((entry) => entry.name));
 
-        for (const entry of missing) {
-            out.push(entry.line);
-            added.push(entry.name);
+        if (headerAt === -1) {
+            // Trailing blank lines are dropped before appending so the additions
+            // do not drift further from the content on each save.
+            while (out.length > 0 && out[out.length - 1].text.trim() === '') {
+                out.pop();
+            }
+
+            out.push({ text: '', eol }, { text: ADDED_HEADER, eol }, ...newLines);
+        } else {
+            // Directly under the header, rather than after the lines that
+            // follow it - those are not necessarily the wizard's, and appending
+            // at the end leaves later settings orphaned beneath whatever
+            // happened to be last with nothing saying where they came from.
+            out.splice(headerAt + 1, 0, ...newLines);
         }
     }
 
-    const contents = out.join('\n');
+    let contents = out
+        .map((line, index) => {
+            if (index === out.length - 1) {
+                return line.text;
+            }
+
+            // A line that had no terminator gains one only because something was
+            // appended after it, so it takes the file's convention rather than
+            // the placeholder its own entry carries.
+            return `${line.text}${line.terminated === false ? eol : line.eol}`;
+        })
+        .join('');
+    const trailing = out.length > 0 ? out[out.length - 1].eol : eol;
+
+    contents = contents.endsWith('\n') ? contents : `${contents}${trailing}`;
+
+    // Check the result rather than trusting the edit. The scan above is a
+    // heuristic and dotenv is the authority, and on pathological input the two
+    // disagree - a key can appear again inside another key's multiline value,
+    // where the scan sees no assignment and dotenv sees the one that wins. When
+    // that happens the in-place edit updated an occurrence that is not the
+    // effective one, so the value is appended as well; last-one-wins then makes
+    // it authoritative regardless of who was right about the structure.
+    //
+    // This makes "every key we own reads back as the value we meant" true by
+    // construction instead of by the scanner being correct, which three rounds
+    // of review suggest is not a safe thing to assume.
+    const resolved = dotenv.parse(Buffer.from(contents));
+    const wrong = assignments.filter((entry) => resolved[entry.name] !== expected.get(entry.name));
+
+    if (wrong.length > 0) {
+        contents += wrong.map((entry) => `${entry.line}${eol}`).join('');
+
+        for (const entry of wrong) {
+            if (!added.includes(entry.name)) {
+                added.push(entry.name);
+            }
+        }
+    }
 
     return {
-        contents: contents.endsWith('\n') ? contents : `${contents}\n`,
+        contents,
         updated,
         added,
+        // Left in place because their existing value spans several lines. The
+        // new value is in the file and takes effect; the old block is stale and
+        // worth telling the operator about.
+        superseded: [...spanning],
     };
 };

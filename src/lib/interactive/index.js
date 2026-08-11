@@ -181,6 +181,16 @@ export const runInteractive = async ({
                     ? `\n  ${symbols.done} Saved to ${saved.path}${saved.includedSecrets ? '' : ' (credentials left out)'}${saved.backupPath ? `\n  ${symbols.done} Previous contents kept in ${saved.backupPath}` : ''}\n`
                     : `\n  ${symbols.failed} Not saved. ${ENV_FILE} was left as it was.\n`
             );
+
+            if (saved.saved && saved.superseded?.length > 0) {
+                // The old block is still in the file and no longer has any
+                // effect. Left alone rather than rewritten, because rewriting a
+                // value that spans lines means guessing where it ends - but the
+                // operator should know it is there.
+                runtime.write(
+                    `  ${theme.style.help(`${saved.superseded.join(', ')} already had a value spanning several lines. It was left untouched and the new value added below it, so the old block is now dead text you may want to remove.`)}\n`
+                );
+            }
         }
 
         if (decision === 'cancel') {

@@ -1,0 +1,2 @@
+# Byte-exact: these fixtures encode line endings deliberately.
+*.env -text
