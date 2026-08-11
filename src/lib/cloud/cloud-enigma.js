@@ -3,6 +3,7 @@ import WebSocket from 'ws';
 
 import { logger } from '../../globals.js';
 import { getEnigmaSchema } from '../util/enigma-util.js';
+import { attachSocketKeepalive } from '../util/socket-keepalive.js';
 
 /**
  * Sets up an Enigma connection to a Qlik Sense SaaS tenant.
@@ -33,15 +34,21 @@ export const setupEnigmaConnection = (appId, options, _command) => {
         /**
          * Builds a `WebSocket` connection to the SaaS Enigma endpoint, using the API key for authentication.
          *
+         * The keepalive matters most on this platform: the connection crosses the public
+         * internet to the tenant, and the screenshot path leaves it idle for the whole time a
+         * sheet takes to render. See `attachSocketKeepalive` and issue #975.
+         *
          * @param {string} url - Full WebSocket URL produced by `SenseUtilities.buildUrl`.
          *
          * @returns {WebSocket} A `ws` WebSocket instance ready to be used by `enigma.js`.
          */
         createSocket: (url) =>
-            new WebSocket(url, {
-                headers: {
-                    Authorization: `Bearer ${options.apikey}`,
-                },
-            }),
+            attachSocketKeepalive(
+                new WebSocket(url, {
+                    headers: {
+                        Authorization: `Bearer ${options.apikey}`,
+                    },
+                })
+            ),
     };
 };

@@ -5,6 +5,7 @@ import fs from 'fs-extra';
 import { logger, bsiExecutablePath } from '../../globals.js';
 import { getEnigmaSchema } from '../util/enigma-util.js';
 import { getCertFilePaths } from '../util/cert.js';
+import { attachSocketKeepalive } from '../util/socket-keepalive.js';
 
 /**
  * Reads a file from disk and returns its bytes.
@@ -65,19 +66,26 @@ export const setupEnigmaConnection = (appId, options, _command) => {
          * Builds a `WebSocket` connection to the QSEoW Enigma endpoint, using the loaded
          * client certificate and the API user header for authentication.
          *
+         * The keepalive is the Cloud twin's, applied here for symmetry rather than because
+         * this platform has shown the fault - a LAN socket has much less to survive. See
+         * `attachSocketKeepalive` and issue #975.
+         *
          * @param {string} url - Full WebSocket URL produced by `SenseUtilities.buildUrl`.
          *
          * @returns {WebSocket} A `ws` WebSocket instance ready to be used by `enigma.js`.
          */
         createSocket: (url) =>
-            new WebSocket(url, {
-                key: readCert(fileCertKey),
-                cert: readCert(fileCert),
-                headers: {
-                    'X-Qlik-User': `UserDirectory=${options.apiuserdir};UserId=${options.apiuserid}`,
-                },
-                rejectUnauthorized:
-                    options.rejectUnauthorized === 'true' || options.rejectUnauthorized === true,
-            }),
+            attachSocketKeepalive(
+                new WebSocket(url, {
+                    key: readCert(fileCertKey),
+                    cert: readCert(fileCert),
+                    headers: {
+                        'X-Qlik-User': `UserDirectory=${options.apiuserdir};UserId=${options.apiuserid}`,
+                    },
+                    rejectUnauthorized:
+                        options.rejectUnauthorized === 'true' ||
+                        options.rejectUnauthorized === true,
+                })
+            ),
     };
 };

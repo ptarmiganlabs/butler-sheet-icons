@@ -3,6 +3,8 @@
  * session object, shared by the Qlik Sense Cloud and QSEoW code paths.
  */
 
+import errorCodes from 'enigma.js/error-codes.js';
+
 import { logger } from '../../globals.js';
 import { getErrorCategory } from './error-categorizer.js';
 
@@ -161,11 +163,25 @@ export const SHEET_SKIPPED = Symbol('sheet skipped');
  * sheet then fails for the same reason, and the run reports "38 of 40 sheets failed" when
  * what actually happened is one dropped websocket.
  *
+ * enigma.js is asked by error code rather than by message, because it has three wordings for
+ * one dead socket and this loop reliably hits the one that used to be missed. `Socket closed`
+ * and `Socket error` reject the requests that were *in flight* when the socket died; `Not
+ * connected` is what every request issued afterwards gets. The engine sits idle here for the
+ * 25-40 s each screenshot takes, so the socket almost always dies with nothing outstanding -
+ * making `Not connected` the message that actually arrives, and the message list, which named
+ * only `Socket closed`, silently inapplicable. All three carry `NOT_CONNECTED`, so the code
+ * covers what no amount of guessing at wording did. See issue #975.
+ *
+ * `SESSION_SUSPENDED` is included so this stays correct if `suspendOnClose` is ever turned on:
+ * the session then rejects with that instead, and it means the same thing here - the socket is
+ * gone and nothing further will succeed on it.
+ *
  * Net-level classification is delegated to `getErrorCategory`, which already knows about
- * refused connections, timeouts and resets. The message checks cover enigma.js and the
- * Chrome DevTools Protocol, whose session deaths carry no `code`. They are deliberately
- * whole phrases: matching a bare `websocket` also caught per-sheet engine errors that merely
- * mention the transport, aborting the loop on a session that was still alive.
+ * refused connections, timeouts and resets. The message checks cover the Chrome DevTools
+ * Protocol, whose session deaths carry no `code`, and act as a fallback for an enigma error
+ * that lost its code crossing a boundary. They are deliberately whole phrases: matching a bare
+ * `websocket` also caught per-sheet engine errors that merely mention the transport, aborting
+ * the loop on a session that was still alive.
  *
  * @param {Error|unknown} err - Error thrown by a per-sheet worker.
  *
@@ -173,6 +189,15 @@ export const SHEET_SKIPPED = Symbol('sheet skipped');
  *     to the next sheet would only repeat it.
  */
 export const isSessionLevelFailure = (err) => {
+    // Only the socket-level rejections carry these codes - enigma raises a per-sheet failure
+    // such as `Object not found` under its own code, and is left to the per-sheet path.
+    if (
+        err?.enigmaError === true &&
+        (err.code === errorCodes.NOT_CONNECTED || err.code === errorCodes.SESSION_SUSPENDED)
+    ) {
+        return true;
+    }
+
     if (
         ['timeout', 'connection_refused', 'host_not_found', 'connection_reset'].includes(
             getErrorCategory(err)
@@ -185,12 +210,39 @@ export const isSessionLevelFailure = (err) => {
 
     return (
         message.includes('socket closed') ||
+        message.includes('not connected') ||
         message.includes('session closed') ||
         message.includes('connection closed') ||
         message.includes('target closed') ||
         message.includes('websocket connection') ||
         message.includes('websocket is not open')
     );
+};
+
+/**
+ * Renders the WebSocket close event enigma.js attaches to a socket-level rejection.
+ *
+ * `Not connected` on its own says the session was gone, not why it went. enigma carries the
+ * close event through as `original`, and its `code` is the one field that separates a network
+ * drop (1006, no clean close frame) from a deliberate close by the far end (1000-1001, or a
+ * Qlik-specific 4xxx with a reason). Without it a dropped session cannot be told from one the
+ * tenant closed on purpose, which is what left issue #975 undiagnosable from its own logs.
+ *
+ * @param {Error|unknown} err - Error thrown by a per-sheet worker.
+ *
+ * @returns {string} A sentence to append to the log line, or an empty string when the error
+ *     carries no close event - the errors that reach here through other paths have none.
+ */
+const describeCloseEvent = (err) => {
+    const code = err?.original?.code;
+
+    if (code === undefined || code === null) {
+        return '';
+    }
+
+    const reason = err.original.reason;
+
+    return ` (websocket closed with code ${code}${reason ? `, reason "${reason}"` : ''})`;
 };
 
 /**
@@ -264,7 +316,7 @@ export const runOverSheets = async (sheets, ctx, processSheet) => {
                 // Not this sheet's fault, and every sheet after it would fail identically.
                 sessionFailure = err;
                 logger.error(
-                    `${logPrefix}: Lost the engine session while processing app ${appId} at sheet ${iSheetNum}, abandoning the remaining sheets: ${err?.message ?? err}`
+                    `${logPrefix}: Lost the engine session while processing app ${appId} at sheet ${iSheetNum}, abandoning the remaining sheets: ${err?.message ?? err}${describeCloseEvent(err)}`
                 );
                 break;
             }

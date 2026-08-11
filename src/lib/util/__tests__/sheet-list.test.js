@@ -286,9 +286,43 @@ describe('runOverSheets', () => {
     });
 });
 
+/**
+ * Builds an error shaped the way enigma.js raises one.
+ *
+ * Spelled out rather than imported from enigma so the test states what the contract is: a
+ * message, a numeric `code`, and the `enigmaError` marker. `original` is the WebSocket close
+ * event, which enigma attaches to the socket-level rejections.
+ *
+ * @param {string} message - enigma's wording.
+ * @param {number} code - Value from `enigma.js/error-codes.js`.
+ * @param {object} [original] - The close event, when there is one.
+ *
+ * @returns {Error} The error.
+ */
+const enigmaError = (message, code, original) =>
+    Object.assign(new Error(message), { code, enigmaError: true, original });
+
 describe('isSessionLevelFailure', () => {
+    // enigma has three wordings for one dead socket, and this loop hits the one the message
+    // list missed - see issue #975. All three carry NOT_CONNECTED (-1).
+    test.each([
+        ['a request issued after the socket died', enigmaError('Not connected', -1)],
+        ['a request in flight when the socket died', enigmaError('Socket closed', -1)],
+        ['a socket error', enigmaError('Socket error', -1)],
+        ['a suspended session', enigmaError('Session suspended', -11)],
+    ])('treats %s as session-level', (_label, err) => {
+        expect(isSessionLevelFailure(err)).toBe(true);
+    });
+
+    test('leaves a per-sheet enigma failure to the per-sheet path', () => {
+        // OBJECT_NOT_FOUND (-2) is one sheet's problem; the session is still alive, and the
+        // sheets after it can still be processed.
+        expect(isSessionLevelFailure(enigmaError('Object not found', -2))).toBe(false);
+    });
+
     test.each([
         ['a dropped enigma socket', new Error('Socket closed')],
+        ['a dead session named without its code', new Error('Not connected')],
         ['a closed CDP session', new Error('Protocol error: Session closed.')],
         [
             'a closed puppeteer target',
@@ -360,6 +394,44 @@ describe('runOverSheets — a lost engine session', () => {
 
         expect(errorLog()).toContain('Lost the engine session');
         expect(errorLog()).not.toContain("Failed to update sheet 1 ('Sheet a'");
+    });
+
+    test('stops on the `Not connected` that issue #975 actually produced', async () => {
+        // The exact run: the socket dies while the browser is busy, so the failure arrives as
+        // `Not connected` rather than `Socket closed`, and every sheet after it used to be
+        // logged as broken. Five sheets, dying at three, as in the reported log.
+        const worker = jest.fn(async (s, n) => {
+            if (n >= 3) throw enigmaError('Not connected', -1, { code: 1006, reason: '' });
+        });
+
+        const result = await runOverSheets(
+            [sheet('a'), sheet('b'), sheet('c'), sheet('d'), sheet('e')],
+            CTX,
+            worker
+        );
+
+        expect(worker).toHaveBeenCalledTimes(3);
+        expect(errorLog()).toContain('Lost the engine session');
+        expect(errorLog()).not.toContain('Failed to update sheet 4');
+        expect(result.failed).toBe(0);
+    });
+
+    test('names the websocket close code when enigma carries one', async () => {
+        await runOverSheets([sheet('a')], CTX, async () => {
+            throw enigmaError('Not connected', -1, { code: 1006, reason: 'going away' });
+        });
+
+        expect(errorLog()).toContain('websocket closed with code 1006');
+        expect(errorLog()).toContain('going away');
+    });
+
+    test('says nothing about a close event when there is none', async () => {
+        await runOverSheets([sheet('a')], CTX, async () => {
+            throw enigmaError('Not connected', -1);
+        });
+
+        expect(errorLog()).toContain('Lost the engine session');
+        expect(errorLog()).not.toContain('websocket closed');
     });
 });
 
