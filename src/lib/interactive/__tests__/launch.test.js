@@ -29,7 +29,11 @@ const parseQseow = (tail) => {
     const namespace = buildQseowCommand();
     const leaf = namespace.commands[0];
 
-    addInteractiveOption(leaf);
+    // The builder declares -i itself now that this command has a wizard; adding
+    // it again would give Commander two options storing under the same key.
+    if (!leaf.options.some((option) => option.long === '--interactive')) {
+        addInteractiveOption(leaf);
+    }
     leaf.exitOverride().configureOutput({ writeOut: () => {}, writeErr: () => {} });
     leaf._actionHandler = undefined;
     leaf.action(() => {});

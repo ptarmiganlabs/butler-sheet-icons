@@ -10,6 +10,7 @@ import {
 } from '../../browser/browser-version.js';
 import { parsePositiveInteger, collectPositiveIntegers, collectAppIds } from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
+import { addInteractiveOption } from '../../interactive/interactive-option.js';
 import { runCommand } from '../run-command.js';
 
 /**
@@ -26,6 +27,15 @@ const handleQseowCreateSheetThumbnails = async (options = {}, command) => {
     // Joined explicitly: --appid is variadic, and letting a template literal coerce the
     // array reads as one strange id rather than as several.
     logger.verbose(`appid=${toAppIdList(options.appid).join(', ')}`);
+
+    if (options?.interactive) {
+        // Loaded on demand; see the note in browser/uninstall.js for why this
+        // import is not at module scope.
+        const { launchInteractive } = await import('../../interactive/launch.js');
+
+        return launchInteractive('QSEOW MAIN 1', 'qseow create-sheet-thumbnails', command);
+    }
+
     return runCommand('QSEOW MAIN 1', () => qseowCreateThumbnails(options, command));
 };
 
@@ -358,6 +368,8 @@ const buildQseowCommand = () => {
                 .default('90')
                 .env('BSI_BROWSER_PAGE_TIMEOUT')
         );
+
+    addInteractiveOption(qseow.commands[0]);
 
     return qseow;
 };

@@ -81,7 +81,9 @@ describe('the registered wizards', () => {
     );
 
     test('an unregistered path is refused, naming what is available', async () => {
-        await expect(loadWizard('qseow create-sheet-thumbnails')).rejects.toThrow(/Available:/);
+        // A real leaf command that is deliberately not interactive, so this
+        // stays meaningful as wizards are added.
+        await expect(loadWizard('browser list-installed')).rejects.toThrow(/Available:/);
     });
 
     // Every key a wizard can produce must be a real option on its own command.

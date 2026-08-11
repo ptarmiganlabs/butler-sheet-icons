@@ -179,8 +179,17 @@ const textConfig = (spec) => {
     }
 
     if (spec.validate) {
-        config.validate =
+        const validate =
             spec.type === 'list' ? (value) => spec.validate(splitEntries(value)) : spec.validate;
+
+        // An optional option has to be leaveable. `--port` on qseow is the case
+        // that showed this up: it takes no default, so the CLI is happy without
+        // it, but its parser rejects an empty string - which in a prompt means
+        // the question can never be answered and the wizard cannot continue.
+        // Blank is how someone says "not this one", and to-cli-options drops it
+        // rather than emitting an empty flag value the parser would then refuse.
+        config.validate = (value) =>
+            !spec.required && String(value ?? '').trim().length === 0 ? true : validate(value);
     } else if (spec.required) {
         config.validate = (value) =>
             String(value ?? '').trim().length > 0 ? true : 'This one is required.';
