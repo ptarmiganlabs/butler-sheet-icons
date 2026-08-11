@@ -9,6 +9,7 @@ import {
 } from '../../browser/browser-version.js';
 import { parsePositiveInteger, collectPositiveIntegers, collectAppIds } from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
+import { addInteractiveOption } from '../../interactive/interactive-option.js';
 import { runCommand } from '../run-command.js';
 
 /**
@@ -25,6 +26,14 @@ const handleCloudCreateSheetThumbnails = async (options = {}, cmd) => {
     // Joined explicitly: --appid is variadic, and letting a template literal coerce the
     // array reads as one strange id rather than as several.
     logger.verbose(`appid=${toAppIdList(options.appid).join(', ')}`);
+
+    if (options?.interactive) {
+        // Loaded on demand; see the note in browser/uninstall.js for why this
+        // import is not at module scope.
+        const { launchInteractive } = await import('../../interactive/launch.js');
+
+        return launchInteractive('CLOUD MAIN 2', 'qscloud create-sheet-thumbnails', cmd);
+    }
     return runCommand('CLOUD MAIN 3', () => qscloudCreateThumbnails(options, cmd));
 };
 
@@ -264,6 +273,8 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 .default('90')
                 .env('BSI_BROWSER_PAGE_TIMEOUT')
         );
+
+    addInteractiveOption(command);
 
     return command;
 };

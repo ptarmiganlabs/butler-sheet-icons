@@ -109,7 +109,13 @@ describe('the registered wizards', () => {
                 : refined.map((spec) => spec.key);
 
             for (const key of emitted) {
-                expect(`${path} -> ${key}: ${declared.has(key)}`).toBe(`${path} -> ${key}: true`);
+                // A `_`-prefixed key is allowed without a finalize, because
+                // to-cli-options drops those from the bag by itself - the next
+                // test is what holds that. Requiring a finalize here would mean
+                // writing one that does nothing, purely to satisfy a guard.
+                const ok = declared.has(key) || key.startsWith('_');
+
+                expect(`${path} -> ${key}: ${ok}`).toBe(`${path} -> ${key}: true`);
             }
         }
     );
