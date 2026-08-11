@@ -13,7 +13,7 @@ import {
     SHEET_LIST_FIELDS_EXTENDED,
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
-import { getAppIdsByCollection } from './cloud-apps.js';
+import { listAppsByCollection } from './cloud-apps.js';
 import { toAppIdList } from '../util/app-ids.js';
 
 /**
@@ -216,7 +216,7 @@ export const qscloudRemoveSheetIcons = async (options) => {
         // way are all processed. runOverApps() dedupes, so an app that is both named by
         // --appid and in the collection is still processed once.
         if (options.collectionid && options.collectionid.length > 0) {
-            const apps = await getAppIdsByCollection(saasInstance, options.collectionid);
+            const apps = await listAppsByCollection(saasInstance, options.collectionid);
             logger.verbose(`Collection '${options.collectionid}' exists`);
             appIdsToProcess.push(...apps.map((app) => app.id));
         }

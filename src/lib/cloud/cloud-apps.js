@@ -11,6 +11,9 @@ import { logger } from '../../globals.js';
  * `name` falls back to `id` because a picker showing a bare GUID is no better than asking
  * someone to type one.
  *
+ * **App names are not unique** - only ids are. Two apps may legitimately share a name, so
+ * anything acting on a choice must key on `id`; `name` is a label and nothing more.
+ *
  * @param {Array<object>} items - Entries as returned by the items API.
  * @param {string} source - What is being listed, for the skipped-item log line.
  *
@@ -99,7 +102,7 @@ export const listApps = async (saasInstance) => {
  * @throws {Error} If the collection does not exist on the tenant. The message includes the
  *     requested collection ID so the caller can report it without re-extracting it.
  */
-export const getAppIdsByCollection = async (saasInstance, collectionId) => {
+export const listAppsByCollection = async (saasInstance, collectionId) => {
     const allCollections = await listCollections(saasInstance);
 
     const index = allCollections.map((e) => e.id).indexOf(collectionId);
