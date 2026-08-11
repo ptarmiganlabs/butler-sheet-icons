@@ -123,6 +123,15 @@ export const emissionsFor = (specs, answers, { env = process.env } = {}) =>
             return notEmitted('no answer');
         }
 
+        // Blank means "not this one". An optional option with a parser - qseow's
+        // `--port` - would otherwise be emitted as `--port ''`, and the parser
+        // that let the prompt accept a blank would then reject the command line
+        // built from it. Options whose declared default *is* an empty string,
+        // like `--prefix`, are caught by the default check below either way.
+        if (answer === '' && !spec.required) {
+            return notEmitted('left blank');
+        }
+
         const envIsSet = Boolean(spec.option.envVar && spec.option.envVar in env);
 
         if (!envIsSet && matchesDeclaredDefault(spec, answer)) {

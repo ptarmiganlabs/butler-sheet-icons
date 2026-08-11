@@ -12,6 +12,8 @@ export const INTERACTIVE_COMMANDS = Object.freeze({
     'browser uninstall': () => import('../commands/browser/uninstall.interactive.js'),
     'qscloud create-sheet-thumbnails': () =>
         import('../commands/qscloud/create-sheet-thumbnails.interactive.js'),
+    'qseow create-sheet-thumbnails': () =>
+        import('../commands/qseow/create-sheet-thumbnails.interactive.js'),
 });
 
 /**
@@ -26,7 +28,6 @@ export const NOT_INTERACTIVE = Object.freeze({
     'browser list-installed': 'Takes nothing but a log level; there is nothing to ask.',
     'browser list-available': 'Takes nothing but a browser and a channel, both with defaults.',
     'browser uninstall-all': 'Takes nothing but a log level, and asks for confirmation itself.',
-    'qseow create-sheet-thumbnails': 'Phase 2 - needs credentials and a live connection probe.',
     'qscloud list-collections': 'Phase 2 - needs tenant credentials.',
     'qscloud remove-sheet-icons': 'Phase 2 - needs tenant credentials.',
 });

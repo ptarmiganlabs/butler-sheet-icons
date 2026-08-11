@@ -246,6 +246,26 @@ describe('the traps this invariant exists to catch', () => {
         expect(bag.excludeSheetStatus).toEqual(['private', 'published']);
     });
 
+    test('an optional option left blank is simply absent', () => {
+        // qseow's --port takes no default, so the CLI is happy without it, but
+        // its parser rejects an empty string. Emitting `--port ''` would build a
+        // command line the parser then refuses - a line the wizard printed as
+        // the way to reproduce its own run.
+        const specs = specsFromCommand(qseow.command);
+        const bag = answersToOptions(specs, { port: '' });
+
+        expect(bag.port).toBeUndefined();
+        expect(formatCommandLine('qseow x', specs, { port: '' })).not.toContain('--port');
+    });
+
+    test('a required option left blank is still emitted, so the failure is visible', () => {
+        // The opposite case: silently dropping a required answer would produce a
+        // command line that looks complete and is not.
+        const specs = specsFromCommand(qseow.command);
+
+        expect(formatCommandLine('qseow x', specs, { host: '' })).toContain('--host');
+    });
+
     test('synthetic answers never reach the options bag or the command line', () => {
         const specs = specsFromCommand(qseow.command);
         const answers = { _howToPick: 'by collection', host: 'sense.example.com' };
