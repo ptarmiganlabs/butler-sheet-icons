@@ -5,6 +5,7 @@ import { qscloudCreateThumbnails } from '../cloud-create-thumbnails.js';
 import { browserInstalled } from '../../browser/browser-installed.js';
 import { browserUninstallAll } from '../../browser/browser-uninstall.js';
 import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { collectAppIds } from '../../commands/helpers.js';
 
 const defaultTestTimeout = getTestTimeout(process.env);
 
@@ -19,7 +20,13 @@ const options = {
     pagewait: process.env.BSI_PAGE_WAIT || '10',
     imagedir: process.env.BSI_IMAGE_DIR || 'img',
     schemaversion: process.env.BSI_CLOUD_SCHEMA_VERSION || '12.612.0',
-    appid: [process.env.BSI_CLOUD_APP_ID],
+    // Split with the CLI's own parser, so BSI_CLOUD_APP_ID=id1,id2 names two apps and is split
+    // exactly as a real run would split it. The `?? ''` matters because this suite is driven
+    // either by an app id or by a collection id: with the variable unset, a bare
+    // `[process.env.BSI_CLOUD_APP_ID]` is `[undefined]`, and undefined would be pushed as if it
+    // were an app to process. An empty string yields an empty list, which is what "not supplied"
+    // should mean.
+    appid: collectAppIds(process.env.BSI_CLOUD_APP_ID ?? ''),
     includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || '1',
     browser: process.env.BSI_BROWSER || 'chrome',
     // These options bypass Commander, so the CLI default is not applied for them - the fallback

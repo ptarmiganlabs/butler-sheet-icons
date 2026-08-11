@@ -5,7 +5,7 @@ description: "Skill for the Cloud area of butler-sheet-icons. 17 symbols across 
 
 # Cloud
 
-17 symbols | 12 files | Cohesion: 79%
+17 symbols | 12 files | Cohesion: 77%
 
 ## When to Use
 
@@ -66,6 +66,7 @@ Start here when exploring this area:
 |------|------|-------|
 | `ProcessCloudApp → Sleep` | intra_community | 3 |
 | `QscloudRemoveSheetIcons → AssertAllProcessed` | intra_community | 3 |
+| `QseowLogout → Sleep` | cross_community | 3 |
 | `QseowRemoveSheetIcons → AssertAllProcessed` | intra_community | 3 |
 | `QlikSaas → BufferToStream` | intra_community | 3 |
 | `QlikSaas → MakeRequest` | intra_community | 3 |

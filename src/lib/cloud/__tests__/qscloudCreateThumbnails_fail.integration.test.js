@@ -3,6 +3,7 @@ import 'dotenv/config';
 
 import { qscloudCreateThumbnails } from '../cloud-create-thumbnails.js';
 import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { collectAppIds } from '../../commands/helpers.js';
 
 // Failure paths for Qlik Sense Cloud. QSEoW has had a failure integration test since early on
 // (a non-existing content library) while Cloud had only a success test, so a Cloud run that
@@ -61,7 +62,7 @@ describe('qs cloud create sheet thumbnails - failure paths', () => {
             const result = await qscloudCreateThumbnails(
                 buildOptions({
                     apikey: 'not-a-valid-api-key',
-                    appid: [process.env.BSI_CLOUD_APP_ID],
+                    appid: collectAppIds(process.env.BSI_CLOUD_APP_ID ?? ''),
                 })
             );
 
@@ -79,7 +80,7 @@ describe('qs cloud create sheet thumbnails - failure paths', () => {
             const result = await qscloudCreateThumbnails(
                 buildOptions({
                     tenanturl: 'no-such-tenant.invalid',
-                    appid: [process.env.BSI_CLOUD_APP_ID],
+                    appid: collectAppIds(process.env.BSI_CLOUD_APP_ID ?? ''),
                 })
             );
 
@@ -131,7 +132,7 @@ describe('qs cloud create sheet thumbnails - failure paths', () => {
         async () => {
             const result = await qscloudCreateThumbnails(
                 buildOptions({
-                    appid: [process.env.BSI_CLOUD_APP_ID],
+                    appid: collectAppIds(process.env.BSI_CLOUD_APP_ID ?? ''),
                     browserVersion: '99.0.1234.56',
                 })
             );
