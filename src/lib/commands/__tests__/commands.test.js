@@ -3,6 +3,7 @@ import { Command, InvalidArgumentError } from 'commander';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DEFAULT_QSEOW_SENSE_VERSION, QSEOW_SENSE_VERSIONS } from '../../qseow/qseow-selectors.js';
 
 // Root of the platform code that consumes CLI options, resolved from this file so the
 // option-name guard below does not depend on the working directory jest was started in.
@@ -351,6 +352,27 @@ describe('--browser-version defaults (issue #878)', () => {
         const opts = parseOptionInIsolation(build(), '--browser-version', ['']);
 
         expect(opts.browserVersion).toBe('recommended');
+    });
+});
+
+describe('--sense-version choices', () => {
+    test('uses the shared QSEoW version list and defaults to 2026-May', () => {
+        const option = thumbnailCommand(buildQseowCommand()).options.find(
+            (opt) => opt.long === '--sense-version'
+        );
+
+        expect(option.argChoices).toEqual(QSEOW_SENSE_VERSIONS);
+        expect(option.defaultValue).toBe(DEFAULT_QSEOW_SENSE_VERSION);
+    });
+
+    test.each(['2025-Nov', '2026-May'])('accepts %s explicitly', (senseVersion) => {
+        const opts = parseOptionInIsolation(
+            thumbnailCommand(buildQseowCommand()),
+            '--sense-version',
+            [senseVersion]
+        );
+
+        expect(opts.senseVersion).toBe(senseVersion);
     });
 });
 

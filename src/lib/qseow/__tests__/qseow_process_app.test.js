@@ -67,6 +67,10 @@ const mockQseowUpdateSheets = jest.unstable_mockModule('../qseow-updatesheets.js
     qseowUpdateSheetThumbnails: jest.fn().mockResolvedValue(true),
 }));
 
+const mockQseowLogout = jest.unstable_mockModule('../qseow-logout.js', () => ({
+    qseowLogout: jest.fn().mockResolvedValue(true),
+}));
+
 const mockQseowQrs = jest.unstable_mockModule('../qseow-qrs.js', () => ({
     setupQseowQrsConnection: jest.fn().mockReturnValue({ host: 'test', cert: 'cert' }),
 }));
@@ -102,6 +106,7 @@ let determineSheetExcludeStatus;
 let Jimp;
 let qseowUploadToContentLibrary;
 let qseowUpdateSheetThumbnails;
+let qseowLogout;
 
 beforeAll(async () => {
     await Promise.all([
@@ -115,6 +120,7 @@ beforeAll(async () => {
         mockQseowEnigma,
         mockQseowUpload,
         mockQseowUpdateSheets,
+        mockQseowLogout,
         mockQseowQrs,
         mockBrowserInstall,
         mockBrowserDetect,
@@ -131,6 +137,7 @@ beforeAll(async () => {
     ({ Jimp } = await import('jimp'));
     ({ qseowUploadToContentLibrary } = await import('../qseow-upload.js'));
     ({ qseowUpdateSheetThumbnails } = await import('../qseow-updatesheets.js'));
+    ({ qseowLogout } = await import('../qseow-logout.js'));
     ({ qseowProcessApp } = await import('../qseow-process-app.js'));
 });
 
@@ -734,6 +741,37 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             await qseowProcessApp('test-app-id', defaultOptions);
 
             expect(browser.close).toHaveBeenCalledTimes(1);
+        });
+
+        test('uses the API-first logout flow with the configured hub and version selector', async () => {
+            const browser = setupHappyPath();
+
+            await qseowProcessApp('test-app-id', {
+                ...defaultOptions,
+                prefix: 'form',
+                senseVersion: '2026-May',
+            });
+
+            expect(qseowLogout).toHaveBeenCalledWith(
+                browser._page,
+                expect.objectContaining({
+                    prefix: 'form',
+                    hubUrl: 'https://test-server.example.com/form/hub',
+                    senseVersion: '2026-May',
+                }),
+                'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span',
+                'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[4]/span[2]'
+            );
+        });
+
+        test('continues uploading and updating when logout cannot be completed', async () => {
+            setupHappyPath();
+            qseowLogout.mockResolvedValueOnce(false);
+
+            await qseowProcessApp('test-app-id', defaultOptions);
+
+            expect(qseowUploadToContentLibrary).toHaveBeenCalledTimes(1);
+            expect(qseowUpdateSheetThumbnails).toHaveBeenCalledTimes(1);
         });
     });
 
