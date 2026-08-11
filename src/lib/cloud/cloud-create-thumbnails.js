@@ -4,7 +4,7 @@ import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { processCloudApp } from './process-cloud-app.js';
 import { runOverApps } from '../util/run-over-apps.js';
-import { getAppIdsByCollection } from './cloud-apps.js';
+import { listAppsByCollection } from './cloud-apps.js';
 import { toAppIdList } from '../util/app-ids.js';
 import { CLOUD_SHEET_PARTS } from './sheet-parts.js';
 
@@ -117,7 +117,7 @@ export const qscloudCreateThumbnails = async (options) => {
         // way are all processed. runOverApps() dedupes, so an app that is both named by
         // --appid and in the collection is still processed once.
         if (options.collectionid && options.collectionid.length > 0) {
-            const apps = await getAppIdsByCollection(saasInstance, options.collectionid);
+            const apps = await listAppsByCollection(saasInstance, options.collectionid);
             logger.verbose(`Collection '${options.collectionid}' exists`);
             appIdsToProcess.push(...apps.map((app) => app.id));
         }

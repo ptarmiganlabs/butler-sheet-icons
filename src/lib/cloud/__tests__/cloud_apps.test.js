@@ -17,7 +17,7 @@ const Get = jest.fn();
 const saasInstance = { Get };
 
 const { logger } = await import('../../../globals.js');
-const { getAppIdsByCollection, listCollections, listApps } = await import('../cloud-apps.js');
+const { listAppsByCollection, listCollections, listApps } = await import('../cloud-apps.js');
 
 const COLLECTION_ID = 'collection-1';
 
@@ -40,7 +40,7 @@ beforeEach(() => {
     jest.clearAllMocks();
 });
 
-describe('getAppIdsByCollection', () => {
+describe('listAppsByCollection', () => {
     describe('happy path', () => {
         test('returns id and name for every app in the collection', async () => {
             withCollectionItems([
@@ -56,7 +56,7 @@ describe('getAppIdsByCollection', () => {
                 },
             ]);
 
-            const apps = await getAppIdsByCollection(saasInstance, COLLECTION_ID);
+            const apps = await listAppsByCollection(saasInstance, COLLECTION_ID);
 
             expect(apps).toEqual([
                 { id: 'app-a', name: 'Alpha' },
@@ -67,7 +67,7 @@ describe('getAppIdsByCollection', () => {
         test('fetches collections and then collection items, in that order', async () => {
             withCollectionItems([]);
 
-            await getAppIdsByCollection(saasInstance, COLLECTION_ID);
+            await listAppsByCollection(saasInstance, COLLECTION_ID);
 
             expect(Get).toHaveBeenCalledTimes(2);
             expect(Get.mock.calls[0][0]).toBe('collections');
@@ -77,7 +77,7 @@ describe('getAppIdsByCollection', () => {
         test('returns an empty array for a collection with no apps', async () => {
             withCollectionItems([]);
 
-            const apps = await getAppIdsByCollection(saasInstance, COLLECTION_ID);
+            const apps = await listAppsByCollection(saasInstance, COLLECTION_ID);
 
             expect(apps).toEqual([]);
         });
@@ -99,7 +99,7 @@ describe('getAppIdsByCollection', () => {
                 },
             ]);
 
-            const apps = await getAppIdsByCollection(saasInstance, COLLECTION_ID);
+            const apps = await listAppsByCollection(saasInstance, COLLECTION_ID);
 
             expect(apps).toEqual([
                 { id: 'app-a', name: 'Alpha' },
@@ -110,7 +110,7 @@ describe('getAppIdsByCollection', () => {
         test('logs a verbose line for each skipped non-app item', async () => {
             withCollectionItems([{ id: 'item-ds', resourceType: 'dataset' }]);
 
-            await getAppIdsByCollection(saasInstance, COLLECTION_ID);
+            await listAppsByCollection(saasInstance, COLLECTION_ID);
 
             const verbose = logger.verbose.mock.calls.map((c) => String(c[0])).join('\n');
             expect(verbose).toContain('item-ds');
@@ -123,7 +123,7 @@ describe('getAppIdsByCollection', () => {
                 { id: 'ds-2', resourceType: 'dataset' },
             ]);
 
-            const apps = await getAppIdsByCollection(saasInstance, COLLECTION_ID);
+            const apps = await listAppsByCollection(saasInstance, COLLECTION_ID);
 
             expect(apps).toEqual([]);
         });
@@ -135,7 +135,7 @@ describe('getAppIdsByCollection', () => {
                 { id: 'item-a', resourceType: 'app', resourceAttributes: { id: 'app-a' } },
             ]);
 
-            const apps = await getAppIdsByCollection(saasInstance, COLLECTION_ID);
+            const apps = await listAppsByCollection(saasInstance, COLLECTION_ID);
 
             expect(apps).toEqual([{ id: 'app-a', name: 'app-a' }]);
         });
@@ -149,7 +149,7 @@ describe('getAppIdsByCollection', () => {
                 },
             ]);
 
-            const apps = await getAppIdsByCollection(saasInstance, COLLECTION_ID);
+            const apps = await listAppsByCollection(saasInstance, COLLECTION_ID);
 
             expect(apps).toEqual([{ id: 'app-a', name: 'app-a' }]);
         });
@@ -159,7 +159,7 @@ describe('getAppIdsByCollection', () => {
         test('throws when the collection does not exist on the tenant', async () => {
             Get.mockResolvedValue([{ id: 'some-other-collection' }]);
 
-            await expect(getAppIdsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
+            await expect(listAppsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
                 /does not exist/
             );
         });
@@ -167,7 +167,7 @@ describe('getAppIdsByCollection', () => {
         test('the error message names the requested collection', async () => {
             Get.mockResolvedValue([{ id: 'some-other-collection' }]);
 
-            await expect(getAppIdsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
+            await expect(listAppsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
                 COLLECTION_ID
             );
         });
@@ -175,7 +175,7 @@ describe('getAppIdsByCollection', () => {
         test('does not fetch items when the collection is missing', async () => {
             Get.mockResolvedValue([{ id: 'some-other-collection' }]);
 
-            await expect(getAppIdsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow();
+            await expect(listAppsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow();
 
             expect(Get).toHaveBeenCalledTimes(1);
             expect(Get).toHaveBeenCalledWith('collections');
@@ -184,7 +184,7 @@ describe('getAppIdsByCollection', () => {
         test('throws when the tenant has no collections at all', async () => {
             Get.mockResolvedValue([]);
 
-            await expect(getAppIdsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
+            await expect(listAppsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
                 /does not exist/
             );
         });
@@ -194,7 +194,7 @@ describe('getAppIdsByCollection', () => {
         test('propagates errors from the collections call', async () => {
             Get.mockRejectedValue(new Error('401 Unauthorized'));
 
-            await expect(getAppIdsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
+            await expect(listAppsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
                 '401 Unauthorized'
             );
         });
@@ -205,7 +205,7 @@ describe('getAppIdsByCollection', () => {
                 throw new Error('500 Internal Server Error');
             });
 
-            await expect(getAppIdsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
+            await expect(listAppsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
                 '500 Internal Server Error'
             );
         });
@@ -365,7 +365,7 @@ describe('both app sources agree on shape', () => {
             return [item];
         });
 
-        const [fromCollection] = await getAppIdsByCollection(saasInstance, COLLECTION_ID);
+        const [fromCollection] = await listAppsByCollection(saasInstance, COLLECTION_ID);
         const [fromTenant] = await listApps(saasInstance);
 
         expect(fromCollection).toEqual(fromTenant);

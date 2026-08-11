@@ -11,7 +11,7 @@ import {
     SHEET_LIST_FIELDS_EXTENDED,
 } from '../util/sheet-list.js';
 import { runOverApps } from '../util/run-over-apps.js';
-import { getAppIdsByTag } from './qseow-app-lookup.js';
+import { listAppsByTag } from './qseow-app-lookup.js';
 import { toAppIdList } from '../util/app-ids.js';
 import { withEngineSession } from '../util/engine-session.js';
 
@@ -165,8 +165,10 @@ export const qseowRemoveSheetIcons = async (options) => {
         // way are all processed. runOverApps() dedupes, so an app that is both named by
         // --appid and carries the tag is still processed once.
         if (options.qliksensetag && options.qliksensetag.length > 0) {
-            // Get all apps matching the tag in --qliksensetag
-            appIdsToProcess.push(...(await getAppIdsByTag(options)));
+            // Get all apps matching the tag in --qliksensetag. listAppsByTag returns
+            // { id, name } so a picker can label them; only the ids matter here.
+            const taggedApps = await listAppsByTag(options);
+            appIdsToProcess.push(...taggedApps.map((app) => app.id));
         }
 
         return await runOverApps(

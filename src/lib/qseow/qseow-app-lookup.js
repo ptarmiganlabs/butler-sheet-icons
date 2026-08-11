@@ -6,11 +6,19 @@ import { qrsGetList } from './qrs-response.js';
 import { qrsFilterAnyOf, qrsPathWithFilter } from './qrs-filter.js';
 
 /**
- * Looks up the IDs of all QSEoW apps carrying a given tag.
+ * Looks up all QSEoW apps carrying a given tag.
  *
  * Shared by the two commands that accept `--qliksensetag`. They previously held byte-identical
  * copies of this block, which is the drift this repo keeps paying for - and duplication the
  * quality gate counts.
+ *
+ * Returns `{ id, name }` rather than bare ids, matching `listAppsByCollection()` on the Cloud
+ * side. The QRS reply already carries the name and this used to discard it, which would have
+ * left an app picker showing GUIDs on QSEoW and names on Cloud.
+ *
+ * **App names are not unique** - only ids are. Two apps may legitimately share a name, so
+ * anything acting on a choice must key on `id`; `name` is a label and nothing more. `name`
+ * falls back to `id` if the reply ever omits it.
  *
  * @param {object} options - QSEoW options, as passed to the command.
  * @param {string|string[]} options.qliksensetag - Tag(s) an app must carry to be included.
@@ -21,9 +29,10 @@ import { qrsFilterAnyOf, qrsPathWithFilter } from './qrs-filter.js';
  * @param {string} options.certfile - Path to the certificate file.
  * @param {string} options.certkeyfile - Path to the certificate key file.
  *
- * @returns {Promise<string[]>} IDs of the matching apps, empty if the tag matched nothing.
+ * @returns {Promise<Array<{id: string, name: string}>>} The matching apps, empty if the tag
+ *     matched nothing.
  */
-export const getAppIdsByTag = async (options) => {
+export const listAppsByTag = async (options) => {
     const qseowConfigQrs = setupQseowQrsConnection(options);
 
     const qrsInteractInstance = new qrsInteract(qseowConfigQrs);
@@ -43,5 +52,5 @@ export const getAppIdsByTag = async (options) => {
     // `TypeError: result.body.map is not a function` from somewhere further down.
     const apps = await qrsGetList(qrsInteractInstance, qrsPathWithFilter('app/full', filter));
 
-    return apps.map((app) => app.id);
+    return apps.map((app) => ({ id: app.id, name: app.name ?? app.id }));
 };
