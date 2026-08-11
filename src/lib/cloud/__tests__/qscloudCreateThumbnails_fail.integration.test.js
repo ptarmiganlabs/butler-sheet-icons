@@ -61,7 +61,7 @@ describe('qs cloud create sheet thumbnails - failure paths', () => {
             const result = await qscloudCreateThumbnails(
                 buildOptions({
                     apikey: 'not-a-valid-api-key',
-                    appid: process.env.BSI_CLOUD_APP_ID,
+                    appid: [process.env.BSI_CLOUD_APP_ID],
                 })
             );
 
@@ -79,7 +79,7 @@ describe('qs cloud create sheet thumbnails - failure paths', () => {
             const result = await qscloudCreateThumbnails(
                 buildOptions({
                     tenanturl: 'no-such-tenant.invalid',
-                    appid: process.env.BSI_CLOUD_APP_ID,
+                    appid: [process.env.BSI_CLOUD_APP_ID],
                 })
             );
 
@@ -98,7 +98,7 @@ describe('qs cloud create sheet thumbnails - failure paths', () => {
         'a non-existent app id fails the run',
         async () => {
             const result = await qscloudCreateThumbnails(
-                buildOptions({ appid: '00000000-0000-0000-0000-000000000000' })
+                buildOptions({ appid: ['00000000-0000-0000-0000-000000000000'] })
             );
 
             expect(result).toBe(false);
@@ -131,7 +131,7 @@ describe('qs cloud create sheet thumbnails - failure paths', () => {
         async () => {
             const result = await qscloudCreateThumbnails(
                 buildOptions({
-                    appid: process.env.BSI_CLOUD_APP_ID,
+                    appid: [process.env.BSI_CLOUD_APP_ID],
                     browserVersion: '99.0.1234.56',
                 })
             );

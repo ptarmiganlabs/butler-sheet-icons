@@ -88,6 +88,7 @@ let browserUninstallAll;
 let browserListAvailable;
 let parsePositiveInteger;
 let collectPositiveIntegers;
+let collectAppIds;
 let buildQseowCommand;
 let handleQseowCreateSheetThumbnails;
 let handleCloudCreateSheetThumbnails;
@@ -125,7 +126,8 @@ beforeAll(async () => {
     ({ browserUninstall, browserUninstallAll } =
         await import('../../browser/browser-uninstall.js'));
     ({ browserListAvailable } = await import('../../browser/browser-list-available.js'));
-    ({ parsePositiveInteger, collectPositiveIntegers } = await import('../helpers.js'));
+    ({ parsePositiveInteger, collectPositiveIntegers, collectAppIds } =
+        await import('../helpers.js'));
     ({ buildQseowCommand, handleQseowCreateSheetThumbnails } = await import('../qseow/index.js'));
     ({ handleCloudCreateSheetThumbnails } = await import('../qscloud/create-sheet-thumbnails.js'));
     ({ handleCloudListCollections } = await import('../qscloud/list-collections.js'));
@@ -181,6 +183,31 @@ describe('collectPositiveIntegers', () => {
         const parser = collectPositiveIntegers({ errorMessage: 'nope' });
         expect(() => parser('abc')).toThrow(InvalidArgumentError);
         expect(() => parser('abc')).toThrow('nope');
+    });
+});
+
+describe('collectAppIds', () => {
+    test('accumulates onto the previous value instead of replacing it', () => {
+        // Same trap as collectPositiveIntegers: a variadic option with a parser
+        // that ignores the accumulator keeps only the last value.
+        expect(collectAppIds('a')).toEqual(['a']);
+        expect(collectAppIds('b', ['a'])).toEqual(['a', 'b']);
+    });
+
+    test('does not mutate the accumulator it is given', () => {
+        const previous = ['a'];
+        collectAppIds('b', previous);
+        expect(previous).toEqual(['a']);
+    });
+
+    test('splits on commas and trims, so both separators behave the same', () => {
+        expect(collectAppIds('a,b , c')).toEqual(['a', 'b', 'c']);
+    });
+
+    test('drops empty entries, so a set-but-empty value means nothing supplied', () => {
+        expect(collectAppIds('')).toEqual([]);
+        expect(collectAppIds('   ')).toEqual([]);
+        expect(collectAppIds('a,,b')).toEqual(['a', 'b']);
     });
 });
 
@@ -530,6 +557,94 @@ describe('variadic sheet-number options collect into arrays', () => {
             expect(() => parseOptionInIsolation(subcommand(), flag, ['abc'])).toThrow(
                 /must be a non-negative integer/i
             );
+        });
+    });
+});
+
+describe('--appid accepts several apps (issue #895)', () => {
+    // Processing several named apps in one run was not expressible, even though
+    // everything downstream is already list-shaped: the workers build an array and
+    // runOverApps() dedupes it. The limitation was purely in the option declaration.
+    const cases = [
+        ['qseow', () => buildQseowCommand(), 'create-sheet-thumbnails', 'BSI_QSEOW_CST_APP_ID'],
+        [
+            'qscloud',
+            () => buildQscloudCommand(),
+            'create-sheet-thumbnails',
+            'BSI_QSCLOUD_CST_APP_ID',
+        ],
+        ['qscloud', () => buildQscloudCommand(), 'remove-sheet-icons', 'BSI_QSCLOUD_RSI_APPID'],
+    ];
+
+    describe.each(cases)('%s %s', (platform, build, leaf, envVar) => {
+        /**
+         * Resolves the subcommand under test.
+         *
+         * @returns {import('commander').Command} The subcommand carrying --appid.
+         */
+        const subcommand = () => build().commands.find((cmd) => cmd.name() === leaf);
+
+        /**
+         * Parses with no `--appid` on the command line, so the env var is the only source.
+         *
+         * `parseOptionInIsolation` always prepends the flag, which for a variadic option
+         * with nothing after it is `argument missing` rather than "not supplied".
+         *
+         * @returns {object} The parsed options object.
+         */
+        const parseEnvOnly = () => {
+            const parent = new Command();
+            parent.exitOverride();
+            parent.addOption(subcommand().options.find((opt) => opt.long === '--appid'));
+            parent.parse(['node', 'test']);
+
+            return parent.opts();
+        };
+
+        afterEach(() => {
+            delete process.env[envVar];
+        });
+
+        test('keeps every id when several are supplied', () => {
+            const opts = parseOptionInIsolation(subcommand(), '--appid', ['a', 'b', 'c']);
+            expect(opts.appid).toEqual(['a', 'b', 'c']);
+        });
+
+        test('yields a one-element array for a single id, as before', () => {
+            const opts = parseOptionInIsolation(subcommand(), '--appid', ['a']);
+            expect(opts.appid).toEqual(['a']);
+        });
+
+        test('splits a comma-separated value', () => {
+            const opts = parseOptionInIsolation(subcommand(), '--appid', ['a,b,c']);
+            expect(opts.appid).toEqual(['a', 'b', 'c']);
+        });
+
+        test('tolerates spaces around the commas', () => {
+            const opts = parseOptionInIsolation(subcommand(), '--appid', ['a, b , c']);
+            expect(opts.appid).toEqual(['a', 'b', 'c']);
+        });
+
+        test('splits a comma-separated environment variable', () => {
+            // Commander wraps an env-var value in a one-element array without
+            // splitting it, so without the parser this is one app whose id
+            // contains commas. Every option here has an .env() binding, so this
+            // path is first-class.
+            process.env[envVar] = 'a,b,c';
+            expect(parseEnvOnly().appid).toEqual(['a', 'b', 'c']);
+        });
+
+        test('treats a set-but-empty environment variable as nothing supplied', () => {
+            // This repo has been bitten by set-but-empty before: Commander lets a
+            // bare `BSI_..._APP_ID=` line in a unit file beat .default().
+            process.env[envVar] = '';
+            expect(parseEnvOnly().appid).toEqual([]);
+        });
+
+        test('lets the command line win over the environment variable', () => {
+            process.env[envVar] = 'from-env';
+            const opts = parseOptionInIsolation(subcommand(), '--appid', ['from-cli']);
+            expect(opts.appid).toEqual(['from-cli']);
         });
     });
 });

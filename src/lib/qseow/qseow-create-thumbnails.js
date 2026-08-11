@@ -5,6 +5,7 @@ import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { qseowProcessApp } from './qseow-process-app.js';
 import { runOverApps } from '../util/run-over-apps.js';
 import { getAppIdsByTag } from './qseow-app-lookup.js';
+import { toAppIdList } from '../util/app-ids.js';
 import { QSEOW_SHEET_PARTS } from './sheet-parts.js';
 
 /**
@@ -17,7 +18,8 @@ import { QSEOW_SHEET_PARTS } from './sheet-parts.js';
  * @param {string} options.userdirectory - User directory for QSEoW server.
  * @param {string} options.password - Password for QSEoW server.
  * @param {string} options.contentlibrary - Name of content library where thumbnails will be stored.
- * @param {string} options.appid - ID of app for which thumbnails will be created.
+ * @param {string[]} options.appid - IDs of apps for which thumbnails will be created. Added to
+ *     whatever `qliksensetag` matches rather than replacing it.
  * @param {string} options.qliksensetag - Tag for which apps will be processed.
  * @param {string} options.includesheetpart - Optional parameter to include sheet parts in the thumbnails. Values: 1, 2, 3, 4. Normalised to a string on entry, so a number is also accepted.
  * @param {string} options.certfile - Path to certificate file.
@@ -71,13 +73,12 @@ export const qseowCreateThumbnails = async (options) => {
             logger.verbose(`Content library '${options.contentlibrary}' exists`);
         }
 
-        // Is there a specific app ID specified?
-        if (options.appid) {
-            appIdsToProcess.push(options.appid);
-        }
+        // Apps named directly. --appid is variadic, so this is a list.
+        appIdsToProcess.push(...toAppIdList(options.appid));
 
-        // If --qliksensetag exists we should loop over all matching apps.
-        // If --qliksensetag does not exist the app specified by --appid should be processed.
+        // --appid and --qliksensetag are additive, not alternatives: apps named either
+        // way are all processed. runOverApps() dedupes, so an app that is both named by
+        // --appid and carries the tag is still processed once.
         if (options.qliksensetag && options.qliksensetag.length > 0) {
             // Get all apps matching the tag in --qliksensetag
             appIdsToProcess.push(...(await getAppIdsByTag(options)));

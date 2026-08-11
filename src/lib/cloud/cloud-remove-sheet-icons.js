@@ -14,6 +14,7 @@ import {
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
 import { getAppIdsByCollection } from './cloud-apps.js';
+import { toAppIdList } from '../util/app-ids.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Cloud app.
@@ -161,7 +162,8 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
  * @param {object} options - Configuration options for the command.
  * @param {string} options.tenanturl - URL or host of Qlik Sense cloud tenant. Example: `https://tenant.eu.qlikcloud.com` or `tenant.eu.qlikcloud.com`.
  * @param {string} options.apikey - API key used to access the Sense APIs.
- * @param {string} options.appid - The ID of the Qlik Sense Cloud application to process.
+ * @param {string[]} options.appid - IDs of the Qlik Sense Cloud applications to process. Added to
+ *     whatever `collectionid` matches rather than replacing it.
  * @param {string} options.collectionid - The ID of the collection containing apps to process.
  * @param {string} options.loglevel - The level of logging to output. Valid values are 'error', 'warn', 'info', 'verbose', 'debug', 'silly'.
  *
@@ -207,13 +209,12 @@ export const qscloudRemoveSheetIcons = async (options) => {
             return false;
         }
 
-        // Is there a specific app ID specified?
-        if (options.appid) {
-            appIdsToProcess.push(options.appid);
-        }
+        // Apps named directly. --appid is variadic, so this is a list.
+        appIdsToProcess.push(...toAppIdList(options.appid));
 
-        // If --collection exists we should loop over all matching apps.
-        // If --collection does not exist the app specified by --appid should be processed.
+        // --appid and --collectionid are additive, not alternatives: apps named either
+        // way are all processed. runOverApps() dedupes, so an app that is both named by
+        // --appid and in the collection is still processed once.
         if (options.collectionid && options.collectionid.length > 0) {
             const apps = await getAppIdsByCollection(saasInstance, options.collectionid);
             logger.verbose(`Collection '${options.collectionid}' exists`);

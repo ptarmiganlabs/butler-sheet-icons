@@ -46,7 +46,7 @@ const { qscloudRemoveSheetIcons } = await import('../cloud-remove-sheet-icons.js
 const BASE_OPTIONS = {
     tenanturl: 'tenant.eu.qlikcloud.com',
     apikey: 'api-key',
-    appid: 'test-app-id',
+    appid: ['test-app-id'],
     loglevel: 'info',
 };
 
@@ -531,7 +531,7 @@ describe('qscloudRemoveSheetIcons', () => {
             await expect(
                 qscloudRemoveSheetIcons({
                     ...BASE_OPTIONS,
-                    appid: 'test-app-id',
+                    appid: ['test-app-id'],
                     collectionid: 'collection-1',
                 })
             ).resolves.toBe(true);

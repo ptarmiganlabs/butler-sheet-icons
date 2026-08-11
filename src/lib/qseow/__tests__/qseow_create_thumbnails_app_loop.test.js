@@ -51,7 +51,7 @@ const { qseowCreateThumbnails } = await import('../qseow-create-thumbnails.js');
 const OPTIONS = {
     host: 'sense.example.com',
     contentlibrary: 'test-library',
-    appid: 'test-app-id',
+    appid: ['test-app-id'],
     includesheetpart: '1',
     loglevel: 'info',
 };
@@ -87,6 +87,48 @@ describe('qseowCreateThumbnails app loop', () => {
 
         expect(runOverApps).toHaveBeenCalledTimes(1);
         expect(runOverApps.mock.calls[0][0]).toEqual(['test-app-id']);
+    });
+
+    test('hands every app id to the loop when several are named (issue #895)', async () => {
+        runOverApps.mockResolvedValue(true);
+
+        await qseowCreateThumbnails({ ...OPTIONS, appid: ['app-1', 'app-2', 'app-3'] });
+
+        expect(runOverApps.mock.calls[0][0]).toEqual(['app-1', 'app-2', 'app-3']);
+    });
+
+    test('never explodes a bare string into one app per character', async () => {
+        // A string is iterable, so a plain spread would push eleven
+        // single-character app ids. Nothing the CLI produces is a string any
+        // more, but a hand-built options bag can still be, and failing that way
+        // is silent rather than loud.
+        runOverApps.mockResolvedValue(true);
+
+        await qseowCreateThumbnails({ ...OPTIONS, appid: 'test-app-id' });
+
+        expect(runOverApps.mock.calls[0][0]).toEqual(['test-app-id']);
+    });
+
+    test('unions --appid with --qliksensetag rather than choosing between them', async () => {
+        // The two are additive. Several comments used to claim the tag was only
+        // consulted when no app id was given, which was never what the code did.
+        const Get = jest.fn().mockResolvedValue({
+            statusCode: 200,
+            body: [{ id: 'tagged-app' }, { id: 'app-1' }],
+        });
+        qrsInteract.mockImplementation(() => ({ Get }));
+        runOverApps.mockResolvedValue(true);
+
+        await qseowCreateThumbnails({ ...OPTIONS, appid: ['app-1', 'app-2'], qliksensetag: 'BSI' });
+
+        // runOverApps dedupes, so app-1 - named both ways - is still listed once
+        // by the time it decides what to process.
+        expect(runOverApps.mock.calls[0][0]).toEqual(['app-1', 'app-2', 'tagged-app', 'app-1']);
+        expect([...new Set(runOverApps.mock.calls[0][0])]).toEqual([
+            'app-1',
+            'app-2',
+            'tagged-app',
+        ]);
     });
 
     test('names the QSEoW options in the empty-selection hint, not the Cloud ones', async () => {
