@@ -3,6 +3,7 @@ import 'dotenv/config';
 
 import { qseowCreateThumbnails } from '../qseow-create-thumbnails.js';
 import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { collectAppIds } from '../../commands/helpers.js';
 
 // Failure paths for QSEoW, matching the Qlik Sense Cloud set case for case. The two platforms are
 // mirrors of each other, and a scenario covered on one but not the other is where this codebase
@@ -34,7 +35,10 @@ const buildOptions = (overrides = {}) => ({
     imagedir: process.env.BSI_IMAGE_DIR || 'img',
     contentlibrary: process.env.BSI_CONTENT_LIBRARY,
     host: process.env.BSI_HOST,
-    appid: [process.env.BSI_APP_ID || 'a3e0f5d2-000a-464f-998d-33d333b175d7'],
+    // Split with the CLI's own parser, so BSI_APP_ID=id1,id2 names two apps and is
+    // split exactly as a real run would split it - rather than becoming one id
+    // containing a comma.
+    appid: collectAppIds(process.env.BSI_APP_ID || 'a3e0f5d2-000a-464f-998d-33d333b175d7'),
     apiuserdir: process.env.BSI_API_USER_DIR || 'Internal',
     apiuserid: process.env.BSI_API_USER_ID || 'sa_api',
     logonuserdir: process.env.BSI_LOGON_USER_DIR,
