@@ -44,7 +44,7 @@ const { qscloudCreateThumbnails } = await import('../cloud-create-thumbnails.js'
 const OPTIONS = {
     tenanturl: 'tenant.eu.qlikcloud.com',
     apikey: 'api-key',
-    appid: 'test-app-id',
+    appid: ['test-app-id'],
     includesheetpart: '1',
     loglevel: 'info',
 };
@@ -104,6 +104,25 @@ describe('qscloudCreateThumbnails app loop', () => {
         expect(errorLog()).toContain('CLOUD CREATE THUMBNAILS 2');
     });
 
+    test('hands every app id to the loop when several are named (issue #895)', async () => {
+        runOverApps.mockResolvedValue(true);
+
+        await qscloudCreateThumbnails({ ...OPTIONS, appid: ['app-1', 'app-2', 'app-3'] });
+
+        expect(runOverApps.mock.calls[0][0]).toEqual(['app-1', 'app-2', 'app-3']);
+    });
+
+    test('never explodes a bare string into one app per character', async () => {
+        // A string is iterable, so a plain spread would push eleven
+        // single-character app ids. Nothing the CLI produces is a string any
+        // more, but a hand-built options bag can still be.
+        runOverApps.mockResolvedValue(true);
+
+        await qscloudCreateThumbnails({ ...OPTIONS, appid: 'test-app-id' });
+
+        expect(runOverApps.mock.calls[0][0]).toEqual(['test-app-id']);
+    });
+
     describe('multiple apps via --collectionid', () => {
         /**
          * Points the mocked `Get` at a tenant with one collection holding the given items.
@@ -138,6 +157,27 @@ describe('qscloudCreateThumbnails app loop', () => {
             });
 
             expect(runOverApps.mock.calls[0][0]).toEqual(['app-a', 'app-b']);
+        });
+
+        test('unions --appid with --collectionid rather than choosing between them', async () => {
+            // The two are additive. Several comments used to claim the collection
+            // was only consulted when no app id was given, which the code never did.
+            runOverApps.mockResolvedValue(true);
+            withCollectionItems([
+                { resourceType: 'app', resourceAttributes: { id: 'app-a', name: 'Alpha' } },
+                { resourceType: 'app', resourceAttributes: { id: 'app-b', name: 'Beta' } },
+            ]);
+
+            await qscloudCreateThumbnails({
+                ...OPTIONS,
+                appid: ['app-b', 'named-directly'],
+                collectionid: 'collection-1',
+            });
+
+            // runOverApps dedupes, so app-b - named both ways - is processed once.
+            const selected = runOverApps.mock.calls[0][0];
+            expect(selected).toEqual(['app-b', 'named-directly', 'app-a', 'app-b']);
+            expect([...new Set(selected)]).toEqual(['app-b', 'named-directly', 'app-a']);
         });
 
         test('skips collection items that are not apps', async () => {
@@ -193,7 +233,7 @@ describe('qscloudCreateThumbnails app loop', () => {
             await expect(
                 qscloudCreateThumbnails({
                     ...OPTIONS,
-                    appid: 'test-app-id',
+                    appid: ['test-app-id'],
                     collectionid: 'collection-1',
                 })
             ).resolves.toBe(true);

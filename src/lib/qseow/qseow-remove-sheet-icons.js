@@ -12,6 +12,7 @@ import {
 } from '../util/sheet-list.js';
 import { runOverApps } from '../util/run-over-apps.js';
 import { getAppIdsByTag } from './qseow-app-lookup.js';
+import { toAppIdList } from '../util/app-ids.js';
 import { withEngineSession } from '../util/engine-session.js';
 
 /**
@@ -130,7 +131,8 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
  * @param {string} options.engineport - Engine port of the Qlik server.
  * @param {string} options.qrsport - Qlik Sense Repository Service (QRS) port of the Qlik server.
  * @param {string} options.senseVersion - The version of Qlik Sense being used.
- * @param {string} options.appid - The ID of the Qlik Sense Enterprise on Windows (QSEoW) application to process.
+ * @param {string[]} options.appid - IDs of the Qlik Sense Enterprise on Windows (QSEoW) applications
+ *     to process. Added to whatever `qliksensetag` matches rather than replacing it.
  * @param {string} options.qliksensetag - The tag for which apps will be processed. If specified, all apps with this tag will be processed.
  * @param {string} options.loglevel - The level of logging to output. Valid values are 'error', 'warn', 'info', 'verbose', 'debug', 'silly'.
  *
@@ -156,13 +158,12 @@ export const qseowRemoveSheetIcons = async (options) => {
             logger.verbose(`Certificate files found`);
         }
 
-        // Is there a specific app ID specified?
-        if (options.appid) {
-            appIdsToProcess.push(options.appid);
-        }
+        // Apps named directly. --appid is variadic, so this is a list.
+        appIdsToProcess.push(...toAppIdList(options.appid));
 
-        // If --qliksensetag exists we should loop over all matching apps.
-        // If --qliksensetag does not exist the app specified by --appid should be processed.
+        // --appid and --qliksensetag are additive, not alternatives: apps named either
+        // way are all processed. runOverApps() dedupes, so an app that is both named by
+        // --appid and carries the tag is still processed once.
         if (options.qliksensetag && options.qliksensetag.length > 0) {
             // Get all apps matching the tag in --qliksensetag
             appIdsToProcess.push(...(await getAppIdsByTag(options)));

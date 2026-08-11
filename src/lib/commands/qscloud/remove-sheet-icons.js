@@ -2,6 +2,7 @@ import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qscloudRemoveSheetIcons } from '../../cloud/cloud-remove-sheet-icons.js';
 import { runCommand } from '../run-command.js';
+import { collectAppIds } from '../helpers.js';
 
 /**
  * Commander action that removes sheet icons from specified Qlik Sense Cloud apps.
@@ -64,9 +65,12 @@ const buildCloudRemoveSheetIconsCommand = () => {
                 .env('BSI_QSCLOUD_RSI_APIKEY')
         )
         .addOption(
-            new Option('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.').env(
-                'BSI_QSCLOUD_RSI_APPID'
+            new Option(
+                '--appid <id...>',
+                'Qlik Sense app(s) whose sheet icons should be modified. Several ids can be given, separated by spaces or commas.\nCombines with --collectionid rather than replacing it: apps named either way are all updated, each one once.'
             )
+                .argParser(collectAppIds)
+                .env('BSI_QSCLOUD_RSI_APPID')
         )
         .addOption(
             new Option(

@@ -34,7 +34,7 @@ const buildOptions = (overrides = {}) => ({
     imagedir: process.env.BSI_IMAGE_DIR || 'img',
     contentlibrary: process.env.BSI_CONTENT_LIBRARY,
     host: process.env.BSI_HOST,
-    appid: process.env.BSI_APP_ID || 'a3e0f5d2-000a-464f-998d-33d333b175d7',
+    appid: [process.env.BSI_APP_ID || 'a3e0f5d2-000a-464f-998d-33d333b175d7'],
     apiuserdir: process.env.BSI_API_USER_DIR || 'Internal',
     apiuserid: process.env.BSI_API_USER_ID || 'sa_api',
     logonuserdir: process.env.BSI_LOGON_USER_DIR,
@@ -85,7 +85,7 @@ describe('qseow create sheet thumbnails - failure paths', () => {
         'a non-existent app id fails the run',
         async () => {
             const result = await qseowCreateThumbnails(
-                buildOptions({ appid: '00000000-0000-0000-0000-000000000000' })
+                buildOptions({ appid: ['00000000-0000-0000-0000-000000000000'] })
             );
 
             expect(result).toBe(false);

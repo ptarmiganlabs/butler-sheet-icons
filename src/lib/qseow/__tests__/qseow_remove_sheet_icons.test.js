@@ -51,7 +51,7 @@ const BASE_OPTIONS = {
     qrsport: '4242',
     senseVersion: '2024-May',
     loglevel: 'info',
-    appid: 'test-app-id',
+    appid: ['test-app-id'],
     certfile: './cert/client.pem',
     certkeyfile: './cert/client_key.pem',
 };

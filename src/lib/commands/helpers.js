@@ -80,4 +80,38 @@ const collectPositiveIntegers =
     (parseOptions = {}) =>
     (value, previous = []) => [...previous, parsePositiveInteger(value, parseOptions)];
 
-export { parsePositiveInteger, collectPositiveIntegers };
+/**
+ * Commander `argParser` for a **variadic** app-id option (`<id...>`).
+ *
+ * Accumulates for the reason spelled out above `collectPositiveIntegers`: a variadic
+ * option paired with a non-accumulating parser keeps only the last value, so
+ * `--appid a b c` would yield `['c']`.
+ *
+ * It also splits on commas, which is not cosmetic. Commander wraps an environment
+ * variable's value in a one-element array **without splitting it**, so
+ * `BSI_QSEOW_CST_APP_ID=a,b,c` would otherwise become a single app whose id contains
+ * commas. Every option in this codebase has an `.env()` binding, so the environment is a
+ * first-class way to drive it and cannot be left broken. Commas are accepted on the
+ * command line too, so the separator does not depend on where the value came from - app
+ * ids are GUIDs, so a comma is never part of one.
+ *
+ * Empty entries are dropped, which makes a set-but-empty variable mean "none supplied"
+ * rather than one app with a blank id.
+ *
+ * @param {string} value - One raw value supplied by Commander.
+ * @param {string[]} [previous] - App ids accumulated so far.
+ *
+ * @returns {string[]} Every app id collected so far, including this value's.
+ *
+ * @example
+ * new Option('--appid <id...>', '...').argParser(collectAppIds)
+ */
+const collectAppIds = (value, previous = []) => [
+    ...previous,
+    ...`${value}`
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0),
+];
+
+export { parsePositiveInteger, collectPositiveIntegers, collectAppIds };

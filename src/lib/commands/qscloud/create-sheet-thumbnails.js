@@ -7,7 +7,8 @@ import {
     describeBrowserVersionOption,
     parseBrowserVersionValue,
 } from '../../browser/browser-version.js';
-import { parsePositiveInteger, collectPositiveIntegers } from '../helpers.js';
+import { parsePositiveInteger, collectPositiveIntegers, collectAppIds } from '../helpers.js';
+import { toAppIdList } from '../../util/app-ids.js';
 import { runCommand } from '../run-command.js';
 
 /**
@@ -21,7 +22,9 @@ import { runCommand } from '../run-command.js';
 const handleCloudCreateSheetThumbnails = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
 
-    logger.verbose(`appid=${options.appid}`);
+    // Joined explicitly: --appid is variadic, and letting a template literal coerce the
+    // array reads as one strange id rather than as several.
+    logger.verbose(`appid=${toAppIdList(options.appid).join(', ')}`);
     return runCommand('CLOUD MAIN 3', () => qscloudCreateThumbnails(options, cmd));
 };
 
@@ -135,9 +138,12 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 .env('BSI_QSCLOUD_CST_INCLUDE_SHEET_PART')
         )
         .addOption(
-            new Option('--appid <id>', 'Qlik Sense app whose sheet icons should be modified.').env(
-                'BSI_QSCLOUD_CST_APP_ID'
+            new Option(
+                '--appid <id...>',
+                'Qlik Sense app(s) whose sheet icons should be modified. Several ids can be given, separated by spaces or commas.\nCombines with --collectionid rather than replacing it: apps named either way are all updated, each one once.'
             )
+                .argParser(collectAppIds)
+                .env('BSI_QSCLOUD_CST_APP_ID')
         )
         .addOption(
             new Option(

@@ -19,7 +19,7 @@ const options = {
     pagewait: process.env.BSI_PAGE_WAIT || '10',
     imagedir: process.env.BSI_IMAGE_DIR || 'img',
     schemaversion: process.env.BSI_CLOUD_SCHEMA_VERSION || '12.612.0',
-    appid: process.env.BSI_CLOUD_APP_ID,
+    appid: [process.env.BSI_CLOUD_APP_ID],
     includesheetpart: process.env.BSI_INCLUDE_SHEET_PART || '1',
     browser: process.env.BSI_BROWSER || 'chrome',
     // These options bypass Commander, so the CLI default is not applied for them - the fallback
