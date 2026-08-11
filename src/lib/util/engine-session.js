@@ -75,6 +75,20 @@ export const withEngineSession = async (configEnigma, ctx, fn) => {
             );
         }
 
+        // enigma emits this only for a close nobody here asked for: it returns early on a
+        // normal close and on a manual suspend, so a healthy run never logs this line.
+        //
+        // It is worth a line of its own because it fires when the socket dies, whereas the
+        // error surfaces later - up to 40 s later in the screenshot paths, which use the
+        // engine once per sheet and spend the rest of the time in the browser. Issue #975 is
+        // that gap: the log showed sheets failing with `Not connected` long after the event,
+        // and nothing recorded the close code that would say what closed the connection.
+        session.on('closed', (evt) =>
+            logger.warn(
+                `${logPrefix}: The engine session to ${connectionLabel} was closed from the other end, code ${evt?.code}${evt?.reason ? `, reason "${evt.reason}"` : ''}. Whatever is still using this session will fail from here on.`
+            )
+        );
+
         const global = await session.open();
 
         const engineVersion = await global.engineVersion();

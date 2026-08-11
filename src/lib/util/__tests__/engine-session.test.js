@@ -177,7 +177,11 @@ describe('withEngineSession', () => {
 
             await withEngineSession({}, { ...CTX, loglevel: 'debug' }, async () => true);
 
-            expect(session.on).not.toHaveBeenCalled();
+            // Not `not.toHaveBeenCalled()`: the close listener is attached at every level,
+            // because a session dying unannounced is worth a line whatever the log level.
+            const events = session.on.mock.calls.map(([event]) => event);
+            expect(events).not.toContain('traffic:sent');
+            expect(events).not.toContain('traffic:received');
         });
 
         test('attaches both traffic handlers at silly', async () => {
@@ -201,6 +205,49 @@ describe('withEngineSession', () => {
 
             expect(log).toHaveBeenCalledWith('received:', JSON.stringify({ a: 1 }, null, 2));
             log.mockRestore();
+        });
+    });
+
+    describe('an unexpected close', () => {
+        /**
+         * Runs a session and hands back the handler registered for enigma's `closed` event.
+         *
+         * @returns {Function} The registered handler.
+         */
+        const closeHandler = async () => {
+            const { session } = wireSession();
+
+            await withEngineSession({}, CTX, async () => true);
+
+            return session.on.mock.calls.find(([event]) => event === 'closed')[1];
+        };
+
+        test('is listened for at every log level', async () => {
+            const { session } = wireSession();
+
+            await withEngineSession({}, { ...CTX, loglevel: 'info' }, async () => true);
+
+            expect(session.on).toHaveBeenCalledWith('closed', expect.any(Function));
+        });
+
+        test('reports the close code and reason', async () => {
+            // The whole point of the listener: `Not connected` on the next engine call says
+            // the session was gone, and only the close event says what closed it.
+            (await closeHandler())({ code: 1006, reason: 'connection reset' });
+
+            const line = String(logger.warn.mock.calls.at(-1)[0]);
+            expect(line).toContain('server sense.example.com');
+            expect(line).toContain('code 1006');
+            expect(line).toContain('connection reset');
+        });
+
+        test('still names the code when the far end gave no reason', async () => {
+            // 1006 arrives with an empty reason - there was no close frame to carry one.
+            (await closeHandler())({ code: 1006, reason: '' });
+
+            const line = String(logger.warn.mock.calls.at(-1)[0]);
+            expect(line).toContain('code 1006');
+            expect(line).not.toContain('reason');
         });
     });
 
