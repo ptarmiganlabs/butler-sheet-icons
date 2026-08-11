@@ -1,6 +1,6 @@
 ---
 name: qscloud
-description: 'Skill for the Qscloud area of butler-sheet-icons. 9 symbols across 7 files.'
+description: "Skill for the Qscloud area of butler-sheet-icons. 9 symbols across 7 files."
 ---
 
 # Qscloud
@@ -15,15 +15,15 @@ description: 'Skill for the Qscloud area of butler-sheet-icons. 9 symbols across
 
 ## Key Files
 
-| File                                                  | Symbols                                       |
-| ----------------------------------------------------- | --------------------------------------------- |
-| `src/lib/commands/helpers.js`                         | parsePositiveInteger, collectPositiveIntegers |
-| `src/lib/interactive/command-tree.js`                 | everyLeafCommand, walk                        |
-| `src/lib/commands/qscloud/create-sheet-thumbnails.js` | buildCloudCreateSheetThumbnailsCommand        |
-| `src/lib/commands/qscloud/index.js`                   | buildQscloudCommand                           |
-| `src/lib/commands/qscloud/list-collections.js`        | buildCloudListCollectionsCommand              |
-| `src/lib/commands/qscloud/remove-sheet-icons.js`      | buildCloudRemoveSheetIconsCommand             |
-| `src/lib/commands/qseow/index.js`                     | buildQseowCommand                             |
+| File | Symbols |
+|------|---------|
+| `src/lib/commands/helpers.js` | parsePositiveInteger, collectPositiveIntegers |
+| `src/lib/interactive/command-tree.js` | everyLeafCommand, walk |
+| `src/lib/commands/qscloud/create-sheet-thumbnails.js` | buildCloudCreateSheetThumbnailsCommand |
+| `src/lib/commands/qscloud/index.js` | buildQscloudCommand |
+| `src/lib/commands/qscloud/list-collections.js` | buildCloudListCollectionsCommand |
+| `src/lib/commands/qscloud/remove-sheet-icons.js` | buildCloudRemoveSheetIconsCommand |
+| `src/lib/commands/qseow/index.js` | buildQseowCommand |
 
 ## Entry Points
 
@@ -34,30 +34,30 @@ Start here when exploring this area:
 
 ## Key Symbols
 
-| Symbol                                   | Type     | File                                                  | Line |
-| ---------------------------------------- | -------- | ----------------------------------------------------- | ---- |
-| `everyLeafCommand`                       | Function | `src/lib/interactive/command-tree.js`                 | 26   |
-| `walk`                                   | Function | `src/lib/interactive/command-tree.js`                 | 29   |
-| `parsePositiveInteger`                   | Function | `src/lib/commands/helpers.js`                         | 16   |
-| `collectPositiveIntegers`                | Function | `src/lib/commands/helpers.js`                         | 78   |
-| `buildCloudCreateSheetThumbnailsCommand` | Function | `src/lib/commands/qscloud/create-sheet-thumbnails.js` | 32   |
-| `buildQscloudCommand`                    | Function | `src/lib/commands/qscloud/index.js`                   | 10   |
-| `buildCloudListCollectionsCommand`       | Function | `src/lib/commands/qscloud/list-collections.js`        | 24   |
-| `buildCloudRemoveSheetIconsCommand`      | Function | `src/lib/commands/qscloud/remove-sheet-icons.js`      | 24   |
-| `buildQseowCommand`                      | Function | `src/lib/commands/qseow/index.js`                     | 32   |
+| Symbol | Type | File | Line |
+|--------|------|------|------|
+| `everyLeafCommand` | Function | `src/lib/interactive/command-tree.js` | 26 |
+| `walk` | Function | `src/lib/interactive/command-tree.js` | 29 |
+| `parsePositiveInteger` | Function | `src/lib/commands/helpers.js` | 16 |
+| `collectPositiveIntegers` | Function | `src/lib/commands/helpers.js` | 78 |
+| `buildCloudCreateSheetThumbnailsCommand` | Function | `src/lib/commands/qscloud/create-sheet-thumbnails.js` | 35 |
+| `buildQscloudCommand` | Function | `src/lib/commands/qscloud/index.js` | 10 |
+| `buildCloudListCollectionsCommand` | Function | `src/lib/commands/qscloud/list-collections.js` | 24 |
+| `buildCloudRemoveSheetIconsCommand` | Function | `src/lib/commands/qscloud/remove-sheet-icons.js` | 25 |
+| `buildQseowCommand` | Function | `src/lib/commands/qseow/index.js` | 35 |
 
 ## Execution Flows
 
-| Flow                                      | Type            | Steps |
-| ----------------------------------------- | --------------- | ----- |
-| `EveryLeafCommand → ParsePositiveInteger` | intra_community | 5     |
-| `EveryLeafCommand → Description`          | cross_community | 4     |
+| Flow | Type | Steps |
+|------|------|-------|
+| `EveryLeafCommand → ParsePositiveInteger` | intra_community | 5 |
+| `EveryLeafCommand → Description` | cross_community | 4 |
 
 ## Connected Areas
 
-| Area    | Connections |
-| ------- | ----------- |
-| Browser | 5 calls     |
+| Area | Connections |
+|------|-------------|
+| Browser | 5 calls |
 
 ## How to Explore
 
