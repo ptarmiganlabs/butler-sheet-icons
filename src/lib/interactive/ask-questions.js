@@ -15,14 +15,21 @@ import { withQuietLogging } from './quiet.js';
  * five lines that make the property real now, and a graph to sort when phase 2
  * has enough edges to need one.
  *
+ * A need is satisfied by an answer, not by a question. Anything supplied on the
+ * command line or through a BSI_* environment variable is dropped from the
+ * questions but is still an answer, so those keys count as already seen -
+ * otherwise `bsi browser install --browser firefox -i` would fail this check for
+ * having satisfied it.
+ *
  * @param {import('./option-introspect.js').QuestionSpec[]} specs - The questions.
+ * @param {string[]} [known] - Keys already answered before the first question.
  *
  * @returns {void}
  *
  * @throws {Error} If a question needs a key that is not answered before it.
  */
-export const assertNeedsAreSatisfiable = (specs) => {
-    const seen = new Set();
+export const assertNeedsAreSatisfiable = (specs, known = []) => {
+    const seen = new Set(known);
 
     for (const spec of specs) {
         for (const need of spec.needs ?? []) {
@@ -188,11 +195,11 @@ const configFor = (spec, choices, theme) => ({
  * @returns {Promise<object>} Answers, keyed by spec key.
  */
 export const askQuestions = async (specs, ctx = {}, { runtime = defaultRuntime } = {}) => {
-    assertNeedsAreSatisfiable(specs);
-
     const symbols = ctx.symbols ?? getSymbols();
     const theme = ctx.theme ?? buildTheme({ symbols });
     const answers = ctx.answers ?? {};
+
+    assertNeedsAreSatisfiable(specs, Object.keys(answers));
     const context = { ...ctx, answers, symbols, theme, write: runtime.write };
 
     let currentGroup;

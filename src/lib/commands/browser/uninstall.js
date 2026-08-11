@@ -2,6 +2,7 @@ import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserUninstall } from '../../browser/browser-uninstall.js';
 import { runCommand } from '../run-command.js';
+import { addInteractiveOption } from '../../interactive/interactive-option.js';
 
 /**
  * Commander action that uninstalls a single browser build from the local cache.
@@ -13,6 +14,20 @@ import { runCommand } from '../run-command.js';
  */
 const handleBrowserUninstall = async (options = {}, cmd) => {
     logger.info(`App version: ${appVersion}`);
+
+    // Optional chaining, not `options.interactive`: the default parameter only
+    // covers `undefined`, and a null options bag has to keep reaching
+    // runCommand() to be reported as a failure rather than thrown from here.
+    if (options?.interactive) {
+        // Loaded on demand, and the import specifier is a literal so esbuild
+        // still bundles it for the SEA build. Importing it at module scope
+        // would pull the whole prompt framework into every consumer of this
+        // builder - including `command-tree.js`, which imports the builders and
+        // would close a cycle - to declare one flag.
+        const { launchInteractive } = await import('../../interactive/launch.js');
+
+        return launchInteractive('BROWSER MAIN 7', 'browser uninstall', cmd);
+    }
 
     return runCommand('BROWSER MAIN 7', () => browserUninstall(options, cmd));
 };
@@ -59,6 +74,11 @@ const buildBrowserUninstallCommand = () => {
                 .makeOptionMandatory()
                 .env('BSI_BROWSER_UI_BROWSER_VERSION')
         );
+
+    // Both mandatory options above are exactly why this command is worth doing
+    // interactively: the build to remove has to be named exactly, and today it
+    // is typed from memory. The wizard offers the builds actually installed.
+    addInteractiveOption(command);
 
     return command;
 };

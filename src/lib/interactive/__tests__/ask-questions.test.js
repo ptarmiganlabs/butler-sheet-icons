@@ -274,6 +274,30 @@ describe('the needs guard', () => {
         ).toThrow(/needs "a"/);
     });
 
+    test('accepts a dependency that was supplied rather than asked', () => {
+        // `bsi browser install --browser firefox -i` drops the browser question
+        // because it is already answered. The dependency is satisfied by the
+        // answer, so requiring an earlier *question* would reject exactly the
+        // command line that supplied it.
+        expect(() =>
+            assertNeedsAreSatisfiable([spec({ key: 'b', needs: ['a'] })], ['a'])
+        ).not.toThrow();
+    });
+
+    test('and a preset answer is what askQuestions counts as known', async () => {
+        const runtime = scriptedRuntime({ b: '2' });
+
+        await expect(
+            askQuestions(
+                [spec({ key: 'b', needs: ['a'] })],
+                { ...ctx(), answers: { a: '1' } },
+                {
+                    runtime,
+                }
+            )
+        ).resolves.toEqual({ a: '1', b: '2' });
+    });
+
     test('runs before any question is asked', async () => {
         const runtime = scriptedRuntime({ a: '1', b: '2' });
 
