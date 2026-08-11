@@ -2,6 +2,12 @@ import { qseowVerifyCertificatesExist } from '../../qseow/qseow-certificates.js'
 import { qseowVerifyContentLibraryExists } from '../../qseow/qseow-contentlibrary.js';
 import { listAppsByTag, listAllApps } from '../../qseow/qseow-app-lookup.js';
 import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
+import { gate, gatedBy, inSections, SHEET_FILTER_KEYS } from '../../interactive/spec-ops.js';
+import { labelForApp } from '../../interactive/labels.js';
+
+// Re-exported so a reader following this wizard finds the label it uses without
+// having to know it is shared with the Cloud twin.
+export { labelForApp };
 
 /** Key of the synthetic question asking how apps should be chosen. */
 const APP_SOURCE = '_appSource';
@@ -19,43 +25,27 @@ export const APP_SOURCES = Object.freeze({
     TYPED: 'typed',
 });
 
-/**
- * Label one app for a picker.
- *
- * Identical in shape to the Cloud wizard's, deliberately: the two platforms
- * describe an app the same way, so the labels must too. App names are **not
- * unique** - three are duplicated on the QSEoW test server alone - so the id is
- * always shown, always marked as an id, and never truncated. Untruncated also
- * means it can be pasted straight into `--appid`.
- *
- * @param {{id: string, name: string}} app - The app to label.
- *
- * @returns {string} The label to show.
- */
-export const labelForApp = (app) => `${app.name}  (id: ${app.id})`;
-
-/** Options that pick out particular sheets to skip or blur. */
-const FILTER_KEYS = new Set([
-    'excludeSheetStatus',
-    'excludeSheetTag',
-    'excludeSheetNumber',
-    'excludeSheetTitle',
-    'blurSheetStatus',
-    'blurSheetTag',
-    'blurSheetNumber',
-    'blurSheetTitle',
-    'blurFactor',
-]);
+/** Questions asked before anything else, in this order. */
+const CONNECTION_KEYS = [
+    'host',
+    'certfile',
+    'certkeyfile',
+    'apiuserdir',
+    'apiuserid',
+    'logonuserdir',
+    'logonuserid',
+    'logonpwd',
+];
 
 /**
  * Options that only matter to someone who already knows they need them.
  *
  * Larger than the Cloud set because QSEoW carries the ports, the TLS switches and
- * the virtual proxy prefix as well. All twelve have defaults that work against a
+ * the virtual proxy prefix as well. All of them have defaults that work against a
  * stock installation, which is what makes gating them safe rather than merely
  * convenient.
  */
-const ADVANCED_KEYS = new Set([
+const ADVANCED_KEYS = [
     'loglevel',
     'engineport',
     'qrsport',
@@ -71,53 +61,16 @@ const ADVANCED_KEYS = new Set([
     'browser',
     'browserVersion',
     'browserPageTimeout',
-]);
-
-/** Which section each question belongs under, in the order the sections run. */
-const GROUPS = [
-    [
-        'Connection',
-        [
-            'host',
-            'certfile',
-            'certkeyfile',
-            'apiuserdir',
-            'apiuserid',
-            'logonuserdir',
-            'logonuserid',
-            'logonpwd',
-        ],
-    ],
-    ['Apps', [APP_SOURCE, 'qliksensetag', 'appid']],
-    ['Sheets', ['includesheetpart', 'contentlibrary']],
-    ['Sheet filtering', [FILTERING, ...FILTER_KEYS]],
-    ['Advanced', [ADVANCED, ...ADVANCED_KEYS]],
 ];
 
-/** Questions asked before anything else, in this order. */
-const CONNECTION_KEYS = GROUPS[0][1];
-
-/**
- * Work out which section a question belongs to.
- *
- * @param {string} key - The question's key.
- *
- * @returns {string|undefined} The section heading, if the key has one.
- */
-const groupFor = (key) => GROUPS.find(([, keys]) => [...keys].includes(key))?.[0];
-
-/**
- * Order questions by section, keeping declaration order within each one.
- *
- * @param {Array} specs - Questions to order.
- *
- * @returns {Array} The same questions, grouped.
- */
-const bySection = (specs) => {
-    const order = GROUPS.map(([name]) => name);
-
-    return [...specs].sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
-};
+/** Which section each question belongs under, in the order the sections run. */
+const SECTIONS = [
+    ['Connection', CONNECTION_KEYS],
+    ['Apps', [APP_SOURCE, 'qliksensetag', 'appid']],
+    ['Sheets', ['contentlibrary', 'includesheetpart']],
+    ['Sheet filtering', [FILTERING, ...SHEET_FILTER_KEYS]],
+    ['Advanced', [ADVANCED, ...ADVANCED_KEYS]],
+];
 
 export default {
     commandPath: 'qseow create-sheet-thumbnails',
@@ -127,21 +80,22 @@ export default {
      * Reshape the derived questions into a conversation.
      *
      * The QSEoW twin of the Cloud wizard, and deliberately the same shape: two
-     * gates, an app picker, and a probe that reports a bad answer where it was
-     * given. Where it differs is what can go wrong first.
+     * gates, an app picker, and probes that report a bad answer where it was
+     * given. Both are built from the same helpers in `spec-ops.js`, so the two
+     * conversations cannot drift apart in structure - only in the parts that are
+     * genuinely different between the platforms.
      *
-     * QSEoW authenticates with **certificate files on disk**, so the first thing
-     * that can be wrong is a path - and `qseowVerifyCertificatesExist()` says so
-     * at the certificate prompt rather than after the credentials, the app
-     * selection and everything else have been answered. The content library is
-     * checked the same way, because a missing one aborts the run after every
-     * screenshot has already been taken.
+     * What differs is what can be wrong first. QSEoW authenticates with
+     * **certificate files on disk**, so the first thing that can be wrong is a
+     * path - and `qseowVerifyCertificatesExist()` says so at the certificate
+     * prompt rather than after the credentials, the app selection and everything
+     * else have been answered. The content library is checked the same way,
+     * because a missing one aborts the run after every screenshot has already
+     * been taken.
      *
      * This command declares 36 options, the most in the CLI, which is what makes
-     * the gating matter more here than anywhere else.
-     *
-     * Pure: specs in, specs out. The network and filesystem calls live behind
-     * `choices` and `probe`, which the driver invokes.
+     * the gating matter more here than anywhere else: both gates declined, it
+     * asks 14 questions.
      *
      * @param {import('../../interactive/option-introspect.js').QuestionSpec[]} specs - Derived questions.
      *
@@ -210,9 +164,9 @@ export default {
             fallback: { type: 'list', message: 'App id(s) (could not fetch the list)' },
         };
 
+        // The derived question unchanged, for anyone who already knows the id.
         const typedApp = {
             ...byKey.appid,
-            key: 'appid',
             when: (ctx) => ctx.answers[APP_SOURCE] === APP_SOURCES.TYPED,
         };
 
@@ -229,45 +183,16 @@ export default {
             },
         };
 
-        const filteringGate = {
-            key: FILTERING,
-            type: 'confirm',
-            message: 'Exclude or blur any sheets?',
-            default: false,
-            required: false,
-            variadic: false,
-            secret: false,
-        };
+        const rest = specs
+            .filter(
+                (spec) =>
+                    !CONNECTION_KEYS.includes(spec.key) &&
+                    !['appid', 'qliksensetag', 'contentlibrary'].includes(spec.key)
+            )
+            .map(gatedBy(ADVANCED, ADVANCED_KEYS))
+            .map(gatedBy(FILTERING, SHEET_FILTER_KEYS));
 
-        const advancedGate = {
-            key: ADVANCED,
-            type: 'confirm',
-            message: 'Configure advanced options (ports, certificates, schema version, browser)?',
-            default: false,
-            required: false,
-            variadic: false,
-            secret: false,
-        };
-
-        const rest = specs.filter(
-            (spec) =>
-                !CONNECTION_KEYS.includes(spec.key) &&
-                !['appid', 'qliksensetag', 'contentlibrary'].includes(spec.key)
-        );
-
-        const gated = rest.map((spec) => {
-            if (ADVANCED_KEYS.has(spec.key)) {
-                return { ...spec, when: (ctx) => ctx.answers[ADVANCED] === true };
-            }
-
-            if (FILTER_KEYS.has(spec.key)) {
-                return { ...spec, when: (ctx) => ctx.answers[FILTERING] === true };
-            }
-
-            return spec;
-        });
-
-        return bySection(
+        return inSections(
             [
                 ...connection,
                 appSource,
@@ -275,10 +200,15 @@ export default {
                 app,
                 typedApp,
                 contentLibrary,
-                filteringGate,
-                advancedGate,
-                ...gated,
-            ].map((spec) => ({ ...spec, group: spec.group ?? groupFor(spec.key) }))
+                gate({ key: FILTERING, message: 'Exclude or blur any sheets?' }),
+                gate({
+                    key: ADVANCED,
+                    message:
+                        'Configure advanced options (ports, certificates, schema version, browser)?',
+                }),
+                ...rest,
+            ],
+            SECTIONS
         );
     },
 

@@ -2,35 +2,21 @@ import QlikSaas from '../../cloud/cloud-repo.js';
 import { qscloudTestConnection } from '../../cloud/cloud-test-connection.js';
 import { listCollections, listApps, listAppsByCollection } from '../../cloud/cloud-apps.js';
 import { qscloudCreateThumbnails } from '../../cloud/cloud-create-thumbnails.js';
+import { gate, gatedBy, inSections, SHEET_FILTER_KEYS } from '../../interactive/spec-ops.js';
+import { labelForApp, labelForCollection } from '../../interactive/labels.js';
+
+// Re-exported so a reader following this wizard finds the labels it uses without
+// having to know they are shared with the QSEoW twin.
+export { labelForApp, labelForCollection };
 
 /** Key of the synthetic question asking how apps should be chosen. */
 const APP_SOURCE = '_appSource';
 
-/** Key of the synthetic question gating the long tail of options. */
-const ADVANCED = '_advanced';
-
 /** Key of the synthetic question gating the sheet exclude/blur filters. */
 const FILTERING = '_filtering';
 
-/**
- * Options that pick out particular sheets to skip or blur.
- *
- * Gated as a block behind one question. They are eight of this command's
- * twenty-five options and most runs use none of them - the common case is "every
- * sheet in the app" - so asking about each one individually is what turns a
- * short conversation into a long one.
- */
-const FILTER_KEYS = new Set([
-    'excludeSheetStatus',
-    'excludeSheetTag',
-    'excludeSheetNumber',
-    'excludeSheetTitle',
-    'blurSheetStatus',
-    'blurSheetTag',
-    'blurSheetNumber',
-    'blurSheetTitle',
-    'blurFactor',
-]);
+/** Key of the synthetic question gating the long tail of options. */
+const ADVANCED = '_advanced';
 
 /** How apps can be picked, in the order the choices are offered. */
 export const APP_SOURCES = Object.freeze({
@@ -39,37 +25,12 @@ export const APP_SOURCES = Object.freeze({
     TYPED: 'typed',
 });
 
-/**
- * Label one app for a picker.
- *
- * The id is always shown, never truncated, and always marked as an id. App names
- * are **not unique** - two apps on the same tenant may legitimately share one,
- * and duplicates exist in practice - so a label showing the name alone is
- * ambiguous to the person choosing even though the value behind it is not.
- * Showing the full id also means it can be pasted straight into `--appid`, which
- * is the point of echoing the equivalent command line at the end.
- *
- * @param {{id: string, name: string}} app - The app to label.
- *
- * @returns {string} The label to show.
- */
-export const labelForApp = (app) => `${app.name}  (id: ${app.id})`;
-
-/**
- * Label one collection for a picker.
- *
- * The item count is worth showing because an empty collection is a dead end, and
- * seeing "0 items" before choosing it is better than a run that selects nothing.
- *
- * @param {object} collection - A collection as the tenant reported it.
- *
- * @returns {string} The label to show.
- */
-export const labelForCollection = (collection) =>
-    `${collection.name}  (${collection.itemCount ?? 0} items)`;
+/** Questions asked before anything else, in this order. */
+const CONNECTION_KEYS = ['tenanturl', 'apikey', 'skipLogin', 'logonuserid', 'logonpwd'];
 
 /** Options that only matter to someone who already knows they need them. */
-const ADVANCED_KEYS = new Set([
+const ADVANCED_KEYS = [
+    'loglevel',
     'schemaversion',
     'pagewait',
     'imagedir',
@@ -77,39 +38,16 @@ const ADVANCED_KEYS = new Set([
     'browserVersion',
     'browserPageTimeout',
     'headless',
-    'loglevel',
-]);
-
-/** Which section each question belongs under, in the order the sections run. */
-const GROUPS = [
-    ['Connection', ['tenanturl', 'apikey', 'skipLogin', 'logonuserid', 'logonpwd']],
-    ['Apps', [APP_SOURCE, 'collectionid', 'appid']],
-    ['Sheets', ['includesheetpart']],
-    ['Sheet filtering', [FILTERING, ...FILTER_KEYS]],
-    ['Advanced', [ADVANCED, ...ADVANCED_KEYS]],
 ];
 
-/**
- * Work out which section a question belongs to.
- *
- * @param {string} key - The question's key.
- *
- * @returns {string|undefined} The section heading, if the key has one.
- */
-const groupFor = (key) => GROUPS.find(([, keys]) => [...keys].includes(key))?.[0];
-
-/**
- * Order questions by section, keeping declaration order within each one.
- *
- * @param {Array} specs - Questions to order.
- *
- * @returns {Array} The same questions, grouped.
- */
-const bySection = (specs) => {
-    const order = GROUPS.map(([name]) => name);
-
-    return [...specs].sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group));
-};
+/** Which section each question belongs under, in the order the sections run. */
+const SECTIONS = [
+    ['Connection', CONNECTION_KEYS],
+    ['Apps', [APP_SOURCE, 'collectionid', 'appid']],
+    ['Sheets', ['includesheetpart']],
+    ['Sheet filtering', [FILTERING, ...SHEET_FILTER_KEYS]],
+    ['Advanced', [ADVANCED, ...ADVANCED_KEYS]],
+];
 
 export default {
     commandPath: 'qscloud create-sheet-thumbnails',
@@ -118,25 +56,21 @@ export default {
     /**
      * Reshape the derived questions into a conversation.
      *
-     * Three things happen here, in rough order of how much they matter.
-     *
      * The API key carries a **probe**, so a wrong tenant url or key is reported
      * at the prompt where it was typed rather than after twenty more questions.
-     * The probe also stashes the connected client, which is what lets the app
-     * and collection questions offer what is actually on the tenant.
+     * The probe also stashes the connected client, which is what lets the app and
+     * collection questions offer what the tenant actually holds.
      *
-     * The **long tail is gated** behind one question. Answering "no" to advanced
-     * options takes this command from 25 questions to about 9, which is the
-     * single biggest usability lever available - no amount of styling fixes a
-     * flat list of 25.
+     * The **long tail is gated** twice, once for the sheet filters and once for
+     * the technical options. Declining both takes this command from 25 options to
+     * 10 questions, the single biggest usability lever available.
      *
      * **App selection becomes a picker.** Typing a GUID from memory is the thing
-     * this feature exists to remove, so the default is to choose from the apps
-     * the tenant actually has, with typing one still available for anyone who
-     * has the id to hand.
+     * this feature exists to remove, so the default is to choose from the apps the
+     * tenant actually has, with typing one still available.
      *
-     * Pure: specs in, specs out, no I/O. The network calls all live behind
-     * `choices` and `probe`, which the driver invokes.
+     * Pure: specs in, specs out. The network calls live behind `choices` and
+     * `probe`, which the driver invokes.
      *
      * @param {import('../../interactive/option-introspect.js').QuestionSpec[]} specs - Derived questions.
      *
@@ -145,8 +79,7 @@ export default {
     refine(specs) {
         const byKey = Object.fromEntries(specs.map((spec) => [spec.key, spec]));
 
-        const connection = ['tenanturl', 'apikey', 'skipLogin', 'logonuserid', 'logonpwd']
-            .map((key) => byKey[key])
+        const connection = CONNECTION_KEYS.map((key) => byKey[key])
             .filter(Boolean)
             .map((spec) =>
                 spec.key === 'apikey'
@@ -159,8 +92,8 @@ export default {
                                   token: ctx.answers.apikey,
                               });
 
-                              // Throws on a bad url or key, which is exactly
-                              // what the driver turns into a re-ask.
+                              // Throws on a bad url or key, which is what the
+                              // driver turns into a re-ask.
                               await qscloudTestConnection(
                                   { tenanturl: ctx.answers.tenanturl },
                                   saas
@@ -209,8 +142,6 @@ export default {
             type: 'checkbox',
             message: 'Which apps?',
             needs: [APP_SOURCE],
-            // Typing an id stays possible, so this is the derived question
-            // unchanged for anyone who already knows the id.
             when: (ctx) => ctx.answers[APP_SOURCE] !== APP_SOURCES.TYPED,
             choices: async (ctx) => {
                 const apps =
@@ -223,64 +154,36 @@ export default {
             fallback: { type: 'list', message: 'App id(s) (could not fetch the list)' },
         };
 
+        // The derived question unchanged, for anyone who already knows the id.
         const typedApp = {
             ...byKey.appid,
-            key: 'appid',
             when: (ctx) => ctx.answers[APP_SOURCE] === APP_SOURCES.TYPED,
         };
 
-        const filteringGate = {
-            key: FILTERING,
-            type: 'confirm',
-            message: 'Exclude or blur any sheets?',
-            default: false,
-            required: false,
-            variadic: false,
-            secret: false,
-        };
+        const rest = specs
+            .filter(
+                (spec) =>
+                    !CONNECTION_KEYS.includes(spec.key) &&
+                    !['appid', 'collectionid'].includes(spec.key)
+            )
+            .map(gatedBy(ADVANCED, ADVANCED_KEYS))
+            .map(gatedBy(FILTERING, SHEET_FILTER_KEYS));
 
-        const advancedGate = {
-            key: ADVANCED,
-            type: 'confirm',
-            message: 'Configure advanced options (ports, schema version, timeouts, browser)?',
-            default: false,
-            required: false,
-            variadic: false,
-            secret: false,
-        };
-
-        const rest = specs.filter(
-            (spec) =>
-                !['tenanturl', 'apikey', 'skipLogin', 'logonuserid', 'logonpwd'].includes(
-                    spec.key
-                ) &&
-                spec.key !== 'appid' &&
-                spec.key !== 'collectionid'
-        );
-
-        const gated = rest.map((spec) => {
-            if (ADVANCED_KEYS.has(spec.key)) {
-                return { ...spec, when: (ctx) => ctx.answers[ADVANCED] === true };
-            }
-
-            if (FILTER_KEYS.has(spec.key)) {
-                return { ...spec, when: (ctx) => ctx.answers[FILTERING] === true };
-            }
-
-            return spec;
-        });
-
-        return bySection(
+        return inSections(
             [
                 ...connection,
                 appSource,
                 collection,
                 app,
                 typedApp,
-                filteringGate,
-                advancedGate,
-                ...gated,
-            ].map((spec) => ({ ...spec, group: spec.group ?? groupFor(spec.key) }))
+                gate({ key: FILTERING, message: 'Exclude or blur any sheets?' }),
+                gate({
+                    key: ADVANCED,
+                    message: 'Configure advanced options (schema version, timeouts, browser)?',
+                }),
+                ...rest,
+            ],
+            SECTIONS
         );
     },
 
