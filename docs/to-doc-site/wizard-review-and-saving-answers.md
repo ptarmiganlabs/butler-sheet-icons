@@ -48,22 +48,21 @@ Butler Sheet Icons reads `.env` automatically on the next run from that director
 
 Saving does not end the wizard. You come back to the review, so you can save *and* run.
 
-### It will not overwrite anything without asking twice
+### It updates, it does not replace
 
-If a `.env` file is already there, you are told what it is and asked explicitly:
+If a `.env` file is already there, only the settings belonging to the command you just ran are changed. Everything else — settings for other Butler Sheet Icons commands, comments, anything you put there yourself — is left exactly as it was, byte for byte.
+
+You are told what will change before it happens:
 
 ```
-✖ /home/goran/.env already exists (412 bytes, last changed 2026-08-11 14:02).
-  Saving replaces the whole file - settings for other Butler Sheet Icons commands,
-  or anything you put there yourself, will not survive. The current contents are
-  copied to .env.bak first.
+/home/goran/.env already exists. 6 setting(s) belonging to this command will be
+updated or added; everything else in the file is left untouched. A copy is kept
+in .env.bak either way.
 
-? Overwrite .env? (y/N)
+? Update .env? (Y/n)
 ```
 
-The file is **replaced, not merged**. If you keep settings for several Butler Sheet Icons commands in one `.env`, saving from the wizard will not preserve the others.
-
-Before replacing it, the current contents are copied to **`.env.bak`** in the same directory, so a mistake is recoverable — rename it back. Note that `.env.bak` itself is replaced each time you save, so it always holds the version immediately before the most recent save, not the original.
+A setting already in the file is updated in place. One that is not there is added at the end. A copy of the file as it was is kept in **`.env.bak`**, so even an unwanted update is recoverable — note that `.env.bak` is replaced on each save, so it always holds the version immediately before the most recent one.
 
 ### Credentials are a separate decision
 

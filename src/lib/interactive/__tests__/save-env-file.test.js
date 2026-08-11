@@ -228,8 +228,58 @@ describe('saveEnvFile', () => {
         expect(await readFile(join(dir, ENV_FILE), 'utf8')).toBe('SOMETHING_ELSE=keep me\n');
     });
 
-    test('says what will be lost, rather than only asking whether to proceed', async () => {
-        await writeFile(join(dir, ENV_FILE), 'SOMETHING_ELSE=keep me\n', 'utf8');
+    test('keeps every setting the command does not own', async () => {
+        // The whole point of merging. A .env holds settings for every Butler
+        // Sheet Icons command run from that directory, plus whatever the
+        // operator put there themselves; saving one command's answers must not
+        // cost them the rest.
+        await writeFile(
+            join(dir, ENV_FILE),
+            ['# my notes', 'BSI_QSEOW_CST_HOST=sense.acme.com', 'UNRELATED=keep me'].join('\n') +
+                '\n',
+            'utf8'
+        );
+        const runtime = runtimeAnswering([true, false]);
+
+        await saveEnvFile({
+            commandPath: PATH,
+            specs: specs(),
+            answers: ANSWERS,
+            runtime,
+            theme,
+            cwd: dir,
+        });
+
+        const after = await readFile(join(dir, ENV_FILE), 'utf8');
+        expect(after).toContain('# my notes');
+        expect(after).toContain('BSI_QSEOW_CST_HOST=sense.acme.com');
+        expect(after).toContain('UNRELATED=keep me');
+        expect(after).toContain("BSI_QSCLOUD_CST_TENANTURL='acme.eu.qlikcloud.com'");
+    });
+
+    test('updates a setting it owns rather than appending a second copy', async () => {
+        await writeFile(join(dir, ENV_FILE), 'BSI_QSCLOUD_CST_TENANTURL=old.tenant\n', 'utf8');
+        const runtime = runtimeAnswering([true, false]);
+
+        const result = await saveEnvFile({
+            commandPath: PATH,
+            specs: specs(),
+            answers: ANSWERS,
+            runtime,
+            theme,
+            cwd: dir,
+        });
+
+        const after = await readFile(join(dir, ENV_FILE), 'utf8');
+        expect(after).not.toContain('old.tenant');
+        expect(result.updated).toContain('BSI_QSCLOUD_CST_TENANTURL');
+        expect(dotenv.parse(Buffer.from(after)).BSI_QSCLOUD_CST_TENANTURL).toBe(
+            'acme.eu.qlikcloud.com'
+        );
+    });
+
+    test('names how many settings will change rather than threatening the file', async () => {
+        await writeFile(join(dir, ENV_FILE), 'UNRELATED=keep me\n', 'utf8');
         const runtime = runtimeAnswering([false]);
 
         await saveEnvFile({
@@ -241,9 +291,7 @@ describe('saveEnvFile', () => {
             cwd: dir,
         });
 
-        expect(runtime.output()).toContain('already exists');
-        expect(runtime.output()).toContain('will not survive');
-        expect(runtime.output()).toContain('.env.bak');
+        expect(runtime.output()).toContain('everything else in the file is left untouched');
     });
 
     test('copies the previous contents to .env.bak before replacing them', async () => {
@@ -265,25 +313,6 @@ describe('saveEnvFile', () => {
         expect(await readFile(join(dir, ENV_FILE), 'utf8')).toContain('BSI_QSCLOUD_CST_TENANTURL');
     });
 
-    test('says when an existing backup is the one being replaced', async () => {
-        // A second save would otherwise silently discard the backup of the
-        // original file, which is the copy most worth keeping.
-        await writeFile(join(dir, ENV_FILE), 'CURRENT=1\n', 'utf8');
-        await writeFile(join(dir, BACKUP_FILE), 'OLDER=1\n', 'utf8');
-        const runtime = runtimeAnswering([false]);
-
-        await saveEnvFile({
-            commandPath: PATH,
-            specs: specs(),
-            answers: ANSWERS,
-            runtime,
-            theme,
-            cwd: dir,
-        });
-
-        expect(runtime.output()).toContain(`replacing the ${BACKUP_FILE} already there`);
-    });
-
     test('writes no backup when there was nothing to back up', async () => {
         const runtime = runtimeAnswering([false]);
 
@@ -301,8 +330,8 @@ describe('saveEnvFile', () => {
     });
 
     // Windows has no POSIX permission bits - Node reports 0o666 whatever the
-    // file was created with - so on that runner this asserts something about the
-    // operating system rather than about the code.
+    // file was created with - so this asserts something about the operating
+    // system rather than about the code when it runs there.
     const posixOnly = process.platform === 'win32' ? test.skip : test;
 
     posixOnly('restricts permissions when credentials were written', async () => {

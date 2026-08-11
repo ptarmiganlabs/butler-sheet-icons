@@ -84,6 +84,61 @@ const assign = (name, value) => {
 };
 
 /**
+ * The `NAME=value` lines a set of answers produces, without the file around them.
+ *
+ * Shared by the whole-file renderer and the merger, so both decide what to write
+ * and how to quote it in exactly one place.
+ *
+ * @param {import('./option-introspect.js').QuestionSpec[]} specs - The questions asked.
+ * @param {object} answers - Answers, keyed by spec key.
+ * @param {object} [options] - Rendering options.
+ * @param {boolean} [options.includeSecrets] - Write credential values rather than a placeholder.
+ * @param {object} [options.env] - Environment, as for {@link emissionsFor}.
+ *
+ * @returns {Array<{name: string, line: string, secret: boolean}>} One entry per setting.
+ */
+export const envAssignments = (specs, answers, { includeSecrets = false, env } = {}) => {
+    const out = [];
+
+    for (const { spec, emitted } of emissionsFor(specs, answers, { env })) {
+        if (!savable(spec)) {
+            continue;
+        }
+
+        if (isSecret(spec)) {
+            const answered = answers[spec.key] !== undefined && answers[spec.key] !== '';
+
+            if (!answered) {
+                continue;
+            }
+
+            out.push({
+                name: spec.option.envVar,
+                secret: true,
+                line: includeSecrets
+                    ? assign(spec.option.envVar, answers[spec.key])
+                    : `${spec.option.envVar}=${quoteEnvValue(SECRET_PLACEHOLDER)}`,
+            });
+            continue;
+        }
+
+        if (!emitted) {
+            continue;
+        }
+
+        const answer = answers[spec.key];
+
+        out.push({
+            name: spec.option.envVar,
+            secret: false,
+            line: assign(spec.option.envVar, Array.isArray(answer) ? answer.join(',') : answer),
+        });
+    }
+
+    return out;
+};
+
+/**
  * Render a set of answers as the contents of a `.env` file.
  *
  * Nearly free, which is why it is worth having: every option already declares
@@ -128,43 +183,13 @@ export const formatEnvFile = (
         '',
     ];
 
-    const emissions = emissionsFor(specs, answers, { env });
-    let wroteSecret = false;
+    const assignments = envAssignments(specs, answers, { includeSecrets, env });
 
-    for (const { spec, emitted } of emissions) {
-        if (!savable(spec)) {
-            continue;
-        }
-
-        if (isSecret(spec)) {
-            // A secret is written whenever it was answered, even if it somehow
-            // matched a default: leaving it out would produce a file that looks
-            // complete and cannot authenticate.
-            const answered = answers[spec.key] !== undefined && answers[spec.key] !== '';
-
-            if (!answered) {
-                continue;
-            }
-
-            wroteSecret = true;
-            lines.push(
-                includeSecrets
-                    ? assign(spec.option.envVar, answers[spec.key])
-                    : `${spec.option.envVar}=${quoteEnvValue(SECRET_PLACEHOLDER)}`
-            );
-            continue;
-        }
-
-        if (!emitted) {
-            continue;
-        }
-
-        const answer = answers[spec.key];
-
-        lines.push(assign(spec.option.envVar, Array.isArray(answer) ? answer.join(',') : answer));
+    for (const entry of assignments) {
+        lines.push(entry.line);
     }
 
-    if (wroteSecret && !includeSecrets) {
+    if (!includeSecrets && assignments.some((entry) => entry.secret)) {
         lines.push(
             '',
             '# The credential(s) above were deliberately not written. Replace the',
