@@ -1,6 +1,7 @@
-import { writeFile, stat, copyFile, rename, rm } from 'node:fs/promises';
+import { writeFile, stat, copyFile, rename, rm, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { formatEnvFile } from './render-env-file.js';
+import { formatEnvFile, envAssignments } from './render-env-file.js';
+import { mergeEnvContents } from './merge-env-file.js';
 
 /** Where a saved file goes, relative to the working directory. */
 export const ENV_FILE = '.env';
@@ -80,28 +81,28 @@ export const saveEnvFile = async ({
     let backedUp = false;
 
     if (current.exists) {
-        const previousBackup = await existing(backupPath);
-
-        // Said plainly, with the evidence. "Are you sure?" on its own gives
-        // someone nothing to be sure about.
-        runtime.write(
-            `\n${theme.style.error(`${path} already exists (${current.size} bytes, last changed ${current.modified.toISOString().slice(0, 16).replace('T', ' ')}).`)}\n`
-        );
-        runtime.write(
-            `${theme.style.help(`Saving replaces the whole file - settings for other Butler Sheet Icons commands, or anything you put there yourself, will not survive. The current contents are copied to ${BACKUP_FILE} first${previousBackup.exists ? `, replacing the ${BACKUP_FILE} already there` : ''}.`)}\n`
+        // Merged, not replaced. Only the settings this command owns change; every
+        // other line - other commands' settings, comments, anything the operator
+        // put there - is carried across byte for byte. So the question is no
+        // longer "may I destroy this file" but the far smaller "may I change
+        // these settings in it", and it names them.
+        const names = envAssignments(specs, answers, { includeSecrets: false }).map(
+            (entry) => entry.name
         );
 
-        const overwrite = await runtime.ask(
+        runtime.write(
+            `\n${theme.style.help(`${path} already exists. ${names.length} setting(s) belonging to this command will be updated or added; everything else in the file is left untouched. A copy is kept in ${BACKUP_FILE} either way.`)}\n`
+        );
+
+        const proceed = await runtime.ask(
             { key: '_overwriteEnv', type: 'confirm' },
-            { message: `Overwrite ${ENV_FILE}?`, default: false, theme }
+            { message: `Update ${ENV_FILE}?`, default: true, theme }
         );
 
-        if (!overwrite) {
+        if (!proceed) {
             return { saved: false, path };
         }
 
-        // Copied before anything is written, so a failure part-way through
-        // leaves the backup already in place rather than nothing at all.
         await copyFile(path, backupPath);
         backedUp = true;
     }
@@ -126,8 +127,23 @@ export const saveEnvFile = async ({
     // intact rather than a half-written one.
     const temporary = `${path}.tmp-${process.pid}`;
 
+    let contents;
+    let changed = { updated: [], added: [] };
+
+    if (current.exists) {
+        const existingText = await readFile(path, 'utf8');
+
+        changed = mergeEnvContents(
+            existingText,
+            envAssignments(specs, answers, { includeSecrets })
+        );
+        contents = changed.contents;
+    } else {
+        contents = formatEnvFile(commandPath, specs, answers, { includeSecrets });
+    }
+
     try {
-        await writeFile(temporary, formatEnvFile(commandPath, specs, answers, { includeSecrets }), {
+        await writeFile(temporary, contents, {
             encoding: 'utf8',
             mode: includeSecrets ? 0o600 : 0o644,
         });
@@ -143,5 +159,7 @@ export const saveEnvFile = async ({
         path,
         includedSecrets: includeSecrets,
         backupPath: backedUp ? backupPath : undefined,
+        updated: changed.updated,
+        added: changed.added,
     };
 };
