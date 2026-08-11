@@ -96,3 +96,6 @@ dist
 build.cjs
 sea-prep.blob
 butler-sheet-icons
+
+# Added by ggshield
+.cache_ggshield

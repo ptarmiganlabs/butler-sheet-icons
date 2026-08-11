@@ -85,6 +85,38 @@ const resolveChoices = async (spec, ctx) => {
     }
 };
 
+/**
+ * Check an answer against the thing it describes, once it has been given.
+ *
+ * This is what makes a wrong credential surface at the credential prompt rather
+ * than after every other question has been answered - the single biggest
+ * usability difference between the wizard and the plain CLI, where a bad API key
+ * is discovered only once the run starts.
+ *
+ * Distinct from `validate`, which judges the text on its own. A probe reaches
+ * the network: it opens the connection the answer describes, and is the natural
+ * place to stash the resulting client on `ctx.clients` so later questions can
+ * list what is actually there instead of asking someone to type an id.
+ *
+ * Failure is a message, not an exception, because the driver's response is to
+ * re-ask rather than to abort.
+ *
+ * @param {import('./option-introspect.js').QuestionSpec} spec - The question just answered.
+ * @param {object} ctx - Wizard context, carrying the answers so far.
+ *
+ * @returns {Promise<string|undefined>} A message when the probe failed, otherwise undefined.
+ */
+const runProbe = async (spec, ctx) => {
+    try {
+        // Worker code logs, and a prompt is about to be on screen again.
+        await withQuietLogging(() => spec.probe(ctx));
+
+        return undefined;
+    } catch (err) {
+        return err?.message ?? String(err);
+    }
+};
+
 // The text shown for a choice, which may be a bare value or a {name, value}.
 const labelOf = (choice) =>
     typeof choice === 'object' && choice !== null ? choice.name : String(choice);
@@ -227,11 +259,28 @@ export const askQuestions = async (specs, ctx = {}, { runtime = defaultRuntime }
             runtime.write(`  ${theme.style.help(asked.hint)}\n`);
         }
 
-        const raw = await runtime.ask(asked, configFor(asked, choices, theme));
+        for (;;) {
+            const raw = await runtime.ask(asked, configFor(asked, choices, theme));
 
-        // Answers are written back as we go, so a later question's `when` or
-        // `choices` sees everything said so far.
-        answers[spec.key] = asked.type === 'list' ? splitEntries(raw) : raw;
+            // Answers are written back as we go, so a later question's `when` or
+            // `choices` sees everything said so far.
+            answers[spec.key] = asked.type === 'list' ? splitEntries(raw) : raw;
+
+            if (!spec.probe) {
+                break;
+            }
+
+            const failure = await runProbe(spec, context);
+
+            if (!failure) {
+                break;
+            }
+
+            // Re-ask this question rather than carrying on. A wrong credential
+            // has to be reported where it was typed: the alternative is what the
+            // CLI does today, failing after every other answer has been given.
+            runtime.write(`  ${theme.style.error(failure)}\n`);
+        }
     }
 
     return answers;
