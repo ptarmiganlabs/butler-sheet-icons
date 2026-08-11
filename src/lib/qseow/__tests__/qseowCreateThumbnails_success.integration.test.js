@@ -1,8 +1,11 @@
 import { test, expect } from '@jest/globals';
 import 'dotenv/config';
+import winston from 'winston';
+import { Writable } from 'node:stream';
 
 import { qseowCreateThumbnails } from '../qseow-create-thumbnails.js';
 import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { logger } from '../../../globals.js';
 
 const defaultTestTimeout = getTestTimeout(process.env);
 
@@ -83,8 +86,27 @@ test(
             ],
         });
 
-        const data = await qseowCreateThumbnails(options);
+        const capturedErrors = [];
+        const capture = new winston.transports.Stream({
+            level: 'error',
+            stream: new Writable({
+                write(chunk, _encoding, callback) {
+                    capturedErrors.push(String(chunk));
+                    callback();
+                },
+            }),
+        });
+        logger.add(capture);
+
+        let data;
+        try {
+            data = await qseowCreateThumbnails(options);
+        } finally {
+            logger.remove(capture);
+        }
+
         expect(data).toBe(true);
+        expect(capturedErrors.join('\n')).toBe('');
     },
     defaultTestTimeout
 );

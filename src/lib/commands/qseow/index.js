@@ -2,6 +2,7 @@ import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
 import { QSEOW_SHEET_PARTS } from '../../qseow/sheet-parts.js';
+import { DEFAULT_QSEOW_SENSE_VERSION, QSEOW_SENSE_VERSIONS } from '../../qseow/qseow-selectors.js';
 import {
     VERSION_RECOMMENDED,
     describeBrowserVersionOption,
@@ -321,20 +322,8 @@ const buildQseowCommand = () => {
         )
         .addOption(
             new Option('--sense-version <version>', 'Version of the QSEoW server to connect to')
-                .choices([
-                    'pre-2022-Nov',
-                    '2022-Nov',
-                    '2023-Feb',
-                    '2023-May',
-                    '2023-Aug',
-                    '2023-Nov',
-                    '2024-Feb',
-                    '2024-May',
-                    '2024-Nov',
-                    '2025-May',
-                    '2025-Nov',
-                ])
-                .default('2025-Nov')
+                .choices(QSEOW_SENSE_VERSIONS)
+                .default(DEFAULT_QSEOW_SENSE_VERSION)
                 .env('BSI_QSEOW_CST_SENSE_VERSION')
         )
         .addOption(

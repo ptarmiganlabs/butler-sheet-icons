@@ -19,6 +19,8 @@ import { createAppImageDir } from '../util/image-dir.js';
 import { qrsFilterAnyOf, qrsPathWithFilter, toFilterValueList } from './qrs-filter.js';
 import { qrsGetList } from './qrs-response.js';
 import { QSEOW_SHEET_PART_SELECTORS } from './sheet-parts.js';
+import { qseowLogout } from './qseow-logout.js';
+import { getQseowHubSelectors } from './qseow-selectors.js';
 
 /**
  * Looks up the sheets in an app that carry any of the supplied tags.
@@ -83,55 +85,6 @@ const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
 const selectorLoginPageLoginButton = '#loginbtn';
 
-const xpathHubUserPageButtonPre2022Nov = 'xpath/.//*[@id="hub-sidebar"]/div[1]/div[1]/div/div/div';
-const xpathLogoutButtonPre2022Nov =
-    'xpath/.//*[@id="q-hub-user-popover-override"]/ng-transclude/div[2]/button';
-
-const xpathHubUserPageButton2022Nov =
-    'xpath/.//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button';
-const xpathLogoutButton2022Nov =
-    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
-
-const xpathHubUserPageButton2023Feb =
-    'xpath/.//*[@id="q-hub-toolbar"]/header/div/div[5]/div/div/div/button/span/span';
-const xpathLogoutButton2023Feb =
-    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[5]/span[2]';
-
-const xpathHubUserPageButton2023May =
-    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
-const xpathLogoutButton2023May =
-    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
-
-const xpathHubUserPageButton2023Aug =
-    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
-const xpathLogoutButton2023Aug =
-    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
-
-const xpathHubUserPageButton2023Nov =
-    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
-const xpathLogoutButton2023Nov =
-    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
-
-const xpathHubUserPageButton2024Feb =
-    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
-const xpathLogoutButton2024Feb =
-    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
-
-const xpathHubUserPageButton2024Nov =
-    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
-const xpathLogoutButton2024Nov =
-    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[6]/span[2]';
-
-const xpathHubUserPageButton2025May =
-    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
-const xpathLogoutButton2025May =
-    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[4]/span[2]';
-
-const xpathHubUserPageButton2025Nov =
-    'xpath/.//*[@id="q-hub-toolbar"]/div[2]/div[5]/div/div/div/button/span/span';
-const xpathLogoutButton2025Nov =
-    'xpath/.//*[@id="q-hub-menu-override"]/ng-transclude/ul/li[5]/span[2]';
-
 /**
  * Processes a Qlik Sense Enterprise on Windows (QSEoW) application to generate
  * and manage thumbnails for app sheets. It handles browser setup, logging in,
@@ -167,50 +120,16 @@ export const qseowProcessApp = async (appId, options) => {
         pageTimeout = options.browserPageTimeout * 1000; // Convert to milliseconds
     }
 
-    // Get correct XPaths to UI elements (user menu, logout button etc) in the Sense web UI
-    // As Qlik update their Sense web client these xpaths may/will change.
-    let xpathHubUserPageButton;
-    let xpathLogoutButton;
-
-    if (options.senseVersion === 'pre-2022-Nov') {
-        xpathHubUserPageButton = xpathHubUserPageButtonPre2022Nov;
-        xpathLogoutButton = xpathLogoutButtonPre2022Nov;
-    } else if (options.senseVersion === '2022-Nov') {
-        xpathHubUserPageButton = xpathHubUserPageButton2022Nov;
-        xpathLogoutButton = xpathLogoutButton2022Nov;
-    } else if (options.senseVersion === '2023-Feb') {
-        xpathHubUserPageButton = xpathHubUserPageButton2023Feb;
-        xpathLogoutButton = xpathLogoutButton2023Feb;
-    } else if (options.senseVersion === '2023-May') {
-        xpathHubUserPageButton = xpathHubUserPageButton2023May;
-        xpathLogoutButton = xpathLogoutButton2023May;
-    } else if (options.senseVersion === '2023-Aug') {
-        xpathHubUserPageButton = xpathHubUserPageButton2023Aug;
-        xpathLogoutButton = xpathLogoutButton2023Aug;
-    } else if (options.senseVersion === '2023-Nov') {
-        xpathHubUserPageButton = xpathHubUserPageButton2023Nov;
-        xpathLogoutButton = xpathLogoutButton2023Nov;
-    } else if (options.senseVersion === '2024-Feb') {
-        xpathHubUserPageButton = xpathHubUserPageButton2024Feb;
-        xpathLogoutButton = xpathLogoutButton2024Feb;
-    } else if (options.senseVersion === '2024-May') {
-        xpathHubUserPageButton = xpathHubUserPageButton2024Feb;
-        xpathLogoutButton = xpathLogoutButton2024Feb;
-    } else if (options.senseVersion === '2024-Nov') {
-        xpathHubUserPageButton = xpathHubUserPageButton2024Nov;
-        xpathLogoutButton = xpathLogoutButton2024Nov;
-    } else if (options.senseVersion === '2025-May') {
-        xpathHubUserPageButton = xpathHubUserPageButton2025May;
-        xpathLogoutButton = xpathLogoutButton2025May;
-    } else if (options.senseVersion === '2025-Nov') {
-        xpathHubUserPageButton = xpathHubUserPageButton2025Nov;
-        xpathLogoutButton = xpathLogoutButton2025Nov;
-    } else {
+    // The version-specific user-menu selector is only needed if the API logout fallback runs. The
+    // logout item itself is selected by its stable `tid`, not by its position in the menu.
+    const hubSelectors = getQseowHubSelectors(options.senseVersion);
+    if (!hubSelectors) {
         logger.error(
             `CREATE QSEoW THUMBNAILS: Invalid Sense version specified as parameter when starting Butler Sheet Icons: "${options.senseVersion}"`
         );
         throw new QseowError(`Invalid QSEoW Sense version specified: ${options.senseVersion}`);
     }
+    const { userMenuButton: xpathHubUserPageButton, legacyLogoutButton } = hubSelectors;
 
     // Create image directory for this app
     let blurFailures = 0;
@@ -539,86 +458,23 @@ export const qseowProcessApp = async (appId, options) => {
                             iSheetNum += 1;
                         }
 
-                        logger.verbose(
-                            `QSEoW APP: Done creating thumbnails. Opening hub at ${hubUrl}`
+                        logger.verbose(`QSEoW APP: Done creating thumbnails`);
+
+                        // The API path avoids a version- and privilege-dependent hub menu. The
+                        // fallback remains available for virtual proxies or authentication modes
+                        // that do not accept the browser-side QPS DELETE.
+                        await qseowLogout(
+                            page,
+                            {
+                                prefix: options.prefix,
+                                hubUrl,
+                                pageTimeout,
+                                pagewait: options.pagewait,
+                                senseVersion: options.senseVersion,
+                            },
+                            xpathHubUserPageButton,
+                            legacyLogoutButton
                         );
-
-                        try {
-                            // Log out
-                            await Promise.all([
-                                page.goto(hubUrl, {
-                                    waitUntil: 'networkidle2',
-                                    timeout: pageTimeout,
-                                }),
-                            ]);
-                        } catch (err) {
-                            if (err.stack) {
-                                logger.error(
-                                    `QSEOW: Could not open hub after generating thumbnail images (stack): ${err.stack}`
-                                );
-                            } else if (err.message) {
-                                logger.error(
-                                    `QSEOW: Could not open hub after generating thumbnail images (message): ${err.message}`
-                                );
-                            } else {
-                                logger.error(
-                                    `QSEOW: Could not open hub after generating thumbnail images: ${err}`
-                                );
-                            }
-                        }
-
-                        let elementHandle;
-                        try {
-                            // wait for user button to become visible, then click it to open the user menu
-                            await page.waitForSelector(xpathHubUserPageButton);
-                            // evaluate XPath expression of the target selector (it returns array of ElementHandle)
-                            elementHandle = await page.$$(xpathHubUserPageButton);
-
-                            await sleep(options.pagewait * 1000);
-
-                            // Click user button and wait for page to load
-                            await Promise.all([elementHandle[0].click()]);
-                        } catch (err) {
-                            if (err.stack) {
-                                logger.error(
-                                    `QSEOW: Error waiting for, or clicking, user button in hub default view (stack): ${err.stack}`
-                                );
-                            } else if (err.message) {
-                                logger.error(
-                                    `QSEOW: Error waiting for, or clicking, user button in hub default view (message): ${err.message}`
-                                );
-                            } else {
-                                logger.error(
-                                    `QSEOW: Error waiting for, or clicking, user button in hub default view: ${err}`
-                                );
-                            }
-                        }
-
-                        try {
-                            // Wait for logout button to become visible, then click it
-                            await page.waitForSelector(xpathLogoutButton);
-                            elementHandle = await page.$$(xpathLogoutButton);
-
-                            await sleep(options.pagewait * 1000);
-
-                            // Click logout button and wait for page to load
-                            await Promise.all([elementHandle[0].click()]);
-                            await sleep(options.pagewait * 1000);
-                        } catch (err) {
-                            if (err.stack) {
-                                logger.error(
-                                    `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu (stack): ${err.stack}`
-                                );
-                            } else if (err.message) {
-                                logger.error(
-                                    `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu (message): ${err.message}`
-                                );
-                            } else {
-                                logger.error(
-                                    `QSEOW: Error while waiting for, or clicking, logout button in hub's user menu: ${err}`
-                                );
-                            }
-                        }
                     } finally {
                         await closeBrowserQuietly(browser, 'QSEOW');
                     }
