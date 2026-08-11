@@ -50,14 +50,19 @@ const ASSIGNMENT = /^(\s*(?:export\s+)?)([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/;
  *
  * @returns {{text: string, eol: string}[]} One entry per line.
  */
-const toLines = (text) =>
-    text
-        .split('\n')
-        .map((line) =>
-            line.endsWith('\r')
-                ? { text: line.slice(0, -1), eol: '\r\n' }
-                : { text: line, eol: '\n' }
-        );
+const toLines = (text) => {
+    const parts = text.split('\n');
+
+    return parts.map((line, index) => {
+        // Split consumes every newline, so only the final part can have lacked
+        // one. That distinction matters for working out the file's convention.
+        const terminated = index < parts.length - 1;
+
+        return line.endsWith('\r')
+            ? { text: line.slice(0, -1), eol: '\r\n', terminated }
+            : { text: line, eol: '\n', terminated };
+    });
+};
 
 /**
  * The line ending a file predominantly uses, for lines being added to it.
@@ -71,7 +76,9 @@ const toLines = (text) =>
  * @returns {string} `'\r\n'` or `'\n'`.
  */
 const dominantEol = (lines) => {
-    const real = lines.filter((line) => line.text !== '');
+    // A line with no terminator carries no evidence either way, and counting it
+    // as LF made a CRLF file whose last line lacks a newline come out as LF.
+    const real = lines.filter((line) => line.text !== '' && line.terminated);
 
     return real.filter((line) => line.eol === '\r\n').length > real.length / 2 ? '\r\n' : '\n';
 };
@@ -104,9 +111,34 @@ const opensQuote = (fragment) => {
  *
  * @returns {number|undefined} Index of the closing line, or undefined when it never closes.
  */
+/**
+ * Whether a line ends a quoted value that opened earlier.
+ *
+ * @param {string} text - The line's text, without its ending.
+ * @param {string} quote - The quote character that opened the value.
+ *
+ * @returns {boolean} True when the value closes on this line.
+ */
+const closesQuote = (text, quote) => {
+    const at = text.indexOf(quote);
+
+    if (at === -1) {
+        return false;
+    }
+
+    // Only whitespace or a comment may follow the closing quote. Checked against
+    // dotenv: `B=two"` after an opening quote is absorbed into the value, while
+    // `OTHER=say "hi` stays a separate setting - so a quote with content after
+    // it does not close anything, and treating it as a closer deletes a real
+    // setting when the value is replaced.
+    const rest = text.slice(at + 1).trim();
+
+    return rest === '' || rest.startsWith('#');
+};
+
 const findClosingLine = (lines, start, quote) => {
     for (let index = start + 1; index < lines.length; index += 1) {
-        if (lines[index].text.includes(quote)) {
+        if (closesQuote(lines[index].text, quote)) {
             return index;
         }
     }
@@ -212,26 +244,39 @@ export const mergeEnvContents = (current, assignments) => {
     const missing = assignments.filter((entry) => !located.has(entry.name));
 
     if (missing.length > 0) {
-        // Trailing blank lines are dropped before appending so the additions do
-        // not drift further from the content each time the file is saved.
-        while (out.length > 0 && out[out.length - 1].text.trim() === '') {
-            out.pop();
-        }
+        const newLines = missing.map((entry) => ({ text: entry.line, eol }));
+        const headerAt = out.findIndex((line) => line.text.trim() === ADDED_HEADER);
 
-        // Only once. Saving a second command's settings into the same file would
-        // otherwise stack a fresh blank line and header above each batch.
-        if (!out.some((line) => line.text.trim() === ADDED_HEADER)) {
-            out.push({ text: '', eol }, { text: ADDED_HEADER, eol });
-        }
+        added.push(...missing.map((entry) => entry.name));
 
-        for (const entry of missing) {
-            out.push({ text: entry.line, eol });
-            added.push(entry.name);
+        if (headerAt === -1) {
+            // Trailing blank lines are dropped before appending so the additions
+            // do not drift further from the content on each save.
+            while (out.length > 0 && out[out.length - 1].text.trim() === '') {
+                out.pop();
+            }
+
+            out.push({ text: '', eol }, { text: ADDED_HEADER, eol }, ...newLines);
+        } else {
+            // Directly under the header, rather than after the lines that
+            // follow it - those are not necessarily the wizard's, and appending
+            // at the end leaves later settings orphaned beneath whatever
+            // happened to be last with nothing saying where they came from.
+            out.splice(headerAt + 1, 0, ...newLines);
         }
     }
 
     const contents = out
-        .map((line, index) => (index === out.length - 1 ? line.text : `${line.text}${line.eol}`))
+        .map((line, index) => {
+            if (index === out.length - 1) {
+                return line.text;
+            }
+
+            // A line that had no terminator gains one only because something was
+            // appended after it, so it takes the file's convention rather than
+            // the placeholder its own entry carries.
+            return `${line.text}${line.terminated === false ? eol : line.eol}`;
+        })
         .join('');
     const trailing = out.length > 0 ? out[out.length - 1].eol : eol;
 

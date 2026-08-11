@@ -65,6 +65,26 @@ describe('adding what is not there', () => {
         expect(parse(contents)).toEqual({ EXISTING: 'x', NEW: 'y' });
     });
 
+    test('adds under the header when the file already has one', () => {
+        // Writing the header once but appending at the end leaves later settings
+        // orphaned beneath whatever happened to be last, with nothing saying
+        // where they came from.
+        const current =
+            ['# Added by the Butler Sheet Icons wizard', "A='1'", 'ZZZ=unrelated'].join('\n') +
+            '\n';
+
+        const { contents } = apply(current, [{ name: 'B', line: "B='2'" }]);
+        const lines = contents.trimEnd().split('\n');
+
+        expect(lines).toEqual([
+            '# Added by the Butler Sheet Icons wizard',
+            "B='2'",
+            "A='1'",
+            'ZZZ=unrelated',
+        ]);
+        expect(contents.match(/Added by/g)).toHaveLength(1);
+    });
+
     test('reports updates and additions separately, so the caller can say which', () => {
         const { updated, added } = apply('A=old\n', [
             { name: 'A', line: "A='new'" },
@@ -154,6 +174,41 @@ describe('malformed and Windows files', () => {
         const { contents } = apply('OWNED=old\n', [{ name: 'OWNED', line: "OWNED='new'" }]);
 
         expect(contents).not.toContain('\r');
+    });
+
+    test('a quote in an unrelated setting does not make it deletable', () => {
+        // dotenv only ends a quoted value at a quote with nothing but whitespace
+        // or a comment after it - `OTHER=say "hi` stays a separate setting. So a
+        // scan that stops at any quote absorbs it into the previous value's
+        // range and deletes it when that value is replaced.
+        const current =
+            [`OWNED=${DQ}line one`, `OTHER=say ${DQ}hi`, 'THIRD=keep me'].join('\n') + '\n';
+
+        const { contents } = apply(current, [{ name: 'OWNED', line: "OWNED='new'" }]);
+
+        expect(contents).toContain(`OTHER=say ${DQ}hi`);
+        expect(contents).toContain('THIRD=keep me');
+    });
+
+    test('a genuine multiline value is still consumed whole', () => {
+        // The other half of the same rule, and the case a naive "stop at a line
+        // that looks like an assignment" fix would break: dotenv reads this as
+        // one value of `line one\nB=two`.
+        const current = [`A=${DQ}line one`, `B=two${DQ}`, 'C=3'].join('\n') + '\n';
+
+        const { contents } = apply(current, [{ name: 'A', line: "A='new'" }]);
+
+        expect(contents).not.toContain('B=two');
+        expect(parse(contents)).toEqual({ A: 'new', C: '3' });
+    });
+
+    test('a CRLF file with no trailing newline still gets CRLF additions', () => {
+        // A line with no terminator carries no evidence of the convention, and
+        // counting it as LF made this file come out mixed.
+        const { contents } = apply('OWNED=old\r\nOTHER=x', [{ name: 'NEW', line: "NEW='y'" }]);
+
+        expect(contents).toContain("NEW='y'\r\n");
+        expect(contents).not.toMatch(/[^\r]\n/);
     });
 
     test('a CRLF file gains new settings with CRLF endings too', () => {
