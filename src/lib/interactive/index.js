@@ -8,11 +8,14 @@ import { defaultRuntime } from './prompt-runtime.js';
 import { buildTheme } from './theme.js';
 import { getSymbols } from './symbols.js';
 import { loadWizard } from './registry.js';
+import { formatReviewTable } from './review-table.js';
+import { saveEnvFile, ENV_FILE } from './save-env-file.js';
 
 /** What the review step can decide. */
 const REVIEW_CHOICES = [
     { name: 'Run it', value: 'run' },
     { name: 'Start over', value: 'restart' },
+    { name: `Save the answers to ${ENV_FILE}`, value: 'save' },
     { name: 'Cancel', value: 'cancel' },
 ];
 
@@ -40,6 +43,16 @@ const review = async ({ path, specs, answers, runtime, theme, symbols }) => {
     const envLines = formatSecretEnvVars(specs, answers);
 
     runtime.write(`\n${symbols.rule.repeat(2)} Review ${symbols.rule.repeat(38)}\n`);
+
+    // The table first, because it answers "what is about to happen" in terms of
+    // the thing being changed. The command line answers "how would I repeat
+    // this", which is the second question, not the first.
+    const summary = formatReviewTable(specs, answers);
+
+    if (summary) {
+        runtime.write(`\n${summary}`);
+    }
+
     runtime.write('\n  Equivalent command:\n');
     runtime.write(`  ${line}\n`);
 
@@ -67,6 +80,7 @@ const review = async ({ path, specs, answers, runtime, theme, symbols }) => {
  * @param {string} args.path - Command path, e.g. `browser uninstall`.
  * @param {object} [args.presetOptions] - Answers already known, used as starting values.
  * @param {object} [args.runtime] - Prompt runtime. Injectable for tests.
+ * @param {string} [args.cwd] - Directory a saved `.env` is written to. Injectable for tests.
  *
  * @returns {Promise<boolean>} `true` when the command ran and succeeded, or when the user cancelled.
  */
@@ -74,6 +88,7 @@ export const runInteractive = async ({
     path,
     presetOptions = {},
     runtime = defaultRuntime,
+    cwd = process.cwd(),
 } = {}) => {
     const wizard = await loadWizard(path);
     const command = leafCommandAt(path);
@@ -124,7 +139,49 @@ export const runInteractive = async ({
             ...(wizard.finalize ? wizard.finalize(raw, { specs }) : raw),
         };
 
-        const decision = await review({ path, specs, answers, runtime, theme, symbols });
+        let decision;
+
+        // Inner loop, so saving returns to the review rather than to the first
+        // question. Saving is a step on the way to running, not an alternative
+        // to it - being made to answer everything again in order to run what was
+        // just described would be absurd.
+        for (;;) {
+            decision = await review({ path, specs, answers, runtime, theme, symbols });
+
+            if (decision !== 'save') {
+                break;
+            }
+
+            // Saving is optional, so a filesystem that will not cooperate must
+            // not cost the operator the answers they have just given. Without
+            // this, a read-only directory unwinds all the way out of the wizard
+            // through runCommand and every answer is lost - for a step they
+            // could have skipped.
+            let saved;
+
+            try {
+                saved = await saveEnvFile({
+                    commandPath: path,
+                    specs,
+                    answers,
+                    runtime,
+                    theme,
+                    cwd,
+                });
+            } catch (err) {
+                runtime.write(
+                    `\n  ${symbols.failed} Could not save: ${err?.message ?? err}\n  ${theme.style.help('Your answers are still here - choose Run it, or try saving again.')}\n`
+                );
+
+                continue;
+            }
+
+            runtime.write(
+                saved.saved
+                    ? `\n  ${symbols.done} Saved to ${saved.path}${saved.includedSecrets ? '' : ' (credentials left out)'}${saved.backupPath ? `\n  ${symbols.done} Previous contents kept in ${saved.backupPath}` : ''}\n`
+                    : `\n  ${symbols.failed} Not saved. ${ENV_FILE} was left as it was.\n`
+            );
+        }
 
         if (decision === 'cancel') {
             logger.info('Cancelled. Nothing was changed.');
@@ -142,7 +199,12 @@ export const runInteractive = async ({
 
         // Prompting is over, so winston owns the terminal again from here.
         const result = await wizard.run(options);
+        const ok = result !== false;
 
-        return result !== false;
+        runtime.write(
+            `\n${ok ? `${symbols.done} Done` : `${symbols.failed} The run reported a failure - the log above says which apps and why`}\n`
+        );
+
+        return ok;
     }
 };
