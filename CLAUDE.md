@@ -1,4 +1,5 @@
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus MCP tools to understand code, assess impact, and navigate safely. Read `gitnexus://repo/butler-sheet-icons/context` for live index statistics.
@@ -28,29 +29,30 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 
 ## Resources
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/butler-sheet-icons/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/butler-sheet-icons/clusters` | All functional areas |
-| `gitnexus://repo/butler-sheet-icons/processes` | All execution flows |
-| `gitnexus://repo/butler-sheet-icons/process/{name}` | Step-by-step execution trace |
+| Resource                                            | Use for                                  |
+| --------------------------------------------------- | ---------------------------------------- |
+| `gitnexus://repo/butler-sheet-icons/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/butler-sheet-icons/clusters`       | All functional areas                     |
+| `gitnexus://repo/butler-sheet-icons/processes`      | All execution flows                      |
+| `gitnexus://repo/butler-sheet-icons/process/{name}` | Step-by-step execution trace             |
 
 ## CLI
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-| Work in the Cloud area | `.claude/skills/generated/cloud/SKILL.md` |
-| Work in the Browser area | `.claude/skills/generated/browser/SKILL.md` |
-| Work in the Qscloud area | `.claude/skills/generated/qscloud/SKILL.md` |
-| Work in the Qseow area | `.claude/skills/generated/qseow/SKILL.md` |
-| Work in the Util area | `.claude/skills/generated/util/SKILL.md` |
-| Work in the Diag area | `.claude/skills/generated/diag/SKILL.md` |
+| Task                                         | Read this skill file                                        |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
+| Work in the Cloud area                       | `.claude/skills/generated/cloud/SKILL.md`                   |
+| Work in the Browser area                     | `.claude/skills/generated/browser/SKILL.md`                 |
+| Work in the Interactive area                 | `.claude/skills/generated/interactive/SKILL.md`             |
+| Work in the Qscloud area                     | `.claude/skills/generated/qscloud/SKILL.md`                 |
+| Work in the Qseow area                       | `.claude/skills/generated/qseow/SKILL.md`                   |
+| Work in the Util area                        | `.claude/skills/generated/util/SKILL.md`                    |
+| Work in the Diag area                        | `.claude/skills/generated/diag/SKILL.md`                    |
 
 <!-- gitnexus:end -->
 
@@ -91,6 +93,6 @@ When a commit is authorised:
 
 - **MUST group changes by topic** — one commit per logical change, not one commit listing everything. Split a mixed working tree rather than writing a catch-all message.
 - **MUST use Conventional Commits** (`type: subject`). This is functional: release-please derives the changelog and version bump from the type — `feat` minor, `fix` patch, `feat!` or a `BREAKING CHANGE:` footer major. Configured types are `feat`, `fix`, `chore`, `docs`, `build`, `refactor` (hidden from the changelog).
-- **MUST NOT give a pull request a Conventional Commits title** — commit subjects use `type: subject`, PR titles are ordinary sentences. PRs land as merge commits and GitHub copies the PR title into the merge commit *body*; release-please cannot parse the merge subject, falls back to the body, and emits a **duplicate changelog entry**. That is why the 4.0.0 release PR listed 154 entries for 128 real changes. If a conventional PR title is unavoidable, merge with `gh pr merge --merge --body ""` — but the title rule is the one that also covers merges done in the web UI.
+- **MUST NOT give a pull request a Conventional Commits title** — commit subjects use `type: subject`, PR titles are ordinary sentences. PRs land as merge commits and GitHub copies the PR title into the merge commit _body_; release-please cannot parse the merge subject, falls back to the body, and emits a **duplicate changelog entry**. That is why the 4.0.0 release PR listed 154 entries for 128 real changes. If a conventional PR title is unavoidable, merge with `gh pr merge --merge --body ""` — but the title rule is the one that also covers merges done in the web UI.
 
 See `AGENTS.md` for the full set of repository conventions.
