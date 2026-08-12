@@ -50,7 +50,7 @@ const buildBrowserListAvailableCommand = () => {
         .addOption(
             new Option(
                 '--browser <browser>',
-                'Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+                'Browser to list available versions for (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser install" to install one of them.'
             )
                 .choices(['chrome', 'firefox'])
                 .default('chrome')
@@ -58,8 +58,8 @@ const buildBrowserListAvailableCommand = () => {
         )
         .addOption(
             new Option(
-                '--channel <browser>',
-                "Which of the browser's release channel versions should be listed?\n This option is only used for Chrome."
+                '--channel <channel>',
+                "Which of the browser's release channel versions should be listed? This option is only used for Chrome."
             )
                 .choices(['stable', 'beta', 'dev', 'canary'])
                 .default('stable')

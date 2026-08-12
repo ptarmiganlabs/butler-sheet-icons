@@ -1179,4 +1179,88 @@ describe('option keys match the property names the code reads (issue #890)', () 
             expect(declaredNames().size).toBeGreaterThan(30);
         });
     });
+
+    describe('option argument placeholders', () => {
+        // `browser list-available` declared `--channel <browser>` for a long time. Commander
+        // takes the stored name from the long flag, so nothing broke and no test failed - it
+        // only ever showed up as a confusing `--help` line, which is exactly the kind of defect
+        // nobody reads closely enough to catch. Generating the doc site's option tables from
+        // these declarations put it on a page, where it was obvious.
+        //
+        // A placeholder naming a *different* option of the same command is the signature of an
+        // option block copy-pasted and not fully edited - but only when it has nothing to do
+        // with its own option. `--engineport <port>` and `--qrsport <port>` sit beside a
+        // `--port` on the qseow command and are perfectly clear, because each placeholder
+        // describes the value that option takes. `--channel <browser>` does not.
+        // Walked here rather than through command-tree.js: importing that statically would pull
+        // the real worker modules in before this file's mocks are installed.
+        const everyLeaf = () => {
+            const leaves = [];
+
+            const walk = (command, path) => {
+                if (command.commands.length === 0) {
+                    leaves.push({ path: path.join(' '), command });
+
+                    return;
+                }
+
+                for (const child of command.commands) {
+                    walk(child, [...path, child.name()]);
+                }
+            };
+
+            for (const namespace of [
+                buildQseowCommand(),
+                buildQscloudCommand(),
+                buildBrowserCommand(),
+            ]) {
+                walk(namespace, [namespace.name()]);
+            }
+
+            return leaves;
+        };
+
+        test('no placeholder is named after a different option on the same command', () => {
+            const offenders = [];
+
+            for (const { path, command } of everyLeaf()) {
+                const names = new Set(
+                    command.options
+                        .filter((option) => option.long)
+                        .map((option) => option.long.replace(/^--/, ''))
+                );
+
+                for (const option of command.options) {
+                    const placeholder = option.flags
+                        .match(/[<[]([^>\]]+)[>\]]/)?.[1]
+                        ?.replace(/\.\.\.$/, '');
+                    const own = option.long?.replace(/^--/, '');
+
+                    // `own.includes(placeholder)` is the "describes its own option" test:
+                    // `port` is part of `engineport`, `browser` is no part of `channel`.
+                    if (
+                        placeholder &&
+                        placeholder !== own &&
+                        names.has(placeholder) &&
+                        !own?.includes(placeholder)
+                    ) {
+                        offenders.push(
+                            `${path}: ${option.flags} (placeholder names --${placeholder})`
+                        );
+                    }
+                }
+            }
+
+            expect(offenders).toEqual([]);
+        });
+
+        test('the scan actually walked some options, so an empty pass is not a false negative', () => {
+            const optionCount = everyLeaf().reduce(
+                (total, { command }) => total + command.options.length,
+                0
+            );
+
+            expect(optionCount).toBeGreaterThan(30);
+        });
+    });
 });
