@@ -64,6 +64,11 @@ export const withEngineSession = async (configEnigma, ctx, fn) => {
     let bodyFailed = false;
     let bodyError;
 
+    // Set immediately before the close below, so the `closed` handler can tell a session we
+    // released from one that went away underneath us. See the handler for why enigma cannot
+    // tell us that itself.
+    let closeRequested = false;
+
     try {
         // Inside the try, so that nothing between create and close can leak the session -
         // attaching a handler is not expected to throw, but the point of this helper is that
@@ -75,19 +80,30 @@ export const withEngineSession = async (configEnigma, ctx, fn) => {
             );
         }
 
-        // enigma emits this only for a close nobody here asked for: it returns early on a
-        // normal close and on a manual suspend, so a healthy run never logs this line.
+        // Only for a close nobody here asked for. `closeRequested` is what makes that true:
+        // enigma has two paths to this event and only one of them filters.
         //
-        // It is worth a line of its own because it fires when the socket dies, whereas the
-        // error surfaces later - up to 40 s later in the screenshot paths, which use the
+        //   - `onRpcClosed`, the socket-died path, returns early on code 1000 and on a manual
+        //     suspend. This is the path the guard below was once thought to be unnecessary for.
+        //   - `session.close()` ends `this.rpc.close(...).then((evt) => this.emit('closed', evt))`
+        //     - unconditional, with the default code 1000. Every deliberate release therefore
+        //     emitted this warning, and every healthy run said the session had been closed from
+        //     the other end and that whatever used it would now fail. Neither was true: one
+        //     warning per session, two per app on the screenshot paths, on runs that worked.
+        //
+        // Worth a line of its own when it is real, because it fires when the socket dies whereas
+        // the error surfaces later - up to 40 s later in the screenshot paths, which use the
         // engine once per sheet and spend the rest of the time in the browser. Issue #975 is
-        // that gap: the log showed sheets failing with `Not connected` long after the event,
-        // and nothing recorded the close code that would say what closed the connection.
-        session.on('closed', (evt) =>
+        // that gap: the log showed sheets failing with `Not connected` long after the event, and
+        // nothing recorded the close code that would say what closed the connection. A warning
+        // that also fires on every success is no use for that.
+        session.on('closed', (evt) => {
+            if (closeRequested) return;
+
             logger.warn(
                 `${logPrefix}: The engine session to ${connectionLabel} was closed from the other end, code ${evt?.code}${evt?.reason ? `, reason "${evt.reason}"` : ''}. Whatever is still using this session will fail from here on.`
-            )
-        );
+            );
+        });
 
         const global = await session.open();
 
@@ -108,6 +124,7 @@ export const withEngineSession = async (configEnigma, ctx, fn) => {
 
     try {
         // enigma.js always resolves close() truthy; a real failure rejects.
+        closeRequested = true;
         await session.close();
     } catch (closeErr) {
         if (!bodyFailed) {
