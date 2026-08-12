@@ -67,6 +67,10 @@ const config = {
         'src/lib/util/import-meta-url\\.js$',
     ],
     coverageProvider: 'v8',
+    // Restores `process.exitCode` around every test. Command handlers set it to 1 on failure and
+    // do not rethrow, so a test covering a failure path would otherwise leave the runner's own
+    // exit status at 1 with every suite reported green. See the file for the full account.
+    setupFilesAfterEnv: ['<rootDir>/src/lib/test-helpers/preserve-exit-code.js'],
     testEnvironment: 'node',
     roots: ['<rootDir>/src'],
     transform: {},
