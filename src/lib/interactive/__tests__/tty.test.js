@@ -107,7 +107,15 @@ describe('interactiveBlocker', () => {
     });
 
     test('survives streams that are missing entirely', () => {
-        expect(interactiveBlocker({ stdin: undefined, stdout: undefined, env: {} }).reason).toBe(
+        // `null` rather than `undefined`, and it has to stay that way: the
+        // parameters are declared `stdin = process.stdin, stdout =
+        // process.stdout`, and a default fires on `undefined`. Passing
+        // `undefined` therefore handed the function the real stdin, so this
+        // asserted nothing about a missing stream - it passed in CI, where
+        // stdin is not a TTY, and threw "Cannot read properties of null" for
+        // anyone running the suite from a terminal, where there is no blocker
+        // to read `.reason` from.
+        expect(interactiveBlocker({ stdin: null, stdout: null, env: {} }).reason).toBe(
             BLOCKER.STDIN_NOT_TTY
         );
     });

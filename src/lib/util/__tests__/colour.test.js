@@ -16,7 +16,15 @@ describe('isColourEnabled', () => {
 
         test('disabled when the stream is missing entirely', () => {
             // process.stdout can be undefined in exotic embeddings; never throw.
-            expect(isColourEnabled(undefined, {})).toBe(false);
+            //
+            // `null` rather than `undefined`, and it has to stay that way: the
+            // parameter is declared `stream = process.stdout`, and a default
+            // fires on `undefined`. Passing `undefined` therefore tested the
+            // real stdout rather than a missing stream, so this passed in CI -
+            // where stdout is not a TTY - and failed for anyone running the
+            // suite from a terminal. `null` skips the default and is what
+            // "missing entirely" actually looks like here.
+            expect(isColourEnabled(null, {})).toBe(false);
         });
 
         test('disabled for a dumb terminal even when it is a TTY', () => {
