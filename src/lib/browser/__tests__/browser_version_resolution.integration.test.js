@@ -1,4 +1,4 @@
-import { test, expect, describe, beforeAll, afterEach } from '@jest/globals';
+import { test, expect, describe, beforeAll, afterAll, afterEach } from '@jest/globals';
 import 'dotenv/config';
 
 import { browserInstall } from '../browser-install.js';
@@ -8,6 +8,7 @@ import { detectAvailableBrowser } from '../browser-detect.js';
 import { resolveBrowserExecutablePath } from '../browser-launch.js';
 import { resolveBrowserVersion, getRecommendedBuildId } from '../browser-version.js';
 import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { makeIsolatedCacheDir, removeIsolatedCacheDir } from '../test-helpers/isolated-cache.js';
 
 // Version resolution against the real Chrome for Testing and Firefox version services, and
 // against a real browser cache on disk. The unit suite covers the same decisions with mocks;
@@ -20,9 +21,20 @@ import { assertEnv, getTestTimeout } from '../../util/env-check.js';
 
 const defaultTestTimeout = getTestTimeout(process.env, 1800000);
 
+// The "cached browser selection" block installs real browsers and clears the cache after every
+// test, so it has to work somewhere other than the developer's own ~/.cache/puppeteer.
+const browserCacheDir = makeIsolatedCacheDir();
+
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'info',
+    browserCacheDir,
 };
+
+// File level rather than per describe: the last block installs a browser and never uninstalls it,
+// so cleanup has to outlive every describe in the file.
+afterAll(() => {
+    removeIsolatedCacheDir(browserCacheDir);
+});
 
 describe('browser version resolution', () => {
     beforeAll(() => {
@@ -117,9 +129,9 @@ describe('browser version resolution', () => {
     ])(
         'a malformed %s version "%s" is rejected up front',
         async (browser, browserVersion) => {
-            await expect(browserInstall({ browser, browserVersion })).rejects.toThrow(
-                /invalid --browser-version/i
-            );
+            await expect(
+                browserInstall({ browser, browserVersion, browserCacheDir })
+            ).rejects.toThrow(/invalid --browser-version/i);
         },
         defaultTestTimeout
     );
@@ -165,8 +177,13 @@ describe('cached browser selection', () => {
             const recommended = await browserInstall({
                 browser: 'chrome',
                 browserVersion: 'recommended',
+                browserCacheDir,
             });
-            const stable = await browserInstall({ browser: 'chrome', browserVersion: 'stable' });
+            const stable = await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'stable',
+                browserCacheDir,
+            });
 
             // Only meaningful while the two keywords point at different builds. When a puppeteer
             // bump makes them coincide there is nothing to tell apart, and the assertions below
@@ -181,10 +198,13 @@ describe('cached browser selection', () => {
             expect(installed.length).toEqual(2);
 
             const foundRecommended = await detectAvailableBrowser(
-                { browser: 'chrome' },
+                { browser: 'chrome', browserCacheDir },
                 recommended.buildId
             );
-            const foundStable = await detectAvailableBrowser({ browser: 'chrome' }, stable.buildId);
+            const foundStable = await detectAvailableBrowser(
+                { browser: 'chrome', browserCacheDir },
+                stable.buildId
+            );
 
             expect(foundRecommended.buildId).toBe(recommended.buildId);
             expect(foundStable.buildId).toBe(stable.buildId);
@@ -201,9 +221,16 @@ describe('cached browser selection', () => {
         'a build that is not cached is reported as absent',
         async () => {
             await browserUninstallAll(options);
-            await browserInstall({ browser: 'chrome', browserVersion: 'recommended' });
+            await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'recommended',
+                browserCacheDir,
+            });
 
-            const found = await detectAvailableBrowser({ browser: 'chrome' }, '99.0.1234.56');
+            const found = await detectAvailableBrowser(
+                { browser: 'chrome', browserCacheDir },
+                '99.0.1234.56'
+            );
 
             expect(found).toBeNull();
         },
@@ -219,7 +246,11 @@ describe('cached browser selection', () => {
         'a browser can be uninstalled by the recommended keyword',
         async () => {
             await browserUninstallAll(options);
-            await browserInstall({ browser: 'chrome', browserVersion: 'recommended' });
+            await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'recommended',
+                browserCacheDir,
+            });
 
             const removed = await browserUninstall({
                 ...options,
@@ -243,7 +274,11 @@ describe('cached browser selection', () => {
         'uninstall refuses a floating keyword and leaves the cache alone',
         async () => {
             await browserUninstallAll(options);
-            await browserInstall({ browser: 'chrome', browserVersion: 'recommended' });
+            await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'recommended',
+                browserCacheDir,
+            });
 
             const removed = await browserUninstall({
                 ...options,
@@ -267,10 +302,18 @@ describe('cached browser selection', () => {
         'a malformed version fails even when a browser is cached',
         async () => {
             await browserUninstallAll(options);
-            await browserInstall({ browser: 'chrome', browserVersion: 'recommended' });
+            await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'recommended',
+                browserCacheDir,
+            });
 
             await expect(
-                resolveBrowserExecutablePath({ browser: 'chrome', browserVersion: 'garbage' })
+                resolveBrowserExecutablePath({
+                    browser: 'chrome',
+                    browserVersion: 'garbage',
+                    browserCacheDir,
+                })
             ).rejects.toThrow(/invalid --browser-version/i);
         },
         defaultTestTimeout
@@ -305,11 +348,12 @@ describe('system browser override', () => {
             const installed = await browserInstall({
                 browser: 'chrome',
                 browserVersion: 'recommended',
+                browserCacheDir,
             });
             process.env.PUPPETEER_EXECUTABLE_PATH = installed.executablePath;
 
             const found = await detectAvailableBrowser(
-                { browser: 'chrome', browserVersion: '99.0.1234.56' },
+                { browser: 'chrome', browserVersion: '99.0.1234.56', browserCacheDir },
                 '99.0.1234.56'
             );
 

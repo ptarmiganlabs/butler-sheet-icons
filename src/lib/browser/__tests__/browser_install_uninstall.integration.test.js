@@ -1,15 +1,22 @@
-import { test, expect, describe, beforeAll } from '@jest/globals';
+import { test, expect, describe, beforeAll, afterAll } from '@jest/globals';
 import 'dotenv/config';
 
 import { browserInstalled } from '../browser-installed.js';
 import { browserInstall } from '../browser-install.js';
 import { browserUninstallAll } from '../browser-uninstall.js';
 import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { makeIsolatedCacheDir, removeIsolatedCacheDir } from '../test-helpers/isolated-cache.js';
 
 const defaultTestTimeout = getTestTimeout(process.env, 1800000);
 
+// Every test below opens with `browserUninstallAll` and asserts the cache is then empty. Against
+// the developer's own ~/.cache/puppeteer that assertion only held because the call had just
+// deleted whatever was there.
+const browserCacheDir = makeIsolatedCacheDir();
+
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'info',
+    browserCacheDir,
 };
 
 describe('install/uninstall browser scenarios', () => {
@@ -17,6 +24,10 @@ describe('install/uninstall browser scenarios', () => {
     // test log even though no per-test failures depend on it.
     beforeAll(() => {
         assertEnv(process.env, { informational: ['BSI_LOG_LEVEL', 'BSI_TEST_TIMEOUT'] });
+    });
+
+    afterAll(() => {
+        removeIsolatedCacheDir(browserCacheDir);
     });
 
     /**
@@ -40,6 +51,7 @@ describe('install/uninstall browser scenarios', () => {
             const browserInstallRes1 = await browserInstall({
                 browser: 'chrome',
                 browserVersion: 'recommended',
+                browserCacheDir,
             });
             expect(browserInstallRes1).toBeTruthy();
 
@@ -76,7 +88,11 @@ describe('install/uninstall browser scenarios', () => {
 
             // Install a browser
             await expect(
-                browserInstall({ browser: 'chrome', browserVersion: 'non-existent' })
+                browserInstall({
+                    browser: 'chrome',
+                    browserVersion: 'non-existent',
+                    browserCacheDir,
+                })
             ).rejects.toThrow();
 
             // There should now be zero installed browsers
@@ -105,6 +121,7 @@ describe('install/uninstall browser scenarios', () => {
             const browserInstallRes1 = await browserInstall({
                 browser: 'chrome',
                 browserVersion: '114.0.5735.133',
+                browserCacheDir,
             });
             expect(browserInstallRes1).toBeTruthy();
 
@@ -116,6 +133,7 @@ describe('install/uninstall browser scenarios', () => {
             const uninstallRes2 = await browserUninstallAll({
                 browser: 'chrome',
                 browserVersion: '114.0.5735.133',
+                browserCacheDir,
             });
             expect(uninstallRes2).toEqual(true);
 
