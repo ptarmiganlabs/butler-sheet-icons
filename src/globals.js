@@ -3,7 +3,13 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import 'dotenv/config';
+// `dotenv/config` is deliberately NOT imported here. Importing this module used to read `.env`
+// off disk as a side effect, and almost every unit test imports it transitively - so unit runs
+// executed against whatever Qlik Sense settings the developer happened to have. Because option
+// declarations bind `.env('BSI_…')`, a variable in that file changes an option's *effective*
+// default, and a test asserting "this equals the default" then asserts something different
+// locally than in CI. Three tests were patched individually for that before the cause was found.
+// The CLI entry point loads it instead; integration tests load it themselves.
 import { redactSensitivePatterns, redactValue } from './lib/util/redact-secrets.js';
 import { isColourEnabled } from './lib/util/colour.js';
 
