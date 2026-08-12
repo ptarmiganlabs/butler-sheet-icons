@@ -1,15 +1,21 @@
-import { test, expect, describe, beforeAll } from '@jest/globals';
+import { test, expect, describe, beforeAll, afterAll } from '@jest/globals';
 import 'dotenv/config';
 
 import { browserInstalled } from '../browser-installed.js';
 import { browserInstall } from '../browser-install.js';
 import { browserUninstallAll } from '../browser-uninstall.js';
 import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { makeIsolatedCacheDir, removeIsolatedCacheDir } from '../test-helpers/isolated-cache.js';
 
 const defaultTestTimeout = getTestTimeout(process.env, 1800000);
 
+// Everything below installs and uninstalls real browsers, and ends by emptying the cache
+// directory. Without this the target is the developer's own ~/.cache/puppeteer.
+const browserCacheDir = makeIsolatedCacheDir();
+
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'info',
+    browserCacheDir,
 };
 
 describe('complex scenarios', () => {
@@ -17,6 +23,10 @@ describe('complex scenarios', () => {
     // test log even though no per-test failures depend on it.
     beforeAll(() => {
         assertEnv(process.env, { informational: ['BSI_LOG_LEVEL', 'BSI_TEST_TIMEOUT'] });
+    });
+
+    afterAll(() => {
+        removeIsolatedCacheDir(browserCacheDir);
     });
 
     /**
@@ -48,6 +58,7 @@ describe('complex scenarios', () => {
             const browserInstallRes1 = await browserInstall({
                 browser: 'chrome',
                 browserVersion: 'recommended',
+                browserCacheDir,
             });
             expect(browserInstallRes1).toBeTruthy();
 
@@ -55,6 +66,7 @@ describe('complex scenarios', () => {
             const browserInstallRes2 = await browserInstall({
                 browser: 'chrome',
                 browserVersion: '121.0.6167.16',
+                browserCacheDir,
             });
             expect(browserInstallRes2).toBeTruthy();
 
@@ -62,12 +74,14 @@ describe('complex scenarios', () => {
             const browserInstallRes3 = await browserInstall({
                 browser: 'chrome',
                 browserVersion: '123.0.6286.0',
+                browserCacheDir,
             });
             expect(browserInstallRes3).toBeTruthy();
 
             const browserInstallRes4 = await browserInstall({
                 browser: 'firefox',
                 browserVersion: 'recommended',
+                browserCacheDir,
             });
             expect(browserInstallRes4).toBeTruthy();
 

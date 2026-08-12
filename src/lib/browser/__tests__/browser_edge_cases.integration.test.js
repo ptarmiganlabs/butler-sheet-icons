@@ -1,15 +1,21 @@
-import { test, expect, describe, beforeAll } from '@jest/globals';
+import { test, expect, describe, beforeAll, afterAll } from '@jest/globals';
 import 'dotenv/config';
 
 import { browserInstalled } from '../browser-installed.js';
 import { browserInstall } from '../browser-install.js';
 import { browserUninstallAll } from '../browser-uninstall.js';
 import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { makeIsolatedCacheDir, removeIsolatedCacheDir } from '../test-helpers/isolated-cache.js';
 
 const defaultTestTimeout = getTestTimeout(process.env, 1800000);
 
+// The concurrency test installs two browsers and then cleans up with `browserUninstallAll`,
+// which empties the whole cache directory rather than removing just those two.
+const browserCacheDir = makeIsolatedCacheDir();
+
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'info',
+    browserCacheDir,
 };
 
 describe('edge cases and error handling', () => {
@@ -20,6 +26,10 @@ describe('edge cases and error handling', () => {
     // not cause a hard failure here.
     beforeAll(() => {
         assertEnv(process.env, { informational: ['BSI_LOG_LEVEL', 'BSI_TEST_TIMEOUT'] });
+    });
+
+    afterAll(() => {
+        removeIsolatedCacheDir(browserCacheDir);
     });
 
     /**
@@ -33,7 +43,11 @@ describe('edge cases and error handling', () => {
             // be reported as a version that could not be resolved, which sends the reader after
             // the wrong option entirely.
             await expect(
-                browserInstall({ browser: 'invalid-browser', browserVersion: 'recommended' })
+                browserInstall({
+                    browser: 'invalid-browser',
+                    browserVersion: 'recommended',
+                    browserCacheDir,
+                })
             ).rejects.toThrow(/unsupported browser "invalid-browser"/i);
         },
         defaultTestTimeout
@@ -48,8 +62,16 @@ describe('edge cases and error handling', () => {
     test(
         'the legacy "latest" value still installs, and matches "stable"',
         async () => {
-            const viaLatest = await browserInstall({ browser: 'chrome', browserVersion: 'latest' });
-            const viaStable = await browserInstall({ browser: 'chrome', browserVersion: 'stable' });
+            const viaLatest = await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'latest',
+                browserCacheDir,
+            });
+            const viaStable = await browserInstall({
+                browser: 'chrome',
+                browserVersion: 'stable',
+                browserCacheDir,
+            });
 
             expect(viaLatest.buildId).toEqual(viaStable.buildId);
         },
@@ -66,7 +88,10 @@ describe('edge cases and error handling', () => {
             delete process.env.BSI_TEST_TIMEOUT;
             delete process.env.BSI_LOG_LEVEL;
 
-            const installedBrowsers = await browserInstalled({});
+            // No loglevel, which is what this test is about. The cache directory is not an
+            // environment variable and has to stay set, or the read falls back to the
+            // developer's own cache.
+            const installedBrowsers = await browserInstalled({ browserCacheDir });
             expect(installedBrowsers).toBeDefined();
         },
         defaultTestTimeout
@@ -80,8 +105,16 @@ describe('edge cases and error handling', () => {
         'concurrent browser installations',
         async () => {
             const installPromises = [
-                browserInstall({ browser: 'chrome', browserVersion: 'recommended' }),
-                browserInstall({ browser: 'firefox', browserVersion: 'recommended' }),
+                browserInstall({
+                    browser: 'chrome',
+                    browserVersion: 'recommended',
+                    browserCacheDir,
+                }),
+                browserInstall({
+                    browser: 'firefox',
+                    browserVersion: 'recommended',
+                    browserCacheDir,
+                }),
             ];
 
             const results = await Promise.all(installPromises);
