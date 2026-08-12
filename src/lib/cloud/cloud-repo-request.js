@@ -93,7 +93,13 @@ async function makeRequest(config, data = []) {
         // reading `.data` off it unguarded would throw on a response with no body.
         const body = response.data;
 
-        if (body?.data) {
+        // `Array.isArray`, not a truthiness check: a truthy `body.data` that is not iterable -
+        // `{ data: { message: 'unavailable' } }`, which is how some gateways answer 200 - made
+        // this spread throw `TypeError: body.data is not iterable` from inside the request
+        // helper, before any caller could describe what went wrong. Such a body is not a page of
+        // results, so it takes the same route as any other unrecognised response and is reported
+        // by saas-response.js instead (issue #935).
+        if (Array.isArray(body?.data)) {
             returnData = [...returnData, ...body.data];
         } else {
             returnData = { data: body, status: response.status };
