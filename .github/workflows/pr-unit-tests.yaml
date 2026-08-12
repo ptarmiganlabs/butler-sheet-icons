@@ -35,6 +35,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
+    # The jest scripts no longer pass --forceExit (issue #951), so a unit suite that genuinely
+    # leaks a handle now hangs instead of exiting. This workflow runs on every pull request, which
+    # makes it the likeliest place a newly introduced leak shows up first. Both legs are hosted, so
+    # the cost of an untimed hang is billed minutes rather than a blocked runner - but 6 hours of
+    # them, twice, with no signal. 15 minutes against a job that measures 2-4.
+    timeout-minutes: 15
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

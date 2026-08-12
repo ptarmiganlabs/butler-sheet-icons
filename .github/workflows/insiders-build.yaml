@@ -14,6 +14,12 @@ jobs:
       contents: read
       actions: write
       security-events: write
+    # The jest scripts no longer pass --forceExit (issue #951), so a unit suite that genuinely
+    # leaks a handle now hangs instead of exiting. The win and mac legs of this matrix are the
+    # self-hosted code-signing runners, so an untimed hang would hold one of them for GitHub's
+    # 6-hour default and queue every later insiders build and signed release behind it.
+    # 20 minutes is roughly 3x the slowest observed run of this job (6m34s, on win).
+    timeout-minutes: 20
     strategy:
       matrix:
         target: [win, mac, linux]

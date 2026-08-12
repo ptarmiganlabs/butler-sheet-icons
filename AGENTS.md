@@ -64,6 +64,7 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 - `npm run test:integration` — integration tests only (need real Qlik servers/certs/browsers; long-running)
 - `npm run test` — runs both `test:unit` and `test:integration`
 - `npm run test:watch` — unit tests in watch mode
+- `npm run jest:handles -- --testPathPatterns=<pattern>` — re-run a suite with `--detectOpenHandles`. Only for investigating a suite that does not exit; the flag is deliberately off by default (see `jest.config.mjs`)
 - Single test: `node --experimental-vm-modules node_modules/jest/bin/jest.js src/path/to/file.test.js`
 - `npm run format` — Prettier
 - `npm run build:macos` — produce a macOS SEA binary

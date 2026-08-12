@@ -10,6 +10,21 @@
  * - `*.integration.test.js` → integration tests (`npm run test:integration`)
  *
  * Notes:
+ * - Neither `--detectOpenHandles` nor `--forceExit` is in the `jest` script. They were, and they
+ *   worked against each other: `--forceExit` meant a suite that genuinely leaked a handle finished
+ *   in silence, exactly like one that did not. `npm run jest:handles` turns the detector back on for
+ *   an investigation.
+ *
+ *   Expect false positives when it is on. Measured for issue #951: axios pipes every compressed
+ *   response through `stream.pipeline([res, unzip])`, and Node registers a `STREAM_END_OF_STREAM`
+ *   async resource per stream in that pipeline. Some of those are never destroyed, and they carry no
+ *   `hasRef`, so Jest's collectHandles treats them as permanently active and reports them - even
+ *   though `process._getActiveHandles()` is empty and the process exits on its own. Because Jest
+ *   substitutes the *triggering* resource's stack, the report blames the `await axios(config)` call
+ *   in `src/lib/cloud/cloud-repo-request.js`, which is a red herring: the Qlik Cloud calls there are
+ *   fine, and gzip is the only reason those handles exist. Every response from a server that
+ *   compresses will do this. A hung suite is the signal worth chasing, not this report.
+ *
  * - `transform: {}` and `transformIgnorePatterns: []` are kept empty to allow
  *   the one legacy test (`butler-sheet-icons.test.js`) that still uses
  *   CJS-style `jest.mock(...)` to work. New tests should use the ESM-native

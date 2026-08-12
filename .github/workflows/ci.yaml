@@ -10,6 +10,11 @@ jobs:
   unit-tests:
     permissions:
       contents: read
+    # Same reason as the integration jobs below, and it matters more here: every one of them
+    # declares `needs: unit-tests`, so an untimed hang in the unit suite would stall the whole
+    # workflow for 6 hours and their own timeouts would never get to fire.
+    # 15 minutes against a job that measures about 2.
+    timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,6 +59,12 @@ jobs:
       - unit-tests
     permissions:
       contents: read
+    # The jest scripts no longer pass --forceExit (issue #951), so a suite that genuinely leaks a
+    # handle now hangs instead of exiting - which is the point, it makes the leak visible. Without
+    # an explicit timeout that hang would run to GitHub's 6-hour default, and on the self-hosted
+    # jobs it would hold the runner and its concurrency group for that whole time. 30 minutes is
+    # roughly 3x the slowest of these suites (measured: 1.8-10.3 min).
+    timeout-minutes: 30
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -87,6 +98,8 @@ jobs:
       - unit-tests
     permissions:
       contents: read
+    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
+    timeout-minutes: 30
     # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
     # runner that holds the signing certificate. Without it they pool across every Windows runner.
     runs-on:
@@ -136,6 +149,8 @@ jobs:
       - unit-tests
     permissions:
       contents: read
+    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
+    timeout-minutes: 30
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
@@ -185,6 +200,8 @@ jobs:
       - test-qscloud-macos
     permissions:
       contents: read
+    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
+    timeout-minutes: 30
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
@@ -244,6 +261,8 @@ jobs:
       - unit-tests
     permissions:
       contents: read
+    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
+    timeout-minutes: 30
     concurrency:
       group: bsi-qseow-${{ github.repository }}
       cancel-in-progress: false
@@ -320,6 +339,8 @@ jobs:
       - test-qseow-macos
     permissions:
       contents: read
+    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
+    timeout-minutes: 30
     concurrency:
       group: bsi-qseow-${{ github.repository }}
       cancel-in-progress: false
