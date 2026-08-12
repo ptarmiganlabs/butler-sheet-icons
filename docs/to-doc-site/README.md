@@ -40,6 +40,28 @@ When in doubt, err on the side of explaining more rather than less. Use plain la
 
 A draft may name a target page and suggest replacement text, but it is a proposal. The publishing pass below decides what actually ships.
 
+## Option tables are generated, not written
+
+Never hand-write or hand-edit a table of CLI options on the doc site. Flag names, environment variables, accepted values and defaults are all declared once in the Commander definitions under `src/lib/commands/`, and a table typed out beside them is a second copy that drifts silently — issue #849 is one page's worth of exactly that, including a default documented as `latest` that the code had never used.
+
+Generate them instead:
+
+```bash
+npm run docs:cli-tables -- --command "browser install"
+```
+
+That prints a block wrapped in `<!-- generated:cli-options ... -->` markers. Paste it into the page in place of the table. From then on the block is refreshed in place, with the prose around it untouched:
+
+```bash
+npm run docs:cli-tables -- ../butler-sheet-icons-docs/docs/reference/browser.md --write
+```
+
+Use `--check` instead of `--write` to be told whether a page is current without changing it; it exits non-zero when it is not, so it can gate a release. `--list` names every command a table can be generated for.
+
+The `Example` column is the one part not derived from the code: examples are derived only for options with a fixed set of accepted values, since any other example — a host name, a build id — would be invented. Supply the rest through `--examples <file>`, a JSON file of `{ "<command path>": { "--flag": "..." } }`.
+
+If a description reads badly on the site, fix it in the Commander definition rather than in the table. The same text is what `--help` prints, so the page and the terminal improve together.
+
 ## Processing status
 
 - Files **directly in this folder, without a prefix**, are pending review or publication.

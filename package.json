@@ -18,6 +18,7 @@
         "lint:fix": "npx eslint --fix src/",
         "format": "npx prettier --write \"src/**/*.js\"",
         "build:macos": "./build-script/build-macos.sh",
+        "docs:cli-tables": "node scripts/docs-cli-tables.js",
         "gitnexus:install": "node scripts/gitnexus.js install",
         "gitnexus:status": "node scripts/gitnexus.js status",
         "gitnexus:index": "node scripts/gitnexus.js index",
