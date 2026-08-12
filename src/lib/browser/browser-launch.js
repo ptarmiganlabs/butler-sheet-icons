@@ -306,14 +306,25 @@ const watchForUnexpectedDisconnect = (browser, buildId, logPrefix) => {
  * Anything over the launch budget is by definition time the launch timeout did not account for,
  * which makes it the natural threshold - no second number to keep in sync.
  *
- * @param {number} elapsedMs - Wall-clock time spent in `puppeteer.launch()`.
+ * That subtraction is why `timedOut` exists. When the launch times out, the budget was spent
+ * waiting exactly as designed, so it is accounted for and has to come off before asking whether
+ * anything is unexplained. Without that, every ordinary launch timeout would report itself as a
+ * stall: the measurement starts before `puppeteer.launch()` and Puppeteer's own clock starts
+ * later still, so a timeout always elapses a little over the budget, and the advice below - go
+ * reconfigure endpoint protection - would be given for a browser build that simply cannot run.
+ *
+ * @param {number} elapsedMs - Time spent in `puppeteer.launch()`, from a monotonic clock.
  * @param {string} logPrefix - Log line prefix, e.g. `'QSEOW'`.
+ * @param {object} [options] - Reporting options.
+ * @param {boolean} [options.timedOut] - Whether the launch ended in Puppeteer's own timeout.
  *
  * @returns {void}
  */
-const reportSlowLaunch = (elapsedMs, logPrefix) => {
-    if (elapsedMs <= BROWSER_LAUNCH_TIMEOUT_MS) {
-        logger.verbose(`Browser launch took ${elapsedMs} ms`);
+const reportSlowLaunch = (elapsedMs, logPrefix, { timedOut = false } = {}) => {
+    const unaccountedMs = timedOut ? elapsedMs - BROWSER_LAUNCH_TIMEOUT_MS : elapsedMs;
+
+    if (unaccountedMs <= BROWSER_LAUNCH_TIMEOUT_MS) {
+        logger.verbose(`Browser launch took ${Math.round(elapsedMs)} ms`);
         return;
     }
 
@@ -364,7 +375,11 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
     const browserArgs = await buildBrowserArgs();
 
     let browser;
-    const launchStartedAt = Date.now();
+    // performance.now() rather than Date.now(): this measures a duration, and the machines the
+    // measurement matters most on are virtualised CI runners, where an NTP step correction after
+    // a guest pause is routine. A wall clock that jumps mid-launch would invent a stall that
+    // never happened, or hide a real one behind a negative elapsed time.
+    const launchStartedAt = performance.now();
     try {
         browser = await puppeteer.launch({
             // Both timeouts match Puppeteer's own defaults; see the constants for why they are
@@ -401,20 +416,21 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
         // A launch timeout reads like any other launch failure in the log, but the remedy is
         // completely different - nothing is wrong with the arguments or the certificate setup,
         // the browser simply never reported itself ready. Say so where the distinction is known.
-        if (err?.name === 'TimeoutError') {
+        const timedOut = err?.name === 'TimeoutError';
+        if (timedOut) {
             logger.error(
                 `${logPrefix}: The browser did not become ready within ${BROWSER_LAUNCH_TIMEOUT_MS / 1000}s. It was started but never reported a debugging endpoint - usually a browser build that cannot run on this machine, or security software holding it at startup.`
             );
         }
 
-        reportSlowLaunch(Date.now() - launchStartedAt, logPrefix);
+        reportSlowLaunch(performance.now() - launchStartedAt, logPrefix, { timedOut });
 
         throw new ErrorClass(`Failed to launch virtual browser for ${appLabel} ${appId}`, {
             cause: err,
         });
     }
 
-    reportSlowLaunch(Date.now() - launchStartedAt, logPrefix);
+    reportSlowLaunch(performance.now() - launchStartedAt, logPrefix);
 
     // A browser build that Puppeteer cannot drive starts perfectly well and then dies on the first
     // command sent to it - after launch() has already resolved. Without this check the failure

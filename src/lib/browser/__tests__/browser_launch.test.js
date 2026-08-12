@@ -574,7 +574,21 @@ describe('launchBrowserForApp — slow launch reporting (issue #870)', () => {
     }
 
     /**
-     * Makes `puppeteer.launch` consume a given amount of wall-clock time.
+     * Builds a Puppeteer `TimeoutError`, as thrown when a launch exceeds its budget.
+     *
+     * The real one is a class in puppeteer-core that sets `name` from its constructor; only the
+     * name is load-bearing here, so a plain Error carrying it is enough.
+     *
+     * @returns {Error} An error the launch path will recognise as a timeout.
+     */
+    function timeoutError() {
+        const err = new Error('Timed out after 30000 ms while trying to connect to the browser');
+        err.name = 'TimeoutError';
+        return err;
+    }
+
+    /**
+     * Makes `puppeteer.launch` consume a given amount of time on the monotonic clock.
      *
      * The clock is advanced from inside the launch mock rather than by queueing return values,
      * so the elapsed time is tied to the launch itself and cannot drift if some other caller
@@ -597,7 +611,9 @@ describe('launchBrowserForApp — slow launch reporting (issue #870)', () => {
 
     beforeEach(() => {
         now = 0;
-        nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
+        // performance.now, not Date.now: the code deliberately measures on a monotonic clock so
+        // that an NTP step on a virtualised runner cannot invent or hide a stall.
+        nowSpy = jest.spyOn(performance, 'now').mockImplementation(() => now);
         detectAvailableBrowser.mockResolvedValue({
             executablePath: '/cached/chrome',
             source: 'cache',
@@ -651,19 +667,35 @@ describe('launchBrowserForApp — slow launch reporting (issue #870)', () => {
     });
 
     test('explains a launch timeout instead of leaving it to read as a generic failure', async () => {
-        const timedOut = new Error(
-            'Timed out after 30000 ms while trying to connect to the browser'
-        );
-        timedOut.name = 'TimeoutError';
-        launchTaking(BROWSER_LAUNCH_TIMEOUT_MS + 1, { reject: timedOut });
+        launchTaking(BROWSER_LAUNCH_TIMEOUT_MS + 1, { reject: timeoutError() });
 
         await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow(TestError);
 
         expect(errorOutput()).toContain('did not become ready within 30s');
         expect(errorOutput()).toContain('never reported a debugging endpoint');
-        // Elapsed time is reported on the failing path too - it is what separates "this build is
-        // broken" from "something held the process at startup".
-        expect(warnOutput()).toContain('Browser launch took');
+    });
+
+    test('does not blame a stall for an ordinary launch timeout', async () => {
+        // The measurement starts before puppeteer.launch() and Puppeteer's own clock starts later
+        // still, so a timeout always elapses slightly over the budget. Treating that as
+        // unexplained time would tell an administrator to go reconfigure endpoint protection for
+        // what is really a browser build that cannot run - advice that is worse than silence.
+        launchTaking(BROWSER_LAUNCH_TIMEOUT_MS + 47, { reject: timeoutError() });
+
+        await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow(TestError);
+
+        expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    test('does blame a stall when a timeout arrives long after the budget', async () => {
+        // Held at startup for 25 minutes and then failing to report a debugging endpoint. The
+        // budget accounts for 30s of that; the rest is the stall, and worth naming.
+        launchTaking(25 * 60 * 1000 + BROWSER_LAUNCH_TIMEOUT_MS, { reject: timeoutError() });
+
+        await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow(TestError);
+
+        expect(warnOutput()).toContain('Browser launch took 1530s');
+        expect(warnOutput()).toContain('antivirus');
     });
 
     test('does not offer the timeout explanation for an ordinary launch failure', async () => {
