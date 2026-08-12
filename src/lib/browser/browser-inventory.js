@@ -1,7 +1,7 @@
 import { getInstalledBrowsers, detectBrowserPlatform } from '@puppeteer/browsers';
 
 import { logger } from '../../globals.js';
-import { getBrowserCacheDir } from './browser-cache-dir.js';
+import { resolveBrowserCacheDir } from './browser-paths.js';
 
 /**
  * @typedef {object} InstalledBrowserInfo
@@ -35,11 +35,13 @@ import { getBrowserCacheDir } from './browser-cache-dir.js';
  * builds that cannot run here.
  *
  * @param {object} [options] - Options.
- * @param {string} [options.cacheDir] - Cache directory to read. Defaults to {@link getBrowserCacheDir}.
+ * @param {string} [options.cacheDir] - Cache directory to read. Defaults to the location
+ * {@link resolveBrowserCacheDir} resolves with no command options, which is the right answer only
+ * for callers that have none - every worker passes the directory it resolved itself.
  *
  * @returns {Promise<InstalledBrowserInfo[]>} The installed builds, in the order the cache reports them.
  */
-export const getBrowserInventory = async ({ cacheDir = getBrowserCacheDir() } = {}) => {
+export const getBrowserInventory = async ({ cacheDir = resolveBrowserCacheDir() } = {}) => {
     const installed = await getInstalledBrowsers({ cacheDir });
 
     // Synchronous, despite three call sites in this codebase awaiting it.

@@ -2,6 +2,7 @@ import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserInstalled } from '../../browser/browser-installed.js';
 import { runCommand } from '../run-command.js';
+import { buildBrowserCacheDirOption } from '../helpers.js';
 
 /**
  * Commander action that lists browsers already downloaded into the Butler cache.
@@ -35,7 +36,8 @@ const buildBrowserListInstalledCommand = () => {
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
                 .env('BSI_BROWSER_LI_LOG_LEVEL')
-        );
+        )
+        .addOption(buildBrowserCacheDirOption());
 
     return command;
 };

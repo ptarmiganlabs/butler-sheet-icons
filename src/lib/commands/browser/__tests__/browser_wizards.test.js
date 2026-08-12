@@ -1,4 +1,5 @@
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import path from 'node:path';
 
 const getBrowserInventory = jest.fn();
 const browserUninstall = jest.fn().mockResolvedValue(true);
@@ -33,7 +34,6 @@ jest.unstable_mockModule('../../../../globals.js', () => ({
 
 jest.unstable_mockModule('../../../browser/browser-inventory.js', () => ({
     getBrowserInventory,
-    getBrowserCacheDir: () => '/cache',
 }));
 jest.unstable_mockModule('../../../browser/browser-uninstall.js', () => ({
     browserUninstall,
@@ -93,6 +93,27 @@ describe('the uninstall wizard', () => {
         // directory, rather than caching an inventory that "Start over" would
         // then show after it had gone stale.
         expect(getBrowserInventory).toHaveBeenCalledTimes(2);
+    });
+
+    test('reads the cache named by --browser-cache-dir, not the default one', async () => {
+        // Both the precheck and the picker. Without this, `browser uninstall
+        // --browser-cache-dir X -i` inspects the default location, announces there is
+        // nothing to uninstall, and exits - while the same flags without -i work.
+        const runtime = scriptedRuntime({
+            _build: { browser: 'chrome', buildId: '151.0.7922.47' },
+            _review: 'cancel',
+        });
+
+        await runInteractive({
+            path: 'browser uninstall',
+            presetOptions: { browserCacheDir: '/qlik/browsers' },
+            runtime,
+        });
+
+        expect(getBrowserInventory).toHaveBeenCalledTimes(2);
+        for (const call of getBrowserInventory.mock.calls) {
+            expect(call[0]).toEqual({ cacheDir: path.resolve('/qlik/browsers') });
+        }
     });
 
     test('never asks for the log level, which nobody wants as question one', async () => {

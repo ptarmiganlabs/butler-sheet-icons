@@ -1,5 +1,10 @@
 import { install, detectBrowserPlatform, canDownload, uninstall } from '@puppeteer/browsers';
-import { getBrowserCacheDir } from './browser-cache-dir.js';
+import {
+    assertCacheDirWritable,
+    isPermissionDenied,
+    resolveBrowserCacheDirForWriting,
+    unwritableCacheDirMessage,
+} from './browser-paths.js';
 import cliProgress from 'cli-progress';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } from '../../globals.js';
@@ -22,6 +27,8 @@ import { alreadyReported } from '../util/reported-error.js';
  * @param {string} options.browser - Browser to install (`chrome` or `firefox`).
  * @param {string} options.browserVersion - Browser version to install: the keyword `recommended` or
  * `stable`, or an explicit build id.
+ * @param {string} [options.browserCacheDir] - Directory to install into. Defaults to the resolver's
+ * answer for this machine, which for a standalone build is a folder beside the executable.
  * @param {string} [options.loglevel] - Optional log level override (`error`, `warn`, `info`, `http`, `verbose`, `debug`, `silly`).
  * @param {object} [_command] - Commander command instance (unused, kept for symmetry with other command handlers).
  * @param {string} [resolvedBuildId] - Build id already resolved by the caller. Passing it keeps a
@@ -56,9 +63,13 @@ export const browserInstall = async (options, _command, resolvedBuildId) => {
             cliProgress.Presets.shades_classic
         );
 
-        // Install browser
-        const browserPath = getBrowserCacheDir();
-        logger.debug(`Browser cache path: ${browserPath}`);
+        // Install browser. The writing resolver, so a standalone build reading from the
+        // previous default location still installs beside its own executable.
+        const browserPath = resolveBrowserCacheDirForWriting(options);
+
+        // Checked before the version lookup and the download, so a binary unzipped somewhere
+        // unwritable fails in one second with an explanation rather than after 150 MB.
+        assertCacheDirWritable(browserPath);
 
         const platform = await detectBrowserPlatform();
         logger.verbose(`Detected browser platform: ${platform}`);
@@ -129,9 +140,10 @@ export const browserInstall = async (options, _command, resolvedBuildId) => {
         // straight to a deterministic path under the cache dir with no temp file or atomic
         // rename, `install()` reuses any archive already sitting at that path, and its `finally`
         // unlinks it. Two Butler Sheet Icons processes sharing the cache therefore race on one
-        // file - and `browserUninstallAll` empties the whole cache directory, so it can delete an
-        // archive another process is still downloading. Retrying does not make concurrent runs
-        // safe; only giving them separate cache directories would.
+        // file - and `browserUninstallAll` removes each browser's whole folder, so it can delete
+        // an archive another process is still downloading. Retrying does not make concurrent runs
+        // safe; only giving them separate cache directories would - which `--browser-cache-dir`
+        // now makes possible.
         const MAX_INSTALL_ATTEMPTS = 3;
         const RETRY_DELAY_MS = 2000;
         let browser;
@@ -202,6 +214,13 @@ export const browserInstall = async (options, _command, resolvedBuildId) => {
         // TypeError raised from inside the error handler, losing the original cause (issue #785).
         if (err?.message?.includes('Download failed: server returned code 404.')) {
             logger.error(`Browser version "${options.browserVersion}" not found`);
+        } else if (isPermissionDenied(err)) {
+            // Not only the pre-flight check above: on Windows `fs.access(W_OK)` inspects the
+            // read-only attribute and not the ACLs, so a binary unzipped under
+            // `C:\Program Files\` passes that check and fails here instead. Both paths end at
+            // the same sentence, which names the directory and the fix.
+            logger.error(unwritableCacheDirMessage(resolveBrowserCacheDirForWriting(options)));
+            logger.debug(err?.stack ?? String(err));
         } else if (!alreadyReported(err)) {
             // Only report what nothing else has explained. Version resolution already describes
             // connectivity failures in detail; repeating the raw message and a stack trace on top

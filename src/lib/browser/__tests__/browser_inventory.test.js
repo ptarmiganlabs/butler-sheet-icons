@@ -22,9 +22,12 @@ jest.unstable_mockModule('../../../globals.js', () => ({
         debug: jest.fn(),
         warn: jest.fn(),
     },
+    // browser-paths.js gates the standalone cache location on this, and ESM checks
+    // named exports when the module graph is linked, so leaving it out is a hard error
+    // rather than an undefined.
+    isSea: false,
 }));
 
-const { getBrowserCacheDir } = await import('../browser-cache-dir.js');
 const { getBrowserInventory } = await import('../browser-inventory.js');
 const { redactValue } = await import('../../util/redact-secrets.js');
 
@@ -82,18 +85,8 @@ beforeEach(() => {
     getInstalledBrowsers.mockResolvedValue([fakeBuild()]);
 });
 
-describe('getBrowserCacheDir', () => {
-    test('is the puppeteer cache under the user home directory', () => {
-        expect(getBrowserCacheDir()).toBe(path.join('/home/tester', '.cache/puppeteer'));
-    });
-
-    test('is read at call time, so a changed home directory is picked up', () => {
-        // An import-time constant would be fixed before any test could mock
-        // os.homedir, which is exactly how this kind of helper usually breaks
-        // the suite that was meant to cover it.
-        expect(getBrowserCacheDir()).toBe(getBrowserCacheDir());
-    });
-});
+// Resolving the cache directory moved to browser-paths.js when it grew tiers, and is covered
+// in full by browser_paths.test.js. What matters here is only that this module still asks it.
 
 describe('getBrowserInventory', () => {
     test('defaults to the standard cache directory', async () => {

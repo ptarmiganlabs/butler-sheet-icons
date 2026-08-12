@@ -1,4 +1,6 @@
 import { jest, test, expect, describe, beforeEach, afterEach } from '@jest/globals';
+import path from 'node:path';
+import { homedir } from 'node:os';
 
 jest.unstable_mockModule('@puppeteer/browsers', () => ({
     getInstalledBrowsers: jest.fn(),
@@ -22,6 +24,10 @@ jest.unstable_mockModule('../../../globals.js', () => ({
         error: jest.fn(),
         warn: jest.fn(),
     },
+    // browser-paths.js gates the standalone cache location on this, and ESM checks
+    // named exports when the module graph is linked, so leaving it out is a hard error
+    // rather than an undefined.
+    isSea: false,
 }));
 const { logger } = await import('../../../globals.js');
 
@@ -33,20 +39,27 @@ const fs = (await import('fs')).default;
 
 const { detectAvailableBrowser } = await import('../browser-detect.js');
 
-// PUPPETEER_EXECUTABLE_PATH is ambient and leaks between test files, so capture and
-// restore it around every test rather than assuming it starts unset.
-let savedExecutablePath;
+// These are ambient and leak between test files, so capture and restore them around every
+// test rather than assuming they start unset. PUPPETEER_CACHE_DIR joined the list when the
+// cache directory became configurable - until then it did nothing at all in Butler Sheet
+// Icons, and now it decides where this function looks.
+const AMBIENT_ENV = ['PUPPETEER_EXECUTABLE_PATH', 'PUPPETEER_CACHE_DIR', 'BSI_BROWSER_CACHE_DIR'];
+let savedEnv;
 
 beforeEach(() => {
-    savedExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    delete process.env.PUPPETEER_EXECUTABLE_PATH;
+    savedEnv = Object.fromEntries(AMBIENT_ENV.map((name) => [name, process.env[name]]));
+    for (const name of AMBIENT_ENV) {
+        delete process.env[name];
+    }
 });
 
 afterEach(() => {
-    if (savedExecutablePath === undefined) {
-        delete process.env.PUPPETEER_EXECUTABLE_PATH;
-    } else {
-        process.env.PUPPETEER_EXECUTABLE_PATH = savedExecutablePath;
+    for (const [name, value] of Object.entries(savedEnv)) {
+        if (value === undefined) {
+            delete process.env[name];
+        } else {
+            process.env[name] = value;
+        }
     }
 });
 
@@ -93,6 +106,40 @@ describe('detectAvailableBrowser — cached browsers', () => {
         getInstalledBrowsers.mockResolvedValue([cachedBrowser('firefox', '130.0')]);
 
         expect(await detectAvailableBrowser({ browser: 'chrome' })).toBeNull();
+    });
+});
+
+describe('detectAvailableBrowser — where the cache is', () => {
+    test('reads the directory named by --browser-cache-dir', async () => {
+        getInstalledBrowsers.mockResolvedValue([]);
+
+        await detectAvailableBrowser({ browser: 'chrome', browserCacheDir: '/qlik/browsers' });
+
+        expect(getInstalledBrowsers).toHaveBeenCalledWith({
+            cacheDir: path.resolve('/qlik/browsers'),
+        });
+    });
+
+    test('reads PUPPETEER_CACHE_DIR when no directory was named', async () => {
+        // Widely known, and until now it did nothing here at all.
+        process.env.PUPPETEER_CACHE_DIR = '/qlik/puppeteer';
+        getInstalledBrowsers.mockResolvedValue([]);
+
+        await detectAvailableBrowser({ browser: 'chrome' });
+
+        expect(getInstalledBrowsers).toHaveBeenCalledWith({
+            cacheDir: path.resolve('/qlik/puppeteer'),
+        });
+    });
+
+    test('falls back to the home directory cache', async () => {
+        getInstalledBrowsers.mockResolvedValue([]);
+
+        await detectAvailableBrowser({ browser: 'chrome' });
+
+        expect(getInstalledBrowsers).toHaveBeenCalledWith({
+            cacheDir: path.join(homedir(), '.cache', 'puppeteer'),
+        });
     });
 });
 

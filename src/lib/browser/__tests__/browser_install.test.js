@@ -1,6 +1,6 @@
-import { jest, test, expect, describe, beforeEach } from '@jest/globals';
+import { jest, test, expect, describe, beforeEach, afterEach } from '@jest/globals';
 import path from 'node:path';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 
 jest.unstable_mockModule('@puppeteer/browsers', () => ({
     install: jest.fn(),
@@ -64,9 +64,29 @@ jest.unstable_mockModule('cli-progress', () => ({
 
 const { browserInstall } = await import('../browser-install.js');
 
+// Ambient, and behaviour-affecting since the cache directory became configurable. Without
+// this, the retry assertion below fails on any machine whose shell happens to have
+// PUPPETEER_CACHE_DIR set - and that assertion is the proof that the default has not moved.
+const SAVED_ENV = {
+    BSI_BROWSER_CACHE_DIR: process.env.BSI_BROWSER_CACHE_DIR,
+    PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR,
+};
+
+afterEach(() => {
+    for (const [name, value] of Object.entries(SAVED_ENV)) {
+        if (value === undefined) {
+            delete process.env[name];
+        } else {
+            process.env[name] = value;
+        }
+    }
+});
+
 describe('browserInstall — retry logic', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        delete process.env.BSI_BROWSER_CACHE_DIR;
+        delete process.env.PUPPETEER_CACHE_DIR;
         detectBrowserPlatform.mockResolvedValue('mac_arm');
         canDownload.mockResolvedValue(true);
         resolveBuildId.mockResolvedValue('123.0.0.0');
@@ -215,6 +235,61 @@ describe('browserInstall — retry logic', () => {
 
         expect(result).toBe(installed);
         expect(install).toHaveBeenCalledTimes(2);
+    });
+
+    // Under the real temp directory, not a made-up absolute path: an install now refuses a
+    // cache directory it cannot write to, and /qlik/browsers is exactly that on a developer
+    // machine. That refusal has its own tests in browser_paths.test.js.
+    const WRITABLE_CACHE = path.join(tmpdir(), 'bsi-install-test-cache');
+
+    test('installs into the directory named by --browser-cache-dir', async () => {
+        const installed = { browser: 'chrome', buildId: '123.0.0.0', executablePath: '/p/chrome' };
+        install.mockResolvedValue(installed);
+
+        await browserInstall({
+            browser: 'chrome',
+            browserVersion: '123.0.0.0',
+            browserCacheDir: WRITABLE_CACHE,
+            loglevel: 'error',
+        });
+
+        expect(canDownload).toHaveBeenCalledWith(
+            expect.objectContaining({ cacheDir: WRITABLE_CACHE })
+        );
+        expect(install).toHaveBeenCalledWith(expect.objectContaining({ cacheDir: WRITABLE_CACHE }));
+    });
+
+    test('installs into PUPPETEER_CACHE_DIR when no directory was named', async () => {
+        process.env.PUPPETEER_CACHE_DIR = WRITABLE_CACHE;
+        install.mockResolvedValue({ browser: 'chrome', buildId: '1', executablePath: '/p' });
+
+        await browserInstall({ browser: 'chrome', browserVersion: '1', loglevel: 'error' });
+
+        expect(install).toHaveBeenCalledWith(expect.objectContaining({ cacheDir: WRITABLE_CACHE }));
+    });
+
+    test('does not blame the cache directory for a blocked network connection', async () => {
+        // Windows firewalls and endpoint protection fail an outbound connection with EPERM.
+        // Reported as "Cannot write to the browser cache directory ...", that sends an
+        // administrator to fix permissions on a directory that is perfectly writable - on
+        // exactly the locked-down servers this option exists for.
+        const blocked = Object.assign(new Error('connect EPERM 142.250.74.14:443'), {
+            code: 'EPERM',
+            syscall: 'connect',
+            address: '142.250.74.14',
+            port: 443,
+        });
+        install.mockImplementation(() => {
+            throw blocked;
+        });
+
+        await expect(
+            browserInstall({ browser: 'chrome', browserVersion: '123.0.0.0', loglevel: 'error' })
+        ).rejects.toBe(blocked);
+
+        const reported = logger.error.mock.calls.map(([line]) => line).join('\n');
+        expect(reported).not.toContain('Cannot write to the browser cache directory');
+        expect(reported).toContain('connect EPERM');
     });
 
     test('a failing cleanup does not mask the install error', async () => {

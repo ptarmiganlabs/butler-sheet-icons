@@ -8,7 +8,12 @@ import {
     describeBrowserVersionOption,
     parseBrowserVersionValue,
 } from '../../browser/browser-version.js';
-import { parsePositiveInteger, collectPositiveIntegers, collectAppIds } from '../helpers.js';
+import {
+    parsePositiveInteger,
+    collectPositiveIntegers,
+    collectAppIds,
+    buildBrowserCacheDirOption,
+} from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
 import { runCommand } from '../run-command.js';
@@ -367,7 +372,8 @@ const buildQseowCommand = () => {
                 )
                 .default('90')
                 .env('BSI_BROWSER_PAGE_TIMEOUT')
-        );
+        )
+        .addOption(buildBrowserCacheDirOption());
 
     addInteractiveOption(qseow.commands[0]);
 

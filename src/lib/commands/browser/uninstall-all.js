@@ -2,6 +2,7 @@ import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserUninstallAll } from '../../browser/browser-uninstall.js';
 import { runCommand } from '../run-command.js';
+import { buildBrowserCacheDirOption } from '../helpers.js';
 
 /**
  * Commander action that removes every cached browser managed by Butler Sheet Icons.
@@ -35,7 +36,8 @@ const buildBrowserUninstallAllCommand = () => {
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
                 .env('BS_BROWSER_UIA_LOG_LEVEL')
-        );
+        )
+        .addOption(buildBrowserCacheDirOption());
 
     return command;
 };

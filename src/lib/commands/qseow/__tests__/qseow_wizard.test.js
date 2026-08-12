@@ -227,6 +227,7 @@ describe('progressive disclosure', () => {
                 browser: 'chrome',
                 browserVersion: 'recommended',
                 browserPageTimeout: '90',
+                browserCacheDir: '',
             })
         );
 
@@ -235,6 +236,9 @@ describe('progressive disclosure', () => {
         const asked = runtime.asked.map((a) => a.key);
         expect(asked).toContain('engineport');
         expect(asked).toContain('senseVersion');
+        // Behind the advanced gate rather than in the main flow: most runs never name a
+        // browser cache directory, and an unplaced key would be asked last and ungated.
+        expect(asked).toContain('browserCacheDir');
     });
 });
 

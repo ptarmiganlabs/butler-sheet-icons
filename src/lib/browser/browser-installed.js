@@ -1,6 +1,6 @@
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
-import { getBrowserCacheDir } from './browser-cache-dir.js';
+import { resolveBrowserCacheDir } from './browser-paths.js';
 import { getBrowserInventory } from './browser-inventory.js';
 
 /**
@@ -11,6 +11,8 @@ import { getBrowserInventory } from './browser-inventory.js';
  * its format is what users grep.
  *
  * @param {object} options - An options object.
+ * @param {string} [options.browserCacheDir] - Where to look for browsers. Defaults to the
+ * resolver's answer for this machine.
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
  *
  * @returns {Promise<import('./browser-inventory.js').InstalledBrowserInfo[]>} A promise that resolves to the installed builds as plain objects.
@@ -24,8 +26,7 @@ export async function browserInstalled(options) {
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
-        const browserPath = getBrowserCacheDir();
-        logger.debug(`Browser cache path: ${browserPath}`);
+        const browserPath = resolveBrowserCacheDir(options);
 
         const browsersInstalled = await getBrowserInventory({ cacheDir: browserPath });
 

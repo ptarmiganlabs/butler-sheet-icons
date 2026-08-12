@@ -1,4 +1,5 @@
 import { getBrowserInventory } from '../../browser/browser-inventory.js';
+import { resolveBrowserCacheDir } from '../../browser/browser-paths.js';
 import { browserUninstall } from '../../browser/browser-uninstall.js';
 
 /** Key of the synthetic question that replaces the browser/version pair. */
@@ -40,13 +41,19 @@ export default {
      * `browser list-installed` already answers this question correctly on the
      * same machine, and says so in one line. This says the same thing.
      *
+     * @param {object} [context] - What the command line and environment already supplied.
+     * @param {object} [context.answers] - Those values, keyed by option name.
+     *
      * @returns {Promise<{reason: string}|undefined>} A reason to stop, or `undefined` to carry on.
      */
-    async precheck() {
+    async precheck({ answers } = {}) {
         let inventory;
 
         try {
-            inventory = await getBrowserInventory();
+            // The same cache the command itself would use. Looking in the default
+            // location while `--browser-cache-dir` names another one would declare
+            // there is nothing to uninstall when there plainly is.
+            inventory = await getBrowserInventory({ cacheDir: resolveBrowserCacheDir(answers) });
         } catch {
             // "Not found" and "found but unusable" are different answers and
             // must not share one. A cache that cannot be read is not an empty
@@ -100,8 +107,10 @@ export default {
                 // --browser-version would be skipped and then asked for it
                 // (issue #1013).
                 replaces: ['browser', 'browserVersion'],
-                choices: async () => {
-                    const inventory = await getBrowserInventory();
+                choices: async ({ answers }) => {
+                    const inventory = await getBrowserInventory({
+                        cacheDir: resolveBrowserCacheDir(answers),
+                    });
 
                     // Builds for other platforms stay selectable on purpose:
                     // wanting the disk space back is a perfectly good reason to
