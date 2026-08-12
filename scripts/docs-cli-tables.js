@@ -104,7 +104,45 @@ const parseArgs = (argv) => {
  *
  * @returns {Record<string, Record<string, string>>} Examples keyed by command path, then flag.
  */
-const loadExamples = (path) => (path ? JSON.parse(readFileSync(path, 'utf8')) : {});
+const loadExamples = (path) => {
+    if (!path) {
+        return {};
+    }
+
+    const text = readText(path);
+
+    try {
+        return JSON.parse(text);
+    } catch (err) {
+        // JSON.parse names neither the file nor what was expected of it.
+        throw new Error(
+            `${path}: not valid JSON (${err.message}). Expected { "<command path>": { "--flag": "example" } }.`,
+            { cause: err }
+        );
+    }
+};
+
+/**
+ * Read a file, reporting a missing or unreadable one in a sentence rather than a stack trace.
+ *
+ * @param {string} path - Path to read.
+ *
+ * @returns {string} File contents.
+ *
+ * @throws {Error} When the file cannot be read.
+ */
+const readText = (path) => {
+    try {
+        return readFileSync(path, 'utf8');
+    } catch (err) {
+        throw new Error(
+            err.code === 'ENOENT'
+                ? `${path}: no such file. Paths are resolved from the current directory; the doc site is a separate repository.`
+                : `${path}: ${err.message}`,
+            { cause: err }
+        );
+    }
+};
 
 /**
  * Entry point.
@@ -112,16 +150,29 @@ const loadExamples = (path) => (path ? JSON.parse(readFileSync(path, 'utf8')) : 
  * @returns {number} Process exit code. 1 when `--check` found a stale block, or on error.
  */
 const main = () => {
-    let args;
-
     try {
-        args = parseArgs(process.argv.slice(2));
+        return run(parseArgs(process.argv.slice(2)));
     } catch (err) {
+        // Everything reaching here is a user-facing mistake with a written message: a path that
+        // does not exist, a malformed examples file, a marker naming a command that was renamed.
+        // A Node stack trace would bury all three, and this is a command the publishing
+        // instructions tell people to run.
         process.stderr.write(`${err.message}\n`);
 
         return 1;
     }
+};
 
+/**
+ * Do the work described by the parsed arguments.
+ *
+ * @param {ReturnType<typeof parseArgs>} args - Parsed arguments.
+ *
+ * @returns {number} Process exit code.
+ *
+ * @throws {Error} With a message written for the person who typed the command.
+ */
+const run = (args) => {
     if (args.list) {
         process.stdout.write(`${knownCommandPaths().join('\n')}\n`);
 
@@ -147,7 +198,7 @@ const main = () => {
     let stale = 0;
 
     for (const file of args.files) {
-        const original = readFileSync(file, 'utf8');
+        const original = readText(file);
         const { content, blocks } = updateGeneratedBlocks(original, { examples });
 
         if (blocks.length === 0) {

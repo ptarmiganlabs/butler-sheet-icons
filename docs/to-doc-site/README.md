@@ -131,6 +131,8 @@ For each unprefixed file, answer three questions before writing anything:
 
 Correct the draft's technical errors in the published page. If a processed file is left in `done/` with a claim that turned out to be wrong, add a short HTML comment noting the correction so the error does not resurface later.
 
+**Except in an option table.** Do not verify flags, environment variables, accepted values or defaults by hand where they appear in a table between `<!-- generated:cli-options ... -->` markers — those are generated from the Commander definitions, and anything typed inside the markers is overwritten on the next run. Regenerate instead, and see "Option tables are generated, not written" above. If a table is wrong, the declaration in `src/lib/commands/` is wrong, and fixing it there fixes `--help` too.
+
 ### 4. Establish which BSI version the behaviour ships in
 
 This sets the version gate on the page. It does **not** affect which branch the change goes to — that is always `next`.
@@ -185,6 +187,14 @@ grep -o 'id="[^"]*"' docs/.vitepress/dist/guide/concepts/<page>.html | sort -u
 ```
 
 Watch for headings containing typographic characters. Several pages use the non-breaking hyphen `‑` (U+2011) rather than `-`, and it survives into the anchor — so `#strategy-3-use-a-pre-cached-browser-semi-offline` silently misses a heading that reads identically. Normalise the heading to plain ASCII hyphens rather than copying the unicode into the link.
+
+Then confirm no generated option table has gone stale. From **this** repo, naming the doc site pages you touched:
+
+```bash
+npm run docs:cli-tables -- ../butler-sheet-icons-docs/docs/reference/browser.md --check
+```
+
+It exits non-zero and names the command whose table is out of date. A table can go stale without anyone editing the page — a changed flag, default or description in `src/lib/commands/` is enough — so this is worth running even on a pass that did not touch a reference page.
 
 ### 7. Git workflow
 
