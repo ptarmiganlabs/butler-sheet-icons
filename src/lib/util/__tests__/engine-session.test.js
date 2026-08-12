@@ -210,16 +210,34 @@ describe('withEngineSession', () => {
 
     describe('an unexpected close', () => {
         /**
-         * Runs a session and hands back the handler registered for enigma's `closed` event.
+         * Reads back the handler enigma's `closed` event was registered with.
          *
+         * @param {object} session - The mock session.
          * @returns {Function} The registered handler.
          */
-        const closeHandler = async () => {
+        const closedHandlerOf = (session) =>
+            session.on.mock.calls.find(([event]) => event === 'closed')[1];
+
+        /**
+         * Runs a session and fires `closed` from **inside** the callback.
+         *
+         * The event has to arrive while the session is still in use, because that is when a real
+         * unexpected close arrives - and because firing it after the helper has returned now
+         * means something different: by then the session has been released deliberately, and the
+         * warning is correctly suppressed.
+         *
+         * @param {object} evt - The close event to deliver.
+         * @returns {Promise<Function>} The handler that was fired.
+         */
+        const closeHandler = async (evt) => {
             const { session } = wireSession();
 
-            await withEngineSession({}, CTX, async () => true);
+            await withEngineSession({}, CTX, async () => {
+                closedHandlerOf(session)(evt);
+                return true;
+            });
 
-            return session.on.mock.calls.find(([event]) => event === 'closed')[1];
+            return closedHandlerOf(session);
         };
 
         test('is listened for at every log level', async () => {
@@ -233,7 +251,7 @@ describe('withEngineSession', () => {
         test('reports the close code and reason', async () => {
             // The whole point of the listener: `Not connected` on the next engine call says
             // the session was gone, and only the close event says what closed it.
-            (await closeHandler())({ code: 1006, reason: 'connection reset' });
+            await closeHandler({ code: 1006, reason: 'connection reset' });
 
             const line = String(logger.warn.mock.calls.at(-1)[0]);
             expect(line).toContain('server sense.example.com');
@@ -243,11 +261,47 @@ describe('withEngineSession', () => {
 
         test('still names the code when the far end gave no reason', async () => {
             // 1006 arrives with an empty reason - there was no close frame to carry one.
-            (await closeHandler())({ code: 1006, reason: '' });
+            await closeHandler({ code: 1006, reason: '' });
 
             const line = String(logger.warn.mock.calls.at(-1)[0]);
             expect(line).toContain('code 1006');
             expect(line).not.toContain('reason');
+        });
+
+        // Regression: enigma's own close() ends in an unconditional
+        // `this.rpc.close(code, reason).then((evt) => this.emit('closed', evt))`, with the
+        // default code 1000 - so releasing the session fired this warning. Every successful run
+        // claimed the session had been closed from the other end and that whatever used it would
+        // now fail, once per session and twice per app on the screenshot paths.
+        test('stays silent when the close is the one we asked for', async () => {
+            const { session } = wireSession();
+            session.close.mockImplementation(async () => {
+                closedHandlerOf(session)({ code: 1000, reason: '' });
+                return true;
+            });
+
+            await withEngineSession({}, CTX, async () => true);
+
+            expect(session.close).toHaveBeenCalled();
+            expect(logger.warn).not.toHaveBeenCalled();
+        });
+
+        // The suppression must be scoped to our own close, not a blanket mute: a session that
+        // died mid-run still has to be reported, even though the teardown close follows it.
+        test('still reports a mid-run close even though teardown follows', async () => {
+            const { session } = wireSession();
+            session.close.mockImplementation(async () => {
+                closedHandlerOf(session)({ code: 1000, reason: '' });
+                return true;
+            });
+
+            await withEngineSession({}, CTX, async () => {
+                closedHandlerOf(session)({ code: 1006, reason: 'connection reset' });
+                return true;
+            });
+
+            expect(logger.warn).toHaveBeenCalledTimes(1);
+            expect(String(logger.warn.mock.calls[0][0])).toContain('code 1006');
         });
     });
 
