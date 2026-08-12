@@ -4,6 +4,7 @@ import { logger } from '../../globals.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { qrsGetList } from './qrs-response.js';
 import { qrsFilterAnyOf, qrsPathWithFilter } from './qrs-filter.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Verifies if a specified content library exists in Qlik Sense Enterprise on Windows (QSEoW).
@@ -43,13 +44,7 @@ export const qseowVerifyContentLibraryExists = async (options) => {
         logger.debug(`Content library '${contentlibrary}' does not exist`);
         return false;
     } catch (err) {
-        if (err.stack) {
-            logger.error(`QSEOW CONTENT LIBRARY 1 (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`QSEOW CONTENT LIBRARY 1 (message): ${err.message}`);
-        } else {
-            logger.error(`QSEOW CONTENT LIBRARY 1: ${err}`);
-        }
+        logError('QSEOW CONTENT LIBRARY 1', err);
 
         throw new Error(`CONTENT LIBRARY 1: ${err}`, { cause: err });
     }

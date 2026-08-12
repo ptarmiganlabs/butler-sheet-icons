@@ -5,6 +5,7 @@ import qrsInteract from 'qrs-interact';
 import { logger, setLoggingLevel } from '../../globals.js';
 import { QseowError } from '../util/errors.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Upload files to a Qlik Sense Enterprise on Windows (QSEoW) content library.
@@ -94,23 +95,11 @@ export const qseowUploadToContentLibrary = async (filesToUpload, appId, options)
                 }
             } catch (err) {
                 failedCount += 1;
-                if (err.stack) {
-                    logger.error(`QSEOW UPLOAD 1 (stack): ${err.stack}`);
-                } else if (err.message) {
-                    logger.error(`QSEOW UPLOAD 1 (message): ${err.message}`);
-                } else {
-                    logger.error(`QSEOW UPLOAD 1: ${JSON.stringify(err, null, 2)}`);
-                }
+                logError('QSEOW UPLOAD 1', err);
             }
         }
     } catch (err) {
-        if (err.stack) {
-            logger.error(`QSEOW UPLOAD 2 (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`QSEOW UPLOAD 2 (message): ${err.message}`);
-        } else {
-            logger.error(`QSEOW UPLOAD 2: ${JSON.stringify(err, null, 2)}`);
-        }
+        logError('QSEOW UPLOAD 2', err);
 
         // Rethrow: returning normally here told the caller every image was in place, and
         // it went on to point every sheet at files that had never been uploaded.

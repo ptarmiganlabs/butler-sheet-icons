@@ -13,6 +13,7 @@ import {
 } from './browser-version.js';
 import { parseHeadlessOption } from '../util/headless-option.js';
 import { markReported } from '../util/reported-error.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Chromium flags used for every Butler Sheet Icons browser launch.
@@ -409,11 +410,7 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
             args: browserArgs,
         });
     } catch (err) {
-        // Falls back to the value itself so a non-Error throw still logs something useful
-        // rather than "undefined".
-        logger.error(
-            `${logPrefix}: Could not launch virtual browser: ${err?.stack || err?.message || err}`
-        );
+        logError(`${logPrefix}: Could not launch virtual browser`, err);
 
         // A launch timeout reads like any other launch failure in the log, but the remedy is
         // completely different - nothing is wrong with the arguments or the certificate setup,
@@ -496,8 +493,6 @@ export const closeBrowserQuietly = async (browser, logPrefix) => {
         await browser.close();
         logger.verbose('Closed virtual browser');
     } catch (err) {
-        logger.error(
-            `${logPrefix}: Could not close virtual browser: ${err?.stack || err?.message || err}`
-        );
+        logError(`${logPrefix}: Could not close virtual browser`, err);
     }
 };

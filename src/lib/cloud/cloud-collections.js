@@ -4,6 +4,7 @@ import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { listCollections } from './cloud-apps.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Lists all available collections in the Qlik Sense Cloud tenant.
@@ -37,13 +38,7 @@ export const qscloudListCollections = async (options) => {
         try {
             saasInstance = new QlikSaas(cloudConfig);
         } catch (err) {
-            if (err.stack) {
-                logger.error(`LIST COLLECTIONS 1 (stack): ${err.stack}`);
-            } else if (err.message) {
-                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
-            } else {
-                logger.error(`LIST COLLECTIONS 1: ${err}`);
-            }
+            logError('LIST COLLECTIONS 1', err);
 
             return false;
         }
@@ -55,13 +50,12 @@ export const qscloudListCollections = async (options) => {
                 `Connection to tenant ${options.tenanturl} successful: ${JSON.stringify(res)}`
             );
         } catch (err) {
-            if (err.stack) {
-                logger.error(`LIST COLLECTIONS 1 (stack): ${err.stack}`);
-            } else if (err.message) {
-                logger.error(`LIST COLLECTIONS 1 (message): ${err.message}`);
+            logError('LIST COLLECTIONS 1', err);
+            // Both halves required: this line used to sit in a branch that a real Error never
+            // reached, so it never printed. Now that it does, a status without a statusText
+            // would render as 401="undefined".
+            if (err?.status && err?.statusText) {
                 logger.error(`LIST COLLECTIONS 1 (error code): ${err.status}="${err.statusText}"`);
-            } else {
-                logger.error(`LIST COLLECTIONS 1: ${err}`);
             }
 
             return false;
@@ -72,13 +66,7 @@ export const qscloudListCollections = async (options) => {
         try {
             allCollections = await listCollections(saasInstance);
         } catch (err) {
-            if (err.stack) {
-                logger.error(`LIST COLLECTIONS 2 (stack): ${err.stack}`);
-            } else if (err.message) {
-                logger.error(`LIST COLLECTIONS 2 (message): ${err.message}`);
-            } else {
-                logger.error(`LIST COLLECTIONS 2: ${err}`);
-            }
+            logError('LIST COLLECTIONS 2', err);
             return false;
         }
 
@@ -125,13 +113,7 @@ export const qscloudListCollections = async (options) => {
 
         return true;
     } catch (err) {
-        if (err.stack) {
-            logger.error(`LIST COLLECTIONS 3 (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`LIST COLLECTIONS 3 (message): ${err.message}`);
-        } else {
-            logger.error(`LIST COLLECTIONS 3: ${err}`);
-        }
+        logError('LIST COLLECTIONS 3', err);
 
         return false;
     }
@@ -175,13 +157,7 @@ export const qscloudVerifyCollectionExists = async (options) => {
             return true;
         }
     } catch (err) {
-        if (err.stack) {
-            logger.error(`CLOUD COLLECTION EXISTS 1 (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`CLOUD COLLECTION EXISTS 1 (message): ${err.message}`);
-        } else {
-            logger.error(`CLOUD COLLECTION EXISTS 1: ${err}`);
-        }
+        logError('CLOUD COLLECTION EXISTS 1', err);
 
         throw new Error(`COLLECTION EXISTS 1: ${err}`, { cause: err });
     }

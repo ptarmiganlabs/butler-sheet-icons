@@ -2,6 +2,7 @@ import { setupEnigmaConnection } from './qseow-enigma.js';
 import { logger } from '../../globals.js';
 import { QseowError } from '../util/errors.js';
 import { withEngineSession } from '../util/engine-session.js';
+import { logError } from '../util/log-error.js';
 import {
     isSheetTagged,
     runOverSheets,
@@ -207,13 +208,7 @@ export const qseowUpdateSheetThumbnails = async (
             `Closed session after updating sheet thumbnail images in QSEoW app ${appId} on host ${options.host}`
         );
     } catch (err) {
-        if (err.stack) {
-            logger.error(`QSEOW UPDATE SHEETS (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`QSEOW UPDATE SHEETS (message): ${err.message}`);
-        } else {
-            logger.error(`QSEOW UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
-        }
+        logError('QSEOW UPDATE SHEETS', err);
 
         throw new QseowError(`Failed to update sheet thumbnails in app ${appId}`, { cause: err });
     }

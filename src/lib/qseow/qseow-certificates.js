@@ -3,6 +3,7 @@ import { promises as Fs, constants as FsConstants } from 'fs';
 
 import { logger, bsiExecutablePath } from '../../globals.js';
 import { CertError } from '../util/errors.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Checks that a file exists and can actually be read.
@@ -83,9 +84,7 @@ export const qseowVerifyCertificatesExist = async (options) => {
         // Rethrown rather than folded into `false`: the caller reports `false` as a missing
         // file, which would send the operator looking for a certificate that is present and
         // merely unreadable.
-        logger.error(
-            `QSEOW CERT CHECK: Could not check the certificate files: ${err?.stack || err?.message || err}`
-        );
+        logError('QSEOW CERT CHECK: Could not check the certificate files', err);
 
         throw new CertError('Could not read the Qlik Sense certificate files', { cause: err });
     }
