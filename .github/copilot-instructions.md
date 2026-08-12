@@ -243,7 +243,7 @@ npm run test:integration -- --testPathPattern="qseow" --testTimeout=900000
 
 ### Browser Management
 
-The tool can install and manage Chrome/Firefox browsers via `@puppeteer/browsers`. Browser installation is required for thumbnail generation functionality.
+The tool can install and manage Chrome browsers via `@puppeteer/browsers`. Chrome only. Browser installation is required for thumbnail generation functionality.
 
 ### Build Process
 

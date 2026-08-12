@@ -440,8 +440,8 @@ The worker returns data rather than only logging, so tests assert on values inst
 | Option | Env var | Default |
 | --- | --- | --- |
 | `--loglevel, --log-level <level>` | `BSI_BROWSER_C_LOG_LEVEL` | `info` |
-| `--browser <browser>` (`chrome`, `firefox`) | `BSI_BROWSER_C_BROWSER` | `chrome` |
-| `--browser-version <version>` | `BSI_BROWSER_C_BROWSER_VERSION` | `latest` |
+| `--browser <browser>` (`chrome`) | `BSI_BROWSER_C_BROWSER` | `chrome` |
+| `--browser-version <version>` | `BSI_BROWSER_C_BROWSER_VERSION` | `recommended` |
 | `--browser-cache-dir <directory>` | `BSI_BROWSER_CACHE_DIR` | — (resolver decides) |
 | `--browser-executable-path <path>` | `BSI_BROWSER_EXECUTABLE_PATH` | — |
 | `--headless <true\|false>` | `BSI_BROWSER_C_HEADLESS` | `true` |

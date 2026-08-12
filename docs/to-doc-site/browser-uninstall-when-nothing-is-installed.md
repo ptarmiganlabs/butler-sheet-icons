@@ -4,8 +4,8 @@ If you ran `butler-sheet-icons browser uninstall -i` on a server with no browser
 you which build to remove anyway — and the question it asked was the help text for `--browser-version`:
 
 ```
-? Browser build to uninstall: an exact build id (for Chrome e.g. "151.0.7922.77", for Firefox e.g.
-"stable_153.0.3"), or "recommended" for the build Butler Sheet Icons is tested with.
+? Browser build to uninstall: an exact build id (e.g. "151.0.7922.77"), or "recommended" for the
+build Butler Sheet Icons is tested with.
 ```
 
 There was no answer to that question that could work. Whatever you typed, the run ended with

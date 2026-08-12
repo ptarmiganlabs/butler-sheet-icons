@@ -1,4 +1,5 @@
 <!-- gitnexus:start -->
+
 # GitNexus — Code Intelligence
 
 This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus MCP tools to understand code, assess impact, and navigate safely. Read `gitnexus://repo/butler-sheet-icons/context` for live index statistics.
@@ -28,28 +29,28 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 
 ## Resources
 
-| Resource | Use for |
-|----------|---------|
-| `gitnexus://repo/butler-sheet-icons/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/butler-sheet-icons/clusters` | All functional areas |
-| `gitnexus://repo/butler-sheet-icons/processes` | All execution flows |
-| `gitnexus://repo/butler-sheet-icons/process/{name}` | Step-by-step execution trace |
+| Resource                                            | Use for                                  |
+| --------------------------------------------------- | ---------------------------------------- |
+| `gitnexus://repo/butler-sheet-icons/context`        | Codebase overview, check index freshness |
+| `gitnexus://repo/butler-sheet-icons/clusters`       | All functional areas                     |
+| `gitnexus://repo/butler-sheet-icons/processes`      | All execution flows                      |
+| `gitnexus://repo/butler-sheet-icons/process/{name}` | Step-by-step execution trace             |
 
 ## CLI
 
-| Task | Read this skill file |
-|------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
-| Work in the Cloud area | `.claude/skills/generated/cloud/SKILL.md` |
-| Work in the Browser area | `.claude/skills/generated/browser/SKILL.md` |
-| Work in the Qscloud area | `.claude/skills/generated/qscloud/SKILL.md` |
-| Work in the Qseow area | `.claude/skills/generated/qseow/SKILL.md` |
-| Work in the Util area | `.claude/skills/generated/util/SKILL.md` |
+| Task                                         | Read this skill file                                        |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md`       |
+| Blast radius / "What breaks if I change X?"  | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?"             | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md`       |
+| Rename / extract / split / refactor          | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md`     |
+| Tools, resources, schema reference           | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md`           |
+| Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
+| Work in the Cloud area                       | `.claude/skills/generated/cloud/SKILL.md`                   |
+| Work in the Browser area                     | `.claude/skills/generated/browser/SKILL.md`                 |
+| Work in the Qscloud area                     | `.claude/skills/generated/qscloud/SKILL.md`                 |
+| Work in the Qseow area                       | `.claude/skills/generated/qseow/SKILL.md`                   |
+| Work in the Util area                        | `.claude/skills/generated/util/SKILL.md`                    |
 
 <!-- gitnexus:end -->
 
@@ -79,7 +80,7 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 - **Tests**: `src/__tests__/` for top-level CLI tests; module-specific tests live next to code as `*.test.js`
 - **Test types** — `*.test.js` are unit tests (run by `test:unit`); `*.integration.test.js` are integration tests that need external services (run by `test:integration`). Always use the `.integration.test.js` suffix for tests that require network, credentials, real Qlik servers, or browser downloads.
 - **ESM-friendly Jest imports** — use `import { jest, describe, test, expect } from '@jest/globals';` at the top of test files.
-- **ESM mocking** — use `jest.unstable_mockModule('some-module', () => ({...}))` *before* importing, then `const mod = await import('some-module');`. Plain `jest.mock()` does not work with ESM.
+- **ESM mocking** — use `jest.unstable_mockModule('some-module', () => ({...}))` _before_ importing, then `const mod = await import('some-module');`. Plain `jest.mock()` does not work with ESM.
 - **Dockerfile**: `src/Dockerfile` — multi-stage build with Chromium for Puppeteer
 
 ## Conventions
@@ -97,7 +98,7 @@ This project is indexed by GitNexus as **butler-sheet-icons**. Use the GitNexus 
 
 ## Browser / Puppeteer
 
-- The tool can install/manage Chrome and Firefox via `@puppeteer/browsers`
+- The tool can install/manage Chrome via `@puppeteer/browsers`. Chrome only — the render path speaks the Chrome DevTools Protocol
 - Docker images install Chromium at `/usr/bin/chromium-browser`; set `PUPPETEER_EXECUTABLE_PATH` accordingly
 - Puppeteer launch options are centralized in `src/lib/browser/` — do not create new browser instances ad hoc
 - Long browser sessions can hold files open; always call `browser.close()` (or use the `try/finally` helpers) to avoid hanging tests
@@ -146,6 +147,6 @@ The order is: **branch first, implement, verify, stop and report.** Committing, 
 - Explain **why** in the body, not just what — the diff already says what changed.
 - **MUST NOT give a pull request a Conventional Commits title.** Commit subjects use `type: subject`; PR titles must not. Write the PR title as an ordinary sentence — "Ship the Windows binary again, unsigned until a certificate is available", not `fix: ship the Windows binary unsigned`.
 
-  This is not style. PRs land here as merge commits, and GitHub puts the PR title into the **body** of the merge commit. release-please cannot parse the merge commit's subject (`Merge pull request #924 from …`), so it falls back to the body — finds a second conventional commit there — and emits a **duplicate changelog entry** for every such PR. The 4.0.0 release PR had 154 entries for 128 real changes and had to be de-duplicated by hand; 4.0.1 started doing the same.
+    This is not style. PRs land here as merge commits, and GitHub puts the PR title into the **body** of the merge commit. release-please cannot parse the merge commit's subject (`Merge pull request #924 from …`), so it falls back to the body — finds a second conventional commit there — and emits a **duplicate changelog entry** for every such PR. The 4.0.0 release PR had 154 entries for 128 real changes and had to be de-duplicated by hand; 4.0.1 started doing the same.
 
-  If a PR genuinely needs a conventional title for something else, strip the merge commit body instead: `gh pr merge --merge --body ""`. Do not rely on that as the default — it does not help anyone merging through the GitHub web UI, which is why the title rule is the one that holds.
+    If a PR genuinely needs a conventional title for something else, strip the merge commit body instead: `gh pr merge --merge --body ""`. Do not rely on that as the default — it does not help anyone merging through the GitHub web UI, which is why the title rule is the one that holds.

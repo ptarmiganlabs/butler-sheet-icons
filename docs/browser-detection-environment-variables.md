@@ -379,7 +379,6 @@ docker run -it --rm \
 
 - ✅ Use latest browser version (embedded version may be older)
 - ✅ Test with specific browser versions
-- ✅ Use Firefox instead of Chrome
 - ✅ Match browser version with production environment
 - ✅ Access newer browser features or bug fixes
 
@@ -716,14 +715,14 @@ PUPPETEER_EXECUTABLE_PATH is set to "/path/to/browser" but file does not exist
 
 ### `--browser <type>`
 
-**Values**: `chrome`, `firefox`  
+**Values**: `chrome`  
 **Default**: `chrome`  
 **Description**: Browser type to use
 
 ### `--browser-version <version>`
 
-**Values**: Version string or `latest`  
-**Default**: `latest`  
+**Values**: `recommended`, `stable`, a release channel (`beta`, `dev`, `canary`), or an exact build id  
+**Default**: `recommended`  
 **Description**: Browser version to download (only used if download is needed)
 
 **Examples**:
@@ -920,8 +919,8 @@ A: Yes, use `-e PUPPETEER_EXECUTABLE_PATH=/your/browser` when running the contai
 **Q: What happens if the browser at `PUPPETEER_EXECUTABLE_PATH` doesn't exist?**  
 A: BSI logs a warning and falls back to checking cached browsers.
 
-**Q: Can I use Firefox instead of Chrome?**  
-A: Yes, but Docker image includes only Chromium. For standalone, use `--browser firefox`.
+**Q: Can I use a browser other than Chrome?**  
+A: No. Thumbnails are produced by driving the browser over the Chrome DevTools Protocol, so only Chrome and Chromium builds can be used.
 
 **Q: How much disk space do cached browsers use?**  
 A: Approximately 200-300 MB per browser version.
