@@ -45,6 +45,10 @@ jobs:
               - ubuntu-latest
             artifact_insider: butler-sheet-icons--linux-x64--${{ github.sha }}.tgz
     runs-on: ${{ matrix.runs_on }}
+    # The win leg signs when a SimplySign session happens to be open on the runner, so it can in
+    # principle sit on a graphical prompt nobody will answer. scripts/lib/win-signing.ps1 kills
+    # signtool itself; this is the backstop, because the default is six hours per leg.
+    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

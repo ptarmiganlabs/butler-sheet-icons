@@ -1,0 +1,152 @@
+name: windows-signing-canary
+
+# Manually-run smoke test for the Windows signing path.
+#
+# release-win64 in ci.yaml only runs when release-please actually cuts a release, so signing is
+# otherwise exercised for the first time during a live release. That is not theoretical: the
+# timestamp URL was changed from http to https in May 2026 and nothing noticed until the 4.0.0
+# release failed in August. This job is the counterpart to macos-signing-canary.yaml.
+#
+# Two modes, because they answer different questions:
+#
+#   smoke (default) - signs a throwaway copy of node.exe and checks the result. Seconds, no npm
+#                     install, no esbuild, no postject. This is the one to run after touching
+#                     scripts/lib/win-signing.ps1, after a certificate renewal, or to find out
+#                     whether the SimplySign session on the runner is still alive.
+#
+#   full            - runs the real scripts/release-win.ps1 end to end, publishing nothing. Use it
+#                     before a release, or after changing the build itself.
+#
+# Both run on the win-code-sign runner, and that is half the point: signing works only for the
+# Windows account SimplySign Desktop is connected as, so proving it by hand on the machine proves
+# less than it appears to. Only a run through the runner exercises the account the release uses.
+#
+# Note the certificate is a Certum cloud certificate whose session lasts about two hours. If this
+# job fails at the preflight step, that is very likely all it is - log in to SimplySign Desktop on
+# the runner and run it again.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'smoke = sign one throwaway file; full = run the whole release build'
+        required: true
+        default: smoke
+        type: choice
+        options:
+          - smoke
+          - full
+
+permissions: {}
+
+jobs:
+  sign:
+    name: sign (${{ inputs.mode }})
+    # MUST stay in sync with release-win64 in ci.yaml - proving that runner is the point.
+    runs-on:
+      - self-hosted
+      - x64
+      - windows
+      - sp53
+      - win-code-sign
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      DIST_FILE_NAME: butler-sheet-icons
+      CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Byte-for-byte the step release-win64 runs, flags included. A rehearsal that invokes a
+      # different command than the thing it rehearses cannot vouch for it - and -ProveSigning is
+      # exactly the flag worth exercising, since it is the one that actually signs rather than
+      # trusting the certificate store.
+      #
+      # It also reports the Windows account, the session, and whether the runner is a service,
+      # which is what distinguishes "the session expired" from "this runner cannot see the
+      # certificate at all".
+      - name: Preflight the Windows signing certificate
+        shell: powershell
+        run: ./scripts/diag/win-signing-check.ps1 -RequireSigning -ProveSigning
+
+      - name: Sign a throwaway file
+        if: inputs.mode == 'smoke'
+        id: smoke
+        shell: powershell
+        run: ./scripts/diag/win-signing-smoke.ps1 -KeepOutput
+
+      - name: Upload the signed test file
+        if: inputs.mode == 'smoke'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-signing-canary-smoke-${{ github.run_id }}
+          path: ${{ steps.smoke.outputs.signed_file }}
+          retention-days: 3
+
+      # ---------------------------------------------------------------------------------------
+      # full mode: everything below only runs for a complete release rehearsal.
+      # ---------------------------------------------------------------------------------------
+      - name: Setup Node.js
+        if: inputs.mode == 'full'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+      # See the note in ci.yaml: pins npm so the install is identical on every runner.
+      - name: Pin npm
+        if: inputs.mode == 'full'
+        shell: powershell
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
+
+      - name: Install dependencies
+        if: inputs.mode == 'full'
+        shell: powershell
+        run: npm ci --include=dev --include=prod
+
+      - name: Build and sign
+        if: inputs.mode == 'full'
+        env:
+          RELEASE_VERSION: canary-${{ github.run_id }}
+        run: ./scripts/release-win.ps1
+
+      # release-win.ps1 verifies its own output, so this is a second opinion taken from the PE
+      # itself rather than from signtool's console text - the same assertions the macOS canary
+      # makes about codesign. A wrong signing identity or a missing timestamp would pass every
+      # string check and still be wrong.
+      - name: Verify the signature
+        if: inputs.mode == 'full'
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $signature = Get-AuthenticodeSignature -LiteralPath "./${env:DIST_FILE_NAME}.exe"
+
+          Write-Host "status     : $($signature.Status)"
+          Write-Host "signer     : $($signature.SignerCertificate.Subject)"
+          Write-Host "thumbprint : $($signature.SignerCertificate.Thumbprint)"
+
+          if ($signature.Status -ne 'Valid') {
+            Write-Host "::error::signature status is '$($signature.Status)', expected 'Valid'. $($signature.StatusMessage)"
+            exit 1
+          }
+
+          if ($null -eq $signature.TimeStamperCertificate) {
+            Write-Host '::error::the signature carries no RFC 3161 timestamp, so it stops validating when the certificate expires'
+            exit 1
+          }
+
+          Write-Host "timestamped by: $($signature.TimeStamperCertificate.Subject)"
+
+      - name: Upload the signed archive for inspection
+        if: inputs.mode == 'full'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-signing-canary-full-${{ github.run_id }}
+          path: ./*-win.zip
+          retention-days: 3

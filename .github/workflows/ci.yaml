@@ -1259,23 +1259,24 @@ jobs:
       - windows
       - sp53
       - win-code-sign
-    # timeout-minutes: 15
+    # Not optional. A lapsed SimplySign session can leave signtool waiting on a graphical prompt
+    # that nothing on a runner will answer; the scripts kill signtool themselves, and this is the
+    # backstop if anything else wedges. Without it the default is six hours.
+    timeout-minutes: 30
     if: needs.release-please.outputs.releases_created == 'true'
     permissions:
       contents: write
     env:
       DIST_FILE_NAME: butler-sheet-icons
       GITHUB_TOKEN: ${{ secrets.PAT }}
-      # Windows code signing is OFF: the certificate expired, and signtool cannot sign with it
-      # whatever else is configured. scripts/release-win.ps1 skips signing when this variable is
-      # empty and ships an unsigned binary instead of failing, which is why 4.0.0 went out with no
-      # Windows binary at all.
+      # The certificate is a Certum cloud certificate, reached through SimplySign Desktop on the
+      # win-code-sign runner. It only exists in that machine's certificate store while a SimplySign
+      # session is open, and a session lasts about two hours - so somebody has to log in to
+      # SimplySign Desktop before merging a release-please PR.
       #
-      # TO RE-ENABLE: uncomment the line below, once WIN_CODESIGN_THUMBPRINT holds the thumbprint
-      # of a valid certificate. Nothing else needs changing here. Note that Certum SimplySign is a
-      # cloud signing service, so the signtool invocation in release-win.ps1 will probably need
-      # reworking for it rather than simply being switched back on - see the comment there.
-      # CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT}}
+      # Forgetting is not a disaster: the preflight step below fails this job in seconds, and
+      # re-running it after logging in is all that is needed. See scripts/lib/win-signing.ps1.
+      CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT }}
     steps:
       - name: Release tag and upload url from previous job
         shell: powershell
@@ -1294,6 +1295,26 @@ jobs:
           # and globals.js reads the version straight out of it.
           ref: ${{ needs.release-please.outputs.release_tag_name }}
           persist-credentials: false
+
+      # Fail before spending ten minutes on a build that cannot be signed.
+      #
+      # The Certum certificate is only in this machine's store while a SimplySign session is open,
+      # and a session lasts about two hours - so "no certificate" is a routine state, not an exotic
+      # one. Checking here means the answer arrives in seconds and the fix is to log in to
+      # SimplySign Desktop on the runner and re-run this job.
+      #
+      # -ProveSigning actually signs a few-kilobyte scratch file rather than trusting the
+      # certificate store. That is not belt and braces: SimplySign leaves certificates registered
+      # after a session ends, so a store lookup would pass with an expired session and this step
+      # would wave through a build that cannot possibly be signed - which is the whole thing it
+      # exists to prevent.
+      #
+      # Written for `shell: powershell` for the same reason as the version check below - it is the
+      # shell this self-hosted runner is known to have - which also keeps the signing scripts
+      # working under Windows PowerShell 5.1, not just the pwsh that runs the build step.
+      - name: Preflight the Windows signing certificate
+        shell: powershell
+        run: ./scripts/diag/win-signing-check.ps1 -RequireSigning -ProveSigning
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

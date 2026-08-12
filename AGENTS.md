@@ -119,9 +119,18 @@ The section above is about the browser BSI drives. This one is about the browser
 
 - SEA config: `build-script/sea-config.json` — bundles `build.cjs` and enigma.js JSON schemas as assets
 - `scripts/release-*.sh` / `scripts/release-*.ps1` produce signed/notarized binaries for macOS, Linux, Windows
-- `scripts/insider-build-*.sh` / `scripts/insider-build-*.ps1` produce unsigned insider builds
+- `scripts/insider-build-*.sh` / `scripts/insider-build-*.ps1` produce insider builds — unsigned on Linux, signed on macOS, and signed on Windows only when a certificate happens to be available
 - In SEA binaries, `__dirname`/`__filename` are unavailable; use the helpers in `src/lib/util/import-meta-url.js` (injected at build time)
 - Always clean up `build.cjs` and `sea-prep.blob` after builds
+
+### Windows code signing
+
+**A SimplySign session must be open on the `win-code-sign` runner before a release-please PR is merged.** The Windows certificate is a Certum *cloud* certificate: it exists in that machine's certificate store only while SimplySign Desktop holds a session, and a session lasts about two hours before it needs a fresh token from the SimplySign mobile app. Nothing in CI can renew it.
+
+- Forgetting is cheap. `release-win64` preflights the certificate before it builds anything and fails in seconds; log in and re-run the job.
+- `scripts/lib/win-signing.ps1` holds the signing logic shared by the release build, the insider build and the diagnostics — including why the timestamp URL is `http` and must stay that way.
+- To check a machine, or to test signing without waiting for a release build, run `scripts/diag/win-signing-check.ps1` and `scripts/diag/win-signing-smoke.ps1` on the runner. The `windows-signing-canary` workflow runs both through the runner's own account, which is the part running them by hand cannot prove.
+- signtool only sees certificates belonging to the Windows account it runs as. A runner running as a service, or as a different account than the one SimplySign is connected as, cannot sign at all — and the symptom looks exactly like an expired session.
 
 ## Security
 

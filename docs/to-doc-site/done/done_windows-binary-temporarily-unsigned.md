@@ -55,10 +55,25 @@ A replacement certificate is being obtained. When it is in place, Windows releas
 The macOS binary continues to be signed and notarized by Apple throughout, and Linux releases are distributed as archives, where code signing is not customary.
 
 <!--
-NOT PUBLISHED - stale.
+NOT PUBLISHED.
 
 Retired without publishing on 2026-08-10. scripts/release-win.ps1 has two live
 `signtool sign` calls and none commented out, so the Windows release binary is
 signed again and this draft would have told users the opposite. The live doc
 site never carried the claim, so there was nothing to correct.
+
+CORRECTION, 2026-08-12: the reasoning above was wrong, though retiring the page
+was still the right call.
+
+The two `signtool sign` calls were live but *guarded* - release-win.ps1 skipped
+signing whenever CODESIGN_WIN_THUMBPRINT was empty, and ci.yaml had that variable
+commented out. So Windows releases were still shipping unsigned when this note
+claimed they were signed again, and 4.1.0 went out unsigned after it was written.
+Reading a script for commented-out lines says nothing about whether the code runs;
+what decided it was the workflow that supplies the variable.
+
+The page stayed unpublished throughout, so no reader was ever misled. Signing was
+restored with a new Certum certificate; the successor draft is
+docs/to-doc-site/windows-binary-signed-again.md, which covers 4.0.0 and 4.1.0
+having been unsigned and so replaces the need for this one.
 -->
