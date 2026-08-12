@@ -371,3 +371,133 @@ describe('both app sources agree on shape', () => {
         expect(fromCollection).toEqual(fromTenant);
     });
 });
+
+describe('a tenant that does not answer with a list (issue #935)', () => {
+    // A 200 whose body is not the paginated envelope resolves rather than rejecting, so every
+    // one of these used to reach a `.map()` and surface as
+    // `TypeError: allCollections.map is not a function` - an internal error naming a local
+    // variable, with no endpoint or tenant in it. HTTP error statuses are deliberately absent:
+    // axios rejects on those, so they never take this path.
+    test('listCollections reports the tenant instead of throwing a TypeError', async () => {
+        Get.mockResolvedValue('<html>502 Bad Gateway</html>');
+
+        await expect(listCollections(saasInstance)).rejects.toThrow(/expected a list, got string/);
+    });
+
+    test('the failure never surfaces as a TypeError about .map', async () => {
+        Get.mockResolvedValue({ errors: [{ code: 'x' }] });
+
+        await expect(listCollections(saasInstance)).rejects.not.toThrow(TypeError);
+    });
+
+    test('listAppsByCollection fails on an unusable collections response', async () => {
+        Get.mockResolvedValue({ errors: [{ code: 'x' }] });
+
+        await expect(listAppsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
+            /expected a list, got object/
+        );
+    });
+
+    test('listAppsByCollection fails on an unusable items response', async () => {
+        // The collection resolves fine; the second request is the bad one. Naming the path is
+        // what tells those two apart.
+        Get.mockImplementation(async (path) => {
+            if (path === 'collections') return [{ id: COLLECTION_ID }];
+            return { errors: [{ code: 'x' }] };
+        });
+
+        await expect(listAppsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
+            new RegExp(`collections/${COLLECTION_ID}/items`)
+        );
+    });
+
+    test('listApps fails on an unusable items response', async () => {
+        Get.mockResolvedValue('<html>');
+
+        await expect(listApps(saasInstance)).rejects.toThrow(/items\?resourceType=app/);
+    });
+
+    test('an empty body reports the status rather than a shape', async () => {
+        // The one shape that keeps its status through request()'s unwrap.
+        Get.mockResolvedValue({ data: '', status: 200 });
+
+        await expect(listCollections(saasInstance)).rejects.toThrow(/status 200 and an empty body/);
+    });
+
+    test('a missing collection still reads as missing, not as a broken tenant', async () => {
+        // The guard must not swallow the ordinary case it sits next to.
+        Get.mockResolvedValue([{ id: 'some-other-collection' }]);
+
+        await expect(listAppsByCollection(saasInstance, COLLECTION_ID)).rejects.toThrow(
+            /does not exist/
+        );
+    });
+});
+
+describe('malformed entries inside a well-formed list', () => {
+    test('an app entry with no attributes is skipped rather than crashing the run', async () => {
+        Get.mockResolvedValue([
+            { id: 'item-a', resourceType: 'app' },
+            {
+                id: 'item-b',
+                resourceType: 'app',
+                resourceAttributes: { id: 'app-b', name: 'Beta' },
+            },
+        ]);
+
+        await expect(listApps(saasInstance)).resolves.toEqual([{ id: 'app-b', name: 'Beta' }]);
+    });
+
+    test('the skipped entry is warned about, not whispered at verbose', async () => {
+        // An app that should be in the list is now absent from it. That is worth a warning.
+        Get.mockResolvedValue([{ id: 'item-a', resourceType: 'app' }]);
+
+        await listApps(saasInstance);
+
+        expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('item-a'));
+    });
+
+    test('an entry with attributes but no app id is skipped too', async () => {
+        // `resourceAttributes: {}` passes an existence check. Left unguarded it contributed
+        // `{ id: undefined }`, which survives dedupe in runOverApps and makes the run try to
+        // process an app called `undefined`.
+        Get.mockResolvedValue([
+            { id: 'item-a', resourceType: 'app', resourceAttributes: {} },
+            {
+                id: 'item-b',
+                resourceType: 'app',
+                resourceAttributes: { id: 'app-b', name: 'Beta' },
+            },
+        ]);
+
+        await expect(listApps(saasInstance)).resolves.toEqual([{ id: 'app-b', name: 'Beta' }]);
+    });
+
+    test('no app is ever returned without an id', async () => {
+        Get.mockResolvedValue([
+            { id: 'item-a', resourceType: 'app', resourceAttributes: {} },
+            { id: 'item-b', resourceType: 'app', resourceAttributes: { name: 'no id' } },
+        ]);
+
+        const apps = await listApps(saasInstance);
+
+        expect(apps.every((app) => app.id !== undefined)).toBe(true);
+    });
+
+    test('an entry with no id of its own is described, not called "undefined"', async () => {
+        // The warning exists so an administrator can find the dropped app. Interpolating an
+        // absent id defeats that.
+        Get.mockResolvedValue([{ resourceType: 'app' }]);
+
+        await listApps(saasInstance);
+
+        expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('no id of its own'));
+        expect(logger.warn).not.toHaveBeenCalledWith(expect.stringContaining('undefined'));
+    });
+
+    test('a null entry does not crash the line that logs the skip', async () => {
+        Get.mockResolvedValue([null, { id: 'item-b', resourceType: 'sheet' }]);
+
+        await expect(listApps(saasInstance)).resolves.toEqual([]);
+    });
+});
