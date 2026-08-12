@@ -7,6 +7,7 @@ import {
     parseBrowserVersionValue,
 } from '../../browser/browser-version.js';
 import { runCommand } from '../run-command.js';
+import { buildBrowserCacheDirOption } from '../helpers.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
 
 /**
@@ -70,7 +71,8 @@ const buildBrowserInstallCommand = () => {
                 .default(VERSION_RECOMMENDED)
                 .argParser(parseBrowserVersionValue)
                 .env('BSI_BROWSER_I_BROWSER_VERSION')
-        );
+        )
+        .addOption(buildBrowserCacheDirOption());
 
     // The version picker is the reason: `--browser-version` accepts hundreds of
     // build ids that are impossible to recall, and the wizard searches them.

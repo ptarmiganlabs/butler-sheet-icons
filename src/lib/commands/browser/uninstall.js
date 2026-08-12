@@ -2,6 +2,7 @@ import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserUninstall } from '../../browser/browser-uninstall.js';
 import { runCommand } from '../run-command.js';
+import { buildBrowserCacheDirOption } from '../helpers.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
 
 /**
@@ -73,7 +74,8 @@ const buildBrowserUninstallCommand = () => {
             )
                 .makeOptionMandatory()
                 .env('BSI_BROWSER_UI_BROWSER_VERSION')
-        );
+        )
+        .addOption(buildBrowserCacheDirOption());
 
     // Both mandatory options above are exactly why this command is worth doing
     // interactively: the build to remove has to be named exactly, and today it

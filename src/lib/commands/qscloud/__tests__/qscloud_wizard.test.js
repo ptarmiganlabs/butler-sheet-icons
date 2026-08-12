@@ -221,6 +221,7 @@ describe('progressive disclosure', () => {
                 browser: 'chrome',
                 browserVersion: 'recommended',
                 browserPageTimeout: '90',
+                browserCacheDir: '',
                 headless: true,
             })
         );
@@ -229,6 +230,9 @@ describe('progressive disclosure', () => {
 
         expect(runtime.asked.map((a) => a.key)).toContain('schemaversion');
         expect(runtime.asked.map((a) => a.key)).toContain('browserPageTimeout');
+        // Behind the advanced gate rather than in the main flow: most runs never name a
+        // browser cache directory, and an unplaced key would be asked last and ungated.
+        expect(runtime.asked.map((a) => a.key)).toContain('browserCacheDir');
     });
 
     test('never asks for the log level up front', async () => {

@@ -1,5 +1,5 @@
 import { detectBrowserPlatform, canDownload } from '@puppeteer/browsers';
-import { getBrowserCacheDir } from './browser-cache-dir.js';
+import { resolveBrowserCacheDir } from './browser-paths.js';
 import axios from 'axios';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
@@ -222,8 +222,11 @@ export async function browserListAvailable(options) {
             throw new Error(`Invalid browser "${options.browser}"`);
         }
 
-        const browserPath = getBrowserCacheDir();
-        logger.debug(`Browser cache path: ${browserPath}`);
+        // No --browser-cache-dir on this command: this value is only ever handed to
+        // canDownload(), which ignores cacheDir entirely, so an option here would be a knob
+        // that provably does nothing. Resolved the same way as everywhere else regardless,
+        // so there is one answer to "where is the cache" rather than two.
+        const browserPath = resolveBrowserCacheDir(options);
 
         // Get versions for the selected browser
         let browsersAvailable = [];

@@ -1,7 +1,8 @@
 import { uninstall } from '@puppeteer/browsers';
-import { getBrowserCacheDir } from './browser-cache-dir.js';
+import { BROWSER_CACHE_SUBDIRS, resolveBrowserCacheDir } from './browser-paths.js';
 import { getBrowserInventory } from './browser-inventory.js';
 import fs from 'fs-extra';
+import path from 'node:path';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
@@ -16,6 +17,8 @@ import { resolveLocalBrowserBuildId, VERSION_RECOMMENDED } from './browser-versi
  * `recommended` for the build Butler Sheet Icons is tested with. Floating keywords such as
  * `stable` are refused - they name whatever the vendor currently publishes, not a build on this
  * machine.
+ * @param {string} [options.browserCacheDir] - Cache directory to remove the build from. Defaults to
+ * the resolver's answer for this machine.
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
  *
  * @returns {Promise<boolean>} A promise that resolves to `true` if the browser was uninstalled successfully, `false` if it was not found in the cache or the version could not name a local build.
@@ -47,9 +50,7 @@ export const browserUninstall = async (options) => {
             );
         }
 
-        const browserPath = getBrowserCacheDir();
-
-        logger.debug(`Browser cache path: ${browserPath}`);
+        const browserPath = resolveBrowserCacheDir(options);
 
         const inventory = await getBrowserInventory({ cacheDir: browserPath });
 
@@ -130,6 +131,8 @@ export const browserUninstall = async (options) => {
  * Uninstall all browsers from the Butler Sheet Icons cache.
  *
  * @param {object} options - An options object.
+ * @param {string} [options.browserCacheDir] - Cache directory to empty of browsers. Defaults to the
+ * resolver's answer for this machine.
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", "silly". Default is "info".
  *
  * @returns {Promise<boolean>} A promise that resolves to `true` when all browsers are uninstalled.
@@ -145,8 +148,7 @@ export const browserUninstallAll = async (options) => {
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
-        const browserPath = getBrowserCacheDir();
-        logger.debug(`Browser cache path: ${browserPath}`);
+        const browserPath = resolveBrowserCacheDir(options);
 
         const browsersInstalled = await getBrowserInventory({ cacheDir: browserPath });
 
@@ -156,8 +158,8 @@ export const browserUninstallAll = async (options) => {
 
             // Use a for-of loop so each uninstall is awaited before the next
             // starts. The previous `.forEach(async ...)` did not await inner
-            // promises, so the subsequent `fs.emptyDir` raced with in-flight
-            // uninstalls and could leave the cache in an inconsistent state
+            // promises, so the sweep below raced with in-flight uninstalls
+            // and could leave the cache in an inconsistent state
             // (which then caused the next install to fail with an extraction
             // error on `@puppeteer/browsers` v3+).
             for (const browser of browsersInstalled) {
@@ -172,7 +174,7 @@ export const browserUninstallAll = async (options) => {
                         // Same fix as browserUninstall: without an explicit
                         // platform this targets the host's directory, so a
                         // foreign-platform build is skipped silently. Here the
-                        // emptyDir below would eventually remove it anyway, but
+                        // sweep below would eventually remove it anyway, but
                         // only after reporting a removal that did not happen.
                         platform: browser.platform,
                         cacheDir: browserPath,
@@ -188,14 +190,20 @@ export const browserUninstallAll = async (options) => {
                 logger.info(`Browser "${browser.browser}" (${browser.buildId}) uninstalled.`);
             }
 
-            // Remove any remaining files and directories in the browser cache directory
-            // This is necessary because Puppeteer's uninstall function may not remove all files
-            // and directories in the browser cache directory
-            logger.info(
-                'Removing any remaining files and directories in the browser cache directory'
-            );
+            // Sweep up what `uninstall()` leaves behind - a partially extracted install
+            // directory, or a downloaded archive from an interrupted run.
+            //
+            // Only the subdirectories the cache owns are removed. This used to be
+            // `fs.emptyDir(browserPath)`, which was survivable while the path was hardcoded
+            // to ~/.cache/puppeteer and is not survivable now that an administrator chooses
+            // it: `BSI_BROWSER_CACHE_DIR=D:\qlik` would have made this delete everything in
+            // D:\qlik. Nothing is lost by narrowing it, because `@puppeteer/browsers` writes
+            // everything, archives included, under `<cacheDir>/<browser>/`.
+            logger.info('Removing any files the uninstall left behind in the browser cache');
 
-            await fs.emptyDir(browserPath);
+            for (const subdir of BROWSER_CACHE_SUBDIRS) {
+                await fs.remove(path.join(browserPath, subdir));
+            }
         } else {
             logger.info('No browsers installed');
         }

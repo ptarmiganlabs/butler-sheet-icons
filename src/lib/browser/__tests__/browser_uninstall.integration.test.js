@@ -171,7 +171,14 @@ describe('browserUninstallAll function', () => {
         // Clear all mocks before each test
         jest.clearAllMocks();
 
-        jest.spyOn(fs, 'emptyDir');
+        // fs.remove, not fs.emptyDir: the cleanup sweeps the cache's own browser
+        // subdirectories rather than emptying a directory the administrator may own.
+        //
+        // Stubbed here rather than only in the tests that assert on it. This file does not mock
+        // the cache-directory resolver, so a pass-through spy would delete real browsers out of
+        // the developer's own cache the moment a test reaches the sweep without remembering to
+        // stub it - which is precisely how a 1.2 GB cache was lost on 2026-08-12.
+        jest.spyOn(fs, 'remove').mockResolvedValue(undefined);
     });
 
     test('should successfully uninstall all browsers', async () => {
@@ -194,8 +201,8 @@ describe('browserUninstallAll function', () => {
         // Mock successful uninstall
         uninstall.mockResolvedValue(undefined);
 
-        // Mock successful emptyDir
-        fs.emptyDir.mockResolvedValue(undefined);
+        // Mock successful cleanup
+        fs.remove.mockResolvedValue(undefined);
 
         const options = {
             loglevel: 'info',
@@ -205,7 +212,7 @@ describe('browserUninstallAll function', () => {
 
         expect(result).toBe(true);
         expect(uninstall).toHaveBeenCalledTimes(2);
-        expect(fs.emptyDir).toHaveBeenCalledTimes(1);
+        expect(fs.remove).toHaveBeenCalled();
     });
 
     test('should return true when no browsers are installed', async () => {
@@ -220,7 +227,7 @@ describe('browserUninstallAll function', () => {
 
         expect(result).toBe(true);
         expect(uninstall).not.toHaveBeenCalled();
-        expect(fs.emptyDir).not.toHaveBeenCalled();
+        expect(fs.remove).not.toHaveBeenCalled();
     });
 
     test('should handle errors during uninstallation of one browser', async () => {
@@ -248,8 +255,8 @@ describe('browserUninstallAll function', () => {
         // by spying on the logger.error method
         jest.spyOn(logger, 'error');
 
-        // Mock successful emptyDir
-        fs.emptyDir.mockResolvedValue(undefined);
+        // Mock successful cleanup
+        fs.remove.mockResolvedValue(undefined);
 
         const options = {
             loglevel: 'info',
@@ -262,11 +269,11 @@ describe('browserUninstallAll function', () => {
         // Both browsers should have had uninstall attempted
         expect(uninstall).toHaveBeenCalledTimes(2);
 
-        // fs.emptyDir should still be called to clean up
-        expect(fs.emptyDir).toHaveBeenCalledTimes(1);
+        // the cleanup should still run
+        expect(fs.remove).toHaveBeenCalled();
     });
 
-    test('should handle error when fs.emptyDir fails', async () => {
+    test('should handle error when the cleanup fails', async () => {
         // Mock installed browsers
         getInstalledBrowsers.mockResolvedValue([
             {
@@ -280,9 +287,9 @@ describe('browserUninstallAll function', () => {
         // Mock successful uninstall
         uninstall.mockResolvedValue(undefined);
 
-        // Mock fs.emptyDir to throw an error
+        // Mock the cleanup to throw an error
         const emptyDirError = new Error('Failed to empty directory');
-        fs.emptyDir.mockRejectedValue(emptyDirError);
+        fs.remove.mockRejectedValue(emptyDirError);
 
         const options = {
             loglevel: 'info',

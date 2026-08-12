@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import path from 'path';
 
 const getInstalledBrowsers = jest.fn();
@@ -46,10 +46,29 @@ const INSTALLED = [
     },
 ];
 
+// Ambient, and behaviour-affecting since the cache directory became configurable: a
+// developer shell or a CI image may have either set.
+const SAVED_ENV = {
+    BSI_BROWSER_CACHE_DIR: process.env.BSI_BROWSER_CACHE_DIR,
+    PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR,
+};
+
 beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.BSI_BROWSER_CACHE_DIR;
+    delete process.env.PUPPETEER_CACHE_DIR;
     detectBrowserPlatform.mockReturnValue('mac_arm');
     getInstalledBrowsers.mockResolvedValue(INSTALLED);
+});
+
+afterEach(() => {
+    for (const [name, value] of Object.entries(SAVED_ENV)) {
+        if (value === undefined) {
+            delete process.env[name];
+        } else {
+            process.env[name] = value;
+        }
+    }
 });
 
 describe('browserInstalled', () => {
@@ -82,6 +101,24 @@ describe('browserInstalled', () => {
 
         expect(getInstalledBrowsers).toHaveBeenCalledWith({
             cacheDir: path.join('/home/tester', '.cache/puppeteer'),
+        });
+    });
+
+    test('looks in the directory named by --browser-cache-dir instead', async () => {
+        await browserInstalled({ loglevel: 'info', browserCacheDir: '/qlik/browsers' });
+
+        expect(getInstalledBrowsers).toHaveBeenCalledWith({
+            cacheDir: path.resolve('/qlik/browsers'),
+        });
+    });
+
+    test('looks in PUPPETEER_CACHE_DIR when no directory was named', async () => {
+        process.env.PUPPETEER_CACHE_DIR = '/qlik/puppeteer';
+
+        await browserInstalled({ loglevel: 'info' });
+
+        expect(getInstalledBrowsers).toHaveBeenCalledWith({
+            cacheDir: path.resolve('/qlik/puppeteer'),
         });
     });
 

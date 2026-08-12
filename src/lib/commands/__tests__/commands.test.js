@@ -355,6 +355,89 @@ describe('--browser-version defaults (issue #878)', () => {
     });
 });
 
+describe('--browser-cache-dir (issue #1024)', () => {
+    /**
+     * The subcommand of `browser` with the given name.
+     *
+     * @param {string} name - Leaf command name, e.g. `install`.
+     *
+     * @returns {import('commander').Command} The subcommand.
+     */
+    const browserCommand = (name) =>
+        buildBrowserCommand().commands.find((cmd) => cmd.name() === name);
+
+    // Structural, and asserted against the declarations rather than through a run: this is
+    // what stops a later edit from missing one command, or reintroducing a .default() that
+    // would make the option always truthy and the PUPPETEER_CACHE_DIR tier unreachable.
+    const carriers = [
+        ['browser install', () => buildBrowserInstallCommand()],
+        ['browser list-installed', () => browserCommand('list-installed')],
+        ['browser uninstall', () => buildBrowserUninstallCommand()],
+        ['browser uninstall-all', () => browserCommand('uninstall-all')],
+        ['qseow create-sheet-thumbnails', () => thumbnailCommand(buildQseowCommand())],
+        ['qscloud create-sheet-thumbnails', () => thumbnailCommand(buildQscloudCommand())],
+    ];
+
+    test.each(carriers)('%s carries the option', (_name, build) => {
+        const option = build().options.find((opt) => opt.long === '--browser-cache-dir');
+
+        expect(option).toBeDefined();
+    });
+
+    // One shared name across every command, not the per-command BSI_BROWSER_I_* convention:
+    // the browser location is a property of the machine, and the value `browser install`
+    // writes to must be the one `create-sheet-thumbnails` reads from.
+    test.each(carriers)('%s reads the shared environment variable', (_name, build) => {
+        const option = build().options.find((opt) => opt.long === '--browser-cache-dir');
+
+        expect(option.envVar).toBe('BSI_BROWSER_CACHE_DIR');
+    });
+
+    test.each(carriers)('%s leaves the default to the resolver', (_name, build) => {
+        const option = build().options.find((opt) => opt.long === '--browser-cache-dir');
+
+        expect(option.defaultValue).toBeUndefined();
+    });
+
+    // Commander runs parseArg on values sourced from the environment too, so a validator
+    // here would turn `BSI_BROWSER_CACHE_DIR=` into a hard CLI error rather than the no-op
+    // that PUPPETEER_EXECUTABLE_PATH="" has always been for Docker users.
+    test.each(carriers)('%s accepts a set-but-empty environment variable', (_name, build) => {
+        const option = build().options.find((opt) => opt.long === '--browser-cache-dir');
+
+        expect(option.parseArg).toBeUndefined();
+
+        const saved = process.env.BSI_BROWSER_CACHE_DIR;
+        process.env.BSI_BROWSER_CACHE_DIR = '';
+
+        try {
+            const parent = new Command();
+            parent.exitOverride();
+            parent.addOption(option);
+
+            expect(() => parent.parse(['node', 'test'])).not.toThrow();
+            expect(parent.opts().browserCacheDir).toBe('');
+        } finally {
+            if (saved === undefined) {
+                delete process.env.BSI_BROWSER_CACHE_DIR;
+            } else {
+                process.env.BSI_BROWSER_CACHE_DIR = saved;
+            }
+        }
+    });
+
+    // Both cache paths in browser-list-available.js are handed to canDownload(), which
+    // ignores cacheDir entirely. Advertising the option there would be a knob that provably
+    // does nothing.
+    test('browser list-available deliberately does not carry it', () => {
+        const option = browserCommand('list-available').options.find(
+            (opt) => opt.long === '--browser-cache-dir'
+        );
+
+        expect(option).toBeUndefined();
+    });
+});
+
 describe('--sense-version choices', () => {
     test('uses the shared QSEoW version list and defaults to 2026-May', () => {
         const option = thumbnailCommand(buildQseowCommand()).options.find(

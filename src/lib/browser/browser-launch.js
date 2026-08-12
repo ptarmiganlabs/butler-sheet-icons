@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer-core';
-import { getBrowserCacheDir } from './browser-cache-dir.js';
+import { resolveBrowserCacheDirForWriting } from './browser-paths.js';
 import { computeExecutablePath } from '@puppeteer/browsers';
 
 import { logger } from '../../globals.js';
@@ -171,8 +171,10 @@ const resolveRequestedBuildId = async (options) => {
  * this in a platform-specific typed error carrying the app id.
  */
 export const resolveBrowserExecutablePath = async (options) => {
-    const browserPath = getBrowserCacheDir();
-    logger.debug(`Browser cache path: ${browserPath}`);
+    // The writing resolver, because this value is only used to locate a browser this function
+    // has just installed. Detection does its own read-side resolution, which is what may fall
+    // back to the previous default location.
+    const browserPath = resolveBrowserCacheDirForWriting(options);
 
     const { buildId: requestedBuildId, resolveError } = await resolveRequestedBuildId(options);
 

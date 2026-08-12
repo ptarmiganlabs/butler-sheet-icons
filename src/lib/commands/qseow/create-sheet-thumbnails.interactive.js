@@ -61,6 +61,7 @@ const ADVANCED_KEYS = [
     'browser',
     'browserVersion',
     'browserPageTimeout',
+    'browserCacheDir',
 ];
 
 /** Which section each question belongs under, in the order the sections run. */

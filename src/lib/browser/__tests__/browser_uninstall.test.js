@@ -1,5 +1,6 @@
-import { jest, test, expect, describe, beforeEach } from '@jest/globals';
+import { jest, test, expect, describe, beforeEach, afterEach } from '@jest/globals';
 import fs from 'fs-extra';
+import path from 'node:path';
 
 // resolveBuildId is a stub with no behaviour: it exists only so the real
 // browser-version.js can be imported. Uninstall's version handling is
@@ -59,6 +60,31 @@ const { logger } = await import('../../../globals.js');
 const { getRecommendedBuildId } = await import('../browser-version.js');
 
 const { browserUninstall, browserUninstallAll } = await import('../browser-uninstall.js');
+
+// The real list, not a copy: a test that spelled out the subdirectories again would keep
+// passing after the two drifted apart.
+const { BROWSER_CACHE_SUBDIRS } = await import('../browser-paths.js');
+
+// Ambient, and behaviour-affecting since the cache directory became configurable.
+const SAVED_ENV = {
+    BSI_BROWSER_CACHE_DIR: process.env.BSI_BROWSER_CACHE_DIR,
+    PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR,
+};
+
+beforeEach(() => {
+    delete process.env.BSI_BROWSER_CACHE_DIR;
+    delete process.env.PUPPETEER_CACHE_DIR;
+});
+
+afterEach(() => {
+    for (const [name, value] of Object.entries(SAVED_ENV)) {
+        if (value === undefined) {
+            delete process.env[name];
+        } else {
+            process.env[name] = value;
+        }
+    }
+});
 
 describe('browserUninstall — version interpretation (issue #878 review)', () => {
     beforeEach(() => {
@@ -220,6 +246,7 @@ describe('browserUninstall — platform handling (issue #892)', () => {
 describe('browserUninstallAll — race fix', () => {
     let callOrder;
     let emptyDirSpy;
+    let removeSpy;
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -227,9 +254,16 @@ describe('browserUninstallAll — race fix', () => {
         emptyDirSpy = jest.spyOn(fs, 'emptyDir').mockImplementation(async () => {
             callOrder.push('emptyDir');
         });
+        removeSpy = jest.spyOn(fs, 'remove').mockImplementation(async () => {
+            // One entry however many subdirectories are swept, so the ordering
+            // assertions below stay about uninstall-before-cleanup.
+            if (callOrder.at(-1) !== 'cleanup') {
+                callOrder.push('cleanup');
+            }
+        });
     });
 
-    test('awaits every uninstall() before calling fs.emptyDir', async () => {
+    test('awaits every uninstall() before cleaning up', async () => {
         getInstalledBrowsers.mockResolvedValue([
             { browser: 'chrome', buildId: '123.0.0.0', platform: 'mac', path: '/p/1' },
             { browser: 'firefox', buildId: '100.0.0.0', platform: 'mac', path: '/p/2' },
@@ -242,10 +276,10 @@ describe('browserUninstallAll — race fix', () => {
 
         await browserUninstallAll({ loglevel: 'info' });
 
-        // Each uninstall must be recorded before emptyDir fires.
-        expect(callOrder).toEqual(['uninstall', 'uninstall', 'emptyDir']);
+        // Each uninstall must be recorded before the cleanup fires.
+        expect(callOrder).toEqual(['uninstall', 'uninstall', 'cleanup']);
         expect(uninstall).toHaveBeenCalledTimes(2);
-        expect(emptyDirSpy).toHaveBeenCalledTimes(1);
+        expect(removeSpy).toHaveBeenCalled();
     });
 
     test('continues uninstalling remaining browsers when one throws', async () => {
@@ -272,19 +306,89 @@ describe('browserUninstallAll — race fix', () => {
         const result = await browserUninstallAll({ loglevel: 'info' });
 
         expect(result).toBe(true);
-        // All three uninstalls were attempted in order, then emptyDir cleaned up.
-        expect(callOrder).toEqual(['uninstall-1', 'uninstall-2-fail', 'uninstall-3', 'emptyDir']);
+        // All three uninstalls were attempted in order, then the cleanup ran.
+        expect(callOrder).toEqual(['uninstall-1', 'uninstall-2-fail', 'uninstall-3', 'cleanup']);
         expect(uninstall).toHaveBeenCalledTimes(3);
-        expect(emptyDirSpy).toHaveBeenCalledTimes(1);
+        expect(removeSpy).toHaveBeenCalled();
     });
 
-    test('resolves to true with no uninstall calls and no emptyDir when nothing is installed', async () => {
+    test('resolves to true with no uninstall calls and no cleanup when nothing is installed', async () => {
         getInstalledBrowsers.mockResolvedValue([]);
 
         const result = await browserUninstallAll({ loglevel: 'info' });
 
         expect(result).toBe(true);
         expect(uninstall).not.toHaveBeenCalled();
+        expect(removeSpy).not.toHaveBeenCalled();
         expect(emptyDirSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe('browserUninstallAll — only removes what it owns', () => {
+    let removeSpy;
+    let emptyDirSpy;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        emptyDirSpy = jest.spyOn(fs, 'emptyDir').mockResolvedValue(undefined);
+        removeSpy = jest.spyOn(fs, 'remove').mockResolvedValue(undefined);
+        getInstalledBrowsers.mockResolvedValue([
+            { browser: 'chrome', buildId: '123.0.0.0', platform: 'mac_arm', path: '/p/1' },
+        ]);
+        uninstall.mockResolvedValue(undefined);
+    });
+
+    // The blast radius used to be bounded by the cache path being hardcoded. With
+    // --browser-cache-dir it is not: BSI_BROWSER_CACHE_DIR=D:\qlik would have made this
+    // command empty a directory Butler Sheet Icons does not own.
+    test('never empties the cache directory itself', async () => {
+        await browserUninstallAll({ loglevel: 'info', browserCacheDir: '/qlik/browsers' });
+
+        expect(emptyDirSpy).not.toHaveBeenCalled();
+        expect(removeSpy).not.toHaveBeenCalledWith(path.resolve('/qlik/browsers'));
+    });
+
+    test('sweeps only the browser subdirectories of the cache', async () => {
+        await browserUninstallAll({ loglevel: 'info', browserCacheDir: '/qlik/browsers' });
+
+        const removed = removeSpy.mock.calls.map(([target]) => target);
+        const cacheDir = path.resolve('/qlik/browsers');
+
+        expect(removed).toEqual(BROWSER_CACHE_SUBDIRS.map((subdir) => path.join(cacheDir, subdir)));
+    });
+
+    test('uninstalls from the directory named by --browser-cache-dir', async () => {
+        await browserUninstallAll({ loglevel: 'info', browserCacheDir: '/qlik/browsers' });
+
+        expect(getInstalledBrowsers).toHaveBeenCalledWith({
+            cacheDir: path.resolve('/qlik/browsers'),
+        });
+        expect(uninstall).toHaveBeenCalledWith(
+            expect.objectContaining({ cacheDir: path.resolve('/qlik/browsers') })
+        );
+    });
+});
+
+describe('browserUninstall — cache directory', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('removes the build from the directory named by --browser-cache-dir', async () => {
+        cacheReads(
+            [{ browser: 'chrome', buildId: '151.0.7922.77', platform: 'mac_arm', path: '/p/1' }],
+            []
+        );
+        uninstall.mockResolvedValue(undefined);
+
+        await browserUninstall({
+            browser: 'chrome',
+            browserVersion: '151.0.7922.77',
+            browserCacheDir: '/qlik/browsers',
+        });
+
+        expect(uninstall).toHaveBeenCalledWith(
+            expect.objectContaining({ cacheDir: path.resolve('/qlik/browsers') })
+        );
     });
 });

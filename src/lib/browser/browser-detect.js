@@ -1,5 +1,5 @@
 import { getInstalledBrowsers, getVersionComparator } from '@puppeteer/browsers';
-import { getBrowserCacheDir } from './browser-cache-dir.js';
+import { resolveBrowserCacheDir } from './browser-paths.js';
 import fs from 'fs';
 
 import { logger } from '../../globals.js';
@@ -50,6 +50,8 @@ const sortNewestFirst = (browsers, browser) => {
  *
  * @param {object} options - Options object.
  * @param {string} options.browser - Browser type (e.g. `chrome`, `firefox`).
+ * @param {string} [options.browserCacheDir] - Cache directory to search. Resolved here rather
+ * than by the caller, so a worker called directly with a bare options bag still works.
  * @param {string} [options.browserVersion] - The raw value the user asked for. Used only to decide
  * how loudly to report an override; matching uses `resolvedBuildId`.
  * @param {string} [resolvedBuildId] - Concrete build id from `resolveBrowserVersion`. When omitted,
@@ -92,9 +94,8 @@ export const detectAvailableBrowser = async (options, resolvedBuildId) => {
             }
         }
 
-        // Priority 2: Check for cached browsers in Puppeteer cache
-        const browserPath = getBrowserCacheDir();
-        logger.debug(`Checking for cached browsers in: ${browserPath}`);
+        // Priority 2: Check for cached browsers in the browser cache directory
+        const browserPath = resolveBrowserCacheDir(options);
 
         const installedBrowsers = await getInstalledBrowsers({
             cacheDir: browserPath,

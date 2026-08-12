@@ -37,10 +37,18 @@ When BSI needs a browser for taking sheet screenshots, it searches for available
 
 ### 2. Cached Browser (Medium Priority) ✅
 
-- **Location**: `~/.cache/puppeteer/` directory
+- **Location**: the browser cache directory, resolved in this order (issue #1024):
+    1. `--browser-cache-dir` / `BSI_BROWSER_CACHE_DIR`
+    2. `PUPPETEER_CACHE_DIR`
+    3. standalone (SEA) builds only: a `browser-cache` folder next to the executable
+    4. `~/.cache/puppeteer/`
 - **Use Case**: Previously downloaded browsers from internet-connected runs
-- **Behavior**: BSI detects and uses browsers already present in the Puppeteer cache
+- **Behavior**: BSI detects and uses browsers already present in the browser cache
 - **Network Required**: No
+
+  A standalone build whose own `browser-cache` folder is empty falls back to reading
+  `~/.cache/puppeteer/` and logs one `info` line saying so. That fallback is read-only: installs
+  always write to the resolved location above.
 
 ### 3. Download Browser (Lowest Priority) 📥
 
@@ -94,6 +102,37 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 ```bash
 docker run -e PUPPETEER_EXECUTABLE_PATH=/custom/path/to/browser ptarmiganlabs/butler-sheet-icons:latest ...
 ```
+
+---
+
+### `BSI_BROWSER_CACHE_DIR` and `PUPPETEER_CACHE_DIR`
+
+**Purpose**: Choose the directory BSI keeps downloaded browsers in.
+
+**Format**: Absolute path to a directory (a relative path is resolved against the working directory)
+
+**Default**: For standalone builds, a `browser-cache` folder next to the executable; otherwise
+`~/.cache/puppeteer`.
+
+`BSI_BROWSER_CACHE_DIR` is the same value as the `--browser-cache-dir` option, and outranks
+`PUPPETEER_CACHE_DIR`. Unlike most `BSI_*` variables it is **not** per-command: `browser install`
+writes where `qseow create-sheet-thumbnails` reads, so one name is shared by
+`browser install`, `browser list-installed`, `browser uninstall`, `browser uninstall-all` and both
+`create-sheet-thumbnails` commands. `browser list-available` does not take it — the value would only
+reach `canDownload()`, which ignores it.
+
+An empty value means "not set" at every level, exactly as it does for `PUPPETEER_EXECUTABLE_PATH`.
+
+```bash
+# One location for every command on this machine
+export BSI_BROWSER_CACHE_DIR=/opt/butler-sheet-icons/browsers
+
+# Or per run
+butler-sheet-icons browser install --browser-cache-dir /opt/butler-sheet-icons/browsers
+```
+
+BSI logs one `info` line naming the directory and where the choice came from whenever it is not the
+default.
 
 ---
 
@@ -709,7 +748,8 @@ PUPPETEER_EXECUTABLE_PATH is set to "/path/to/browser" but file does not exist
 ./butler-sheet-icons browser list-installed
 ```
 
-Shows browsers in `~/.cache/puppeteer/`.
+Shows browsers in the browser cache directory (see the resolution order above). Add
+`--browser-cache-dir <directory>` to look somewhere else.
 
 ### Install Browser Manually
 
@@ -841,8 +881,10 @@ async function detectBrowser(options) {
     }
   }
 
-  // 2. Check cached browsers
-  const cached = getInstalledBrowsers("~/.cache/puppeteer");
+  // 2. Check cached browsers, in the directory the resolver picked:
+  //    --browser-cache-dir / BSI_BROWSER_CACHE_DIR, then PUPPETEER_CACHE_DIR, then
+  //    <dir of the executable>/browser-cache for standalone builds, then ~/.cache/puppeteer
+  const cached = getInstalledBrowsers(resolveBrowserCacheDir(options));
   if (cached.length > 0) {
     return {
       path: cached[0].executablePath,

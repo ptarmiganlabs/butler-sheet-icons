@@ -108,7 +108,12 @@ export const runInteractive = async ({
     // a failure: nothing was asked for, so nothing failed, and the exit code
     // stays 0 exactly as it does for `browser list-installed` on the same
     // machine.
-    const stop = await wizard.precheck?.();
+    //
+    // Given whatever the command line and the environment already supplied,
+    // because a precheck that looks at the world has to look at the same part of
+    // it the command would: `browser uninstall --browser-cache-dir X -i` must
+    // not decide there is nothing to uninstall by inspecting the default cache.
+    const stop = await wizard.precheck?.({ answers: presetOptions });
 
     if (stop) {
         logger.info(stop.reason);

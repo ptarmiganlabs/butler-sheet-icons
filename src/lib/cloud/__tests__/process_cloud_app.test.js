@@ -49,6 +49,10 @@ const mockGlobals = jest.unstable_mockModule('../../../globals.js', () => ({
         warn: jest.fn(),
     },
     sleep: jest.fn().mockResolvedValue(undefined),
+    // browser-paths.js gates the standalone cache location on this, and ESM checks
+    // named exports when the module graph is linked, so leaving it out is a hard error
+    // rather than an undefined.
+    isSea: false,
 }));
 
 const mockCloudEnigma = jest.unstable_mockModule('../cloud-enigma.js', () => ({

@@ -1,4 +1,4 @@
-import { InvalidArgumentError } from 'commander';
+import { InvalidArgumentError, Option } from 'commander';
 
 /**
  * Validates that the provided CLI argument represents a non-negative integer within optional bounds.
@@ -114,4 +114,35 @@ const collectAppIds = (value, previous = []) => [
         .filter((entry) => entry.length > 0),
 ];
 
-export { parsePositiveInteger, collectPositiveIntegers, collectAppIds };
+/**
+ * The `--browser-cache-dir` option, for the commands that read or write the browser cache.
+ *
+ * A factory rather than a shared instance, because Commander stores parsed values on the
+ * Option object and six commands cannot share one.
+ *
+ * Declared once for all of them on purpose. Where the browser lives is a property of the
+ * machine, not of a command: the directory `browser install` writes to has to be the one
+ * `create-sheet-thumbnails` reads from, so one environment variable is shared across commands
+ * rather than following the per-command `BSI_BROWSER_I_*` convention. `BSI_BROWSER_PAGE_TIMEOUT`,
+ * already shared by both thumbnail commands, is the precedent.
+ *
+ * Two things are deliberately absent:
+ *
+ * - **No `.default()`.** The default lives in the resolver, which has tiers below this one -
+ *   `PUPPETEER_CACHE_DIR`, and a folder beside the executable for standalone builds. A
+ *   Commander default would make the value always truthy and those tiers unreachable.
+ * - **No `argParser`.** Commander runs `parseArg` on values that came from the environment too,
+ *   so a validator rejecting the empty string would turn a bare `BSI_BROWSER_CACHE_DIR=` line in
+ *   a unit file into a hard CLI error. Empty means unset, which is what
+ *   `PUPPETEER_EXECUTABLE_PATH=""` has always meant to Docker users, and the resolver trims and
+ *   ignores it.
+ *
+ * @returns {Option} A new `--browser-cache-dir` option.
+ */
+const buildBrowserCacheDirOption = () =>
+    new Option(
+        '--browser-cache-dir <directory>',
+        'Directory where Butler Sheet Icons keeps downloaded browsers. Defaults to a "browser-cache" folder next to the Butler Sheet Icons executable for standalone builds, and to the .cache/puppeteer folder in the current user\'s home directory otherwise.'
+    ).env('BSI_BROWSER_CACHE_DIR');
+
+export { parsePositiveInteger, collectPositiveIntegers, collectAppIds, buildBrowserCacheDirOption };
