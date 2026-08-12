@@ -266,7 +266,12 @@ describe('browserUninstallAll — race fix', () => {
     test('awaits every uninstall() before cleaning up', async () => {
         getInstalledBrowsers.mockResolvedValue([
             { browser: 'chrome', buildId: '123.0.0.0', platform: 'mac', path: '/p/1' },
-            { browser: 'firefox', buildId: '100.0.0.0', platform: 'mac', path: '/p/2' },
+            {
+                browser: 'chrome-headless-shell',
+                buildId: '100.0.0.0',
+                platform: 'mac',
+                path: '/p/2',
+            },
         ]);
 
         uninstall.mockImplementation(async () => {
@@ -285,7 +290,12 @@ describe('browserUninstallAll — race fix', () => {
     test('continues uninstalling remaining browsers when one throws', async () => {
         getInstalledBrowsers.mockResolvedValue([
             { browser: 'chrome', buildId: '123.0.0.0', platform: 'mac', path: '/p/1' },
-            { browser: 'firefox', buildId: '100.0.0.0', platform: 'mac', path: '/p/2' },
+            {
+                browser: 'chrome-headless-shell',
+                buildId: '100.0.0.0',
+                platform: 'mac',
+                path: '/p/2',
+            },
             { browser: 'chrome', buildId: '124.0.0.0', platform: 'mac', path: '/p/3' },
         ]);
 

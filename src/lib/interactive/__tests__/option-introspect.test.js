@@ -266,13 +266,15 @@ describe('splitDescription', () => {
     });
 
     test('does not mistake an abbreviation for the end of the question', () => {
-        // Taking the first full stop turned this into the question "Browser to
-        // install (e.g.", which is worse than not splitting at all.
+        // Taking the first full stop would cut this at "an exact build id (e.g.",
+        // which is worse than not splitting at all.
         const { message, hint } = splitDescription(
-            'Browser to install (e.g. "chrome" or "firefox"). Use list-installed to see them.'
+            'Browser build to uninstall: an exact build id (e.g. "151.0.7922.77"). Use list-installed to see them.'
         );
 
-        expect(message).toBe('Browser to install (e.g. "chrome" or "firefox").');
+        expect(message).toBe(
+            'Browser build to uninstall: an exact build id (e.g. "151.0.7922.77").'
+        );
         expect(hint).toBe('Use list-installed to see them.');
     });
 

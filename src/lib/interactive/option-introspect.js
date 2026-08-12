@@ -57,9 +57,9 @@ export const splitDescription = (description = '') => {
 
     // A sentence ends at .?! only when what follows starts a new sentence, and
     // when the full stop is not part of an abbreviation. Both halves are
-    // needed: taking the first full stop turned "Browser to install (e.g.
-    // "chrome" or "firefox")." into the question "Browser to install (e.g.",
-    // which is worse than not splitting at all.
+    // needed: taking the first full stop turns "Browser build to uninstall: an
+    // exact build id (e.g. "151.0.7922.77"), or ..." into a question ending at
+    // "(e.g.", which is worse than not splitting at all.
     const sentenceEnd = /[.?!](?=\s+["(A-Z]|$)/g;
     let end = -1;
     let match;

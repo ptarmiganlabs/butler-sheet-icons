@@ -48,10 +48,8 @@ export default {
                 // user would have to type. The picker makes all of that moot:
                 // the choices are the answer to what it was explaining.
                 hint: 'Type to filter, or take one of the first two entries.',
-                needs: ['browser'],
-                choices: async ({ answers }) => {
+                choices: async () => {
                     const published = await fetchAvailableVersions({
-                        browser: answers.browser,
                         channel: 'stable',
                     });
 

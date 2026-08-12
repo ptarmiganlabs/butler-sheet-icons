@@ -24,7 +24,7 @@ import { alreadyReported } from '../util/reported-error.js';
  * must therefore wrap the call in try/catch rather than test the result.
  *
  * @param {object} options - Options object.
- * @param {string} options.browser - Browser to install (`chrome` or `firefox`).
+ * @param {string} options.browser - Browser to install. `chrome` is the only supported value.
  * @param {string} options.browserVersion - Browser version to install: the keyword `recommended` or
  * `stable`, or an explicit build id.
  * @param {string} [options.browserCacheDir] - Directory to install into. Defaults to the resolver's

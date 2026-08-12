@@ -103,7 +103,9 @@ describe('detectAvailableBrowser — cached browsers', () => {
     });
 
     test('ignores cached browsers of a different type', async () => {
-        getInstalledBrowsers.mockResolvedValue([cachedBrowser('firefox', '130.0')]);
+        getInstalledBrowsers.mockResolvedValue([
+            cachedBrowser('chrome-headless-shell', '130.0.6099.109'),
+        ]);
 
         expect(await detectAvailableBrowser({ browser: 'chrome' })).toBeNull();
     });

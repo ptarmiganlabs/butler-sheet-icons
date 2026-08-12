@@ -121,7 +121,7 @@ function mapPlatformToChrome(puppeteerPlatform) {
 }
 
 /**
- * Fetch the browser versions the vendor currently publishes.
+ * Fetch the Chrome versions Google currently publishes.
  *
  * Fetching only: no availability checking, no per-version logging. That
  * separation is the point. The availability check is one HTTP request per
@@ -136,22 +136,14 @@ function mapPlatformToChrome(puppeteerPlatform) {
  * caller leaves it at the default.
  *
  * @param {object} options - An options object.
- * @param {string} options.browser - Browser to list versions for (`chrome` or `firefox`).
- * @param {string} options.channel - Chrome release channel. Ignored for Firefox.
+ * @param {string} options.channel - Chrome release channel.
  * @param {string} [options.logPrefix] - Prefix for this function's debug lines.
  *
  * @returns {Promise<Array<{version: string, name: string}>>} Published versions, newest first, as the API returns them.
  *
  * @throws {Error} If the version history API cannot be reached or returns something unusable.
  */
-export async function fetchAvailableVersions({ browser, channel, logPrefix = '' }) {
-    // Firefox has no version history lookup yet. Returning the same shape as
-    // the Chrome branch - rather than an object with no `name` - means no
-    // consumer has to special-case a missing field.
-    if (browser === 'firefox') {
-        return [{ version: 'latest', name: 'firefox/latest' }];
-    }
-
+export async function fetchAvailableVersions({ channel, logPrefix = '' }) {
     // The real detectBrowserPlatform is synchronous, so this await does nothing
     // - but it is what the code did before this function was extracted, and
     // dropping it would change what a promise-returning stub does. Left as-is
@@ -184,12 +176,13 @@ export async function fetchAvailableVersions({ browser, channel, logPrefix = '' 
 /**
  * List all available browser versions.
  *
- * For Chrome, the available versions are fetched from the Chrome version history API and filtered
- * to those that Puppeteer can actually download. For Firefox, only `latest` is supported at this time.
+ * The available versions are fetched from the Chrome version history API and filtered to those
+ * that Puppeteer can actually download.
  *
  * @param {object} options - An options object.
- * @param {string} options.browser - Browser to list available versions for (`chrome` or `firefox`).
- * @param {string} options.channel - Which Chrome release channel to list (`stable`, `beta`, `dev`, or `canary`). Ignored for Firefox.
+ * @param {string} options.browser - Browser to list available versions for. `chrome` is the only
+ * supported value.
+ * @param {string} options.channel - Which Chrome release channel to list (`stable`, `beta`, `dev`, or `canary`).
  * @param {string} [options.loglevel] - The log level. Can be one of "error", "warn", "info", "verbose", "debug", or "silly".
  *
  * @returns {Promise<Array<object>>} A promise that resolves to an array of available browsers.
@@ -204,22 +197,22 @@ export async function browserListAvailable(options) {
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
-        // Verify release channek is valid for the selected browser
-        if (options.browser === 'chrome') {
-            if (
-                options.channel !== 'stable' &&
-                options.channel !== 'beta' &&
-                options.channel !== 'dev' &&
-                options.channel !== 'canary'
-            ) {
-                throw new Error(
-                    `Invalid release channel "${options.channel}" for browser "${options.browser}"`
-                );
-            }
-        } else if (options.browser === 'firefox') {
-            // Nothing to do here
-        } else {
+        // Reported as a bad browser rather than a bad channel: the two are separate mistakes
+        // and the messages must not be swapped.
+        if (options.browser !== 'chrome') {
             throw new Error(`Invalid browser "${options.browser}"`);
+        }
+
+        // Verify the release channel is one the version history API publishes
+        if (
+            options.channel !== 'stable' &&
+            options.channel !== 'beta' &&
+            options.channel !== 'dev' &&
+            options.channel !== 'canary'
+        ) {
+            throw new Error(
+                `Invalid release channel "${options.channel}" for browser "${options.browser}"`
+            );
         }
 
         // No --browser-cache-dir on this command: this value is only ever handed to
@@ -228,94 +221,63 @@ export async function browserListAvailable(options) {
         // so there is one answer to "where is the cache" rather than two.
         const browserPath = resolveBrowserCacheDir(options);
 
-        // Get versions for the selected browser
-        let browsersAvailable = [];
-        if (options.browser === 'chrome') {
-            // https://developer.chrome.com/docs/web-platform/versionhistory/guide
-            //
-            // Chome version history API:
-            // https://developer.chrome.com/docs/versionhistory/guide/
-            //
-            // Get chrome versions from this URL:
-            // https://versionhistory.googleapis.com/v1/chrome/platforms/<platform>/channels/<channel>/versions
-            //
-            // Example:
-            // https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions
-            //
-            // Response:
-            // {
-            //     "versions": [
-            //         {
-            //             "name": "chrome/platforms/win/channels/stable/versions/115.0.5790.90",
-            //             "version": "115.0.5790.90"
-            //         },
-            //         {
-            //             "name": "chrome/platforms/win/channels/stable/versions/114.0.5735.200"
-            //             ""version": "114.0.5735.200"
-            //         }
-            //     ],
-            //     "nextPageToken": ""
-            // }
+        // https://developer.chrome.com/docs/web-platform/versionhistory/guide
+        //
+        // Chome version history API:
+        // https://developer.chrome.com/docs/versionhistory/guide/
+        //
+        // Get chrome versions from this URL:
+        // https://versionhistory.googleapis.com/v1/chrome/platforms/<platform>/channels/<channel>/versions
+        //
+        // Example:
+        // https://versionhistory.googleapis.com/v1/chrome/platforms/win/channels/stable/versions
+        //
+        // Response:
+        // {
+        //     "versions": [
+        //         {
+        //             "name": "chrome/platforms/win/channels/stable/versions/115.0.5790.90",
+        //             "version": "115.0.5790.90"
+        //         },
+        //         {
+        //             "name": "chrome/platforms/win/channels/stable/versions/114.0.5735.200"
+        //             ""version": "114.0.5735.200"
+        //         }
+        //     ],
+        //     "nextPageToken": ""
+        // }
 
-            browsersAvailable = await fetchAvailableVersions({
-                browser: options.browser,
-                channel: options.channel,
-            });
+        const browsersAvailable = await fetchAvailableVersions({
+            channel: options.channel,
+        });
 
-            // Output Chrome versions and names to info log
-            if (browsersAvailable.length > 0) {
-                logger.info(`Chrome versions from "${options.channel}" channel:`);
-                logger.verbose(
-                    'Note that not all versions may be available for use with Butler Sheet Icons.'
-                );
-
-                for (const version of browsersAvailable) {
-                    // Can this version be downloaded?
-
-                    const canDownloadBrowser = await canDownload({
-                        browser: options.browser,
-                        buildId: version.version,
-                        cacheDir: browserPath,
-                        unpack: true,
-                    });
-
-                    if (canDownloadBrowser) {
-                        logger.info(`    ${version.version}, "${version.name}"`);
-                    } else {
-                        logger.verbose(`    ${version.version}, "${version.name}" (not available)`);
-                    }
-                }
-            } else {
-                logger.info('No Chrome versions available');
-            }
-        } else if (options.browser === 'firefox') {
-            // For now support for older Firefox versions is not implemented
-            logger.warn(
-                'Firefox support is not implemented yet. Only latest version is supported, i.e. "browser install --browser firefox --browser-version latest", or simply "browser install --browser firefox".'
+        // Output Chrome versions and names to info log
+        if (browsersAvailable.length > 0) {
+            logger.info(`Chrome versions from "${options.channel}" channel:`);
+            logger.verbose(
+                'Note that not all versions may be available for use with Butler Sheet Icons.'
             );
-            browsersAvailable.push({ version: 'latest' });
 
-            // Firefox version history API:
-            // https://wiki.mozilla.org/Release_Management/Product_details#firefox.json
-            //
-            // Get Firefox versions from this URL:
-            // https://product-details.mozilla.org/1.0/firefox.json
-            //
-            // Response:
-            // {
-            //     "releases": [
-            //         "firefox-114.0b7": {
-            //             "build_number": 1,
-            //             "category": "dev",
-            //             "date": "2023-05-22",
-            //             "description": null,
-            //             "is_security_driven": false,
-            //             "product": "firefox",
-            //             "version": "114.0b7"
-            //         }
-            //     ]
-            // }
+            for (const version of browsersAvailable) {
+                // Can this version be downloaded?
+
+                const canDownloadBrowser = await canDownload({
+                    browser: options.browser,
+                    buildId: version.version,
+                    cacheDir: browserPath,
+                    unpack: true,
+                });
+
+                if (canDownloadBrowser) {
+                    logger.info(`    ${version.version}, "${version.name}"`);
+                } else {
+                    logger.verbose(`    ${version.version}, "${version.name}" (not available)`);
+                }
+            }
+        } else {
+            logger.info('No Chrome versions available');
         }
+
         return browsersAvailable;
     } catch (err) {
         // Only report failures nothing else has explained. Request and response problems are

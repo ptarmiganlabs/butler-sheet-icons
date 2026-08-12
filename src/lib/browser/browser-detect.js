@@ -49,7 +49,8 @@ const sortNewestFirst = (browsers, browser) => {
  * how a broken build survived unnoticed on one CI runner while another passed (issue #878).
  *
  * @param {object} options - Options object.
- * @param {string} options.browser - Browser type (e.g. `chrome`, `firefox`).
+ * @param {string} options.browser - Browser type. `chrome` is the only supported value; a cache
+ * entry of any other type is ignored.
  * @param {string} [options.browserCacheDir] - Cache directory to search. Resolved here rather
  * than by the caller, so a worker called directly with a bare options bag still works.
  * @param {string} [options.browserVersion] - The raw value the user asked for. Used only to decide

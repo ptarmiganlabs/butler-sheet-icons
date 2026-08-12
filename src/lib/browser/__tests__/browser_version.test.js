@@ -9,6 +9,10 @@ const { detectBrowserPlatform, resolveBuildId } = await import('@puppeteer/brows
 // The real constant is mocked so these tests assert the wiring - "the default comes from
 // puppeteer's pin" - rather than the specific build a given puppeteer-core happens to carry.
 // A separate test below asserts against the genuine module.
+//
+// The firefox entry mirrors the real constant, which pins every browser puppeteer supports
+// rather than every browser Butler Sheet Icons drives. It is here to be *refused*: without it,
+// the guard on getRecommendedBuildId would appear to work simply because no pin existed.
 jest.unstable_mockModule('puppeteer-core/internal/revisions.js', () => ({
     PUPPETEER_REVISIONS: Object.freeze({
         chrome: '150.0.7871.24',
@@ -46,14 +50,11 @@ beforeEach(() => {
 });
 
 describe('the recommended keyword', () => {
-    test.each([
-        ['chrome', '150.0.7871.24'],
-        ['firefox', 'stable_152.0.1'],
-    ])("resolves %s to puppeteer's pinned build", async (browser, expected) => {
-        const result = await resolveBrowserVersion(browser, VERSION_RECOMMENDED);
+    test("resolves chrome to puppeteer's pinned build", async () => {
+        const result = await resolveBrowserVersion('chrome', VERSION_RECOMMENDED);
 
         expect(result).toEqual({
-            buildId: expected,
+            buildId: '150.0.7871.24',
             source: VERSION_RECOMMENDED,
             requested: VERSION_RECOMMENDED,
             usedNetwork: false,
@@ -70,25 +71,30 @@ describe('the recommended keyword', () => {
         expect(detectBrowserPlatform).not.toHaveBeenCalled();
     });
 
-    test('fails clearly if puppeteer-core stops publishing a pin', () => {
-        // PUPPETEER_REVISIONS carries an @internal tag, so a future major could drop it. That
-        // must surface as a named failure rather than defaulting the product to undefined.
-        expect(() => getRecommendedBuildId('opera')).toThrow(/recommended "opera" build/i);
-    });
+    // PUPPETEER_REVISIONS pins every browser *puppeteer* supports, which is a wider set than the
+    // one Butler Sheet Icons can drive - it still carries a firefox pin, for instance. Reading it
+    // without checking the browser first meant this function answered for names that
+    // resolveBrowserVersion rejects, so the two disagreed about which browsers exist.
+    // browser_version_no_pin.test.js covers the other failure: a supported browser with no pin.
+    test.each(['opera', 'firefox'])(
+        'refuses "%s", which puppeteer may pin but Butler Sheet Icons cannot drive',
+        (browser) => {
+            expect(() => getRecommendedBuildId(browser)).toThrow(
+                new RegExp(`unsupported browser "${browser}"`, 'i')
+            );
+        }
+    );
 });
 
 describe('the stable keyword', () => {
-    test.each([
-        ['chrome', '151.0.7922.77'],
-        ['firefox', 'stable_153.0.3'],
-    ])('resolves %s via the browser vendor stable channel', async (browser, expected) => {
-        resolveBuildId.mockResolvedValue(expected);
+    test('resolves chrome via the browser vendor stable channel', async () => {
+        resolveBuildId.mockResolvedValue('151.0.7922.77');
 
-        const result = await resolveBrowserVersion(browser, VERSION_STABLE);
+        const result = await resolveBrowserVersion('chrome', VERSION_STABLE);
 
-        expect(resolveBuildId).toHaveBeenCalledWith(browser, 'mac_arm', 'stable');
+        expect(resolveBuildId).toHaveBeenCalledWith('chrome', 'mac_arm', 'stable');
         expect(result).toEqual({
-            buildId: expected,
+            buildId: '151.0.7922.77',
             source: VERSION_STABLE,
             requested: VERSION_STABLE,
             usedNetwork: true,
@@ -143,40 +149,33 @@ describe('release channels', () => {
     // These worked before the recommended/stable vocabulary existed - every value was handed to
     // resolveBuildId verbatim, which recognises channel tags - so administrators have them in
     // scheduled jobs. The first cut of the vocabulary rejected them (issue #878 review).
-    test.each([
-        ['chrome', 'beta'],
-        ['chrome', 'dev'],
-        ['chrome', 'canary'],
-        ['firefox', 'beta'],
-        ['firefox', 'nightly'],
-        ['firefox', 'devedition'],
-        ['firefox', 'esr'],
-    ])('resolves %s %s through the vendor', async (browser, channel) => {
-        resolveBuildId.mockResolvedValue('resolved-build');
+    test.each(['beta', 'dev', 'canary'])(
+        'resolves chrome %s through the vendor',
+        async (channel) => {
+            resolveBuildId.mockResolvedValue('resolved-build');
 
-        const result = await resolveBrowserVersion(browser, channel);
+            const result = await resolveBrowserVersion('chrome', channel);
 
-        expect(resolveBuildId).toHaveBeenCalledWith(browser, 'mac_arm', channel);
-        expect(result.buildId).toBe('resolved-build');
-        expect(result.source).toBe('channel');
-        expect(result.usedNetwork).toBe(true);
-    });
+            expect(resolveBuildId).toHaveBeenCalledWith('chrome', 'mac_arm', channel);
+            expect(result.buildId).toBe('resolved-build');
+            expect(result.source).toBe('channel');
+            expect(result.usedNetwork).toBe(true);
+        }
+    );
 
-    // The vendors' channels differ; a channel the browser does not have must be rejected up
-    // front, not passed to a lookup that would throw a less helpful error.
-    test.each([
-        ['chrome', 'nightly'],
-        ['chrome', 'devedition'],
-        ['chrome', 'esr'],
-        ['firefox', 'dev'],
-        ['firefox', 'canary'],
-    ])('rejects %s "%s", a channel that browser does not have', async (browser, channel) => {
-        await expect(resolveBrowserVersion(browser, channel)).rejects.toThrow(
-            /invalid --browser-version/i
-        );
+    // A channel name Chrome does not have must be rejected up front, not passed to a lookup
+    // that would throw a less helpful error. These are other vendors' channel names, which is
+    // what a reader reaching for a channel is most likely to guess wrong with.
+    test.each(['nightly', 'devedition', 'esr'])(
+        'rejects "%s", which Chrome does not have',
+        async (channel) => {
+            await expect(resolveBrowserVersion('chrome', channel)).rejects.toThrow(
+                /invalid --browser-version/i
+            );
 
-        expect(resolveBuildId).not.toHaveBeenCalled();
-    });
+            expect(resolveBuildId).not.toHaveBeenCalled();
+        }
+    );
 });
 
 describe('lookup-failure marking', () => {
@@ -226,26 +225,29 @@ describe('lookup-failure marking', () => {
 });
 
 describe('isVersionKeyword', () => {
+    test.each(['recommended', 'stable', 'latest', 'beta', 'dev', 'canary'])(
+        'recognises the floating "%s"',
+        (value) => {
+            expect(isVersionKeyword(value)).toBe(true);
+        }
+    );
+
+    // A keyword is allowed to degrade to a cached build when a lookup fails, so anything that
+    // cannot name a build must not be treated as floating - including other vendors' channel
+    // names, which look like keywords but resolve to nothing here.
     test.each([
-        'recommended',
-        'stable',
-        'latest',
-        'beta',
-        'dev',
-        'canary',
+        '151.0.7922.77',
+        '151',
+        'stable_153.0.3',
         'nightly',
         'devedition',
         'esr',
-    ])('recognises the floating "%s"', (value) => {
-        expect(isVersionKeyword(value)).toBe(true);
+        'garbage',
+        '',
+        undefined,
+    ])('does not treat %s as a keyword', (value) => {
+        expect(isVersionKeyword(value)).toBe(false);
     });
-
-    test.each(['151.0.7922.77', '151', 'stable_153.0.3', 'garbage', '', undefined])(
-        'does not treat %s as a keyword',
-        (value) => {
-            expect(isVersionKeyword(value)).toBe(false);
-        }
-    );
 });
 
 describe('parseBrowserVersionValue', () => {
@@ -265,17 +267,15 @@ describe('parseBrowserVersionValue', () => {
 
 describe('explicit versions', () => {
     test.each([
-        ['chrome', '151', 'milestone'],
-        ['chrome', '151.0.7922', 'build prefix'],
-        ['chrome', '151.0.7922.77', 'full build id'],
-        ['firefox', 'stable_153.0.3', 'channel-prefixed build id'],
-        ['firefox', 'esr_128.4.0', 'esr build id'],
-    ])('accepts %s %s (%s)', async (browser, version) => {
+        ['151', 'milestone'],
+        ['151.0.7922', 'build prefix'],
+        ['151.0.7922.77', 'full build id'],
+    ])('accepts chrome %s (%s)', async (version) => {
         resolveBuildId.mockResolvedValue('resolved-build');
 
-        const result = await resolveBrowserVersion(browser, version);
+        const result = await resolveBrowserVersion('chrome', version);
 
-        expect(resolveBuildId).toHaveBeenCalledWith(browser, 'mac_arm', version);
+        expect(resolveBuildId).toHaveBeenCalledWith('chrome', 'mac_arm', version);
         expect(result.source).toBe('explicit');
         expect(result.requested).toBe(version);
     });
@@ -283,20 +283,16 @@ describe('explicit versions', () => {
     // resolveBuildId returns unrecognised input verbatim rather than failing, so without this
     // check a typo travelled all the way to canDownload and surfaced as "cannot be downloaded"
     // - which reads like a network problem.
-    test.each([
-        ['chrome', 'garbage'],
-        ['chrome', '151.0'],
-        ['chrome', 'v151.0.7922.77'],
-        ['chrome', 'stable_153.0.3'],
-        ['firefox', '152.0.1'],
-        ['firefox', 'garbage'],
-    ])('rejects %s "%s" before any network call', async (browser, version) => {
-        await expect(resolveBrowserVersion(browser, version)).rejects.toThrow(
-            /invalid --browser-version/i
-        );
+    test.each(['garbage', '151.0', 'v151.0.7922.77', 'stable_153.0.3', 'esr_128.4.0'])(
+        'rejects chrome "%s" before any network call',
+        async (version) => {
+            await expect(resolveBrowserVersion('chrome', version)).rejects.toThrow(
+                /invalid --browser-version/i
+            );
 
-        expect(resolveBuildId).not.toHaveBeenCalled();
-    });
+            expect(resolveBuildId).not.toHaveBeenCalled();
+        }
+    );
 
     test('tells the user what a valid chrome version looks like', async () => {
         await expect(resolveBrowserVersion('chrome', 'garbage')).rejects.toThrow();
@@ -305,16 +301,6 @@ describe('explicit versions', () => {
         expect(advice).toContain(VERSION_RECOMMENDED);
         expect(advice).toContain(VERSION_STABLE);
         expect(advice).toContain('151.0.7922.77');
-    });
-
-    // A bare Firefox version is not merely unsupported - @puppeteer/browsers reads an
-    // unprefixed build id as FirefoxChannel.NIGHTLY, so passing it through would quietly
-    // install a nightly build.
-    test('tells firefox users to prefix the channel', async () => {
-        await expect(resolveBrowserVersion('firefox', '152.0.1')).rejects.toThrow();
-
-        const advice = logger.error.mock.calls.map(([msg]) => msg).join('\n');
-        expect(advice).toContain('stable_153.0.3');
     });
 });
 
@@ -328,11 +314,21 @@ describe('unsupported browsers', () => {
         );
     });
 
+    // Commander's .choices() already refuses an unknown browser on the command line, but the
+    // workers are called directly too - by the integration tests and by the interactive path -
+    // so the refusal has to live here as well.
+    test('is refused before any version work happens', async () => {
+        await expect(resolveBrowserVersion('safari', VERSION_RECOMMENDED)).rejects.toThrow(
+            /unsupported browser "safari"/i
+        );
+
+        expect(resolveBuildId).not.toHaveBeenCalled();
+    });
+
     test('lists what is supported', async () => {
         const err = await resolveBrowserVersion('opera', VERSION_STABLE).catch((e) => e);
 
         expect(err.message).toContain('chrome');
-        expect(err.message).toContain('firefox');
     });
 
     test('is rejected before any network call', async () => {
@@ -363,7 +359,7 @@ describe('resolveLocalBrowserBuildId (uninstall)', () => {
     // A floating keyword resolves to whatever the vendor currently publishes - almost never a
     // build in the local cache - so for a destructive, offline-capable command it is refused
     // with guidance instead of resolved over the network.
-    test.each(['stable', 'latest', 'beta', 'esr'])(
+    test.each(['stable', 'latest', 'beta', 'dev', 'canary'])(
         'refuses the floating "%s" and points at list-installed',
         (value) => {
             expect(resolveLocalBrowserBuildId('chrome', value)).toBeNull();
@@ -376,7 +372,12 @@ describe('resolveLocalBrowserBuildId (uninstall)', () => {
 
     test('passes an exact build id through unchanged', () => {
         expect(resolveLocalBrowserBuildId('chrome', '151.0.7922.77')).toBe('151.0.7922.77');
-        expect(resolveLocalBrowserBuildId('firefox', 'stable_153.0.3')).toBe('stable_153.0.3');
+    });
+
+    // Anything that is not a Chrome keyword is passed through unvalidated: it simply will not
+    // match a cache entry, and "not found in cache" is the honest outcome for it.
+    test('passes an unrecognised value through to fail the cache lookup', () => {
+        expect(resolveLocalBrowserBuildId('chrome', 'esr')).toBe('esr');
     });
 
     test('refuses an empty value', () => {

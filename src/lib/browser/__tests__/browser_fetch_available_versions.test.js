@@ -82,25 +82,6 @@ describe('fetchAvailableVersions', () => {
         );
     });
 
-    describe('Firefox', () => {
-        test('returns the same shape as the Chrome branch', async () => {
-            // Previously this was `{ version: 'latest' }` with no `name`, so
-            // every consumer had to special-case a missing field.
-            const versions = await fetchAvailableVersions({
-                browser: 'firefox',
-                channel: 'stable',
-            });
-
-            expect(versions).toEqual([{ version: 'latest', name: 'firefox/latest' }]);
-        });
-
-        test('needs no network call', async () => {
-            await fetchAvailableVersions({ browser: 'firefox', channel: 'stable' });
-
-            expect(axios).not.toHaveBeenCalled();
-        });
-    });
-
     describe('failures', () => {
         test('explains an unreachable host before rethrowing', async () => {
             axios.mockRejectedValue(Object.assign(new Error('getaddrinfo ENOTFOUND'), {}));
@@ -186,9 +167,13 @@ describe('browserListAvailable still behaves as before', () => {
         expect(axios).not.toHaveBeenCalled();
     });
 
-    test('rejects an unknown browser', async () => {
+    // Rejected before any request, so an unknown browser is reported as an unknown browser
+    // rather than as a version lookup that returned nothing.
+    test.each(['safari', 'edge'])('rejects the unknown browser "%s"', async (browser) => {
         await expect(
-            browserListAvailable({ browser: 'safari', channel: 'stable', loglevel: 'info' })
+            browserListAvailable({ browser, channel: 'stable', loglevel: 'info' })
         ).rejects.toThrow('Invalid browser');
+
+        expect(axios).not.toHaveBeenCalled();
     });
 });

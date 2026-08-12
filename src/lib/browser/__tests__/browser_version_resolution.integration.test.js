@@ -10,7 +10,7 @@ import { resolveBrowserVersion, getRecommendedBuildId } from '../browser-version
 import { assertEnv, getTestTimeout } from '../../util/env-check.js';
 import { makeIsolatedCacheDir, removeIsolatedCacheDir } from '../test-helpers/isolated-cache.js';
 
-// Version resolution against the real Chrome for Testing and Firefox version services, and
+// Version resolution against the real Chrome for Testing version service, and
 // against a real browser cache on disk. The unit suite covers the same decisions with mocks;
 // what only an integration test can show is that the vendor services still answer in the shape
 // Butler Sheet Icons expects, and that a build resolved from one of them is actually installable.
@@ -62,16 +62,13 @@ describe('browser version resolution', () => {
      * `stable` has to reach the vendor. Guards against the service changing shape - a silent
      * change there would take out every run that does not use `recommended`.
      */
-    test.each([
-        ['chrome', /^\d+\.\d+\.\d+\.\d+$/],
-        ['firefox', /^stable_\S+$/],
-    ])(
-        'the stable %s build is resolvable from the vendor',
-        async (browser, shape) => {
-            const resolved = await resolveBrowserVersion(browser, 'stable');
+    test(
+        'the stable chrome build is resolvable from the vendor',
+        async () => {
+            const resolved = await resolveBrowserVersion('chrome', 'stable');
 
             expect(resolved.usedNetwork).toBe(true);
-            expect(resolved.buildId).toMatch(shape);
+            expect(resolved.buildId).toMatch(/^\d+\.\d+\.\d+\.\d+$/);
         },
         defaultTestTimeout
     );
@@ -122,15 +119,11 @@ describe('browser version resolution', () => {
      * reached `canDownload` and surfaced as "cannot be downloaded" - which reads like a network
      * problem and sends the reader after the wrong thing entirely.
      */
-    test.each([
-        ['chrome', 'garbage'],
-        ['chrome', '151.0'],
-        ['firefox', '152.0.1'],
-    ])(
-        'a malformed %s version "%s" is rejected up front',
-        async (browser, browserVersion) => {
+    test.each(['garbage', '151.0', 'stable_153.0.3'])(
+        'a malformed chrome version "%s" is rejected up front',
+        async (browserVersion) => {
             await expect(
-                browserInstall({ browser, browserVersion, browserCacheDir })
+                browserInstall({ browser: 'chrome', browserVersion, browserCacheDir })
             ).rejects.toThrow(/invalid --browser-version/i);
         },
         defaultTestTimeout

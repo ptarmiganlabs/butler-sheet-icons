@@ -17,7 +17,6 @@ const { resolveBuildId } = await import('@puppeteer/browsers');
 jest.unstable_mockModule('puppeteer-core/internal/revisions.js', () => ({
     PUPPETEER_REVISIONS: Object.freeze({
         chrome: '150.0.7871.24',
-        firefox: 'stable_152.0.1',
     }),
 }));
 

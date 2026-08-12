@@ -73,7 +73,7 @@ describe('askQuestions', () => {
     });
 
     test('skips a question whose `when` says it does not apply', async () => {
-        const runtime = scriptedRuntime({ browser: 'firefox', channel: 'stable' });
+        const runtime = scriptedRuntime({ browser: 'safari', channel: 'stable' });
         const answers = await askQuestions(
             [
                 spec({ key: 'browser' }),
@@ -275,7 +275,7 @@ describe('the needs guard', () => {
     });
 
     test('accepts a dependency that was supplied rather than asked', () => {
-        // `bsi browser install --browser firefox -i` drops the browser question
+        // `bsi browser install --browser chrome -i` drops the browser question
         // because it is already answered. The dependency is satisfied by the
         // answer, so requiring an earlier *question* would reject exactly the
         // command line that supplied it.

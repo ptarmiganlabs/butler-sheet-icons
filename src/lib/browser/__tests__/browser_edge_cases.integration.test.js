@@ -104,6 +104,9 @@ describe('edge cases and error handling', () => {
     test(
         'concurrent browser installations',
         async () => {
+            // Two different Chrome builds. Chrome is the only browser there is, and two
+            // builds exercise the same concurrent-download path. The archive path under
+            // `<cacheDir>/chrome/` is prefixed with the build id, so these do not collide.
             const installPromises = [
                 browserInstall({
                     browser: 'chrome',
@@ -111,8 +114,8 @@ describe('edge cases and error handling', () => {
                     browserCacheDir,
                 }),
                 browserInstall({
-                    browser: 'firefox',
-                    browserVersion: 'recommended',
+                    browser: 'chrome',
+                    browserVersion: '121.0.6167.16',
                     browserCacheDir,
                 }),
             ];

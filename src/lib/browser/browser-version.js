@@ -28,27 +28,14 @@ export const VERSION_STABLE = 'stable';
 export const VERSION_LATEST = 'latest';
 
 /**
- * Every keyword Butler Sheet Icons understands, for help text and error messages.
- */
-export const VERSION_KEYWORDS = [VERSION_RECOMMENDED, VERSION_STABLE];
-
-/**
- * Browser release channels accepted per browser.
+ * Chrome release channels accepted as a `--browser-version` value.
  *
  * Resolved live through the same `@puppeteer/browsers` tag handling that resolves `stable`.
  * These worked before the `recommended`/`stable` vocabulary existed - every value used to be
  * handed to `resolveBuildId` verbatim, which recognises them as tags - and administrators use
- * them to track a vendor channel, so they must keep working. The sets differ per browser
- * because the vendors' channels differ: Chrome has no nightly/devedition/esr, Firefox has no
- * dev/canary.
+ * them to track a vendor channel, so they must keep working.
  */
-const CHANNEL_KEYWORDS = {
-    chrome: ['beta', 'dev', 'canary'],
-    firefox: ['beta', 'nightly', 'devedition', 'esr'],
-};
-
-/** Every channel name accepted for at least one browser. */
-const ALL_CHANNEL_KEYWORDS = new Set(Object.values(CHANNEL_KEYWORDS).flat());
+const CHANNEL_KEYWORDS = ['beta', 'dev', 'canary'];
 
 /**
  * Builds the help text for a `--browser-version` option.
@@ -64,7 +51,7 @@ const ALL_CHANNEL_KEYWORDS = new Set(Object.values(CHANNEL_KEYWORDS).flat());
  * @returns {string} Description for Commander.
  */
 export const describeBrowserVersionOption = (action) =>
-    `Browser build to ${action}. Either a keyword - "${VERSION_RECOMMENDED}" for the build Butler Sheet Icons is tested with, "${VERSION_STABLE}" for the newest stable release, or a release channel such as "beta" - or an exact version. For Chrome that is a milestone ("151"), a build prefix ("151.0.7922") or a full build id ("151.0.7922.77"); for Firefox a channel-prefixed build id ("stable_153.0.3"). Use "butler-sheet-icons browser list-available" to see what is available.`;
+    `Browser build to ${action}. Either a keyword - "${VERSION_RECOMMENDED}" for the build Butler Sheet Icons is tested with, "${VERSION_STABLE}" for the newest stable release, or a release channel such as "beta" - or an exact version: a milestone ("151"), a build prefix ("151.0.7922") or a full build id ("151.0.7922.77"). Use "butler-sheet-icons browser list-available" to see what is available.`;
 
 /**
  * Commander argument parser for `--browser-version` options that default to `recommended`.
@@ -98,39 +85,59 @@ export const isVersionKeyword = (browserVersion) =>
     browserVersion === VERSION_RECOMMENDED ||
     browserVersion === VERSION_STABLE ||
     browserVersion === VERSION_LATEST ||
-    ALL_CHANNEL_KEYWORDS.has(browserVersion);
+    CHANNEL_KEYWORDS.includes(browserVersion);
 
 /**
- * Explicit version forms accepted per browser.
+ * Explicit version forms accepted for Chrome.
  *
- * Chrome accepts three shapes, all of which `@puppeteer/browsers` resolves against the
- * Chrome for Testing "known good versions" data:
+ * Three shapes, all of which `@puppeteer/browsers` resolves against the Chrome for Testing
+ * "known good versions" data:
  *
  * - a milestone, `151`
  * - a build prefix without the patch component, `151.0.7922`
  * - a full build id, `151.0.7922.77`
- *
- * Firefox build ids are channel-prefixed, `stable_153.0.3`. A bare Firefox version is
- * deliberately **not** accepted: `@puppeteer/browsers` treats an unprefixed build id as
- * `FirefoxChannel.NIGHTLY`, so `--browser-version 152.0.1` would quietly install a nightly
- * build. Rejecting it and naming the correct form is the whole point of this validation.
  */
-const EXPLICIT_VERSION_PATTERNS = {
-    chrome: [/^\d+$/, /^\d+\.\d+\.\d+$/, /^\d+\.\d+\.\d+\.\d+$/],
-    firefox: [/^(stable|beta|nightly|devedition|esr)_\S+$/],
-};
+const EXPLICIT_VERSION_PATTERNS = [/^\d+$/, /^\d+\.\d+\.\d+$/, /^\d+\.\d+\.\d+\.\d+$/];
 
-/** Browsers Butler Sheet Icons knows how to resolve a version for. */
-const SUPPORTED_BROWSERS = Object.keys(EXPLICIT_VERSION_PATTERNS);
+/**
+ * Browsers Butler Sheet Icons knows how to resolve a version for.
+ *
+ * Chrome, and only Chrome: the render path speaks the Chrome DevTools Protocol and passes a
+ * Chromium-only argument list, so no other browser could be driven. Kept as a list, and checked
+ * by name, so a bad `browser` value from a directly-called worker is reported as a bad browser
+ * rather than failing later as a version that cannot be resolved.
+ */
+const SUPPORTED_BROWSERS = ['chrome'];
+
+/**
+ * Refuses a browser Butler Sheet Icons cannot drive.
+ *
+ * One helper rather than a check per entry point, so every path answers the same way. The two
+ * that matter are `resolveBrowserVersion` (the network path) and `getRecommendedBuildId` (the
+ * offline one, reached by `resolveLocalBrowserBuildId` on the uninstall path): before this was
+ * shared, the second read straight from `PUPPETEER_REVISIONS` and returned a build id for
+ * browsers the first rejected by name.
+ *
+ * @param {string} browser - Browser name from the CLI, the environment, or a directly-called
+ * worker.
+ *
+ * @returns {void}
+ *
+ * @throws {Error} If the browser is not one Butler Sheet Icons supports.
+ */
+const assertBrowserIsSupported = (browser) => {
+    if (!SUPPORTED_BROWSERS.includes(browser)) {
+        throw new Error(
+            `Unsupported browser "${browser}". Butler Sheet Icons can install ${SUPPORTED_BROWSERS.join(' and ')}.`
+        );
+    }
+};
 
 /**
  * Human-readable description of the accepted explicit forms, used in error text.
  */
-const EXPLICIT_VERSION_HELP = {
-    chrome: 'a release channel ("beta", "dev", "canary"), a milestone such as "151", a build prefix such as "151.0.7922", or a full build id such as "151.0.7922.77"',
-    firefox:
-        'a release channel ("beta", "nightly", "devedition", "esr"), or a channel-prefixed build id such as "stable_153.0.3"',
-};
+const EXPLICIT_VERSION_HELP =
+    'a release channel ("beta", "dev", "canary"), a milestone such as "151", a build prefix such as "151.0.7922", or a full build id such as "151.0.7922.77"';
 
 /**
  * Whether the deprecation warning for `latest` has already been emitted in this process.
@@ -149,13 +156,23 @@ let latestDeprecationWarned = false;
  * failure path: if a future puppeteer-core drops or renames it, this throws with a clear cause
  * instead of silently yielding `undefined` and defaulting the whole product to nothing.
  *
- * @param {string} browser - Browser to look up (`chrome` or `firefox`).
+ * The browser is checked against {@link SUPPORTED_BROWSERS} first, and that check is
+ * load-bearing rather than defensive: `PUPPETEER_REVISIONS` carries a pin for every browser
+ * puppeteer itself supports, which is a wider set than the one Butler Sheet Icons can drive.
+ * Without it this function answers happily for a browser nothing else accepts - so
+ * `resolveBrowserVersion` would reject a name that `resolveLocalBrowserBuildId` resolved, and the
+ * product would hold two contradictory opinions about which browsers exist.
+ *
+ * @param {string} browser - Browser to look up. `chrome` is the only supported value.
  *
  * @returns {string} The pinned build id, e.g. `150.0.7871.24`.
  *
- * @throws {Error} If puppeteer-core does not publish a pinned build for this browser.
+ * @throws {Error} If the browser is not one Butler Sheet Icons supports, or if puppeteer-core
+ * does not publish a pinned build for it.
  */
 export const getRecommendedBuildId = (browser) => {
+    assertBrowserIsSupported(browser);
+
     const buildId = PUPPETEER_REVISIONS?.[browser];
 
     if (typeof buildId !== 'string' || buildId.length === 0) {
@@ -225,16 +242,13 @@ const normalizeVersionKeyword = (browserVersion) => {
  * @throws {Error} If the value is neither a keyword nor a plausible build id.
  */
 const assertExplicitVersionIsWellFormed = (browser, browserVersion) => {
-    // The browser is known to be supported: resolveBrowserVersion checks that first.
-    const patterns = EXPLICIT_VERSION_PATTERNS[browser];
-
-    if (patterns.some((pattern) => pattern.test(browserVersion))) {
+    if (EXPLICIT_VERSION_PATTERNS.some((pattern) => pattern.test(browserVersion))) {
         return;
     }
 
     logger.error(`"${browserVersion}" is not a valid --browser-version for ${browser}.`);
     logger.error(
-        `Use a keyword - "${VERSION_RECOMMENDED}" (the build Butler Sheet Icons is tested against) or "${VERSION_STABLE}" (the newest stable release) - or ${EXPLICIT_VERSION_HELP[browser]}.`
+        `Use a keyword - "${VERSION_RECOMMENDED}" (the build Butler Sheet Icons is tested against) or "${VERSION_STABLE}" (the newest stable release) - or ${EXPLICIT_VERSION_HELP}.`
     );
     logger.error(
         `Run "butler-sheet-icons browser list-available --browser ${browser}" to see the versions that can be installed.`
@@ -340,7 +354,8 @@ const logVersionLookupFailure = (browser, browserVersion, err) => {
  * keyword means exactly one build within a run, and two machines running the same Butler Sheet
  * Icons release with the same options select the same build.
  *
- * @param {string} browser - Browser to resolve for (`chrome` or `firefox`).
+ * @param {string} browser - Browser to resolve for. `chrome` is the only supported value;
+ * anything else is rejected by name.
  * @param {string} browserVersion - Keyword, release channel, or explicit version from the CLI or
  * environment.
  *
@@ -364,11 +379,7 @@ export const resolveBrowserVersion = async (browser, browserVersion) => {
     // Checked before anything else so an unknown browser is reported as an unknown browser.
     // Without this the run failed further down with "Could not resolve --browser-version ... to a
     // <name> build", which blames the version for a problem with the browser.
-    if (!SUPPORTED_BROWSERS.includes(browser)) {
-        throw new Error(
-            `Unsupported browser "${browser}". Butler Sheet Icons can install ${SUPPORTED_BROWSERS.join(' and ')}.`
-        );
-    }
+    assertBrowserIsSupported(browser);
 
     const keyword = normalizeVersionKeyword(browserVersion);
 
@@ -392,7 +403,7 @@ export const resolveBrowserVersion = async (browser, browserVersion) => {
 
     // A release channel is validated by name, not by shape - "beta" is a real Chrome channel
     // but matches none of the explicit build-id patterns.
-    const isChannel = !keyword && CHANNEL_KEYWORDS[browser].includes(browserVersion);
+    const isChannel = !keyword && CHANNEL_KEYWORDS.includes(browserVersion);
 
     if (!keyword && !isChannel) {
         assertExplicitVersionIsWellFormed(browser, browserVersion);
@@ -401,10 +412,8 @@ export const resolveBrowserVersion = async (browser, browserVersion) => {
     const platform = await detectBrowserPlatform();
     logger.debug(`Detected browser platform: ${platform}`);
 
-    // `stable` and the release channels are tags @puppeteer/browsers understands for both
-    // browsers, which is why one Butler Sheet Icons vocabulary can serve both. Note that its
-    // `latest` tag is NOT the equivalent of `stable` - for Chrome it means the canary channel,
-    // and for Firefox nightly.
+    // `stable` and the release channels are tags @puppeteer/browsers understands. Note that its
+    // `latest` tag is NOT the equivalent of `stable` - for Chrome it means the canary channel.
     const tag = keyword === VERSION_STABLE ? VERSION_STABLE : browserVersion;
 
     let buildId;
@@ -449,13 +458,21 @@ export const resolveBrowserVersion = async (browser, browserVersion) => {
  * network.
  *
  * A value that matches no accepted form is passed through unvalidated: it simply will not match
- * any cache entry, and "not found in cache" is the honest outcome for it.
+ * any cache entry, and "not found in cache" is the honest outcome for it. Note what that means
+ * for `browser`: only the `recommended` path consults it, through `getRecommendedBuildId`, so an
+ * exact build id is matched against the cache without regard to which browser it belongs to.
+ * That is deliberate - this function's job is to name a build, and the caller filters the
+ * inventory by browser itself - but it does mean an unsupported browser is refused here only
+ * when the version is `recommended`.
  *
- * @param {string} browser - Browser the version belongs to (`chrome` or `firefox`).
+ * @param {string} browser - Browser the version belongs to. `chrome` is the only supported value.
  * @param {string} browserVersion - Raw `--browser-version` value.
  *
  * @returns {string|null} The build id to match against the cache, or `null` when the value
  * cannot name a local build - in which case the reason has already been logged.
+ *
+ * @throws {Error} If `browserVersion` is `recommended` and the browser is not supported, or
+ * puppeteer-core publishes no pin for it.
  */
 export const resolveLocalBrowserBuildId = (browser, browserVersion) => {
     if (!browserVersion) {

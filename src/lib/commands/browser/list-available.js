@@ -48,18 +48,19 @@ const buildBrowserListAvailableCommand = () => {
                 .env('BSI_BROWSER_LA_LOG_LEVEL')
         )
         .addOption(
+            // Chrome only; see the note on the same option in install.js.
             new Option(
                 '--browser <browser>',
-                'Browser to list available versions for (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser install" to install one of them.'
+                'Browser to list available versions for. Only "chrome" is supported. Use "butler-sheet-icons browser install" to install one of the listed builds.'
             )
-                .choices(['chrome', 'firefox'])
+                .choices(['chrome'])
                 .default('chrome')
                 .env('BSI_BROWSER_LA_BROWSER')
         )
         .addOption(
             new Option(
                 '--channel <channel>',
-                "Which of the browser's release channel versions should be listed? This option is only used for Chrome."
+                "Which of the browser's release channel versions should be listed?"
             )
                 .choices(['stable', 'beta', 'dev', 'canary'])
                 .default('stable')

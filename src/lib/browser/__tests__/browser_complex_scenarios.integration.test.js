@@ -33,8 +33,8 @@ describe('complex scenarios', () => {
      * Remove all installed browsers
      * Should return true.
      *
-     * Install four differenct browsers (3 chrome versions, 1 firefox).
-     * There should now be four installed browsers
+     * Install three different Chrome builds.
+     * There should now be three installed browsers.
      *
      * Remove all installed browsers.
      * Should return true.
@@ -42,7 +42,7 @@ describe('complex scenarios', () => {
      * There should then be zero installed browsers.
      */
     test(
-        'install and uninstall several browsers',
+        'install and uninstall several browser builds',
         async () => {
             // Remove all installed browsers
             const uninstallRes1 = await browserUninstallAll(options);
@@ -52,7 +52,7 @@ describe('complex scenarios', () => {
             const installedBrowsers1 = await browserInstalled(options);
             expect(installedBrowsers1.length).toEqual(0);
 
-            // Install four different browsers
+            // Install three different Chrome builds
 
             // The Chrome build this Butler Sheet Icons release is tested with
             const browserInstallRes1 = await browserInstall({
@@ -78,16 +78,9 @@ describe('complex scenarios', () => {
             });
             expect(browserInstallRes3).toBeTruthy();
 
-            const browserInstallRes4 = await browserInstall({
-                browser: 'firefox',
-                browserVersion: 'recommended',
-                browserCacheDir,
-            });
-            expect(browserInstallRes4).toBeTruthy();
-
-            // There should now be four installed browsers
+            // There should now be three installed browsers
             const installedBrowsers2 = await browserInstalled(options);
-            expect(installedBrowsers2.length).toEqual(4);
+            expect(installedBrowsers2.length).toEqual(3);
 
             // Remove all installed browsers
             const uninstallRes2 = await browserUninstallAll(options);

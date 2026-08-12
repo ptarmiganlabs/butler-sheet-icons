@@ -52,11 +52,11 @@ describe('formatCommandLine', () => {
 
     test('includes an answer that differs from the default', () => {
         const line = formatCommandLine(UNINSTALL, specsFor(UNINSTALL), {
-            browser: 'firefox',
-            browserVersion: 'stable_153.0.3',
+            browserVersion: '151.0.7922.77',
+            loglevel: 'debug',
         });
 
-        expect(line).toContain('--browser firefox');
+        expect(line).toContain('--loglevel debug');
     });
 
     test('shows defaulted answers when asked, for the full picture', () => {
