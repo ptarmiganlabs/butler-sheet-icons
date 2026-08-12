@@ -18,10 +18,10 @@ error: Failed to process 1 of 1 app(s)
 The part to search for is `ERR_INVALID_AUTH_CREDENTIALS`.
 
 ::: tip Older versions print more
-Up to and including 4.1.0, the first line reads
+The output above is from 4.2.0 onwards. Up to and including 4.1.0 the first line reads
 `QSEOW: qseowProcessApp (stack): Error: net::ERR_INVALID_AUTH_CREDENTIALS …` and is followed by a
 stack trace — a long list of lines beginning `at`. That is the same failure, reported more noisily;
-the stack moved to `--loglevel debug` in a later release.
+in 4.2.0 the stack moved to `--loglevel debug`.
 :::
 
 Everything before this point succeeds, which is what makes the failure confusing. The log will
@@ -39,10 +39,14 @@ info: Browser setup complete. Launching browser...
 Those steps use the certificates supplied with `--certfile` and `--certkeyfile`, and they are
 working. It is only the **browser** that cannot get in.
 
-::: tip A line that is not the cause
-A `warning` about the engine session being *"closed from the other end, code 1000"* usually appears
-just before the error. It appears in successful runs too. It is a side effect of the run ending,
-not the reason it failed.
+::: tip A line that is not the cause — on 4.1.0 and earlier
+Up to and including 4.1.0, a `warning` about the engine session being
+*"closed from the other end, code 1000"* usually appears just before the error, and on successful
+runs as well. Ignore it: Butler Sheet Icons was reporting its own tidy-up, not a lost connection.
+It was fixed in 4.2.0 and no longer appears.
+
+From 4.2.0 a message of this kind means what it says — the connection to Qlik Sense really did
+drop — and the code it quotes is worth including in a bug report.
 :::
 
 ## Why it happens on Windows and not on macOS
@@ -112,15 +116,15 @@ or as an environment variable:
 BSI_QSEOW_CST_PREFIX=form
 ```
 
-::: tip Slashes around the prefix are ignored
+::: tip Slashes around the prefix are ignored — from 4.2.0
 Write it as `form`, `/form` or `/form/` — all three name the same virtual proxy and all three work.
 
 In releases up to and including 4.1.0 they did not. A prefix written with the leading slash it has
 in the browser address bar produced a doubled separator in the URL
 (`https://sense.example.com//form/sense/app/…`), which logged in perfectly well and then failed
 about ninety seconds later with `Waiting for selector '#qv-page-container' failed` — an error that
-named a page element rather than the prefix that caused it. If you are on an older release, drop
-the slashes.
+named a page element rather than the prefix that caused it. If you are on 4.1.0 or earlier, write
+the prefix without slashes.
 :::
 
 ::: warning The prefix is not the fix
@@ -175,16 +179,27 @@ platform where the default pattern matches.
 
 ## For the publisher
 
-**Version gate:** none for the cause and the fix — the Qlik Sense behaviour described here has
-always been the case.
+**Version gate:** no whole-page gate. The Qlik Sense behaviour this page is about — a virtual proxy
+choosing NTLM from the User-Agent — has always been the case and is not tied to a BSI release. Do
+not wrap the page in `::: warning Requires BSI X.Y.Z or later`.
 
-**But the quoted log output is version-dependent**, so check it before publishing. The stack-trace
-cleanup that ships alongside this page changes the first line: through 4.1.0 it is
-`QSEOW: qseowProcessApp (stack): Error: net::ERR_…` followed by the full stack, and after that
-release it is `QSEOW: qseowProcessApp: net::ERR_…` with the stack moved to `--loglevel debug`. The
-page shows the newer form with a callout for the older one, since readers will arrive from a
-console search. Confirm which release the cleanup landed in and name it in the callout rather than
-leaving "a later release".
+**Three things on the page are version-dependent, and all three are 4.1.0 vs 4.2.0.** They are
+already written that way; this note exists so a later editor does not have to rediscover why:
+
+| On the page | Through 4.1.0 | From 4.2.0 | Shipped by |
+| --- | --- | --- | --- |
+| First line of the error output | `QSEOW: qseowProcessApp (stack): Error: net::ERR_…` plus a full stack trace | `QSEOW: qseowProcessApp: net::ERR_…`, stack only at `--loglevel debug` | #1032 |
+| A prefix written `/form` | Doubled separator in the URL; fails 90s later on `#qv-page-container` | Slashes stripped, works | #1033 |
+| `closed from the other end, code 1000` | Printed on every run, successful ones included | Gone; the message now only appears for a real drop | #1035 |
+
+4.2.0 is the release: `.release-please-manifest.json` reads 4.1.0, and the open release PR (#974)
+is titled `chore(main): release butler-sheet-icons 4.2.0`. The commits since `v4.1.0` include
+`feat` entries and carry no `BREAKING CHANGE` or `!` markers, so the minor bump is what the
+changelog tooling will produce.
+
+**Re-check these three before publishing** if more releases have gone out in the meantime. Each was
+correct when written and invalidated by the next fix to land — that is the failure mode this table
+is meant to prevent, not a hypothetical.
 
 **Verified against the implementation** and against a live QSEoW 12.2759.8 server:
 
