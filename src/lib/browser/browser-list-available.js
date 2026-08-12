@@ -130,10 +130,10 @@ function mapPlatformToChrome(puppeteerPlatform) {
  * version picker, say) previously had to wait for hundreds of round trips it
  * had no use for.
  *
- * The `logPrefix` exists so the two callers keep their debug output exactly as
- * it was. `getMostRecentUsableChromeBuildId` prefixes its lines and
- * `browserListAvailable` does not; sharing the fetch without it would have
- * quietly rewritten one of them.
+ * The `logPrefix` exists because this used to have two callers with different
+ * debug output, and sharing the fetch without it would have quietly rewritten
+ * one of them. The prefixing caller has since been removed, so every current
+ * caller leaves it at the default.
  *
  * @param {object} options - An options object.
  * @param {string} options.browser - Browser to list versions for (`chrome` or `firefox`).
@@ -322,68 +322,6 @@ export async function browserListAvailable(options) {
             logger.error(`Error checking for available browsers: ${err?.message || err}`);
             logger.debug(err?.stack ?? String(err));
         }
-        throw err;
-    }
-}
-
-/**
- * Finds the most recent version of Chrome that Puppeteer can download and use.
- *
- * @param {string} channel - The Chrome release channel. Valid values are `stable`, `beta`, `dev`, `canary`.
- *
- * @returns {Promise<string|false>} A promise that resolves to the most recent usable Chrome build ID, or `false` if no usable version was found.
- */
-export async function getMostRecentUsableChromeBuildId(channel) {
-    try {
-        logger.verbose(`Get most recent usable Chrome build ID: Channel "${channel}"`);
-
-        // Verify release channek is valid
-        if (
-            channel !== 'stable' &&
-            channel !== 'beta' &&
-            channel !== 'dev' &&
-            channel !== 'canary'
-        ) {
-            throw new Error(`Invalid Chrome release channel "${channel}"`);
-        }
-
-        const browserPath = getBrowserCacheDir();
-        logger.debug(`Get most recent usable Chrome build ID: Browser cache path: ${browserPath}`);
-
-        const browsersAvailable = await fetchAvailableVersions({
-            browser: 'chrome',
-            channel,
-            logPrefix: 'Get most recent usable Chrome build ID: ',
-        });
-
-        // Output Chrome versions and names to info log
-        if (browsersAvailable.length > 0) {
-            for (const version of browsersAvailable) {
-                // Can this version be downloaded?
-
-                const canDownloadBrowser = await canDownload({
-                    browser: 'chrome',
-                    buildId: version.version,
-                    cacheDir: browserPath,
-                    unpack: false,
-                });
-
-                if (canDownloadBrowser) {
-                    return version.version;
-                }
-            }
-        }
-        logger.info('No Chrome versions available');
-        return false;
-    } catch (err) {
-        // As above: only report what has not already been explained.
-        if (!alreadyReported(err)) {
-            logger.error(
-                `Error getting most recent usable Chrome build ID: ${err?.message || err}`
-            );
-            logger.debug(err?.stack ?? String(err));
-        }
-
         throw err;
     }
 }

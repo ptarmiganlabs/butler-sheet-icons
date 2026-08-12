@@ -110,9 +110,9 @@ describe('the latest alias', () => {
 
         const result = await resolveBrowserVersion('chrome', 'latest');
 
-        // Guards the actual regression: 'latest' previously reached
-        // getMostRecentUsableChromeBuildId, which returned the newest *published* stable build
-        // (151.0.7922.109), not the vendor's last-known-good stable.
+        // Guards the actual regression: 'latest' previously resolved from the consumer Chrome
+        // channel and returned the newest *published* stable build (151.0.7922.109), not the
+        // vendor's last-known-good stable. The function that did so has since been removed.
         expect(resolveBuildId).toHaveBeenCalledWith('chrome', 'mac_arm', 'stable');
         expect(result.buildId).toBe('151.0.7922.77');
         expect(result.source).toBe(VERSION_STABLE);

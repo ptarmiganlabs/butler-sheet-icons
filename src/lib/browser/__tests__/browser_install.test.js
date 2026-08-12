@@ -29,11 +29,6 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 }));
 const { logger, sleep } = await import('../../../globals.js');
 
-jest.unstable_mockModule('../browser-list-available.js', () => ({
-    getMostRecentUsableChromeBuildId: jest.fn(),
-}));
-const { getMostRecentUsableChromeBuildId } = await import('../browser-list-available.js');
-
 // Stub the cli-progress SingleBar so the test does not write to a real TTY.
 /**
  * Inert test double for the cli-progress SingleBar constructor. All methods
@@ -75,7 +70,6 @@ describe('browserInstall — retry logic', () => {
         detectBrowserPlatform.mockResolvedValue('mac_arm');
         canDownload.mockResolvedValue(true);
         resolveBuildId.mockResolvedValue('123.0.0.0');
-        getMostRecentUsableChromeBuildId.mockResolvedValue('123.0.0.0');
     });
 
     test('returns the installed browser on first-attempt success (no retry, no warning)', async () => {
