@@ -49,8 +49,12 @@ const HEADERS = ['Option', 'Environment Variable', 'Description', 'Default', 'Ex
  * Only ever applied to free-text cells. Cells this module wraps in backticks are code spans,
  * where every character is already literal and escaping would show the backslashes.
  *
- * Three things matter:
+ * Four things matter:
  *
+ * - A backslash is itself the escape character, so it has to be escaped first or it will pair
+ *   with whatever follows. A description mentioning a Windows path is enough: rendered through
+ *   VitePress, `C:\Users\.cache` comes out as `C:\Users.cache`, because `\.` is read as an
+ *   escaped full stop and the backslash disappears.
  * - A literal `|` would end the cell, and a description may contain one.
  * - A newline would end the row. Several descriptions are authored as multiple lines for the
  *   terminal's benefit, and those breaks have to survive as `<br>` rather than truncating the
@@ -71,6 +75,9 @@ const HEADERS = ['Option', 'Environment Variable', 'Description', 'Default', 'Ex
  */
 export const escapeCell = (value) =>
     String(value)
+        // Must stay first. Escaping any other character inserts backslashes of its own, and a
+        // later pass over them would double what this pass has already written.
+        .replace(/\\/g, '\\\\')
         .replace(/([*|])/g, '\\$1')
         .replace(/(^|\W)_|_(?=\W|$)/g, (match) => match.replace('_', '\\_'))
         .replace(/\r?\n/g, '<br>')
@@ -86,6 +93,12 @@ export const escapeCell = (value) =>
  * This is not theoretical. `qscloud list-collections` declares `--outputformat <table|json>`,
  * and rendering that unescaped through VitePress splits the cell, drops the code span, and
  * pushes the row's last value off the end of the table where it is not displayed at all.
+ *
+ * A backslash is deliberately not escaped here, which is the one way this differs from
+ * `escapeCell`. Inside a code span a backslash is already literal: checked through VitePress,
+ * `C:\Users` renders as typed, while escaping it to `C:\\Users` renders two backslashes. CodeQL
+ * reads any escaper that leaves the escape character alone as incomplete sanitization, and it
+ * is right about free text - but here escaping it would be the defect.
  *
  * @param {unknown} value - Raw cell content.
  *

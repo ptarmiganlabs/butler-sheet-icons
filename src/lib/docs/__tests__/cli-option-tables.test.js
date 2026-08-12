@@ -46,6 +46,18 @@ describe('escapeCell', () => {
         expect(escapeCell('BSI_* variables')).toBe('BSI\\_\\* variables');
     });
 
+    test('escapes a backslash, which would otherwise pair with what follows it', () => {
+        // Checked through VitePress: `C:\Users\.cache` renders as `C:\Users.cache`, because
+        // `\.` reads as an escaped full stop and the backslash is consumed.
+        expect(escapeCell('C:\\Users\\.cache')).toBe('C:\\\\Users\\\\.cache');
+    });
+
+    test('escapes the backslash before escaping anything else', () => {
+        // If the order slipped, the backslash this function writes for the pipe would itself be
+        // escaped on the next pass and the cell would show a stray backslash.
+        expect(escapeCell('a\\|b')).toBe('a\\\\\\|b');
+    });
+
     test('leaves an underscore between word characters alone', () => {
         // CommonMark does not start emphasis inside a word, so `stable_153.0.3` is already
         // literal. Escaping it would put a visible backslash on the page.
@@ -69,6 +81,13 @@ describe('codeCell', () => {
         // the cell splits, the code span is lost, and the row's last value is pushed off the
         // table and never displayed.
         expect(codeCell('--outputformat <table|json>')).toBe('`--outputformat <table\\|json>`');
+    });
+
+    test('leaves a backslash alone, unlike escapeCell', () => {
+        // Inside a code span a backslash is already literal. Checked through VitePress:
+        // `C:\Users` renders as typed, and escaping it to `C:\\Users` renders two backslashes.
+        // This is why CodeQL's incomplete-sanitization alert does not apply to this function.
+        expect(codeCell('C:\\Users')).toBe('`C:\\Users`');
     });
 });
 
