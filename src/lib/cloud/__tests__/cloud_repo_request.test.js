@@ -102,6 +102,25 @@ describe('cloud-repo-request pagination', () => {
 
         await expect(get()).rejects.toBe(boom);
     });
+
+    test('a truthy but non-iterable data field does not throw from the spread', async () => {
+        // `{ data: <object> }` is how some gateways answer 200. The page accumulator used to
+        // test `body.data` for truthiness and then spread it, so this threw
+        // `TypeError: body.data is not iterable` from inside this module - before any caller
+        // could say which endpoint or tenant produced it (issue #935). It is not a page of
+        // results, so it now travels as an ordinary unrecognised body.
+        axios.mockResolvedValueOnce({ status: 200, data: { data: { message: 'unavailable' } } });
+
+        await expect(get()).resolves.toEqual({ data: { message: 'unavailable' } });
+    });
+
+    test('a data field that is a string is not spread into characters', async () => {
+        // Strings are iterable, so a truthiness check would have spread `'oops'` into
+        // ['o','o','p','s'] and returned it as four results.
+        axios.mockResolvedValueOnce({ status: 200, data: { data: 'oops' } });
+
+        await expect(get()).resolves.toEqual({ data: 'oops' });
+    });
 });
 
 describe('axios error interceptor (root cause of issue #785)', () => {
