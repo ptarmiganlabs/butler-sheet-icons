@@ -1,4 +1,5 @@
 import { logger } from '../../globals.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Runs a command implementation on behalf of a Commander action handler, and makes its
@@ -43,13 +44,7 @@ export const runCommand = async (logPrefix, run, onError) => {
             return false;
         }
 
-        logger.error(`${logPrefix}: ${err}`);
-        if (err?.message) {
-            logger.error(`${logPrefix} (message): ${err.message}`);
-        }
-        if (err?.stack) {
-            logger.error(`${logPrefix} (stack): ${err.stack}`);
-        }
+        logError(logPrefix, err);
 
         return false;
     }

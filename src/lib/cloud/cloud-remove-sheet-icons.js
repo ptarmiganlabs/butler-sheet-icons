@@ -15,6 +15,7 @@ import {
 import { withEngineSession } from '../util/engine-session.js';
 import { listAppsByCollection } from './cloud-apps.js';
 import { toAppIdList } from '../util/app-ids.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Cloud app.
@@ -141,13 +142,7 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        if (err.stack) {
-            logger.error(`CLOUD REMOVE SHEET ICONS 1 (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`CLOUD REMOVE SHEET ICONS 1 (message): ${err.message}`);
-        } else {
-            logger.error(`CLOUD REMOVE SHEET ICONS 1: ${err}`);
-        }
+        logError('CLOUD REMOVE SHEET ICONS 1', err);
         // Rethrow so the app loop can count this app as failed. Logging and returning
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;
@@ -195,15 +190,14 @@ export const qscloudRemoveSheetIcons = async (options) => {
                 `Connection to tenant ${options.tenanturl} successful: ${JSON.stringify(res)}`
             );
         } catch (err) {
-            if (err.stack) {
-                logger.error(`CLOUD REMOVE SHEET ICONS: connection test (stack): ${err.stack}`);
-            } else if (err.message) {
-                logger.error(`CLOUD REMOVE SHEET ICONS: connection test (message): ${err.message}`);
+            logError('CLOUD REMOVE SHEET ICONS: connection test', err);
+            // Both halves required: this line used to sit in a branch that a real Error never
+            // reached, so it never printed. Now that it does, a status without a statusText
+            // would render as 401="undefined".
+            if (err?.status && err?.statusText) {
                 logger.error(
                     `CLOUD REMOVE SHEET ICONS: connection test (error code): ${err.status}="${err.statusText}"`
                 );
-            } else {
-                logger.error(`CLOUD REMOVE SHEET ICONS: connection test: ${err}`);
             }
 
             return false;
@@ -230,13 +224,7 @@ export const qscloudRemoveSheetIcons = async (options) => {
             (appId) => removeSheetIconsCloudApp(appId, saasInstance, options)
         );
     } catch (err) {
-        if (err.stack) {
-            logger.error(`CLOUD REMOVE THUMBNAILS 3 (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`CLOUD REMOVE THUMBNAILS 3 (message): ${err.message}`);
-        } else {
-            logger.error(`CLOUD REMOVE THUMBNAILS 3: ${JSON.stringify(err, null, 2)}`);
-        }
+        logError('CLOUD REMOVE THUMBNAILS 3', err);
 
         return false;
     }

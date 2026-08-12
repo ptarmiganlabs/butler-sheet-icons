@@ -21,6 +21,7 @@ import { qrsGetList } from './qrs-response.js';
 import { QSEOW_SHEET_PART_SELECTORS } from './sheet-parts.js';
 import { qseowLogout } from './qseow-logout.js';
 import { getQseowHubSelectors } from './qseow-selectors.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Looks up the sheets in an app that carry any of the supplied tags.
@@ -421,17 +422,10 @@ export const qseowProcessApp = async (appId, options) => {
                                     });
                                     logger.verbose(`Created blurred image: ${fileNameBlurred}`);
                                 } catch (err) {
-                                    logger.error(`Failed to create blurred image: ${err}`);
-                                    if (err.message) {
-                                        logger.error(
-                                            `QSEOW CREATE BLURRED IMAGE (message): ${err.message}`
-                                        );
-                                    }
-                                    if (err.stack) {
-                                        logger.error(
-                                            `QSEOW CREATE BLURRED IMAGE (stack): ${err.stack}`
-                                        );
-                                    }
+                                    logError(
+                                        'QSEOW CREATE BLURRED IMAGE: Failed to create blurred image',
+                                        err
+                                    );
 
                                     // Drop this sheet entirely rather than leave the unblurred entry
                                     // behind. The blur decision is made later, in updatesheets, from
@@ -496,13 +490,7 @@ export const qseowProcessApp = async (appId, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        if (err.stack) {
-            logger.error(`QSEOW: qseowProcessApp (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`QSEOW: qseowProcessApp (message): ${err.message}`);
-        } else {
-            logger.error(`QSEOW: qseowProcessApp: ${err}`);
-        }
+        logError('QSEOW: qseowProcessApp', err);
         // Rethrow so the app loop can count this app as failed. Logging and returning
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;

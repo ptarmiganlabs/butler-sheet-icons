@@ -16,6 +16,7 @@ import {
 import { withEngineSession } from '../util/engine-session.js';
 import { createAppImageDir } from '../util/image-dir.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
+import { logError } from '../util/log-error.js';
 
 // Selector paths to elements on login page
 const selectorLoginPageUserName = '[id="\u0031-email"]';
@@ -71,13 +72,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                 );
                 existingThumbnails = await saasInstance.Get(`apps/${appId}/media/list/thumbnails`);
             } catch (err) {
-                if (err.stack) {
-                    logger.error(`CREATE THUMBNAILS 2 (stack): ${err.stack}`);
-                } else if (err.message) {
-                    logger.error(`CREATE THUMBNAILS 2 (message): ${err.message}`);
-                } else {
-                    logger.error(`CREATE THUMBNAILS 2: Error getting existing thumbnails: ${err}`);
-                }
+                logError('CREATE THUMBNAILS 2: Error getting existing thumbnails', err);
                 throw new Error('Error getting existing thumbnails', { cause: err });
             }
 
@@ -270,13 +265,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
         await qscloudUpdateSheetThumbnails(createdFiles, appId, options);
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        if (err.stack) {
-            logger.error(`CLOUD APP (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`CLOUD APP (message): ${err.message}`);
-        } else {
-            logger.error(`CLOUD APP: ${err.stack}`);
-        }
+        logError('CLOUD APP', err);
         // Rethrow so the app loop can count this app as failed. Logging and returning
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;

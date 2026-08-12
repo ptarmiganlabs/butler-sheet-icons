@@ -20,12 +20,14 @@ export async function deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance,
             `Deleted existing file ${thumbnailImg.name}, result=${JSON.stringify(result)}`
         );
     } catch (err) {
-        if (err.stack) {
-            logger.error(`CREATE THUMBNAILS 3 (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`CREATE THUMBNAILS 3 (message): ${err.message}`);
-        } else {
-            logger.error(`CREATE THUMBNAILS 3: Error deleting existing thumbnail: ${err}`);
+        // Applies the same split as `logError` in ../util/log-error.js, but through the logger
+        // this function is given rather than the global one. The injected logger is this
+        // function's contract with its caller, so the shared helper is deliberately not used.
+        logger.error(
+            `CREATE THUMBNAILS 3: Error deleting existing thumbnail: ${err?.message ?? err}`
+        );
+        if (err?.stack) {
+            logger.debug(err.stack);
         }
         throw new Error('Error deleting existing thumbnail', { cause: err });
     }

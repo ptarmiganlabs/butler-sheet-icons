@@ -14,6 +14,7 @@ import { runOverApps } from '../util/run-over-apps.js';
 import { listAppsByTag } from './qseow-app-lookup.js';
 import { toAppIdList } from '../util/app-ids.js';
 import { withEngineSession } from '../util/engine-session.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Removes all sheet icons from a Qlik Sense Enterprise on Windows (QSEoW) application.
@@ -108,13 +109,7 @@ const removeSheetIconsQSEoWApp = async (appId, g, options) => {
 
         logger.info(`Done processing app ${appId}`);
     } catch (err) {
-        if (err.stack) {
-            logger.error(`QSEOW: removeSheetIconsQSEoWApp (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`QSEOW: removeSheetIconsQSEoWApp (message): ${err.message}`);
-        } else {
-            logger.error(`QSEOW: removeSheetIconsQSEoWApp: ${err}`);
-        }
+        logError('QSEOW: removeSheetIconsQSEoWApp', err);
         // Rethrow so the app loop can count this app as failed. Logging and returning
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;
@@ -180,13 +175,7 @@ export const qseowRemoveSheetIcons = async (options) => {
             (appId) => removeSheetIconsQSEoWApp(appId, global, options)
         );
     } catch (err) {
-        logger.error(`QSEOW REMOVE THUMBNAILS 2: ${err}`);
-        if (err.message) {
-            logger.error(`QSEOW REMOVE THUMBNAILS 2 (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`QSEOW REMOVE THUMBNAILS 2 (stack): ${err.stack}`);
-        }
+        logError('QSEOW REMOVE THUMBNAILS 2', err);
 
         return false;
     }

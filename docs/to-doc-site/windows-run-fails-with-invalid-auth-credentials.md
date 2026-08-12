@@ -1,0 +1,210 @@
+# QSEoW run fails on Windows with `ERR_INVALID_AUTH_CREDENTIALS`
+
+A run that works from macOS or Linux can fail from Windows with an authentication error, using the
+same command, the same credentials and the same Qlik Sense server. The cause is a Qlik Sense
+virtual proxy setting, not a problem with Butler Sheet Icons, the network, or the credentials.
+
+This is a troubleshooting topic for existing behaviour. There is no new option and nothing to
+upgrade.
+
+## What you see
+
+```
+error: QSEOW: qseowProcessApp: net::ERR_INVALID_AUTH_CREDENTIALS at https://sense.example.com/sense/app/ded8d27d-…
+error: QSEOW PROCESS APP: Failed to process app ded8d27d-…: net::ERR_INVALID_AUTH_CREDENTIALS at https://sense.example.com/sense/app/ded8d27d-…
+error: Failed to process 1 of 1 app(s)
+```
+
+The part to search for is `ERR_INVALID_AUTH_CREDENTIALS`.
+
+::: tip Older versions print more
+Up to and including 4.1.0, the first line reads
+`QSEOW: qseowProcessApp (stack): Error: net::ERR_INVALID_AUTH_CREDENTIALS …` and is followed by a
+stack trace — a long list of lines beginning `at`. That is the same failure, reported more noisily;
+the stack moved to `--loglevel debug` in a later release.
+:::
+
+Everything before this point succeeds, which is what makes the failure confusing. The log will
+already have shown that Butler Sheet Icons connected to the server, opened the app, read its name
+and counted its sheets:
+
+```
+info: Created session to server sense.example.com, engine version is 12.2759.8
+info: Opened app ded8d27d-…
+info: App name: "Employee salaries"
+info: Number of sheets in app: 1
+info: Browser setup complete. Launching browser...
+```
+
+Those steps use the certificates supplied with `--certfile` and `--certkeyfile`, and they are
+working. It is only the **browser** that cannot get in.
+
+::: tip A line that is not the cause
+A `warning` about the engine session being *"closed from the other end, code 1000"* usually appears
+just before the error. It appears in successful runs too. It is a side effect of the run ending,
+not the reason it failed.
+:::
+
+## Why it happens on Windows and not on macOS
+
+Butler Sheet Icons signs in to Qlik Sense the same way a person does: it opens a browser, waits for
+the login page, and types the user name and password from `--logonuserdir`, `--logonuserid` and
+`--logonpwd`.
+
+A Qlik Sense virtual proxy does not always serve that login page. Each virtual proxy has a setting
+called **Windows authentication pattern**, and Qlik Sense matches it against the **User-Agent** that
+the browser sends — the piece of text in which a browser states what it is and which operating
+system it runs on. The default value of that setting is the word `Windows`.
+
+A browser running on Windows announces itself with a User-Agent containing `Windows NT`. That
+matches the default pattern, so Qlik Sense decides this visitor should use Windows authentication
+and sends the browser to an NTLM login instead of the login page:
+
+| Butler Sheet Icons runs on | User-Agent contains | Qlik Sense sends the browser to |
+| --- | --- | --- |
+| macOS | `Macintosh; Intel Mac OS X` | `/internal_forms_authentication/` — the login page |
+| Linux | `X11; Linux x86_64` | `/internal_forms_authentication/` — the login page |
+| Windows | `Windows NT 10.0; Win64; x64` | `/internal_windows_authentication` — NTLM |
+
+Butler Sheet Icons cannot complete an NTLM login. The browser it runs has no window and no way to
+ask anyone for credentials, so Windows quietly offers whatever account the machine is signed in as.
+On a machine that is not domain-joined — or is signed in as the wrong user — Qlik Sense rejects
+that account, the browser has nothing else to offer, and it gives up with
+`ERR_INVALID_AUTH_CREDENTIALS`.
+
+The same command from macOS never matches the pattern, gets the login page, and works.
+
+## The fix
+
+Run Butler Sheet Icons against a virtual proxy whose **Windows authentication pattern** cannot match
+a browser. The convention is to set it to `Form`, because no browser's User-Agent contains that
+word, so every visitor is given the login page.
+
+::: warning Use a separate virtual proxy — do not change your existing one
+Changing the pattern on the virtual proxy your users log in through will **turn off Windows
+single sign-on for all of them**. They will get a login page instead of being signed in
+automatically.
+
+Create a virtual proxy for Butler Sheet Icons instead, and leave the one your users rely on alone.
+:::
+
+In the QMC:
+
+1. Go to **Virtual proxies** and create a new virtual proxy, or select an existing one used only for
+   this purpose.
+2. Under **IDENTIFICATION**, give it a **Prefix**. Any valid prefix will do — the name has no
+   meaning to Butler Sheet Icons. The examples below use `form`.
+3. Under **AUTHENTICATION**, set **Windows authentication pattern** to `Form`.
+4. Leave **Authentication method** as `Ticket`. This is not the setting that needs changing, and a
+   proxy that already says `Ticket` can still send Windows users to NTLM — the pattern is what
+   decides.
+5. Link the virtual proxy to your proxy service, and apply the changes.
+
+Then tell Butler Sheet Icons to use it, with the prefix you chose:
+
+```
+--prefix form
+```
+
+or as an environment variable:
+
+```
+BSI_QSEOW_CST_PREFIX=form
+```
+
+::: warning The prefix is not the fix
+`--prefix form` on its own changes nothing. A virtual proxy called `form` whose **Windows
+authentication pattern** is still `Windows` fails in exactly the same way. The pattern is what
+matters; the prefix just tells Butler Sheet Icons which proxy to use.
+:::
+
+## Checking a virtual proxy without running Butler Sheet Icons
+
+You can ask the server directly which login it would offer. The important part is to send a Windows
+User-Agent — otherwise the tool you test with gets the login page regardless, and the test tells you
+nothing.
+
+Replace the host, the prefix and the app ID with your own. Omit the `/form` part to test the default
+virtual proxy.
+
+```powershell
+curl.exe -sk -o NUL -D - -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" `
+  "https://sense.example.com/form/sense/app/ded8d27d-…"
+```
+
+```bash
+curl -sk -o /dev/null -D - -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
+  "https://sense.example.com/form/sense/app/ded8d27d-…"
+```
+
+Read the `Location:` line in the reply:
+
+| `Location` contains | Meaning |
+| --- | --- |
+| `internal_forms_authentication` | The login page. Butler Sheet Icons will work through this proxy. |
+| `internal_windows_authentication` | NTLM. Butler Sheet Icons will fail with `ERR_INVALID_AUTH_CREDENTIALS`. |
+
+On Windows, use `curl.exe` rather than `curl` — in PowerShell, `curl` is a built-in alias for
+something else and does not accept these options.
+
+## What this means in general
+
+Butler Sheet Icons always expects the Qlik Sense login page. It cannot use Windows authentication at
+all — not from a domain-joined machine, and not with a correct domain account. On a virtual proxy
+that serves NTLM, a run either fails as described above or, if Windows single sign-on happens to
+succeed, fails while waiting for a login page that never appears.
+
+A virtual proxy that serves the login page to every visitor is therefore a requirement for
+Butler Sheet Icons, on every platform. It only becomes visible on Windows, because that is the only
+platform where the default pattern matches.
+
+---
+
+<!-- Notes for the publishing pass — not for the site -->
+
+## For the publisher
+
+**Version gate:** none for the cause and the fix — the Qlik Sense behaviour described here has
+always been the case.
+
+**But the quoted log output is version-dependent**, so check it before publishing. The stack-trace
+cleanup that ships alongside this page changes the first line: through 4.1.0 it is
+`QSEOW: qseowProcessApp (stack): Error: net::ERR_…` followed by the full stack, and after that
+release it is `QSEOW: qseowProcessApp: net::ERR_…` with the stack moved to `--loglevel debug`. The
+page shows the newer form with a callout for the older one, since readers will arrive from a
+console search. Confirm which release the cleanup landed in and name it in the callout rather than
+leaving "a later release".
+
+**Verified against the implementation** and against a live QSEoW 12.2759.8 server:
+
+- The redirect difference was confirmed by requesting the same app URL twice, changing only the
+  User-Agent. `/internal_windows_authentication/` answers `401 WWW-Authenticate: NTLM`.
+- The QRS API confirms the two proxies involved. Both have `authenticationMethod: 0` (Ticket); they
+  differ only in `windowsAuthenticationEnabledDevicePattern`, which is `Windows` on the default
+  proxy and `Form` on the working one. This is why step 4 above tells the reader not to touch
+  **Authentication method**.
+- `--prefix <prefix>` / `BSI_QSEOW_CST_PREFIX`, default `''`, confirmed in
+  `src/lib/commands/qseow/index.js`.
+- The quoted error lines are verbatim from a real failing run.
+
+**Suggested placement.** Prefer editing `docs/guide/troubleshooting.md` over adding a page:
+
+- Add this as a symptom-keyed subsection under **QSEoW Authentication Problems**, and add
+  `net::ERR_INVALID_AUTH_CREDENTIALS` to that section's **Symptoms** list — today it lists only
+  "Certificate errors / Access denied / Connection timeouts", none of which an admin hitting this
+  would match on.
+- That section already carries a `--prefix form` snippet under *Virtual Proxy Configuration*,
+  commented `# Ensure you're using form-based authentication`. It is correct but unexplained, and
+  reads as though a proxy named `form` is a Sense built-in. Replace it with a pointer to the new
+  subsection.
+- Cross-link from **Browser Login and Navigation Issues**, whose listed symptom "Login page loads
+  but credentials aren't entered" is what an admin may well match on first.
+
+**Screenshot.** A QMC screenshot of the field is available from the investigation — *Edit virtual
+proxy* showing description `Central node, Windows form auth`, prefix `form`, **Authentication
+method** `Ticket` and **Windows authentication pattern** `Form`. Worth including at step 3; the
+field is easy to miss among the other AUTHENTICATION settings.
+
+**Known limitation worth an issue.** The failure message names neither the virtual proxy nor the
+pattern, so nothing in the output points an admin here. Making Butler Sheet Icons recognise
+`ERR_INVALID_AUTH_CREDENTIALS` and say so is tracked separately.

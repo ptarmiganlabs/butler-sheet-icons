@@ -70,12 +70,14 @@ export async function takeSheetScreenshot(
             fileNameShortBlurred,
         };
     } catch (err) {
-        logger.error(`Failed to create blurred image: ${err}`);
-        if (err.message) {
-            logger.error(`CREATE BLURRED IMAGE (message): ${err.message}`);
-        }
-        if (err.stack) {
-            logger.error(`CREATE BLURRED IMAGE (stack): ${err.stack}`);
+        // Applies the same split as `logError` in ../util/log-error.js, but through the logger
+        // this function is given rather than the global one. The injected logger is this
+        // function's contract with its caller, so the shared helper is deliberately not used.
+        logger.error(
+            `CREATE BLURRED IMAGE: Failed to create blurred image: ${err?.message ?? err}`
+        );
+        if (err?.stack) {
+            logger.debug(err.stack);
         }
 
         // Fail the sheet rather than fall back to the unblurred screenshot. --blur-sheet-*

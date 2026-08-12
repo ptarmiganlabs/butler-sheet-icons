@@ -7,6 +7,7 @@ import { runOverApps } from '../util/run-over-apps.js';
 import { listAppsByCollection } from './cloud-apps.js';
 import { toAppIdList } from '../util/app-ids.js';
 import { CLOUD_SHEET_PARTS } from './sheet-parts.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Create thumbnails for Qlik Sense Cloud (QSC).
@@ -94,17 +95,9 @@ export const qscloudCreateThumbnails = async (options) => {
                 `Connection to tenant ${options.tenanturl} successful: ${JSON.stringify(res)}`
             );
         } catch (err) {
-            if (err.stack) {
-                logger.error(`TEST CONNECTIVITY 1 (stack): ${err.stack}`);
-            } else if (err.message) {
-                logger.error(`TEST CONNECTIVITY 1 (message): ${err.message}`);
-                if (err.status && err.statusText) {
-                    logger.error(
-                        `TEST CONNECTIVITY 1 (error code): ${err.status}="${err.statusText}"`
-                    );
-                }
-            } else {
-                logger.error(`TEST CONNECTIVITY 1: ${err}`);
+            logError('TEST CONNECTIVITY 1', err);
+            if (err?.status && err?.statusText) {
+                logger.error(`TEST CONNECTIVITY 1 (error code): ${err.status}="${err.statusText}"`);
             }
 
             return false;
@@ -131,13 +124,7 @@ export const qscloudCreateThumbnails = async (options) => {
             (appId) => processCloudApp(appId, saasInstance, options)
         );
     } catch (err) {
-        if (err.stack) {
-            logger.error(`CLOUD CREATE THUMBNAILS 2 (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`CLOUD CREATE THUMBNAILS 2 (message): ${err.message}`);
-        } else {
-            logger.error(`CLOUD CREATE THUMBNAILS 2: ${JSON.stringify(err, null, 2)}`);
-        }
+        logError('CLOUD CREATE THUMBNAILS 2', err);
 
         return false;
     }

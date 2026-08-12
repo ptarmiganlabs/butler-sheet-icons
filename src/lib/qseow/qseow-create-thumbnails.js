@@ -7,6 +7,7 @@ import { runOverApps } from '../util/run-over-apps.js';
 import { listAppsByTag } from './qseow-app-lookup.js';
 import { toAppIdList } from '../util/app-ids.js';
 import { QSEOW_SHEET_PARTS } from './sheet-parts.js';
+import { logError } from '../util/log-error.js';
 
 /**
  * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW).
@@ -95,13 +96,7 @@ export const qseowCreateThumbnails = async (options) => {
             (appId) => qseowProcessApp(appId, options)
         );
     } catch (err) {
-        if (err.stack) {
-            logger.error(`QSEOW CREATE THUMBNAILS 2 (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`QSEOW CREATE THUMBNAILS 2 (message): ${err.message}`);
-        } else {
-            logger.error(`QSEOW CREATE THUMBNAILS 2: ${err}`);
-        }
+        logError('QSEOW CREATE THUMBNAILS 2', err);
 
         return false;
     }

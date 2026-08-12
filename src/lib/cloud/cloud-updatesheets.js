@@ -2,6 +2,7 @@ import { setupEnigmaConnection } from './cloud-enigma.js';
 import { logger } from '../../globals.js';
 import { CloudError } from '../util/errors.js';
 import { withEngineSession } from '../util/engine-session.js';
+import { logError } from '../util/log-error.js';
 import {
     runOverSheets,
     SHEET_SKIPPED,
@@ -209,13 +210,7 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
             `Closed session after updating sheet thumbnail images in QS Cloud app ${appId} on tenant ${options.tenanturl}`
         );
     } catch (err) {
-        if (err.stack) {
-            logger.error(`CLOUD UPDATE SHEETS (stack): ${err.stack}`);
-        } else if (err.message) {
-            logger.error(`CLOUD UPDATE SHEETS (stack): ${err.message}`);
-        } else {
-            logger.error(`CLOUD UPDATE SHEETS: ${JSON.stringify(err, null, 2)}`);
-        }
+        logError('CLOUD UPDATE SHEETS', err);
 
         throw new CloudError(`Failed to update sheet thumbnails in app ${appId}`, { cause: err });
     }
