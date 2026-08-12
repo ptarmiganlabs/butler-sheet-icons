@@ -1,3 +1,7 @@
+// First, and before anything that reads process.env. Option declarations bind `.env('BSI_…')`,
+// so `.env` has to be in place before the command tree is built. It lives here rather than in
+// globals.js so that importing library code does not read a dotfile off disk - see issue #1014.
+import 'dotenv/config';
 import { Command } from 'commander';
 import { appVersion } from './globals.js';
 import { installFatalHandlers } from './lib/util/fatal-handlers.js';
