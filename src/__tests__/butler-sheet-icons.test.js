@@ -1,5 +1,14 @@
 // filepath: /Users/goran/code/butler-sheet-icons/src/__tests__/butler-sheet-icons.test.js
-import { test, expect, describe, jest, beforeEach, afterEach } from '@jest/globals';
+import {
+    test,
+    expect,
+    describe,
+    jest,
+    beforeAll,
+    afterAll,
+    beforeEach,
+    afterEach,
+} from '@jest/globals';
 import 'dotenv/config';
 import {} from 'commander';
 import {} from '../globals.js';
@@ -8,6 +17,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
+
+import { BROKEN_PIPE_EXIT_CODE } from '../lib/util/fatal-handlers.js';
 
 // Mock all the imported modules that are used in the main file
 jest.mock('../globals.js', () => ({
@@ -253,6 +264,121 @@ describe('fatal error safety net, end to end (issue #946)', () => {
 
         expect(fatalLines).toHaveLength(1);
         expect(fatalLines[0]).toContain('boom 0');
+    });
+});
+
+describe('a closed output pipe leaves nothing behind, end to end (issue #1019)', () => {
+    // `butler-sheet-icons browser list-available ... | head -12` used to leave a
+    // crash report in the working directory, because `head` closing the pipe
+    // raised EPIPE and nothing was listening for it.
+    //
+    // The read end is closed from this side rather than by a real `head`, so
+    // there is no shell and no `head` binary involved and the test runs
+    // identically on the Windows runner.
+    let dumpDir;
+    let result;
+
+    /** Exit code the child uses if it is still writing long after the pipe closed. */
+    const CHILD_GAVE_UP = 20;
+
+    /**
+     * Runs a child that installs the real handlers and writes steadily to
+     * stdout, then closes the read end as soon as the first output arrives.
+     *
+     * @returns {Promise<{status: number|null, signal: string|null, stdout: string, stderr: string}>}
+     *   The child's exit status and the output seen before the pipe was closed.
+     */
+    const runUntilPipeCloses = () =>
+        new Promise((resolve, reject) => {
+            const __dirname = path.dirname(fileURLToPath(import.meta.url));
+            const handlersPath = path.resolve(__dirname, '../lib/util/fatal-handlers.js');
+            const handlersUrl = pathToFileURL(handlersPath).href;
+            const source = [
+                `import { installFatalHandlers } from ${JSON.stringify(handlersUrl)};`,
+                'installFatalHandlers();',
+                `console.log(${JSON.stringify(HANDLERS_READY)});`,
+                // Keep writing, so a write is guaranteed to land after the pipe
+                // has gone. The counter is a safety valve: a child that is
+                // somehow still writing has failed the test, and should say so
+                // by exiting rather than by hanging.
+                'let ticks = 0;',
+                'const tick = () => {',
+                `    if (ticks > 200) process.exit(${CHILD_GAVE_UP});`,
+                '    ticks += 1;',
+                '    for (let i = 0; i < 200; i += 1) process.stdout.write(`line ${ticks}:${i}\\n`);',
+                '    setTimeout(tick, 5);',
+                '};',
+                'tick();',
+            ].join('\n');
+
+            const child = childProcess.spawn('node', ['--input-type=module', '-e', source], {
+                stdio: ['ignore', 'pipe', 'pipe'],
+                timeout: 20000,
+                env: {
+                    ...process.env,
+                    BSI_CRASH_DUMP_DIR: dumpDir,
+                    BSI_CRASH_DUMP_ENABLE: '1',
+                    BSI_CRASH_DUMP_CREATE_JSON: '1',
+                    BSI_CRASH_DUMP_CREATE_TEXT: '1',
+                },
+            });
+
+            let stdout = '';
+            let stderr = '';
+            child.stderr.setEncoding('utf-8');
+            child.stderr.on('data', (chunk) => {
+                stderr += chunk;
+            });
+
+            // This is the `head` moment: enough output has been read, so the
+            // reader goes away.
+            child.stdout.setEncoding('utf-8');
+            child.stdout.once('data', (chunk) => {
+                stdout += chunk;
+                child.stdout.destroy();
+            });
+
+            child.on('error', reject);
+            child.on('close', (status, signal) => resolve({ status, signal, stdout, stderr }));
+        });
+
+    beforeAll(async () => {
+        dumpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bsi-epipe-e2e-'));
+        result = await runUntilPipeCloses();
+
+        // A child that never installed the handlers would pass "no crash dumps
+        // written" while proving nothing at all.
+        if (!result.stdout.includes(HANDLERS_READY)) {
+            throw new Error(
+                [
+                    'The child process did not reach installFatalHandlers().',
+                    `status: ${result.status}, signal: ${result.signal}`,
+                    `stdout: ${result.stdout}`,
+                    `stderr: ${result.stderr}`,
+                ].join('\n')
+            );
+        }
+    }, 30000);
+
+    afterAll(() => {
+        fs.rmSync(dumpDir, { recursive: true, force: true });
+    });
+
+    test('no crash dump is written', () => {
+        // The whole point of the issue: an operator piping to `head` should not
+        // accumulate crash reports in the working directory.
+        expect(fs.readdirSync(dumpDir)).toEqual([]);
+    });
+
+    test('the run ends on its own, with the shell convention for a closed pipe', () => {
+        expect(result.signal).toBeNull();
+        expect(result.status).toBe(BROKEN_PIPE_EXIT_CODE);
+    });
+
+    test('nothing is printed about it', () => {
+        // Not even a FATAL line: the pipe closing is what the operator asked
+        // for, and any message would be going into the stream that just closed.
+        expect(result.stderr).toBe('');
     });
 });
 
