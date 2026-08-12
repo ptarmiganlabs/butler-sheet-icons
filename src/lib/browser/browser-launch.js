@@ -37,6 +37,26 @@ export const BASE_BROWSER_ARGS = [
 ];
 
 /**
+ * How long Puppeteer may spend getting a launched browser to announce its debugging endpoint.
+ *
+ * This is Puppeteer's own default, pinned here on purpose. Leaving it implicit means the budget
+ * can change under us on a dependency bump, which is the same failure mode as letting the browser
+ * version float: nothing in this repo changes, and the behaviour does.
+ *
+ * Note what it does *not* cover - see `launchBrowserForApp`.
+ */
+export const BROWSER_LAUNCH_TIMEOUT_MS = 30_000;
+
+/**
+ * How long a single DevTools protocol call may take once the browser is running.
+ *
+ * Also Puppeteer's default, pinned for the same reason. Deliberately generous rather than tight:
+ * it bounds every subsequent CDP call, including screenshots of large sheets on a loaded Qlik
+ * Sense server, and nothing in issue #870 implicated it. Lower it only with evidence.
+ */
+export const BROWSER_PROTOCOL_TIMEOUT_MS = 180_000;
+
+/**
  * Detects whether the process is running inside a container.
  *
  * `--single-process` helps on native Linux and macOS but crashes Chromium both in containers and
@@ -266,6 +286,46 @@ const watchForUnexpectedDisconnect = (browser, buildId, logPrefix) => {
 };
 
 /**
+ * Reports a browser launch that took longer than the timeout supposedly bounding it.
+ *
+ * This is the part of issue #870 that has teeth. `timeout` bounds the wait for the browser to
+ * print its debugging endpoint - it does not bound getting the process off the ground in the
+ * first place. `puppeteer.launch()` spawns the browser before that clock starts, and on Windows
+ * process creation is synchronous inside libuv, so anything that stalls it stalls the Node event
+ * loop with it. No JavaScript timer can fire while that is happening, which is why a 30s launch
+ * timeout produced 30 minutes of silence in CI run 31148836253 rather than a timeout error: the
+ * time was spent somewhere no timeout reaches.
+ *
+ * Two shapes follow from that, and both are worth a line in the log:
+ *
+ * - the stall clears, the launch *succeeds*, and the run is merely inexplicably slow - the case
+ *   no timeout will ever catch, and the one this exists for;
+ * - the stall clears past the 30s budget and Puppeteer then times out, in which case the elapsed
+ *   time is what distinguishes "browser is broken" from "something held the process at startup".
+ *
+ * Anything over the launch budget is by definition time the launch timeout did not account for,
+ * which makes it the natural threshold - no second number to keep in sync.
+ *
+ * @param {number} elapsedMs - Wall-clock time spent in `puppeteer.launch()`.
+ * @param {string} logPrefix - Log line prefix, e.g. `'QSEOW'`.
+ *
+ * @returns {void}
+ */
+const reportSlowLaunch = (elapsedMs, logPrefix) => {
+    if (elapsedMs <= BROWSER_LAUNCH_TIMEOUT_MS) {
+        logger.verbose(`Browser launch took ${elapsedMs} ms`);
+        return;
+    }
+
+    logger.warn(
+        `${logPrefix}: Browser launch took ${Math.round(elapsedMs / 1000)}s, longer than the ${BROWSER_LAUNCH_TIMEOUT_MS / 1000}s launch timeout allows for. The extra time went into starting the browser process, which no timeout covers.`
+    );
+    logger.warn(
+        `${logPrefix}: On Windows this is typically antivirus or endpoint protection scanning a browser executable it has not seen before. Excluding the Butler Sheet Icons browser cache directory from real-time scanning avoids it.`
+    );
+};
+
+/**
  * Resolves a browser and launches it, ready for page work.
  *
  * Extracted from `process-cloud-app.js` and `qseow-process-app.js`, which carried this sequence
@@ -304,8 +364,19 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
     const browserArgs = await buildBrowserArgs();
 
     let browser;
+    const launchStartedAt = Date.now();
     try {
         browser = await puppeteer.launch({
+            // Both timeouts match Puppeteer's own defaults; see the constants for why they are
+            // stated rather than inherited.
+            //
+            // They are NOT what issue #870 asked for. That issue proposed adding a launch timeout
+            // to explain a 30-minute Windows CI hang, on the assumption there was none. There was:
+            // puppeteer-core v25 already defaults `timeout` to 30s and `protocolTimeout` to 180s,
+            // so adding them changes no behaviour and would not have shortened that hang by a
+            // second. The reason is spelled out on `reportSlowLaunch`.
+            timeout: BROWSER_LAUNCH_TIMEOUT_MS,
+            protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
             // Puppeteer removed `ignoreHTTPSErrors` in v23 and replaced it with
             // `acceptInsecureCerts`. Butler Sheet Icons kept passing the old name through the v25
             // upgrade, and because Puppeteer ignores unknown options in silence, the intent behind
@@ -327,10 +398,23 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
             `${logPrefix}: Could not launch virtual browser: ${err?.stack || err?.message || err}`
         );
 
+        // A launch timeout reads like any other launch failure in the log, but the remedy is
+        // completely different - nothing is wrong with the arguments or the certificate setup,
+        // the browser simply never reported itself ready. Say so where the distinction is known.
+        if (err?.name === 'TimeoutError') {
+            logger.error(
+                `${logPrefix}: The browser did not become ready within ${BROWSER_LAUNCH_TIMEOUT_MS / 1000}s. It was started but never reported a debugging endpoint - usually a browser build that cannot run on this machine, or security software holding it at startup.`
+            );
+        }
+
+        reportSlowLaunch(Date.now() - launchStartedAt, logPrefix);
+
         throw new ErrorClass(`Failed to launch virtual browser for ${appLabel} ${appId}`, {
             cause: err,
         });
     }
+
+    reportSlowLaunch(Date.now() - launchStartedAt, logPrefix);
 
     // A browser build that Puppeteer cannot drive starts perfectly well and then dies on the first
     // command sent to it - after launch() has already resolved. Without this check the failure

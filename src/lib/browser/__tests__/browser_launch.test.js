@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 
 jest.unstable_mockModule('puppeteer-core', () => ({
     default: { launch: jest.fn() },
@@ -68,8 +68,14 @@ jest.unstable_mockModule('node:fs', () => ({
 }));
 const fs = await import('node:fs');
 
-const { launchBrowserForApp, buildBrowserArgs, resolveBrowserExecutablePath, closeBrowserQuietly } =
-    await import('../browser-launch.js');
+const {
+    launchBrowserForApp,
+    buildBrowserArgs,
+    resolveBrowserExecutablePath,
+    closeBrowserQuietly,
+    BROWSER_LAUNCH_TIMEOUT_MS,
+    BROWSER_PROTOCOL_TIMEOUT_MS,
+} = await import('../browser-launch.js');
 
 /** Stand-in typed error, matching the (message, { cause }) shape of the real ones. */
 class TestError extends Error {
@@ -550,5 +556,123 @@ describe('log prefix shape', () => {
         expect(logged).toContain('TEST: Could not launch virtual browser');
         expect(logged).not.toContain('TEST Could not launch');
         expect(logged).not.toContain('TEST:: Could not launch');
+    });
+});
+
+describe('launchBrowserForApp — slow launch reporting (issue #870)', () => {
+    /** Value returned by the stubbed clock, advanced by the launch mock itself. */
+    let now;
+    let nowSpy;
+
+    /**
+     * Concatenates everything logged at warn level.
+     *
+     * @returns {string} Combined warning output.
+     */
+    function warnOutput() {
+        return logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+    }
+
+    /**
+     * Makes `puppeteer.launch` consume a given amount of wall-clock time.
+     *
+     * The clock is advanced from inside the launch mock rather than by queueing return values,
+     * so the elapsed time is tied to the launch itself and cannot drift if some other caller
+     * reads the clock in between.
+     *
+     * @param {number} elapsedMs - Time the launch should appear to take.
+     * @param {object} outcome - `{ resolve }` or `{ reject }`, the launch result.
+     *
+     * @returns {void}
+     */
+    function launchTaking(elapsedMs, outcome) {
+        puppeteer.launch.mockImplementation(async () => {
+            now += elapsedMs;
+            if (outcome.reject) {
+                throw outcome.reject;
+            }
+            return outcome.resolve;
+        });
+    }
+
+    beforeEach(() => {
+        now = 0;
+        nowSpy = jest.spyOn(Date, 'now').mockImplementation(() => now);
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '150.0.7871.24',
+        });
+    });
+
+    afterEach(() => {
+        nowSpy.mockRestore();
+        // clearAllMocks leaves implementations in place, so the clock-advancing launch stub would
+        // otherwise outlive this block.
+        puppeteer.launch.mockReset();
+    });
+
+    test('states both Puppeteer timeouts rather than inheriting them', async () => {
+        // Pinned so a dependency bump cannot change the launch budget without a diff here.
+        launchTaking(1_000, { resolve: fakeBrowser() });
+
+        await launchBrowserForApp(OPTIONS, CONTEXT);
+
+        expect(puppeteer.launch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                timeout: BROWSER_LAUNCH_TIMEOUT_MS,
+                protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
+            })
+        );
+    });
+
+    test('warns when a launch that succeeded took longer than the timeout allows for', async () => {
+        // The case no timeout catches, and the one the CI hang actually was: process startup is
+        // stalled outside the timed region, the stall clears, and the launch then succeeds.
+        launchTaking(25 * 60 * 1000, { resolve: fakeBrowser() });
+
+        await launchBrowserForApp(OPTIONS, CONTEXT);
+
+        expect(warnOutput()).toContain('TEST: Browser launch took 1500s');
+        expect(warnOutput()).toContain('no timeout covers');
+        expect(warnOutput()).toContain('antivirus');
+    });
+
+    test('stays quiet about a launch that finished inside the budget', async () => {
+        launchTaking(BROWSER_LAUNCH_TIMEOUT_MS, { resolve: fakeBrowser() });
+
+        await launchBrowserForApp(OPTIONS, CONTEXT);
+
+        expect(logger.warn).not.toHaveBeenCalled();
+        expect(logger.verbose).toHaveBeenCalledWith(
+            expect.stringContaining(`Browser launch took ${BROWSER_LAUNCH_TIMEOUT_MS} ms`)
+        );
+    });
+
+    test('explains a launch timeout instead of leaving it to read as a generic failure', async () => {
+        const timedOut = new Error(
+            'Timed out after 30000 ms while trying to connect to the browser'
+        );
+        timedOut.name = 'TimeoutError';
+        launchTaking(BROWSER_LAUNCH_TIMEOUT_MS + 1, { reject: timedOut });
+
+        await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow(TestError);
+
+        expect(errorOutput()).toContain('did not become ready within 30s');
+        expect(errorOutput()).toContain('never reported a debugging endpoint');
+        // Elapsed time is reported on the failing path too - it is what separates "this build is
+        // broken" from "something held the process at startup".
+        expect(warnOutput()).toContain('Browser launch took');
+    });
+
+    test('does not offer the timeout explanation for an ordinary launch failure', async () => {
+        launchTaking(500, { reject: new Error('no display') });
+
+        await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow(TestError);
+
+        expect(errorOutput()).toContain('Could not launch virtual browser');
+        expect(errorOutput()).not.toContain('did not become ready within');
+        expect(logger.warn).not.toHaveBeenCalled();
     });
 });
