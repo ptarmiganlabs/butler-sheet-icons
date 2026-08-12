@@ -1,5 +1,15 @@
 import { describe, test, expect } from '@jest/globals';
-import { gate, gatedBy, inSections, SHEET_FILTER_KEYS } from '../spec-ops.js';
+import {
+    gate,
+    gatedBy,
+    inSections,
+    isSupplied,
+    openingOn,
+    assertAppSelectionNotEmpty,
+    appSourceQuestion,
+    APP_SOURCES,
+    SHEET_FILTER_KEYS,
+} from '../spec-ops.js';
 import { labelForApp, labelForCollection } from '../labels.js';
 
 const spec = (key, overrides = {}) => ({
@@ -163,5 +173,86 @@ describe('labels', () => {
 
     test('a collection with no item count reads as empty rather than undefined', () => {
         expect(labelForCollection({ name: 'Finance' })).toBe('Finance  (0 items)');
+    });
+});
+
+describe('isSupplied', () => {
+    test('an empty string is not supplied, because that is how both say "none"', () => {
+        // --qliksensetag and --collectionid both declare '' as their default, so
+        // treating it as a value would offer to re-confirm something nobody set.
+        expect(isSupplied('')).toBe(false);
+        expect(isSupplied('   ')).toBe(false);
+        expect(isSupplied(undefined)).toBe(false);
+        expect(isSupplied([])).toBe(false);
+    });
+
+    test('anything with something in it is supplied', () => {
+        expect(isSupplied('BSI')).toBe(true);
+        expect(isSupplied(['app-a'])).toBe(true);
+    });
+});
+
+describe('openingOn', () => {
+    test('a supplied value becomes the question default', () => {
+        expect(openingOn(spec('appid'), ['app-a']).default).toEqual(['app-a']);
+    });
+
+    test('nothing supplied leaves the question exactly as it was', () => {
+        const original = spec('appid', { default: 'from-the-option' });
+
+        expect(openingOn(original, '')).toBe(original);
+    });
+});
+
+describe('assertAppSelectionNotEmpty', () => {
+    test('passes when apps are named', () => {
+        expect(() =>
+            assertAppSelectionNotEmpty(
+                { appid: ['app-a'], qliksensetag: '' },
+                'qliksensetag',
+                'a tag'
+            )
+        ).not.toThrow();
+    });
+
+    test('passes on a tag alone, because the run is the union of the two', () => {
+        expect(() =>
+            assertAppSelectionNotEmpty({ appid: [], qliksensetag: 'BSI' }, 'qliksensetag', 'a tag')
+        ).not.toThrow();
+    });
+
+    test('throws when neither names anything', () => {
+        // runOverApps would report this too, but only after every remaining
+        // question has been answered and the run confirmed.
+        expect(() =>
+            assertAppSelectionNotEmpty(
+                { appid: [], collectionid: '' },
+                'collectionid',
+                'a collection'
+            )
+        ).toThrow('No apps selected');
+    });
+
+    test('an unanswered appid counts as nothing, not as a crash', () => {
+        expect(() => assertAppSelectionNotEmpty({}, 'qliksensetag', 'a tag')).toThrow(
+            'No apps selected'
+        );
+    });
+});
+
+describe('appSourceQuestion', () => {
+    test('claims both keys it leads to, so neither is silently skipped', () => {
+        const question = appSourceQuestion({
+            needs: ['logonpwd'],
+            groupingKey: 'qliksensetag',
+            groupingChoice: 'Update every app carrying a tag',
+        });
+
+        expect(question.replaces).toEqual(['appid', 'qliksensetag']);
+        expect(question.choices.map((choice) => choice.value)).toEqual([
+            APP_SOURCES.ALL,
+            APP_SOURCES.GROUPED,
+            APP_SOURCES.TYPED,
+        ]);
     });
 });
