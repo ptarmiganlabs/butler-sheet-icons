@@ -1061,9 +1061,13 @@ jobs:
     env:
       DIST_FILE_NAME: butler-sheet-icons
     steps:
-      - name: Checkout repository
+      - name: Checkout the released tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Without this, the default checkout is `github.sha` - the commit that happened to
+          # trigger this run, which is not the commit release-please just tagged. See the note
+          # on the same step in release-macos-arm64 for what that shipped.
+          ref: ${{ needs.release-please.outputs.release_tag_name }}
           fetch-depth: 2
           persist-credentials: false
 
@@ -1072,6 +1076,20 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: ''
+
+      # Runs after setup-node so `node` is certain to be on PATH, and before the install and
+      # build so a mismatch costs seconds rather than a signed, notarized artifact.
+      - name: Verify the checkout is the version being released
+        shell: bash
+        run: |
+          expected="${{ needs.release-please.outputs.release_version }}"
+          actual=$(node -p "require('./package.json').version")
+          echo "release-please version : $expected"
+          echo "package.json version   : $actual"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Refusing to build: package.json says $actual, but the release is $expected. The binary embeds package.json and would report the wrong version."
+            exit 1
+          fi
 
       # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
       # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
@@ -1142,15 +1160,36 @@ jobs:
           echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
-      - name: Checkout repository
+      - name: Checkout the released tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Load-bearing. Without `ref`, checkout takes `github.sha` - the commit that triggered
+          # this run - and release-please cuts the release from main's HEAD, which is a
+          # different commit whenever an unrelated push is what started the run. On 2026-08-10
+          # that shipped all three 4.1.0 binaries built from the commit before the version bump,
+          # so they reported "App version: 4.0.0": the SEA build embeds package.json as an asset
+          # and globals.js reads the version straight out of it.
+          ref: ${{ needs.release-please.outputs.release_tag_name }}
           persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+      # Runs after setup-node so `node` is certain to be on PATH, and before the install and
+      # build so a mismatch costs seconds rather than a signed, notarized artifact.
+      - name: Verify the checkout is the version being released
+        shell: bash
+        run: |
+          expected="${{ needs.release-please.outputs.release_version }}"
+          actual=$(node -p "require('./package.json').version")
+          echo "release-please version : $expected"
+          echo "package.json version   : $actual"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Refusing to build: package.json says $actual, but the release is $expected. The binary embeds package.json and would report the wrong version."
+            exit 1
+          fi
+
       # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
       # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
       # packages and could not resolve jest-circus. Pinning npm here makes the install identical
@@ -1223,9 +1262,16 @@ jobs:
           Write-Output 'tag_name        : ${{ needs.release-please.outputs.release_tag_name }}'
           Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
 
-      - name: Checkout repository
+      - name: Checkout the released tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Load-bearing. Without `ref`, checkout takes `github.sha` - the commit that triggered
+          # this run - and release-please cuts the release from main's HEAD, which is a
+          # different commit whenever an unrelated push is what started the run. On 2026-08-10
+          # that shipped all three 4.1.0 binaries built from the commit before the version bump,
+          # so they reported "App version: 4.0.0": the SEA build embeds package.json as an asset
+          # and globals.js reads the version straight out of it.
+          ref: ${{ needs.release-please.outputs.release_tag_name }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -1241,10 +1287,26 @@ jobs:
           npm install -g npm@12.0.2
           npm --version
 
+      # Same check as the other release jobs, written in powershell because that is the shell
+      # this self-hosted runner is known to have - every other run step in this job uses it,
+      # while bash would depend on Git for Windows being on PATH. A guard that fails spuriously
+      # would block a release, which is worse than the defect it guards against.
+      - name: Verify the checkout is the version being released
+        shell: powershell
+        run: |
+          $expected = "${{ needs.release-please.outputs.release_version }}"
+          $actual = node -p "require('./package.json').version"
+          Write-Host "release-please version : $expected"
+          Write-Host "package.json version   : $actual"
+          if ($actual -ne $expected) {
+            Write-Host "::error::Refusing to build: package.json says $actual, but the release is $expected. The binary embeds package.json and would report the wrong version."
+            exit 1
+          }
+
       - name: Install dependencies
         shell: powershell
         run: |
-          pwd 
+          pwd
           npm ci --include=dev --include=prod
 
       - name: Build binaries
@@ -1286,15 +1348,36 @@ jobs:
           echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
           echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
 
-      - name: Checkout repository
+      - name: Checkout the released tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # Load-bearing. Without `ref`, checkout takes `github.sha` - the commit that triggered
+          # this run - and release-please cuts the release from main's HEAD, which is a
+          # different commit whenever an unrelated push is what started the run. On 2026-08-10
+          # that shipped all three 4.1.0 binaries built from the commit before the version bump,
+          # so they reported "App version: 4.0.0": the SEA build embeds package.json as an asset
+          # and globals.js reads the version straight out of it.
+          ref: ${{ needs.release-please.outputs.release_tag_name }}
           persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+      # Runs after setup-node so `node` is certain to be on PATH, and before the install and
+      # build so a mismatch costs seconds rather than a signed, notarized artifact.
+      - name: Verify the checkout is the version being released
+        shell: bash
+        run: |
+          expected="${{ needs.release-please.outputs.release_version }}"
+          actual=$(node -p "require('./package.json').version")
+          echo "release-please version : $expected"
+          echo "package.json version   : $actual"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Refusing to build: package.json says $actual, but the release is $expected. The binary embeds package.json and would report the wrong version."
+            exit 1
+          fi
+
       # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
       # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
       # packages and could not resolve jest-circus. Pinning npm here makes the install identical
