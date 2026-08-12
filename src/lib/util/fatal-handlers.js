@@ -41,6 +41,32 @@
  * written is dropped rather than exiting immediately. Exiting there would
  * truncate the one dump the operator actually needs, leaving the zero-byte file
  * that #946 is about; the watchdog bounds how long the wait can be instead.
+ *
+ * ## Output going away is not a crash (issue #1019)
+ *
+ * `butler-sheet-icons browser list-available ... | head -12` used to leave a
+ * crash dump behind. `head` closes the pipe once it has its lines, the next
+ * write to stdout fails with `EPIPE`, and with nothing listening for it that
+ * became an uncaught exception — a crash report for an operator doing something
+ * completely ordinary. `less`, `grep -m1` and a quit pager do the same.
+ *
+ * So a broken output pipe is handled separately from a crash: no log line (the
+ * stream it would go to is the one that just died), no crash dump, and an
+ * immediate exit with {@link BROKEN_PIPE_EXIT_CODE}.
+ *
+ * It is caught in two places, because certainty differs between them:
+ *
+ *   - An `error` listener on stdout and stderr. This is the path that fires in
+ *     practice, and it is exact: the event names the stream, so there is no
+ *     guessing about which pipe broke.
+ *   - The `uncaughtException` path, as a backstop for anything that writes to
+ *     fd 1 or 2 without going through those stream objects. Attribution there
+ *     is a judgement call — a raw socket write can raise `EPIPE` too — so the
+ *     backstop is deliberately narrow: `unhandledRejection` never takes it (all
+ *     of BSI's network I/O is promise-based, and an `AxiosError` can carry
+ *     `code: 'EPIPE'` across), and the exit code stays non-zero, so a
+ *     misattributed socket failure still fails a scheduled task. What it would
+ *     cost is the crash dump for that one rare case.
  */
 
 import { logger as defaultLogger } from '../../globals.js';
@@ -58,6 +84,27 @@ import { writeCrashDump as defaultWriteCrashDump } from './crash-dump.js';
  */
 export const FATAL_EXIT_WATCHDOG_MS = 10000;
 
+/**
+ * Exit code used when the output stream goes away: 128 + `SIGPIPE` (13), the
+ * status a shell reports for any other tool killed by a closed pipe.
+ *
+ * Non-zero on purpose. Piping to `head` usually cuts a run short rather than
+ * letting it finish, and BSI's exit code is documented as telling a scheduler
+ * whether the run did its job — claiming success for output that was thrown
+ * away would be the same lie the exit code work removed. It also bounds the
+ * cost of the `uncaughtException` backstop misreading a socket failure as this:
+ * the dump is lost, but the run is still reported as failed.
+ */
+export const BROKEN_PIPE_EXIT_CODE = 141;
+
+/**
+ * Error codes a stream raises once whatever it writes into has gone away.
+ *
+ * `EPIPE` is the pipe being closed by the reader; `ERR_STREAM_DESTROYED` is a
+ * later write to the stream Node then tore down in response.
+ */
+const BROKEN_PIPE_CODES = new Set(['EPIPE', 'ERR_STREAM_DESTROYED']);
+
 /** True once a fatal event is being handled. Later fatal events are dropped. */
 let handlingFatal = false;
 
@@ -68,12 +115,13 @@ let exited = false;
 let watchdogTimer = null;
 
 /**
- * The listeners currently registered, so a re-install can remove them first.
- * `null` when nothing is installed.
+ * Every listener the current installation registered, so a re-install or a
+ * reset removes exactly what it added — on `process` and on the output streams
+ * alike.
  *
- * @type {{target: import('node:events').EventEmitter, listeners: Array<[string, Function]>}|null}
+ * @type {Array<{emitter: import('node:events').EventEmitter, event: string, listener: Function}>}
  */
-let installation = null;
+let installedListeners = [];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -99,6 +147,17 @@ function toError(reason) {
     } catch {
         return new Error('Unhandled promise rejection with an uncoercible reason');
     }
+}
+
+/**
+ * Reports whether an error says the stream being written to has gone away.
+ *
+ * @param {Error|unknown} err - The error to classify.
+ *
+ * @returns {boolean} `true` for a broken-pipe error code.
+ */
+function isBrokenPipeError(err) {
+    return BROKEN_PIPE_CODES.has(err?.code);
 }
 
 /**
@@ -174,6 +233,28 @@ function armWatchdog(deps) {
 }
 
 /**
+ * Ends the run because there is nowhere left to write: quietly, and without a
+ * crash dump.
+ *
+ * Nothing is logged. The stream a message would go to is the one that just
+ * closed, so the line would either vanish or raise the same error again.
+ *
+ * Takes the re-entry guard for the same reason the fatal path does, and
+ * respects it: a pipe breaking while a real crash dump is being written must
+ * not exit early and truncate that dump. The watchdog already bounds the wait.
+ *
+ * @param {object} deps - Resolved dependencies for this installation.
+ *
+ * @returns {void}
+ */
+function handleBrokenOutputPipe(deps) {
+    if (handlingFatal) return;
+    handlingFatal = true;
+
+    exitOnce(BROKEN_PIPE_EXIT_CODE, deps.exit);
+}
+
+/**
  * Handles one fatal event: log it, write a crash dump, exit.
  *
  * The first fatal event to arrive wins; every later one returns immediately
@@ -188,6 +269,15 @@ function armWatchdog(deps) {
 function handleFatal(err, source, deps) {
     // A fatal error raised while already handling a fatal error is dropped.
     if (handlingFatal) return;
+
+    // Output going away is an ordinary end to a piped run, not a crash. Only
+    // from `uncaughtException`, and only as a backstop to the stream listeners
+    // below — see the header for why a rejection never qualifies.
+    if (source === 'uncaughtException' && isBrokenPipeError(err)) {
+        handleBrokenOutputPipe(deps);
+        return;
+    }
+
     handlingFatal = true;
 
     armWatchdog(deps);
@@ -213,17 +303,29 @@ function handleFatal(err, source, deps) {
  * @returns {void}
  */
 function removeInstalledListeners() {
-    if (installation === null) return;
-
-    for (const [event, listener] of installation.listeners) {
+    for (const { emitter, event, listener } of installedListeners) {
         try {
-            installation.target.removeListener(event, listener);
+            emitter.removeListener(event, listener);
         } catch {
-            // Best effort: a target that cannot remove listeners is replaced
+            // Best effort: an emitter that cannot remove listeners is replaced
             // wholesale by the new installation anyway.
         }
     }
-    installation = null;
+    installedListeners = [];
+}
+
+/**
+ * Registers one listener and records it so it can be removed again.
+ *
+ * @param {import('node:events').EventEmitter} emitter - Emitter to listen on.
+ * @param {string} event - Event name.
+ * @param {Function} listener - The listener to register.
+ *
+ * @returns {void}
+ */
+function registerListener(emitter, event, listener) {
+    emitter.on(event, listener);
+    installedListeners.push({ emitter, event, listener });
 }
 
 // ---------------------------------------------------------------------------
@@ -247,6 +349,8 @@ function removeInstalledListeners() {
  * @param {Function} [options.exit] - Exit function. Defaults to `process.exit`.
  * @param {import('node:events').EventEmitter} [options.target] - Emitter to listen on. Defaults to `process`.
  * @param {number} [options.watchdogMs] - Watchdog delay in ms. Defaults to {@link FATAL_EXIT_WATCHDOG_MS}.
+ * @param {Array<import('node:stream').Writable>} [options.outputStreams] - Streams to watch for a
+ *   broken pipe. Defaults to `process.stdout` and `process.stderr`.
  *
  * @returns {void}
  */
@@ -263,6 +367,7 @@ export function installFatalHandlers({
     exit = (code) => process.exit(code),
     target = process,
     watchdogMs = FATAL_EXIT_WATCHDOG_MS,
+    outputStreams = [process.stdout, process.stderr],
 } = {}) {
     removeInstalledListeners();
 
@@ -292,16 +397,43 @@ export function installFatalHandlers({
     const onUnhandledRejection = (reason) =>
         handleFatal(toError(reason), 'unhandledRejection', deps);
 
-    target.on('uncaughtException', onUncaughtException);
-    target.on('unhandledRejection', onUnhandledRejection);
+    /**
+     * Listener for errors on stdout and stderr.
+     *
+     * Without it a broken pipe has no listener, and Node turns an unlistened
+     * stream `error` into an uncaught exception — which is how `| head` came to
+     * write a crash dump. Registering it also means these errors are attributed
+     * with certainty rather than guessed at from an error code.
+     *
+     * Anything that is not a broken pipe is passed on to the fatal path, so a
+     * genuine failure to write output still produces a dump and exit 1, exactly
+     * as it did when it arrived as an uncaught exception.
+     *
+     * @param {Error} err - The stream error.
+     *
+     * @returns {void}
+     */
+    const onOutputStreamError = (err) => {
+        if (isBrokenPipeError(err)) {
+            handleBrokenOutputPipe(deps);
+            return;
+        }
 
-    installation = {
-        target,
-        listeners: [
-            ['uncaughtException', onUncaughtException],
-            ['unhandledRejection', onUnhandledRejection],
-        ],
+        handleFatal(toError(err), 'uncaughtException', deps);
     };
+
+    registerListener(target, 'uncaughtException', onUncaughtException);
+    registerListener(target, 'unhandledRejection', onUnhandledRejection);
+
+    for (const stream of outputStreams) {
+        try {
+            registerListener(stream, 'error', onOutputStreamError);
+        } catch {
+            // A stream that cannot take a listener — a stub in a test, a
+            // stripped-down SEA environment — leaves the `uncaughtException`
+            // backstop to cover it.
+        }
+    }
 }
 
 /**
