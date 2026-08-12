@@ -21,15 +21,16 @@ This is the part worth knowing about. Options you have already given are treated
 about again. So you can supply the parts you know and let Butler Sheet Icons ask for the rest:
 
 ```bash
-butler-sheet-icons browser uninstall --browser chrome -i
+butler-sheet-icons browser install --browser firefox -i
 ```
 
 ```
 Already supplied, so not asked about again: --browser.
 
-? Which browser build should be removed?
-❯ chrome  151.0.7922.108  (mac_arm)
-  chrome  151.0.7922.47   (mac_arm)
+  Type to filter, or take one of the first two entries.
+? Which build should be installed?
+❯ Recommended - the build this version of Butler Sheet Icons is tested with
+  Latest stable - whatever the vendor currently publishes
 ```
 
 This works for `BSI_*` environment variables too. If `BSI_BROWSER_UI_BROWSER` is set in your shell or in
@@ -37,6 +38,17 @@ a `.env` file, the browser question is skipped in exactly the same way.
 
 Values that merely fall back to a **default** are still asked about, with the default offered as the
 pre-filled answer. Only values you actually chose are treated as settled.
+
+### One exception, and it says so
+
+`browser uninstall` asks a single question that stands in for both `--browser` and `--browser-version`,
+because it offers the builds that are actually in the cache. Supplying either of those does not skip
+that question — a build id you gave from memory may name something that is no longer installed, so the
+list wins. Butler Sheet Icons tells you when this is happening:
+
+```
+Supplied, but asked about again so the answer can be picked from what is actually there: --browser.
+```
 
 ## Which commands accept it
 

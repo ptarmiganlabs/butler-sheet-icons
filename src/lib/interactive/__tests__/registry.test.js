@@ -122,6 +122,32 @@ describe('the registered wizards', () => {
         }
     );
 
+    // `replaces` is how a synthetic question tells the wizard which real
+    // options it collects, so that a value already supplied for one of them is
+    // reported as asked about rather than as skipped. A typo in it fails
+    // silently - the banner simply goes back to claiming the option was
+    // skipped and then asking for it, which is issue #1013 - so it is checked
+    // the same way the emitted keys are.
+    test.each(REGISTERED.map((path) => [path]))(
+        '%s only claims to replace options its command declares',
+        async (path) => {
+            const wizard = await loadWizard(path);
+            const { command } = everyLeafCommand().find((leaf) => leaf.path === path);
+            const declared = new Set(command.options.map((option) => option.attributeName()));
+
+            const specs = specsFromCommand(command);
+            const refined = wizard.refine ? wizard.refine(specs, { answers: {} }) : specs;
+
+            for (const spec of refined) {
+                for (const key of spec.replaces ?? []) {
+                    expect(`${path} -> replaces ${key}: ${declared.has(key)}`).toBe(
+                        `${path} -> replaces ${key}: true`
+                    );
+                }
+            }
+        }
+    );
+
     test('synthetic questions are prefixed, so they can never reach the options bag', async () => {
         for (const path of REGISTERED) {
             const wizard = await loadWizard(path);

@@ -124,11 +124,31 @@ export const runInteractive = async ({
     // about without anyone editing the wizard.
     const specs = specsFromCommand(command);
 
+    const refined = wizard.refine ? wizard.refine(specs, { answers: presetOptions }) : specs;
+
+    // Anything already given on the command line or through a BSI_* environment
+    // variable is an answer, not a question. Dropped here rather than in
+    // `refine`, so every wizard composes with `-i` without having to remember
+    // to.
+    //
+    // Computed once rather than per restart: `refine` sees the same specs and
+    // the same preset answers every time round the loop, and the banner below
+    // has to be built from the result before the first question is asked.
+    const asked = refined.filter((spec) => !(spec.key in presetOptions));
+
+    // What a question stands in for counts as asked, even though its key
+    // differs. uninstall's picker is keyed `_build` and collects `browser` and
+    // `browserVersion` between them, so without this the banner announced that
+    // --browser-version would not be asked about and the wizard then asked for
+    // exactly that, using that option's help text as the prompt (issue #1013).
+    const covered = new Set(asked.flatMap((spec) => spec.replaces ?? []));
+
     // Named by flag rather than by storage key, because the flag is what the
     // user typed. Secrets are named but never shown.
-    const prefilled = specs
-        .filter((spec) => spec.key in presetOptions)
-        .map((spec) => spec.option?.long ?? spec.key);
+    const nameOf = (spec) => spec.option?.long ?? spec.key;
+    const supplied = specs.filter((spec) => spec.key in presetOptions);
+    const prefilled = supplied.filter((spec) => !covered.has(spec.key)).map(nameOf);
+    const overridden = supplied.filter((spec) => covered.has(spec.key)).map(nameOf);
 
     // Said once, up front. There is no way back to a previous question - the
     // prompt library has no such gesture - so the two things a user can do
@@ -143,15 +163,17 @@ export const runInteractive = async ({
         );
     }
 
+    if (overridden.length > 0) {
+        // Deliberately still asked. A picker over what is really there beats a
+        // value remembered from an earlier run - which may name something that
+        // has since been removed - but saying nothing would leave someone who
+        // set the value wondering why it was ignored.
+        runtime.write(
+            `${theme.style.help(`Supplied, but asked about again so the answer can be picked from what is actually there: ${overridden.join(', ')}.`)}\n`
+        );
+    }
+
     for (;;) {
-        const refined = wizard.refine ? wizard.refine(specs, { answers: presetOptions }) : specs;
-
-        // Anything already given on the command line or through a BSI_*
-        // environment variable is an answer, not a question. Dropped here rather
-        // than in `refine`, so every wizard composes with `-i` without having to
-        // remember to.
-        const asked = refined.filter((spec) => !(spec.key in presetOptions));
-
         const raw = await askQuestions(
             // Seeded with what is already known, so a later `when` or `choices`
             // sees the pre-filled answers as well as the typed ones.

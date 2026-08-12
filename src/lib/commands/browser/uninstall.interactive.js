@@ -93,6 +93,13 @@ export default {
                 required: true,
                 variadic: false,
                 secret: false,
+                // This one question collects both of these, so a value already
+                // supplied for either is not "not asked about again" - it is
+                // asked about under another name, and overwritten by the
+                // answer. Without saying so, the wizard announced that
+                // --browser-version would be skipped and then asked for it
+                // (issue #1013).
+                replaces: ['browser', 'browserVersion'],
                 choices: async () => {
                     const inventory = await getBrowserInventory();
 

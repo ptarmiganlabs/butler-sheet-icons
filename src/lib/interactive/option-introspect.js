@@ -20,6 +20,8 @@ const SECRET_KEYS = new Set(BSI_SECRET_KEYS.map((key) => key.toLowerCase()));
  * @property {string} [group] - Section heading this question belongs under.
  * @property {string[]} [needs] - Keys that must be answered before this one.
  * @property {QuestionSpec} [fallback] - Used when an async `choices` throws.
+ * @property {string[]} [replaces] - Real option keys a synthetic question collects between them, so
+ *     the wizard knows a value supplied for one of them is asked about rather than skipped.
  * @property {import('commander').Option} [option] - The option this was derived from.
  */
 

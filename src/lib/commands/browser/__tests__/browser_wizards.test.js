@@ -260,6 +260,63 @@ describe('the uninstall wizard with an empty cache', () => {
     });
 });
 
+describe('an option a synthetic question stands in for', () => {
+    // The other half of issue #1013: the wizard announced that
+    // --browser-version would not be asked about, and then asked for exactly
+    // that. `_build` collects it under another name, which the key-based filter
+    // could not see.
+    const PRESET = { browserVersion: '150.0.7871.24' };
+
+    test('is not announced as skipped', async () => {
+        const runtime = scriptedRuntime({ _build: MAC_BUILD, _review: 'cancel' });
+
+        await runInteractive({ path: 'browser uninstall', presetOptions: PRESET, runtime });
+
+        expect(runtime.output()).not.toContain('not asked about again: --browser-version');
+    });
+
+    test('is named as asked about again, so an ignored value is not a mystery', async () => {
+        const runtime = scriptedRuntime({ _build: MAC_BUILD, _review: 'cancel' });
+
+        await runInteractive({ path: 'browser uninstall', presetOptions: PRESET, runtime });
+
+        const output = runtime.output();
+        expect(output).toContain('asked about again so the answer can be picked');
+        expect(output).toContain('--browser-version');
+    });
+
+    test('is still asked about, and the answer wins over the supplied value', async () => {
+        // Deliberate: a picker over the real cache beats a build id remembered
+        // in .env from a run before, which may name something since removed.
+        const runtime = scriptedRuntime({
+            _build: { browser: 'chrome', buildId: '151.0.7922.47' },
+            _review: 'run',
+        });
+
+        await runInteractive({ path: 'browser uninstall', presetOptions: PRESET, runtime });
+
+        expect(runtime.asked.map((a) => a.key)).toEqual(['_build', '_review']);
+        expect(browserUninstall.mock.calls[0][0].browserVersion).toBe('151.0.7922.47');
+    });
+
+    test('leaves an ordinary supplied option announced as before', async () => {
+        // The replaces handling must not swallow the existing banner: --browser
+        // is covered by the picker too, so this checks the case that is not -
+        // an option no question stands in for.
+        const runtime = scriptedRuntime({ browserVersion: '151.0.7922.47', _review: 'cancel' });
+
+        await runInteractive({
+            path: 'browser install',
+            presetOptions: { browser: 'firefox' },
+            runtime,
+        });
+
+        expect(runtime.output()).toContain(
+            'Already supplied, so not asked about again: --browser.'
+        );
+    });
+});
+
 describe('options already supplied on the command line', () => {
     // What makes `-i` compose rather than merely exist:
     // `bsi browser install --browser firefox -i` should ask which build, not
