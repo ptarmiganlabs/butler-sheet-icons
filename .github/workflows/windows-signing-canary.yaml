@@ -61,12 +61,17 @@ jobs:
         with:
           persist-credentials: false
 
-      # Read-only, and identical to the step release-win64 runs. It reports the Windows account,
-      # the session, and whether the runner is a service - which is what distinguishes "the session
-      # expired" from "this runner can never see the certificate at all".
-      - name: Report the signing environment
+      # Byte-for-byte the step release-win64 runs, flags included. A rehearsal that invokes a
+      # different command than the thing it rehearses cannot vouch for it - and -ProveSigning is
+      # exactly the flag worth exercising, since it is the one that actually signs rather than
+      # trusting the certificate store.
+      #
+      # It also reports the Windows account, the session, and whether the runner is a service,
+      # which is what distinguishes "the session expired" from "this runner cannot see the
+      # certificate at all".
+      - name: Preflight the Windows signing certificate
         shell: powershell
-        run: ./scripts/diag/win-signing-check.ps1 -RequireSigning
+        run: ./scripts/diag/win-signing-check.ps1 -RequireSigning -ProveSigning
 
       - name: Sign a throwaway file
         if: inputs.mode == 'smoke'
