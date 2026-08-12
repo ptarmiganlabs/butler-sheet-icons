@@ -22,6 +22,7 @@ import { QSEOW_SHEET_PART_SELECTORS } from './sheet-parts.js';
 import { qseowLogout } from './qseow-logout.js';
 import { getQseowHubSelectors } from './qseow-selectors.js';
 import { logError } from '../util/log-error.js';
+import { normalizeVirtualProxyPrefix } from './qseow-prefix.js';
 
 /**
  * Looks up the sheets in an app that carry any of the supplied tags.
@@ -271,9 +272,15 @@ export const qseowProcessApp = async (appId, options) => {
                             ? `${scheme}${options.host}:${options.port}`
                             : `${scheme}${options.host}`;
 
-                        if (options.prefix && options.prefix.length > 0) {
-                            appUrl = `${origin}/${options.prefix}/sense/app/${appId}`;
-                            hubUrl = `${origin}/${options.prefix}/hub`;
+                        // Normalised, not used raw: a prefix written as it appears in the browser
+                        // address bar ("/form") produced "https://host//form/sense/app/<id>",
+                        // which authenticates fine and then never renders, failing 90 seconds
+                        // later on a selector that says nothing about the prefix.
+                        const prefix = normalizeVirtualProxyPrefix(options.prefix);
+
+                        if (prefix.length > 0) {
+                            appUrl = `${origin}/${prefix}/sense/app/${appId}`;
+                            hubUrl = `${origin}/${prefix}/hub`;
                         } else {
                             appUrl = `${origin}/sense/app/${appId}`;
                             hubUrl = `${origin}/hub`;
