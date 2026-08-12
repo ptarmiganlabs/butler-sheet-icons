@@ -203,10 +203,9 @@ export const browserInstall = async (options, _command, resolvedBuildId) => {
         if (err?.message?.includes('Download failed: server returned code 404.')) {
             logger.error(`Browser version "${options.browserVersion}" not found`);
         } else if (!alreadyReported(err)) {
-            // Only report what nothing else has explained. Resolving "latest" goes through
-            // getMostRecentUsableChromeBuildId, which already describes connectivity failures in
-            // detail; repeating the raw message and a stack trace on top is what made an offline
-            // run unreadable. The stack stays available at debug.
+            // Only report what nothing else has explained. Version resolution already describes
+            // connectivity failures in detail; repeating the raw message and a stack trace on top
+            // is what made an offline run unreadable. The stack stays available at debug.
             logger.error(`Error installing browser: ${err?.message ?? err}`);
             logger.debug(err?.stack ?? String(err));
         }

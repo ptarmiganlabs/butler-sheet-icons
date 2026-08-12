@@ -42,7 +42,6 @@ jest.unstable_mockModule('../../../browser/browser-uninstall.js', () => ({
 jest.unstable_mockModule('../../../browser/browser-list-available.js', () => ({
     fetchAvailableVersions,
     browserListAvailable: jest.fn(),
-    getMostRecentUsableChromeBuildId: jest.fn(),
 }));
 jest.unstable_mockModule('../../../browser/browser-install.js', () => ({ browserInstall }));
 
