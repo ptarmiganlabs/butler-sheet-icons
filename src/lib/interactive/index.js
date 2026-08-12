@@ -82,7 +82,8 @@ const review = async ({ path, specs, answers, runtime, theme, symbols }) => {
  * @param {object} [args.runtime] - Prompt runtime. Injectable for tests.
  * @param {string} [args.cwd] - Directory a saved `.env` is written to. Injectable for tests.
  *
- * @returns {Promise<boolean>} `true` when the command ran and succeeded, or when the user cancelled.
+ * @returns {Promise<boolean>} `true` when the command ran and succeeded, when the user cancelled, or
+ *     when the wizard's `precheck` declined to start.
  */
 export const runInteractive = async ({
     path,
@@ -91,6 +92,30 @@ export const runInteractive = async ({
     cwd = process.cwd(),
 } = {}) => {
     const wizard = await loadWizard(path);
+
+    // Asked before anything at all is printed, because a wizard with no valid
+    // answer to offer must not first announce itself and then bail.
+    //
+    // Optional, and only a wizard can implement it: `resolveChoices` cannot tell
+    // "nothing to do" from "could not find out what there is to do", and treats
+    // both as a reason to offer free text. That is right for the app and
+    // collection pickers, where an empty list means a tag matched nothing and
+    // typing an id by hand is a genuine escape - and wrong for `browser
+    // uninstall`, where an empty cache means there is no answer that can
+    // succeed (issue #1013).
+    //
+    // Returns `undefined` to carry on, or `{ reason }` to stop. Stopping is not
+    // a failure: nothing was asked for, so nothing failed, and the exit code
+    // stays 0 exactly as it does for `browser list-installed` on the same
+    // machine.
+    const stop = await wizard.precheck?.();
+
+    if (stop) {
+        logger.info(stop.reason);
+
+        return true;
+    }
+
     const command = leafCommandAt(path);
     const symbols = getSymbols();
     const theme = buildTheme({ symbols });

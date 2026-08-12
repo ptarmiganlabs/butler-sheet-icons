@@ -5,6 +5,32 @@ const browserUninstall = jest.fn().mockResolvedValue(true);
 const fetchAvailableVersions = jest.fn();
 const browserInstall = jest.fn().mockResolvedValue({ buildId: '151.0.7922.47' });
 
+// Mocked so that what a wizard *reports* is an assertable fact rather than
+// something that merely scrolls past. A wizard that declines to run says so
+// through the logger, in the same words `browser list-installed` uses, and that
+// wording is the whole user-facing half of issue #1013.
+const logger = {
+    info: jest.fn(),
+    error: jest.fn(),
+    verbose: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+};
+
+jest.unstable_mockModule('../../../../globals.js', () => ({
+    logger,
+    appVersion: '0.0.0-test',
+    // Plain functions rather than jest.fn(), because `clearMocks` runs before
+    // every test and a level of `undefined` would be pinned into the real
+    // logger by withQuietLogging's restore.
+    getLoggingLevel: () => 'info',
+    setLoggingLevel: () => {},
+    isSea: false,
+    bsiExecutablePath: '/test',
+    getChromiumRevision: () => 'test-revision',
+    sleep: () => Promise.resolve(),
+}));
+
 jest.unstable_mockModule('../../../browser/browser-inventory.js', () => ({
     getBrowserInventory,
     getBrowserCacheDir: () => '/cache',
@@ -63,7 +89,11 @@ describe('the uninstall wizard', () => {
         await runInteractive({ path: 'browser uninstall', runtime });
 
         expect(runtime.asked.map((a) => a.key)).toEqual(['_build', '_review']);
-        expect(getBrowserInventory).toHaveBeenCalledTimes(1);
+        // Twice: once by the precheck deciding whether there is anything to do
+        // at all, once by the picker building its list. Two reads of a local
+        // directory, rather than caching an inventory that "Start over" would
+        // then show after it had gone stale.
+        expect(getBrowserInventory).toHaveBeenCalledTimes(2);
     });
 
     test('never asks for the log level, which nobody wants as question one', async () => {
@@ -132,6 +162,10 @@ describe('the uninstall wizard', () => {
     });
 
     test('falls back to typing a version when the cache cannot be read', async () => {
+        // "Not found" and "found but unusable" are different answers. A cache
+        // that cannot be read is not an empty one, so the precheck must let it
+        // through rather than reporting there is nothing to uninstall - the
+        // question's own fallback is how an operator recovers here.
         getBrowserInventory.mockRejectedValue(new Error('EACCES'));
         const runtime = scriptedRuntime({ _build: '151.0.7922.47', _review: 'run' });
 
@@ -139,6 +173,9 @@ describe('the uninstall wizard', () => {
 
         expect(runtime.asked[0].type).toBe('input');
         expect(browserUninstall.mock.calls[0][0].browserVersion).toBe('151.0.7922.47');
+        expect(logger.info).not.toHaveBeenCalledWith(
+            expect.stringContaining('No browsers installed')
+        );
     });
 
     test('cancelling runs nothing', async () => {
@@ -170,6 +207,56 @@ describe('the uninstall wizard', () => {
         });
 
         await expect(runInteractive({ path: 'browser uninstall', runtime })).resolves.toBe(false);
+    });
+});
+
+describe('the uninstall wizard with an empty cache', () => {
+    // Issue #1013. An empty cache reached the same code path as a failed
+    // lookup, so the wizard offered the free-text fallback - whose prompt is
+    // --browser-version's own help text - and every answer to it ended in
+    // "Browser not found in cache". There is no answer that can succeed, so
+    // there is no question worth asking.
+    beforeEach(() => {
+        getBrowserInventory.mockResolvedValue([]);
+    });
+
+    test('asks nothing and runs nothing', async () => {
+        // An unqueued key makes scriptedRuntime throw, so an empty script is
+        // itself an assertion that no question was reached.
+        const runtime = scriptedRuntime({});
+
+        const result = await runInteractive({ path: 'browser uninstall', runtime });
+
+        expect(result).toBe(true);
+        expect(runtime.asked).toEqual([]);
+        expect(browserUninstall).not.toHaveBeenCalled();
+    });
+
+    test('stops before announcing itself, rather than after', async () => {
+        // The transcript in the bug report is the wizard preamble followed by
+        // an unanswerable question. Printing the preamble and only then backing
+        // out would fix half of it.
+        const runtime = scriptedRuntime({});
+
+        await runInteractive({ path: 'browser uninstall', runtime });
+
+        expect(runtime.output()).toBe('');
+    });
+
+    test('says so in the words list-installed already uses', async () => {
+        await runInteractive({ path: 'browser uninstall', runtime: scriptedRuntime({}) });
+
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringContaining('No browsers installed, so there is nothing to uninstall.')
+        );
+    });
+
+    test('points at the command that fixes it', async () => {
+        await runInteractive({ path: 'browser uninstall', runtime: scriptedRuntime({}) });
+
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringContaining('butler-sheet-icons browser install')
+        );
     });
 });
 
