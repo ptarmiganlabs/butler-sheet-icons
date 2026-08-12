@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 
 import { logger, sleep } from '../../globals.js';
+import { normalizeVirtualProxyPrefix } from './qseow-prefix.js';
 
 /** The stable selector for the Qlik Sense hub logout item. */
 export const QSEOW_LOGOUT_BUTTON_SELECTOR =
@@ -19,7 +20,10 @@ const DEFAULT_PAGE_TIMEOUT = 90000;
  *
  * @returns {string} Relative QPS user-session path.
  */
-const qpsUserPath = (prefix) => (prefix ? `/${prefix}/qps/user` : '/qps/user');
+const qpsUserPath = (prefix) => {
+    const normalized = normalizeVirtualProxyPrefix(prefix);
+    return normalized ? `/${normalized}/qps/user` : '/qps/user';
+};
 
 /**
  * Deletes the authenticated proxy session without depending on the Sense web client's DOM.

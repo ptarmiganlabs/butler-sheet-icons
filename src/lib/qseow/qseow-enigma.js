@@ -6,6 +6,7 @@ import { logger, bsiExecutablePath } from '../../globals.js';
 import { getEnigmaSchema } from '../util/enigma-util.js';
 import { getCertFilePaths } from '../util/cert.js';
 import { attachSocketKeepalive } from '../util/socket-keepalive.js';
+import { normalizeVirtualProxyPrefix } from './qseow-prefix.js';
 
 /**
  * Reads a file from disk and returns its bytes.
@@ -58,7 +59,7 @@ export const setupEnigmaConnection = (appId, options, _command) => {
         url: SenseUtilities.buildUrl({
             host: options.host,
             port: options.engineport,
-            prefix: options.prefix,
+            prefix: normalizeVirtualProxyPrefix(options.prefix),
             secure: options.secure === 'true' || options.secure === true,
             appId,
         }),

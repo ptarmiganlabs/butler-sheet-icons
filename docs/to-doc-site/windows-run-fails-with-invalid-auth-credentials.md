@@ -112,6 +112,17 @@ or as an environment variable:
 BSI_QSEOW_CST_PREFIX=form
 ```
 
+::: tip Slashes around the prefix are ignored
+Write it as `form`, `/form` or `/form/` — all three name the same virtual proxy and all three work.
+
+In releases up to and including 4.1.0 they did not. A prefix written with the leading slash it has
+in the browser address bar produced a doubled separator in the URL
+(`https://sense.example.com//form/sense/app/…`), which logged in perfectly well and then failed
+about ninety seconds later with `Waiting for selector '#qv-page-container' failed` — an error that
+named a page element rather than the prefix that caused it. If you are on an older release, drop
+the slashes.
+:::
+
 ::: warning The prefix is not the fix
 `--prefix form` on its own changes nothing. A virtual proxy called `form` whose **Windows
 authentication pattern** is still `Windows` fails in exactly the same way. The pattern is what
