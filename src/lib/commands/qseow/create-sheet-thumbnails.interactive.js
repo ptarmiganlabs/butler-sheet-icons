@@ -2,15 +2,25 @@ import { qseowVerifyCertificatesExist } from '../../qseow/qseow-certificates.js'
 import { qseowVerifyContentLibraryExists } from '../../qseow/qseow-contentlibrary.js';
 import { listAppsByTag, listAllApps } from '../../qseow/qseow-app-lookup.js';
 import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
-import { gate, gatedBy, inSections, SHEET_FILTER_KEYS } from '../../interactive/spec-ops.js';
+import {
+    gate,
+    gatedBy,
+    inSections,
+    openingOn,
+    isSupplied,
+    appSourceQuestion,
+    appPickerQuestion,
+    typedAppQuestion,
+    resolvesToApps,
+    APP_SOURCE,
+    APP_SOURCES,
+    SHEET_FILTER_KEYS,
+} from '../../interactive/spec-ops.js';
 import { labelForApp } from '../../interactive/labels.js';
 
-// Re-exported so a reader following this wizard finds the label it uses without
-// having to know it is shared with the Cloud twin.
-export { labelForApp };
-
-/** Key of the synthetic question asking how apps should be chosen. */
-const APP_SOURCE = '_appSource';
+// Re-exported so a reader following this wizard finds the label and the route
+// vocabulary it uses without having to know they are shared with the Cloud twin.
+export { labelForApp, APP_SOURCES };
 
 /** Key of the synthetic question gating the sheet exclude/blur filters. */
 const FILTERING = '_filtering';
@@ -18,12 +28,8 @@ const FILTERING = '_filtering';
 /** Key of the synthetic question gating the long tail of options. */
 const ADVANCED = '_advanced';
 
-/** How apps can be picked, in the order the choices are offered. */
-export const APP_SOURCES = Object.freeze({
-    ALL: 'all',
-    TAG: 'tag',
-    TYPED: 'typed',
-});
+/** What the tag route is called wherever it has to be named in a sentence. */
+const GROUPING_LABEL = 'a tag';
 
 /** Questions asked before anything else, in this order. */
 const CONNECTION_KEYS = [
@@ -99,10 +105,13 @@ export default {
      * asks 14 questions.
      *
      * @param {import('../../interactive/option-introspect.js').QuestionSpec[]} specs - Derived questions.
+     * @param {object} [context] - What the command line and environment already supplied.
+     * @param {object} [context.answers] - Those values, keyed by option name. Used as the starting
+     *     point for the app and tag questions, which are asked again rather than skipped.
      *
      * @returns {Array} The questions to actually ask.
      */
-    refine(specs) {
+    refine(specs, { answers = {} } = {}) {
         const byKey = Object.fromEntries(specs.map((spec) => [spec.key, spec]));
 
         const connection = CONNECTION_KEYS.map((key) => byKey[key])
@@ -127,49 +136,59 @@ export default {
                     : spec
             );
 
-        const appSource = {
-            key: APP_SOURCE,
-            type: 'select',
-            message: 'Which apps should be updated?',
-            required: true,
-            variadic: false,
-            secret: false,
+        const appSource = appSourceQuestion({
             needs: ['logonpwd'],
-            choices: [
-                { name: 'Choose from all apps on the server', value: APP_SOURCES.ALL },
-                { name: 'Choose a tag, then apps carrying it', value: APP_SOURCES.TAG },
-                { name: 'Type an app id', value: APP_SOURCES.TYPED },
-            ],
-        };
+            groupingKey: 'qliksensetag',
+            groupingChoice: 'Update every app carrying a tag',
+        });
 
+        // A tag is not an alternative to naming apps, it is a second way of
+        // naming them: the run covers everything --appid names *and* everything
+        // carrying the tag. So a tag that is already set changes what the run
+        // does no matter which route is taken here, and hiding it behind the
+        // tag route would let it add apps the operator was never shown.
         const tag = {
-            ...byKey.qliksensetag,
+            ...openingOn(
+                {
+                    ...byKey.qliksensetag,
+                    message: 'Which tag?',
+                    hint: 'Every app carrying it is updated, on top of any apps named below. Leave empty for none.',
+                },
+                answers.qliksensetag
+            ),
             needs: [APP_SOURCE],
-            when: (ctx) => ctx.answers[APP_SOURCE] === APP_SOURCES.TAG,
+            // Asked on the tag route because that is how apps are being chosen
+            // there - and on every other route when a tag was already supplied,
+            // because it still applies there and the banner has just promised it
+            // would be asked about rather than skipped. Clearing it is how an
+            // operator says "not this time".
+            when: (ctx) =>
+                ctx.answers[APP_SOURCE] === APP_SOURCES.GROUPED || isSupplied(answers.qliksensetag),
+            probe: resolvesToApps({
+                groupingKey: 'qliksensetag',
+                resolve: (ctx) => listAppsByTag(ctx.answers),
+                whenEmpty: (value) => `No apps on the server carry the tag '${value}'.`,
+                whenFound: (count, value) =>
+                    `${count} app(s) carry the tag '${value}' and will be updated.`,
+            }),
         };
 
-        const app = {
-            ...byKey.appid,
-            type: 'checkbox',
-            message: 'Which apps?',
-            needs: [APP_SOURCE],
-            when: (ctx) => ctx.answers[APP_SOURCE] !== APP_SOURCES.TYPED,
-            choices: async (ctx) => {
-                const apps =
-                    ctx.answers[APP_SOURCE] === APP_SOURCES.TAG
-                        ? await listAppsByTag(ctx.answers)
-                        : await listAllApps(ctx.answers);
-
-                return apps.map((entry) => ({ name: labelForApp(entry), value: entry.id }));
-            },
-            fallback: { type: 'list', message: 'App id(s) (could not fetch the list)' },
-        };
+        const app = appPickerQuestion({
+            spec: byKey.appid,
+            supplied: answers.appid,
+            groupingKey: 'qliksensetag',
+            groupingLabel: GROUPING_LABEL,
+            listApps: (ctx) => listAllApps(ctx.answers),
+            label: labelForApp,
+        });
 
         // The derived question unchanged, for anyone who already knows the id.
-        const typedApp = {
-            ...byKey.appid,
-            when: (ctx) => ctx.answers[APP_SOURCE] === APP_SOURCES.TYPED,
-        };
+        const typedApp = typedAppQuestion({
+            spec: byKey.appid,
+            supplied: answers.appid,
+            groupingKey: 'qliksensetag',
+            groupingLabel: GROUPING_LABEL,
+        });
 
         const contentLibrary = {
             ...byKey.contentlibrary,

@@ -145,15 +145,51 @@ describe('choosing which apps to update', () => {
         expect(question.choices[0].name).toBe('Finance  (id: app-a)');
     });
 
-    test('lists apps carrying a tag when that is how they are chosen', async () => {
+    test('reports what a tag matches instead of offering a list that cannot narrow', async () => {
+        // The tag reaches the worker as well, and the two are additive, so
+        // unticking an app in a list of tagged apps never removed it from the
+        // run. Saying how many the tag matched is the honest version of that.
         const runtime = scriptedRuntime(
-            baseAnswers({ _appSource: 'tag', qliksensetag: 'BSI', appid: ['app-c'] })
+            baseAnswers({ _appSource: 'grouped', qliksensetag: 'BSI' })
         );
 
         await runInteractive({ path: PATH, runtime });
 
         expect(listAppsByTag).toHaveBeenCalledTimes(1);
         expect(listAllApps).not.toHaveBeenCalled();
+        expect(runtime.asked.map((a) => a.key)).not.toContain('appid');
+        expect(runtime.output()).toContain("1 app(s) carry the tag 'BSI' and will be updated.");
+    });
+
+    test('re-asks a tag that matches no apps, rather than running over nothing', async () => {
+        listAppsByTag
+            .mockResolvedValueOnce([])
+            .mockResolvedValue([{ id: 'app-c', name: 'Tagged' }]);
+
+        const runtime = scriptedRuntime(
+            baseAnswers({ _appSource: 'grouped', qliksensetag: ['nosuchtag', 'BSI'] })
+        );
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(runtime.asked.filter((a) => a.key === 'qliksensetag')).toHaveLength(2);
+        expect(runtime.output()).toContain("No apps on the server carry the tag 'nosuchtag'.");
+    });
+
+    test('still asks for app ids on the tag route when some were supplied', async () => {
+        // Otherwise the banner promises --appid is asked about again and then
+        // this route quietly skips it.
+        const runtime = scriptedRuntime(
+            baseAnswers({ _appSource: 'grouped', qliksensetag: 'BSI', appid: ['app-a'] })
+        );
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { appid: ['app-a'] },
+            runtime,
+        });
+
+        expect(runtime.asked.map((a) => a.key)).toContain('appid');
     });
 
     test('still lets an app id be typed, without fetching any list', async () => {
@@ -166,6 +202,173 @@ describe('choosing which apps to update', () => {
     });
 
     test('does not ask for a tag when apps are chosen another way', async () => {
+        const runtime = scriptedRuntime(baseAnswers());
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(runtime.asked.map((a) => a.key)).not.toContain('qliksensetag');
+    });
+});
+
+describe('a selection that would process nothing', () => {
+    test('is refused where it was made, not after the run is confirmed', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ _appSource: 'typed', appid: ['', 'app-z'] }));
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(runtime.asked.filter((a) => a.key === 'appid')).toHaveLength(2);
+        expect(runtime.output()).toContain('No apps selected');
+        expect(qseowCreateThumbnails).not.toHaveBeenCalled();
+    });
+
+    test('is allowed when a tag is carrying the selection instead', async () => {
+        // The run is the union of the two, so naming no apps is fine as long as
+        // the tag names some.
+        const runtime = scriptedRuntime(
+            baseAnswers({ qliksensetag: 'BSI', appid: [], _review: 'run' })
+        );
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { qliksensetag: 'BSI' },
+            runtime,
+        });
+
+        expect(runtime.asked.filter((a) => a.key === 'appid')).toHaveLength(1);
+        expect(qseowCreateThumbnails).toHaveBeenCalledWith(
+            expect.objectContaining({ qliksensetag: 'BSI' })
+        );
+    });
+});
+
+describe('an app id supplied before the wizard starts', () => {
+    // An id in a .env file used to remove the app question but leave the
+    // question that leads to it, so the wizard asked how apps should be chosen,
+    // was answered, and then went straight on to the sheet question without
+    // ever showing a list.
+    const supplied = {
+        host: 'sense.acme.com',
+        certfile: './cert/client.pem',
+        certkeyfile: './cert/client_key.pem',
+        apiuserdir: 'INTERNAL',
+        apiuserid: 'sa_api',
+        logonuserdir: 'ACME',
+        logonuserid: 'goran',
+        logonpwd: 'a-password',
+        appid: ['app-b'],
+        contentlibrary: 'Butler sheet thumbnails',
+    };
+
+    test('still gets the picker, with the supplied app already ticked', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'] }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        const question = runtime.asked.find((a) => a.key === 'appid');
+        expect(question).toBeDefined();
+        expect(question.choices).toEqual([
+            expect.objectContaining({ value: 'app-a', checked: false }),
+            expect.objectContaining({ value: 'app-b', checked: true }),
+        ]);
+    });
+
+    test('is announced as asked again rather than as skipped', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'] }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        expect(runtime.output()).toContain('picked from what is actually there: --appid');
+        expect(runtime.output()).not.toMatch(/not asked about again:[^\n]*--appid/);
+    });
+
+    test('opens the typed question on the supplied id', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ _appSource: 'typed', appid: 'app-z' }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        expect(runtime.asked.find((a) => a.key === 'appid').default).toBe('app-b');
+    });
+
+    test('the picked apps win over the supplied ones', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'], _review: 'run' }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        expect(qseowCreateThumbnails).toHaveBeenCalledWith(
+            expect.objectContaining({ appid: ['app-a'] })
+        );
+    });
+});
+
+describe('a tag supplied before the wizard starts', () => {
+    // A tag is a second way of naming apps, not an alternative to naming them:
+    // the run covers --appid *and* everything carrying the tag. So a supplied
+    // tag applies whichever route is taken, and asking about it only on the tag
+    // route let it add apps the operator was never shown - while the banner
+    // said it would be asked about again.
+    const supplied = {
+        host: 'sense.acme.com',
+        certfile: './cert/client.pem',
+        certkeyfile: './cert/client_key.pem',
+        apiuserdir: 'INTERNAL',
+        apiuserid: 'sa_api',
+        logonuserdir: 'ACME',
+        logonuserid: 'goran',
+        logonpwd: 'a-password',
+        qliksensetag: 'BSI',
+        contentlibrary: 'Butler sheet thumbnails',
+    };
+
+    test('is asked about on the all-apps route too, opening on the supplied tag', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ qliksensetag: 'BSI' }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        const question = runtime.asked.find((a) => a.key === 'qliksensetag');
+        expect(question).toBeDefined();
+        expect(question.default).toBe('BSI');
+    });
+
+    test('is asked about on the typed route too', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({ _appSource: 'typed', appid: 'app-z', qliksensetag: 'BSI' })
+        );
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        expect(runtime.asked.map((a) => a.key)).toContain('qliksensetag');
+    });
+
+    test('clearing it stops the tagged apps being added to the run', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({ qliksensetag: '', appid: ['app-a'], _review: 'run' })
+        );
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        // An empty tag matches the option's own default, so it is never emitted
+        // to the command line and the bag carries exactly what the plain CLI
+        // produces when no tag is given. qseowCreateThumbnails gates on
+        // `qliksensetag && length > 0`, so no tag lookup happens: the run covers
+        // the picked app and nothing else.
+        const bag = qseowCreateThumbnails.mock.calls[0][0];
+        expect(bag.appid).toEqual(['app-a']);
+        expect(bag.qliksensetag).toBe('');
+    });
+
+    test('keeping it still adds the tagged apps, as the CLI does', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({ qliksensetag: 'BSI', appid: ['app-a'], _review: 'run' })
+        );
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        expect(qseowCreateThumbnails).toHaveBeenCalledWith(
+            expect.objectContaining({ appid: ['app-a'], qliksensetag: 'BSI' })
+        );
+    });
+
+    test('a tag that was never supplied is still only asked on the tag route', async () => {
         const runtime = scriptedRuntime(baseAnswers());
 
         await runInteractive({ path: PATH, runtime });

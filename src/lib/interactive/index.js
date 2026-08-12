@@ -139,14 +139,21 @@ export const runInteractive = async ({
     // Computed once rather than per restart: `refine` sees the same specs and
     // the same preset answers every time round the loop, and the banner below
     // has to be built from the result before the first question is asked.
-    const asked = refined.filter((spec) => !(spec.key in presetOptions));
+    const kept = refined.filter((spec) => !(spec.key in presetOptions));
 
     // What a question stands in for counts as asked, even though its key
     // differs. uninstall's picker is keyed `_build` and collects `browser` and
     // `browserVersion` between them, so without this the banner announced that
     // --browser-version would not be asked about and the wizard then asked for
     // exactly that, using that option's help text as the prompt (issue #1013).
-    const covered = new Set(asked.flatMap((spec) => spec.replaces ?? []));
+    const covered = new Set(kept.flatMap((spec) => spec.replaces ?? []));
+
+    // A supplied value whose question a synthetic one stands in for is kept in
+    // the conversation rather than dropped: the synthetic question is asked, so
+    // the questions it leads to have to be there to be led to. Without this the
+    // app picker announced itself, was answered, and then asked nothing at all,
+    // because --appid was already supplied and its question had been removed.
+    const asked = refined.filter((spec) => !(spec.key in presetOptions) || covered.has(spec.key));
 
     // Named by flag rather than by storage key, because the flag is what the
     // user typed. Secrets are named but never shown.

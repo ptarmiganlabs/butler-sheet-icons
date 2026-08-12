@@ -139,26 +139,46 @@ describe('choosing which apps to update', () => {
         expect(question.choices[0].name).toBe('Finance  (id: app-a)');
     });
 
-    test('lists apps from a collection when that is how they are chosen', async () => {
+    test('reports what a collection holds instead of a list that cannot narrow', async () => {
+        // The collection reaches the worker as well, and the two are additive,
+        // so unticking an app in a list of its apps never removed it from the
+        // run. Saying how many it holds is the honest version of that.
         const runtime = scriptedRuntime(
-            baseAnswers({ _appSource: 'collection', collectionid: 'coll-1', appid: ['app-c'] })
+            baseAnswers({ _appSource: 'grouped', collectionid: 'coll-1' })
         );
 
         await runInteractive({ path: PATH, runtime });
 
         expect(listAppsByCollection).toHaveBeenCalledWith(expect.anything(), 'coll-1');
         expect(listApps).not.toHaveBeenCalled();
+        expect(runtime.asked.map((a) => a.key)).not.toContain('appid');
+        expect(runtime.output()).toContain(
+            "1 app(s) are in collection 'coll-1' and will be updated."
+        );
     });
 
     test('shows how many items a collection holds, so an empty one is visible', async () => {
         const runtime = scriptedRuntime(
-            baseAnswers({ _appSource: 'collection', collectionid: 'coll-1', appid: ['app-c'] })
+            baseAnswers({ _appSource: 'grouped', collectionid: 'coll-1' })
         );
 
         await runInteractive({ path: PATH, runtime });
 
         const question = runtime.asked.find((a) => a.key === 'collectionid');
         expect(question.choices[0].name).toBe('Finance  (4 items)');
+    });
+
+    test('re-asks a collection that holds no apps, rather than running over nothing', async () => {
+        listAppsByCollection.mockResolvedValueOnce([]).mockResolvedValue([{ id: 'app-c' }]);
+
+        const runtime = scriptedRuntime(
+            baseAnswers({ _appSource: 'grouped', collectionid: ['coll-1', 'coll-1'] })
+        );
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(runtime.asked.filter((a) => a.key === 'collectionid')).toHaveLength(2);
+        expect(runtime.output()).toContain("Collection 'coll-1' holds no apps.");
     });
 
     test('still lets an app id be typed, without fetching any list', async () => {
@@ -171,6 +191,156 @@ describe('choosing which apps to update', () => {
     });
 
     test('does not ask which collection when apps are chosen another way', async () => {
+        const runtime = scriptedRuntime(baseAnswers());
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(runtime.asked.map((a) => a.key)).not.toContain('collectionid');
+    });
+});
+
+describe('a selection that would process nothing', () => {
+    test('is refused where it was made, not after the run is confirmed', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ _appSource: 'typed', appid: ['', 'app-z'] }));
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(runtime.asked.filter((a) => a.key === 'appid')).toHaveLength(2);
+        expect(runtime.output()).toContain('No apps selected');
+        expect(qscloudCreateThumbnails).not.toHaveBeenCalled();
+    });
+
+    test('is allowed when a collection is carrying the selection instead', async () => {
+        // The run is the union of the two, so naming no apps is fine as long as
+        // the collection holds some.
+        const runtime = scriptedRuntime(
+            baseAnswers({ collectionid: 'coll-1', appid: [], _review: 'run' })
+        );
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { collectionid: 'coll-1' },
+            runtime,
+        });
+
+        expect(runtime.asked.filter((a) => a.key === 'appid')).toHaveLength(1);
+        expect(qscloudCreateThumbnails).toHaveBeenCalledWith(
+            expect.objectContaining({ collectionid: 'coll-1' })
+        );
+    });
+});
+
+describe('an app id supplied before the wizard starts', () => {
+    // QSEoW twin of the same block: an id in a .env file used to remove the app
+    // question but leave the question that leads to it, so the wizard asked how
+    // apps should be chosen and then never showed a list.
+    const supplied = {
+        tenanturl: 'acme.eu.qlikcloud.com',
+        apikey: 'a-real-key',
+        appid: ['app-b'],
+    };
+
+    test('still gets the picker, with the supplied app already ticked', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'] }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        const question = runtime.asked.find((a) => a.key === 'appid');
+        expect(question).toBeDefined();
+        expect(question.choices).toEqual([
+            expect.objectContaining({ value: 'app-a', checked: false }),
+            expect.objectContaining({ value: 'app-b', checked: true }),
+        ]);
+    });
+
+    test('is announced as asked again rather than as skipped', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'] }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        expect(runtime.output()).toContain('picked from what is actually there: --appid');
+        expect(runtime.output()).not.toMatch(/not asked about again:[^\n]*--appid/);
+    });
+
+    test('opens the typed question on the supplied id', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ _appSource: 'typed', appid: 'app-z' }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        expect(runtime.asked.find((a) => a.key === 'appid').default).toBe('app-b');
+    });
+
+    test('the picked apps win over the supplied ones', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'], _review: 'run' }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        expect(qscloudCreateThumbnails).toHaveBeenCalledWith(
+            expect.objectContaining({ appid: ['app-a'] })
+        );
+    });
+});
+
+describe('a collection supplied before the wizard starts', () => {
+    // QSEoW twin of the same block. A collection is a second way of naming
+    // apps, not an alternative to naming them, so a supplied one applies
+    // whichever route is taken - and asking about it only on the collection
+    // route let it add apps the operator was never shown.
+    const supplied = {
+        tenanturl: 'acme.eu.qlikcloud.com',
+        apikey: 'a-real-key',
+        collectionid: 'coll-1',
+    };
+
+    test('is asked about on the all-apps route too, opening on the supplied one', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ collectionid: 'coll-1' }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        const question = runtime.asked.find((a) => a.key === 'collectionid');
+        expect(question).toBeDefined();
+        expect(question.default).toBe('coll-1');
+    });
+
+    test('offers a way to drop it, which the collection route does not need', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ collectionid: '' }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        const question = runtime.asked.find((a) => a.key === 'collectionid');
+        expect(question.choices[0]).toEqual(expect.objectContaining({ value: '' }));
+    });
+
+    test('choosing none stops the collection apps being added to the run', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({ collectionid: '', appid: ['app-a'], _review: 'run' })
+        );
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        // An empty collection matches the option's own default, so it is never
+        // emitted to the command line and the bag carries exactly what the plain
+        // CLI produces when no collection is given. qscloudCreateThumbnails
+        // gates on `collectionid && length > 0`, so no collection lookup
+        // happens: the run covers the picked app and nothing else.
+        const bag = qscloudCreateThumbnails.mock.calls[0][0];
+        expect(bag.appid).toEqual(['app-a']);
+        expect(bag.collectionid).toBe('');
+    });
+
+    test('keeping it still adds the collection apps, as the CLI does', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({ collectionid: 'coll-1', appid: ['app-a'], _review: 'run' })
+        );
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        expect(qscloudCreateThumbnails).toHaveBeenCalledWith(
+            expect.objectContaining({ appid: ['app-a'], collectionid: 'coll-1' })
+        );
+    });
+
+    test('a collection that was never supplied is still only asked on its own route', async () => {
         const runtime = scriptedRuntime(baseAnswers());
 
         await runInteractive({ path: PATH, runtime });
