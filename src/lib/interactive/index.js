@@ -82,7 +82,8 @@ const review = async ({ path, specs, answers, runtime, theme, symbols }) => {
  * @param {object} [args.runtime] - Prompt runtime. Injectable for tests.
  * @param {string} [args.cwd] - Directory a saved `.env` is written to. Injectable for tests.
  *
- * @returns {Promise<boolean>} `true` when the command ran and succeeded, or when the user cancelled.
+ * @returns {Promise<boolean>} `true` when the command ran and succeeded, when the user cancelled, or
+ *     when the wizard's `precheck` declined to start.
  */
 export const runInteractive = async ({
     path,
@@ -91,6 +92,30 @@ export const runInteractive = async ({
     cwd = process.cwd(),
 } = {}) => {
     const wizard = await loadWizard(path);
+
+    // Asked before anything at all is printed, because a wizard with no valid
+    // answer to offer must not first announce itself and then bail.
+    //
+    // Optional, and only a wizard can implement it: `resolveChoices` cannot tell
+    // "nothing to do" from "could not find out what there is to do", and treats
+    // both as a reason to offer free text. That is right for the app and
+    // collection pickers, where an empty list means a tag matched nothing and
+    // typing an id by hand is a genuine escape - and wrong for `browser
+    // uninstall`, where an empty cache means there is no answer that can
+    // succeed (issue #1013).
+    //
+    // Returns `undefined` to carry on, or `{ reason }` to stop. Stopping is not
+    // a failure: nothing was asked for, so nothing failed, and the exit code
+    // stays 0 exactly as it does for `browser list-installed` on the same
+    // machine.
+    const stop = await wizard.precheck?.();
+
+    if (stop) {
+        logger.info(stop.reason);
+
+        return true;
+    }
+
     const command = leafCommandAt(path);
     const symbols = getSymbols();
     const theme = buildTheme({ symbols });
@@ -99,11 +124,31 @@ export const runInteractive = async ({
     // about without anyone editing the wizard.
     const specs = specsFromCommand(command);
 
+    const refined = wizard.refine ? wizard.refine(specs, { answers: presetOptions }) : specs;
+
+    // Anything already given on the command line or through a BSI_* environment
+    // variable is an answer, not a question. Dropped here rather than in
+    // `refine`, so every wizard composes with `-i` without having to remember
+    // to.
+    //
+    // Computed once rather than per restart: `refine` sees the same specs and
+    // the same preset answers every time round the loop, and the banner below
+    // has to be built from the result before the first question is asked.
+    const asked = refined.filter((spec) => !(spec.key in presetOptions));
+
+    // What a question stands in for counts as asked, even though its key
+    // differs. uninstall's picker is keyed `_build` and collects `browser` and
+    // `browserVersion` between them, so without this the banner announced that
+    // --browser-version would not be asked about and the wizard then asked for
+    // exactly that, using that option's help text as the prompt (issue #1013).
+    const covered = new Set(asked.flatMap((spec) => spec.replaces ?? []));
+
     // Named by flag rather than by storage key, because the flag is what the
     // user typed. Secrets are named but never shown.
-    const prefilled = specs
-        .filter((spec) => spec.key in presetOptions)
-        .map((spec) => spec.option?.long ?? spec.key);
+    const nameOf = (spec) => spec.option?.long ?? spec.key;
+    const supplied = specs.filter((spec) => spec.key in presetOptions);
+    const prefilled = supplied.filter((spec) => !covered.has(spec.key)).map(nameOf);
+    const overridden = supplied.filter((spec) => covered.has(spec.key)).map(nameOf);
 
     // Said once, up front. There is no way back to a previous question - the
     // prompt library has no such gesture - so the two things a user can do
@@ -118,15 +163,17 @@ export const runInteractive = async ({
         );
     }
 
+    if (overridden.length > 0) {
+        // Deliberately still asked. A picker over what is really there beats a
+        // value remembered from an earlier run - which may name something that
+        // has since been removed - but saying nothing would leave someone who
+        // set the value wondering why it was ignored.
+        runtime.write(
+            `${theme.style.help(`Supplied, but asked about again so the answer can be picked from what is actually there: ${overridden.join(', ')}.`)}\n`
+        );
+    }
+
     for (;;) {
-        const refined = wizard.refine ? wizard.refine(specs, { answers: presetOptions }) : specs;
-
-        // Anything already given on the command line or through a BSI_*
-        // environment variable is an answer, not a question. Dropped here rather
-        // than in `refine`, so every wizard composes with `-i` without having to
-        // remember to.
-        const asked = refined.filter((spec) => !(spec.key in presetOptions));
-
         const raw = await askQuestions(
             // Seeded with what is already known, so a later `when` or `choices`
             // sees the pre-filled answers as well as the typed ones.

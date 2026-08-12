@@ -28,6 +28,44 @@ export default {
     label: 'Uninstall a browser from the cache',
 
     /**
+     * Decline to run at all when the cache is empty.
+     *
+     * An empty cache is not a lookup that went wrong, it is a command with
+     * nothing to do - and the generic empty-list handling cannot tell the two
+     * apart. Left to it, the wizard offers the free-text fallback below, whose
+     * prompt is `--browser-version`'s own help text, and no answer to it can
+     * succeed: every one of them ends in "Browser not found in cache"
+     * (issue #1013).
+     *
+     * `browser list-installed` already answers this question correctly on the
+     * same machine, and says so in one line. This says the same thing.
+     *
+     * @returns {Promise<{reason: string}|undefined>} A reason to stop, or `undefined` to carry on.
+     */
+    async precheck() {
+        let inventory;
+
+        try {
+            inventory = await getBrowserInventory();
+        } catch {
+            // "Not found" and "found but unusable" are different answers and
+            // must not share one. A cache that cannot be read is not an empty
+            // cache, so this carries on and lets the question's own fallback
+            // offer a typed build id - which is the whole point of that
+            // fallback, and how an operator recovers.
+            return undefined;
+        }
+
+        if (inventory.length > 0) {
+            return undefined;
+        }
+
+        return {
+            reason: 'No browsers installed, so there is nothing to uninstall. Use "butler-sheet-icons browser install" to install one.',
+        };
+    },
+
+    /**
      * Ask which installed build to remove, rather than for a version from memory.
      *
      * Today this command takes `--browser` and `--browser-version`, both
@@ -55,6 +93,13 @@ export default {
                 required: true,
                 variadic: false,
                 secret: false,
+                // This one question collects both of these, so a value already
+                // supplied for either is not "not asked about again" - it is
+                // asked about under another name, and overwritten by the
+                // answer. Without saying so, the wizard announced that
+                // --browser-version would be skipped and then asked for it
+                // (issue #1013).
+                replaces: ['browser', 'browserVersion'],
                 choices: async () => {
                     const inventory = await getBrowserInventory();
 
