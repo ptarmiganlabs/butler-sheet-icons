@@ -98,6 +98,110 @@ describe('logError', () => {
         expect(() => logError('CTX', err)).not.toThrow();
     });
 
+    // The typed errors in ../errors.js are thrown with { cause } throughout, so the reason a
+    // reader actually needs is usually one level down from the message.
+    describe('cause chain', () => {
+        test('appends the underlying cause', () => {
+            const err = new Error('Failed to update sheet thumbnails in app abc', {
+                cause: new Error('Not connected'),
+            });
+
+            logError('QSEOW UPDATE SHEETS', err);
+
+            expect(logger.error).toHaveBeenCalledWith(
+                'QSEOW UPDATE SHEETS: Failed to update sheet thumbnails in app abc [caused by: Not connected]'
+            );
+        });
+
+        test('walks more than one level', () => {
+            const err = new Error('outer', {
+                cause: new Error('middle', { cause: new Error('root') }),
+            });
+
+            logError('CTX', err);
+
+            expect(logger.error).toHaveBeenCalledWith('CTX: outer [caused by: middle: root]');
+        });
+
+        // Several call sites throw `new Error(\`PREFIX: ${err}\`, { cause: err })`.
+        test('does not repeat a cause already quoted in the outer message', () => {
+            const cause = new Error('Not connected');
+            const err = new Error(`CONTENT LIBRARY 1: ${cause}`, { cause });
+
+            logError('CTX', err);
+
+            expect(logger.error).toHaveBeenCalledWith(
+                'CTX: CONTENT LIBRARY 1: Error: Not connected'
+            );
+        });
+
+        test('terminates on a cyclic cause chain', () => {
+            const a = new Error('a');
+            const b = new Error('b', { cause: a });
+            a.cause = b;
+
+            expect(() => logError('CTX', b)).not.toThrow();
+            expect(logger.error).toHaveBeenCalledWith('CTX: b [caused by: a]');
+        });
+
+        // Regression: `.message` need not be a string. A non-string reaching the dedup's
+        // substring match threw `TypeError: part.includes is not a function` out of the logger,
+        // from inside a catch block - so the real error was lost and replaced by a crash.
+        test('survives a non-string message alongside a cause', () => {
+            const err = { message: { code: 401 }, cause: new Error('root reason') };
+
+            expect(() => logError('CTX', err)).not.toThrow();
+            expect(logger.error).toHaveBeenCalledWith('CTX: {"code":401} [caused by: root reason]');
+        });
+
+        test('survives a cause accessor that throws', () => {
+            const err = new Error('outer');
+            Object.defineProperty(err, 'cause', {
+                get: () => {
+                    throw new Error('cause getter exploded');
+                },
+            });
+
+            expect(() => logError('CTX', err)).not.toThrow();
+            expect(logger.error).toHaveBeenCalledWith('CTX: outer');
+        });
+
+        // Regression: the bound used to count kept entries, so causes collapsed by the dedup
+        // advanced no counter and the chain was walked in full.
+        test('follows at most MAX_CAUSE_DEPTH links when every cause reads the same', () => {
+            let reads = 0;
+            const make = (depth) => {
+                const e = new Error('same');
+                Object.defineProperty(e, 'cause', {
+                    get: () => {
+                        reads += 1;
+                        return depth > 0 ? make(depth - 1) : undefined;
+                    },
+                });
+                return e;
+            };
+
+            logError('CTX', make(1000));
+
+            // One read per link followed, plus the read that ends the loop.
+            expect(reads).toBeLessThanOrEqual(6);
+            expect(logger.error).toHaveBeenCalledWith('CTX: same');
+        });
+
+        test('stops at the depth limit', () => {
+            let err = new Error('root');
+            for (let i = 0; i < 20; i += 1) {
+                err = new Error(`level${i}`, { cause: err });
+            }
+
+            logError('CTX', err);
+
+            const line = logger.error.mock.calls[0][0];
+            expect(line).toContain('level19');
+            expect(line).not.toContain('root');
+        });
+    });
+
     test.each([
         ['undefined', undefined],
         ['null', null],

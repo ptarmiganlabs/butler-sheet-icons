@@ -90,13 +90,58 @@ const describeValue = (value) => {
 const describeError = (error) => {
     if (typeof error === 'string') return error;
 
-    // `.message` is whatever was thrown and need not be a string, and reading it can itself
-    // throw when it is an accessor. Neither may escape: this runs inside `catch` blocks, where a
-    // failing log call would replace a reported error with an unreported crash.
+    // `.message` is whatever was thrown and need not be a string. It must become one here:
+    // describeWithCauses does substring matching over these values, and a non-string reaching
+    // that comparison threw `TypeError: part.includes is not a function` out of the logger -
+    // from inside a `catch` block, so the real error was lost and replaced by a crash.
     const message = safeRead(error, 'message');
     if (message !== undefined && message !== null && message !== '') return describeValue(message);
 
     return describeValue(error);
+};
+
+/** How many `cause` links to follow, so a cyclic or absurdly deep chain cannot run away. */
+const MAX_CAUSE_DEPTH = 5;
+
+/**
+ * Renders an error together with its `cause` chain.
+ *
+ * The typed errors in `./errors.js` are thrown with `{ cause }` throughout, so the outermost
+ * message is usually the general one ("Failed to update sheet thumbnails in app X") and the
+ * specific reason ("Not connected") is one or more levels down. Reporting only the outer message
+ * tells the user which step failed but not why.
+ *
+ * A cause already quoted in an enclosing message is skipped: several call sites throw
+ * ``new Error(`PREFIX: ${err}`, { cause: err })``, and repeating it would say the same thing twice.
+ *
+ * @param {Error|unknown} error - The caught value.
+ * @returns {string} e.g. `Failed to update sheet thumbnails in app X [caused by: Not connected]`.
+ */
+const describeWithCauses = (error) => {
+    const parts = [describeError(error)];
+    const seen = new Set([error]);
+
+    // Counts links followed, not entries kept. Bounding `parts.length` instead looked equivalent
+    // but was not: a cause skipped by the dedup below never grows `parts`, so a chain whose links
+    // share one message advanced no counter at all. That walked a 50 000-link chain in full, and
+    // against a `cause` accessor returning a fresh object each read - which also defeats `seen` -
+    // it never terminated.
+    let steps = 0;
+    let current = safeRead(error, 'cause');
+    while (current && steps < MAX_CAUSE_DEPTH && !seen.has(current)) {
+        steps += 1;
+        seen.add(current);
+
+        const description = describeError(current);
+        if (!parts.some((part) => part.includes(description))) {
+            parts.push(description);
+        }
+
+        current = safeRead(current, 'cause');
+    }
+
+    const [outermost, ...causes] = parts;
+    return causes.length > 0 ? `${outermost} [caused by: ${causes.join(': ')}]` : outermost;
 };
 
 /**
@@ -119,7 +164,7 @@ export function logError(message, error) {
         return;
     }
 
-    logger.error(`${message}: ${describeError(error)}`);
+    logger.error(`${message}: ${describeWithCauses(error)}`);
 
     if (error.stack) {
         logger.debug(error.stack);
