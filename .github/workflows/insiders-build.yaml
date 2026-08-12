@@ -19,6 +19,11 @@ jobs:
     # self-hosted code-signing runners, so an untimed hang would hold one of them for GitHub's
     # 6-hour default and queue every later insiders build and signed release behind it.
     # 20 minutes is roughly 3x the slowest observed run of this job (6m34s, on win).
+    #
+    # Signing is a second way the win leg can stall, since #1041: on a host configured to show
+    # SimplySign's login dialog, signtool would wait on a prompt nobody can answer.
+    # scripts/lib/win-signing.ps1 kills signtool itself, so this stays a backstop rather than the
+    # primary guard - and signing adds well under a minute, so 20 still holds.
     timeout-minutes: 20
     strategy:
       matrix:
@@ -45,10 +50,6 @@ jobs:
               - ubuntu-latest
             artifact_insider: butler-sheet-icons--linux-x64--${{ github.sha }}.tgz
     runs-on: ${{ matrix.runs_on }}
-    # The win leg signs when a SimplySign session happens to be open on the runner, so it can in
-    # principle sit on a graphical prompt nobody will answer. scripts/lib/win-signing.ps1 kills
-    # signtool itself; this is the backstop, because the default is six hours per leg.
-    timeout-minutes: 45
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
