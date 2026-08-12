@@ -21,7 +21,7 @@ This is the part worth knowing about. Options you have already given are treated
 about again. So you can supply the parts you know and let Butler Sheet Icons ask for the rest:
 
 ```bash
-butler-sheet-icons browser install --browser firefox -i
+butler-sheet-icons browser install --browser chrome -i
 ```
 
 ```

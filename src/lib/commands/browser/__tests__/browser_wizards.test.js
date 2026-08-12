@@ -327,7 +327,7 @@ describe('an option a synthetic question stands in for', () => {
 
         await runInteractive({
             path: 'browser install',
-            presetOptions: { browser: 'firefox' },
+            presetOptions: { browser: 'chrome' },
             runtime,
         });
 
@@ -339,34 +339,22 @@ describe('an option a synthetic question stands in for', () => {
 
 describe('options already supplied on the command line', () => {
     // What makes `-i` compose rather than merely exist:
-    // `bsi browser install --browser firefox -i` should ask which build, not
+    // `bsi browser install --browser chrome -i` should ask which build, not
     // which browser.
+    //
+    // A preset answer also has to stay visible to the questions that follow. The install
+    // wizard's version picker does not read earlier answers, so that property is covered by
+    // the uninstall wizard's cache-dir test above.
     test('are not asked about again', async () => {
         const runtime = scriptedRuntime({ browserVersion: '151.0.7922.47', _review: 'cancel' });
 
         await runInteractive({
             path: 'browser install',
-            presetOptions: { browser: 'firefox' },
+            presetOptions: { browser: 'chrome' },
             runtime,
         });
 
         expect(runtime.asked.map((a) => a.key)).toEqual(['browserVersion', '_review']);
-    });
-
-    test('are still visible to the questions that follow', async () => {
-        // The pre-filled answer has to reach `choices`, or the version list
-        // would be fetched for the wrong browser.
-        const runtime = scriptedRuntime({ browserVersion: '151.0.7922.47', _review: 'cancel' });
-
-        await runInteractive({
-            path: 'browser install',
-            presetOptions: { browser: 'firefox' },
-            runtime,
-        });
-
-        expect(fetchAvailableVersions).toHaveBeenCalledWith(
-            expect.objectContaining({ browser: 'firefox' })
-        );
     });
 
     test('and reach the command that finally runs', async () => {
@@ -374,12 +362,12 @@ describe('options already supplied on the command line', () => {
 
         await runInteractive({
             path: 'browser install',
-            presetOptions: { browser: 'firefox' },
+            presetOptions: { browser: 'chrome' },
             runtime,
         });
 
         expect(browserInstall).toHaveBeenCalledWith(
-            expect.objectContaining({ browser: 'firefox', browserVersion: '151.0.7922.47' })
+            expect.objectContaining({ browser: 'chrome', browserVersion: '151.0.7922.47' })
         );
     });
 
@@ -388,7 +376,7 @@ describe('options already supplied on the command line', () => {
 
         await runInteractive({
             path: 'browser install',
-            presetOptions: { browser: 'firefox' },
+            presetOptions: { browser: 'chrome' },
             runtime,
         });
 
@@ -411,9 +399,9 @@ describe('the install wizard', () => {
         expect(fetchAvailableVersions).toHaveBeenCalledTimes(1);
     });
 
-    test('fetches versions for the browser that was chosen', async () => {
+    test('fetches the stable channel, which is what the picker lists', async () => {
         const runtime = scriptedRuntime({
-            browser: 'firefox',
+            browser: 'chrome',
             browserVersion: 'latest',
             _review: 'cancel',
         });
@@ -421,7 +409,7 @@ describe('the install wizard', () => {
         await runInteractive({ path: 'browser install', runtime });
 
         expect(fetchAvailableVersions).toHaveBeenCalledWith(
-            expect.objectContaining({ browser: 'firefox' })
+            expect.objectContaining({ channel: 'stable' })
         );
     });
 

@@ -3,3 +3,10 @@ build/**
 coverage/**
 sea-prep.blob
 build.cjs
+
+# Carries a `<!-- gitnexus:start -->` block that `gitnexus analyze` rewrites wholesale, in its
+# own formatting. Letting Prettier reformat it too means the two rewrite the same tables back
+# and forth, once per re-index, for no benefit. CLAUDE.md carries the same block and is left
+# alone for the same reason.
+AGENTS.md
+CLAUDE.md

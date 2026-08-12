@@ -308,9 +308,13 @@ export const renderStaticReport = (deps = {}) => {
  * @returns {Promise<void>} Resolves when every prompt has been answered.
  */
 const runPromptGallery = async (runtime, theme) => {
+    // Demo data only - nothing here is applied. Log levels rather than browsers: they are a real
+    // multi-value option, and the gallery needs more than one entry for the cursor, the toggle
+    // and the filter to have anything to do.
     const choices = [
-        { name: 'Chrome', value: 'chrome', description: 'The browser BSI is tested with' },
-        { name: 'Firefox', value: 'firefox', description: 'Partial support' },
+        { name: 'info', value: 'info', description: 'The default log level' },
+        { name: 'verbose', value: 'verbose', description: 'Adds progress detail' },
+        { name: 'debug', value: 'debug', description: 'Adds internal diagnostics' },
     ];
 
     await runtime.ask(

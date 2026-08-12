@@ -113,12 +113,12 @@ describe('formatDefault', () => {
 
 describe('formatDescription', () => {
     test('appends the accepted values in the shape --help prints them', () => {
-        const option = new Option('--browser <browser>', 'Browser to install').choices([
-            'chrome',
-            'firefox',
+        const option = new Option('--channel <channel>', 'Release channel to list').choices([
+            'stable',
+            'beta',
         ]);
 
-        expect(formatDescription(option)).toBe('Browser to install (choices: chrome, firefox)');
+        expect(formatDescription(option)).toBe('Release channel to list (choices: stable, beta)');
     });
 
     test('leaves a description without choices unchanged', () => {
@@ -128,11 +128,11 @@ describe('formatDescription', () => {
 
 describe('deriveExample', () => {
     test('prefers a value other than the default, which would demonstrate nothing', () => {
-        const option = new Option('--browser <browser>', '')
-            .choices(['chrome', 'firefox'])
-            .default('chrome');
+        const option = new Option('--channel <channel>', '')
+            .choices(['stable', 'beta'])
+            .default('stable');
 
-        expect(deriveExample(option)).toBe('--browser firefox');
+        expect(deriveExample(option)).toBe('--channel beta');
     });
 
     test('falls back to the only choice when it is also the default', () => {
@@ -181,14 +181,14 @@ describe('optionRowsFor', () => {
 
     test('prefers a hand-written example over a derived one', () => {
         const command = new Command('demo').addOption(
-            new Option('--browser <browser>', '').choices(['chrome', 'firefox']).default('chrome')
+            new Option('--channel <channel>', '').choices(['stable', 'beta']).default('stable')
         );
 
         const [row] = optionRowsFor(command, {
-            examples: { '--browser': '--browser firefox@151' },
+            examples: { '--channel': '--channel beta@151' },
         });
 
-        expect(row[4]).toBe('`--browser firefox@151`');
+        expect(row[4]).toBe('`--channel beta@151`');
     });
 
     test('skips the help row for a command that has disabled help', () => {
@@ -217,7 +217,7 @@ describe('renderOptionTable', () => {
 
     test('keeps the Example column when at least one option can fill it', () => {
         const command = new Command('demo').addOption(
-            new Option('--browser <browser>', '').choices(['chrome', 'firefox']).default('chrome')
+            new Option('--channel <channel>', '').choices(['stable', 'beta']).default('stable')
         );
 
         const header = renderOptionTable(command).split('\n')[0];

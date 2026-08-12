@@ -10,15 +10,14 @@ import { withQuietLogging } from './quiet.js';
  *
  * `needs` is a developer-facing guarantee, not a user-facing one: a wizard that
  * asks which apps to update before asking for the credentials that list them is
- * broken in a way no answer can fix. Phase 1 has one such edge, so the ordering
- * is simply declaration order and this asserts the declaration is coherent -
- * five lines that make the property real now, and a graph to sort when phase 2
- * has enough edges to need one.
+ * broken in a way no answer can fix. No phase 1 question declares an edge today -
+ * ordering is simply declaration order - so this guards the declarations a later
+ * phase adds, and becomes a graph to sort when there are enough edges to need one.
  *
  * A need is satisfied by an answer, not by a question. Anything supplied on the
  * command line or through a BSI_* environment variable is dropped from the
  * questions but is still an answer, so those keys count as already seen -
- * otherwise `bsi browser install --browser firefox -i` would fail this check for
+ * otherwise `bsi browser install --browser chrome -i` would fail this check for
  * having satisfied it.
  *
  * @param {import('./option-introspect.js').QuestionSpec[]} specs - The questions.

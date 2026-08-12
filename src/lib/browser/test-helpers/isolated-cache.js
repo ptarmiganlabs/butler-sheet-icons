@@ -11,8 +11,8 @@ import path from 'node:path';
  * them call `browserUninstallAll`, which finishes with `fs.emptyDir` on the
  * cache directory, so a run wipes every browser present, including builds that
  * were staged by hand and that no test installed. That happened on 2026-08-12
- * and cost a cache holding chrome 114.0.5735.133, chrome 151.0.7922.47 and
- * firefox stable_153.0.4.
+ * and cost a cache holding chrome 114.0.5735.133, chrome 151.0.7922.47 and a
+ * third hand-staged build.
  *
  * Passing the returned path as `browserCacheDir` in the options bag of every
  * browser call in a test file moves all of that into a throwaway directory:

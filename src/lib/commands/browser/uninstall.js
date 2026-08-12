@@ -53,11 +53,12 @@ const buildBrowserUninstallCommand = () => {
                 .env('BSI_BROWSER_UI_LOG_LEVEL')
         )
         .addOption(
+            // Chrome only; see the note on the same option in install.js.
             new Option(
                 '--browser <browser>',
-                'Browser to uninstall (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+                'Browser to uninstall. Only "chrome" is supported. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
             )
-                .choices(['chrome', 'firefox'])
+                .choices(['chrome'])
                 .default('chrome')
                 .makeOptionMandatory()
                 .env('BSI_BROWSER_UI_BROWSER')
@@ -70,7 +71,7 @@ const buildBrowserUninstallCommand = () => {
             // build on this machine.
             new Option(
                 '--browser-version <version>',
-                'Browser build to uninstall: an exact build id (for Chrome e.g. "151.0.7922.77", for Firefox e.g. "stable_153.0.3"), or "recommended" for the build Butler Sheet Icons is tested with. Use "butler-sheet-icons browser list-installed" to see which builds are installed.'
+                'Browser build to uninstall: an exact build id (e.g. "151.0.7922.77"), or "recommended" for the build Butler Sheet Icons is tested with. Use "butler-sheet-icons browser list-installed" to see which builds are installed.'
             )
                 .makeOptionMandatory()
                 .env('BSI_BROWSER_UI_BROWSER_VERSION')

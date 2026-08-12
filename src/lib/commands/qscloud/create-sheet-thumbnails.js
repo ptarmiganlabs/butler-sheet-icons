@@ -247,10 +247,9 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 .env('BSI_QSCLOUD_CST_BLUR_FACTOR')
         )
         .addOption(
-            // Chrome only, unlike "browser install": thumbnails are produced by driving the
-            // browser over the Chrome DevTools Protocol with a Chromium-only argument list, so a
-            // Firefox binary cannot be used here. Offering it in .choices() only moved the
-            // failure to a confusing place further along.
+            // Chrome only: thumbnails are produced by driving the browser over the Chrome
+            // DevTools Protocol with a Chromium-only argument list, so no other browser could be
+            // driven here. The option is kept so that scripts naming the browser keep working.
             new Option('--browser <browser>', 'Browser used to render sheets. Chrome only.')
                 .choices(['chrome'])
                 .default('chrome')

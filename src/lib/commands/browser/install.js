@@ -55,11 +55,14 @@ const buildBrowserInstallCommand = () => {
                 .env('BSI_BROWSER_I_LOG_LEVEL')
         )
         .addOption(
+            // Chrome is the only browser Butler Sheet Icons drives: the render path speaks the
+            // Chrome DevTools Protocol and passes a Chromium-only argument list. The option is
+            // kept rather than dropped so that scripts passing "--browser chrome" keep working.
             new Option(
                 '--browser <browser>',
-                'Browser to install (e.g. "chrome" or "firefox"). Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
+                'Browser to install. Only "chrome" is supported. Use "butler-sheet-icons browser list-installed" to see which browsers are currently installed.'
             )
-                .choices(['chrome', 'firefox'])
+                .choices(['chrome'])
                 .default('chrome')
                 .env('BSI_BROWSER_I_BROWSER')
         )

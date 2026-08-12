@@ -104,6 +104,7 @@ let handleBrowserInstall;
 let handleBrowserListAvailable;
 let buildBrowserInstallCommand;
 let buildBrowserUninstallCommand;
+let buildBrowserListAvailableCommand;
 
 beforeAll(async () => {
     await Promise.all([
@@ -140,7 +141,8 @@ beforeAll(async () => {
         await import('../browser/uninstall.js'));
     ({ handleBrowserUninstallAll } = await import('../browser/uninstall-all.js'));
     ({ handleBrowserInstall, buildBrowserInstallCommand } = await import('../browser/install.js'));
-    ({ handleBrowserListAvailable } = await import('../browser/list-available.js'));
+    ({ handleBrowserListAvailable, buildBrowserListAvailableCommand } =
+        await import('../browser/list-available.js'));
 });
 
 describe('parsePositiveInteger', () => {
@@ -460,25 +462,19 @@ describe('--sense-version choices', () => {
 });
 
 describe('--browser choices', () => {
-    // Firefox can be installed, but cannot render thumbnails: the launch path speaks the Chrome
-    // DevTools Protocol and passes a Chromium-only argument list. Offering it here only moved
-    // the failure somewhere the operator could not interpret it.
+    // Chrome is the only value any command accepts, on every command that has the option.
+    // The launch path speaks the Chrome DevTools Protocol and passes a Chromium-only argument
+    // list, so anything else would fail somewhere the operator could not interpret it.
     test.each([
-        ['qseow', () => buildQseowCommand()],
-        ['qscloud', () => buildQscloudCommand()],
-    ])('%s create-sheet-thumbnails offers chrome only', (_name, build) => {
-        const option = thumbnailCommand(build()).options.find((opt) => opt.long === '--browser');
-
-        expect(option.argChoices).toEqual(['chrome']);
-    });
-
-    test.each([
+        ['qseow', () => thumbnailCommand(buildQseowCommand())],
+        ['qscloud', () => thumbnailCommand(buildQscloudCommand())],
         ['browser install', () => buildBrowserInstallCommand()],
         ['browser uninstall', () => buildBrowserUninstallCommand()],
-    ])('%s still offers both browsers', (_name, build) => {
+        ['browser list-available', () => buildBrowserListAvailableCommand()],
+    ])('%s offers chrome only', (_name, build) => {
         const option = build().options.find((opt) => opt.long === '--browser');
 
-        expect(option.argChoices).toEqual(['chrome', 'firefox']);
+        expect(option.argChoices).toEqual(['chrome']);
     });
 });
 
@@ -959,7 +955,7 @@ describe('browser commands', () => {
 
     test.each([
         ['chrome', 'recommended'],
-        ['firefox', 'stable'],
+        ['chrome', 'stable'],
         ['chrome', '114.0.5735.133'],
     ])('install delegates %s %s to browserInstall unchanged', async (browser, browserVersion) => {
         // The handler used to rewrite browserVersion when it was empty. That could not happen
@@ -997,7 +993,7 @@ describe('browser commands', () => {
     });
 
     test('install delegates with command parameter', async () => {
-        const options = { browser: 'firefox', browserVersion: 'latest', loglevel: 'debug' };
+        const options = { browser: 'chrome', browserVersion: 'latest', loglevel: 'debug' };
         /**
          * Stub of a Commander command whose `name()` always returns `'browser'`.
          *

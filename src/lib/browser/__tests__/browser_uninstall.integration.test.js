@@ -81,10 +81,10 @@ describe('browserUninstall function', () => {
         // Mock no installed browsers
         getInstalledBrowsers.mockResolvedValue([
             {
-                browser: 'firefox',
+                browser: 'chrome-headless-shell',
                 buildId: '100.0.0.0',
                 platform: 'linux',
-                path: '/path/to/firefox',
+                path: '/path/to/chrome-headless-shell',
             },
         ]);
 
@@ -191,10 +191,10 @@ describe('browserUninstallAll function', () => {
                 path: '/path/to/chrome',
             },
             {
-                browser: 'firefox',
+                browser: 'chrome-headless-shell',
                 buildId: '100.0.0.0',
                 platform: 'linux',
-                path: '/path/to/firefox',
+                path: '/path/to/chrome-headless-shell',
             },
         ]);
 
@@ -240,10 +240,10 @@ describe('browserUninstallAll function', () => {
                 path: '/path/to/chrome',
             },
             {
-                browser: 'firefox',
+                browser: 'chrome-headless-shell',
                 buildId: '100.0.0.0',
                 platform: 'linux',
-                path: '/path/to/firefox',
+                path: '/path/to/chrome-headless-shell',
             },
         ]);
 
