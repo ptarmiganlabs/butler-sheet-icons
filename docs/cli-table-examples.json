@@ -1,0 +1,88 @@
+{
+    "_comment": [
+        "Hand-written examples for the doc site's generated CLI option tables.",
+        "",
+        "Everything else in those tables comes from the Commander definitions under",
+        "src/lib/commands/. The Example column cannot: an example for --host or --appid is a",
+        "value someone has to invent, and only options with a fixed set of accepted choices get",
+        "one derived automatically. This file is where the invented ones live.",
+        "",
+        "Picked up automatically by scripts/docs-cli-tables.js; pass --examples <file> to",
+        "override. Keys are the command path, then the option's long flag exactly as declared",
+        "(no argument placeholder). An option with no entry here renders '-' unless the",
+        "generator can derive one from its choices.",
+        "",
+        "Values are examples, not defaults, so prefer one that differs from the default -- a",
+        "reader learns nothing from an example that restates the value already in the Default",
+        "column."
+    ],
+
+    "qseow create-sheet-thumbnails": {
+        "--host": "--host qlik-server.company.com",
+        "--engineport": "--engineport 4748",
+        "--qrsport": "--qrsport 4243",
+        "--port": "--port 8443",
+        "--certfile": "--certfile ./cert/client.pem",
+        "--certkeyfile": "--certkeyfile ./cert/client_key.pem",
+        "--rejectUnauthorized": "--rejectUnauthorized true",
+        "--secure": "--secure false",
+        "--apiuserdir": "--apiuserdir Internal",
+        "--apiuserid": "--apiuserid sa_api",
+        "--logonuserdir": "--logonuserdir Internal",
+        "--logonuserid": "--logonuserid goran",
+        "--logonpwd": "--logonpwd MyPassword",
+        "--appid": "--appid a3e0f5d2-000a-464f-998d-33d333b175d7",
+        "--qliksensetag": "--qliksensetag updateSheetThumbnails",
+        "--prefix": "--prefix form",
+        "--headless": "--headless false",
+        "--pagewait": "--pagewait 10",
+        "--imagedir": "--imagedir ./img",
+        "--contentlibrary": "--contentlibrary \"Butler sheet thumbnails\"",
+        "--exclude-sheet-tag": "--exclude-sheet-tag excludeFromUpdate",
+        "--exclude-sheet-number": "--exclude-sheet-number 1 2",
+        "--exclude-sheet-title": "--exclude-sheet-title Intro Help",
+        "--blur-sheet-tag": "--blur-sheet-tag sensitive",
+        "--blur-sheet-number": "--blur-sheet-number 3 5",
+        "--blur-sheet-title": "--blur-sheet-title \"Financial Data\"",
+        "--blur-factor": "--blur-factor 10",
+        "--browser-version": "--browser-version stable",
+        "--browser-page-timeout": "--browser-page-timeout 120",
+        "--browser-cache-dir": "--browser-cache-dir D:\\qlik\\browsers"
+    },
+
+    "qscloud create-sheet-thumbnails": {
+        "--tenanturl": "--tenanturl tenant.eu.qlikcloud.com",
+        "--apikey": "--apikey eyJhbGciOiJFUzM4NC...",
+        "--logonuserid": "--logonuserid user@company.com",
+        "--logonpwd": "--logonpwd MyPassword",
+        "--appid": "--appid 12345678-1234-1234-1234-123456789012",
+        "--collectionid": "--collectionid 6547e7e0d0b3b0c1e4e0f1a2",
+        "--headless": "--headless false",
+        "--pagewait": "--pagewait 10",
+        "--imagedir": "--imagedir ./screenshots",
+        "--exclude-sheet-tag": "--exclude-sheet-tag excludeFromUpdate",
+        "--exclude-sheet-number": "--exclude-sheet-number 1 2",
+        "--exclude-sheet-title": "--exclude-sheet-title Intro Help",
+        "--blur-sheet-tag": "--blur-sheet-tag sensitive",
+        "--blur-sheet-number": "--blur-sheet-number 3 5",
+        "--blur-sheet-title": "--blur-sheet-title \"Financial Data\"",
+        "--blur-factor": "--blur-factor 10",
+        "--browser-version": "--browser-version stable",
+        "--browser-page-timeout": "--browser-page-timeout 120",
+        "--browser-cache-dir": "--browser-cache-dir /opt/butler-sheet-icons/browsers"
+    },
+
+    "qscloud remove-sheet-icons": {
+        "--tenanturl": "--tenanturl tenant.eu.qlikcloud.com",
+        "--apikey": "--apikey eyJhbGciOiJFUzM4NC...",
+        "--logonuserid": "--logonuserid user@company.com",
+        "--logonpwd": "--logonpwd MyPassword",
+        "--appid": "--appid 12345678-1234-1234-1234-123456789012",
+        "--collectionid": "--collectionid 6547e7e0d0b3b0c1e4e0f1a2"
+    },
+
+    "qscloud list-collections": {
+        "--tenanturl": "--tenanturl tenant.eu.qlikcloud.com",
+        "--apikey": "--apikey eyJhbGciOiJFUzM4NC..."
+    }
+}

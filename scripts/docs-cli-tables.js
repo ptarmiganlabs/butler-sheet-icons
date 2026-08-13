@@ -26,12 +26,14 @@
  *   --check             Report whether the blocks in the named files are current. Exit 1 if not.
  *   --write             Rewrite the blocks in the named files.
  *   --examples <file>   JSON of hand-written examples: { "<command path>": { "--flag": "..." } }.
+ *                       Defaults to docs/cli-table-examples.json when that file exists.
  *
  * With neither --check nor --write, the named files are rendered to stdout and left untouched.
  */
 
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import process from 'node:process';
+import { fileURLToPath } from 'node:url';
 
 import {
     knownCommandPaths,
@@ -98,25 +100,46 @@ const parseArgs = (argv) => {
 };
 
 /**
- * Load the hand-written examples file, if one was named.
+ * Where hand-written examples live when `--examples` is not given.
  *
- * @param {string|null} path - Path to a JSON file, or null.
+ * Defaulted rather than left to the caller because the failure mode is silent and destructive:
+ * the `Example` column is the one part of a generated table that is not derived from the code,
+ * so anyone who regenerates without remembering the flag blanks every example on the page and
+ * the diff looks like an ordinary refresh. A default that is picked up automatically means the
+ * examples survive a regeneration by whoever happens to run it next.
+ *
+ * Resolved against this repository rather than the working directory, so it does not matter
+ * where the script is invoked from.
+ */
+const DEFAULT_EXAMPLES_FILE = fileURLToPath(
+    new URL('../docs/cli-table-examples.json', import.meta.url)
+);
+
+/**
+ * Load the hand-written examples file.
+ *
+ * A file named explicitly must exist - naming one that does not is a typo worth reporting. The
+ * default file is optional, so a checkout without one still generates tables.
+ *
+ * @param {string|null} path - Path to a JSON file, or null to use the default.
  *
  * @returns {Record<string, Record<string, string>>} Examples keyed by command path, then flag.
  */
 const loadExamples = (path) => {
-    if (!path) {
+    if (!path && !existsSync(DEFAULT_EXAMPLES_FILE)) {
         return {};
     }
 
-    const text = readText(path);
+    const source = path ?? DEFAULT_EXAMPLES_FILE;
+    const text = readText(source);
 
     try {
         return JSON.parse(text);
     } catch (err) {
-        // JSON.parse names neither the file nor what was expected of it.
+        // JSON.parse names neither the file nor what was expected of it. `source` rather than
+        // `path` so the default file is named too, rather than reported as "null".
         throw new Error(
-            `${path}: not valid JSON (${err.message}). Expected { "<command path>": { "--flag": "example" } }.`,
+            `${source}: not valid JSON (${err.message}). Expected { "<command path>": { "--flag": "example" } }.`,
             { cause: err }
         );
     }

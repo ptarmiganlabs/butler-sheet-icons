@@ -109,25 +109,36 @@ export const codeCell = (value) => `\`${String(value).replace(/\|/g, '\\|')}\``;
 /**
  * Render the `Default` cell for one option.
  *
- * A mandatory option has no default by definition, and saying so is more useful to an
- * administrator than an empty cell: it is the difference between an option they may omit and
- * one the command refuses to run without.
+ * `**Required**` is reserved for an option the command genuinely refuses to run without: one
+ * marked mandatory *and* carrying no default.
+ *
+ * The two are not the same thing, which is what an earlier version of this got wrong. Commander
+ * satisfies `makeOptionMandatory()` from the default value, so `.default('4242')
+ * .makeOptionMandatory()` - the shape used by `--qrsport`, `--engineport`, `--secure`,
+ * `--contentlibrary` and nine others on `qseow create-sheet-thumbnails` - parses perfectly well
+ * with the flag absent and yields `4242`. Printing `**Required**` there tells an administrator
+ * they must supply thirteen options that they may safely omit, and throws away the default they
+ * came to the page to look up.
+ *
+ * The default is therefore what gets shown whenever there is one.
  *
  * @param {import('commander').Option} option - The option to describe.
  *
  * @returns {string} Markdown for the cell.
  */
 export const formatDefault = (option) => {
-    if (option.mandatory) {
-        return '**Required**';
-    }
-
     if (option.defaultValue === undefined) {
-        return '-';
+        return option.mandatory ? '**Required**' : '-';
     }
 
     if (Array.isArray(option.defaultValue)) {
         return option.defaultValue.length > 0 ? codeCell(option.defaultValue.join(', ')) : '-';
+    }
+
+    // An empty-string default - `--prefix` and `--qliksensetag` both have one - would otherwise
+    // render as an empty code span, which reads as a rendering fault rather than as a value.
+    if (option.defaultValue === '') {
+        return codeCell('""');
     }
 
     return codeCell(option.defaultValue);
