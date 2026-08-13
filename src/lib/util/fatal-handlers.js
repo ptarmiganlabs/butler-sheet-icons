@@ -54,19 +54,29 @@
  * stream it would go to is the one that just died), no crash dump, and an
  * immediate exit with {@link BROKEN_PIPE_EXIT_CODE}.
  *
- * It is caught in two places, because certainty differs between them:
+ * It is caught in two places, because certainty differs between them — and they
+ * match on *different sets of error codes* for that reason:
  *
  *   - An `error` listener on stdout and stderr. This is the path that fires in
  *     practice, and it is exact: the event names the stream, so there is no
- *     guessing about which pipe broke.
+ *     guessing about which pipe broke. It therefore matches the wider
+ *     {@link STREAM_BROKEN_PIPE_CODES}, which covers the socket wording of the
+ *     same event as well as the pipe wording.
  *   - The `uncaughtException` path, as a backstop for anything that writes to
  *     fd 1 or 2 without going through those stream objects. Attribution there
  *     is a judgement call — a raw socket write can raise `EPIPE` too — so the
- *     backstop is deliberately narrow: `unhandledRejection` never takes it (all
- *     of BSI's network I/O is promise-based, and an `AxiosError` can carry
+ *     backstop is deliberately narrow: it matches only
+ *     {@link BACKSTOP_BROKEN_PIPE_CODES}, `unhandledRejection` never takes it
+ *     (all of BSI's network I/O is promise-based, and an `AxiosError` can carry
  *     `code: 'EPIPE'` across), and the exit code stays non-zero, so a
  *     misattributed socket failure still fails a scheduled task. What it would
  *     cost is the crash dump for that one rare case.
+ *
+ * Keeping the two sets apart is the point rather than an accident of history.
+ * The wider one exists because stdout is not always a pipe — captured output is
+ * a socket, which reports the reader leaving as `ENOTCONN` or `ECONNRESET`. The
+ * narrow one stays narrow because `ECONNRESET` is also what a Qlik Sense server
+ * dropping a connection looks like, and that must keep its crash dump.
  */
 
 import { logger as defaultLogger } from '../../globals.js';
@@ -98,12 +108,51 @@ export const FATAL_EXIT_WATCHDOG_MS = 10000;
 export const BROKEN_PIPE_EXIT_CODE = 141;
 
 /**
- * Error codes a stream raises once whatever it writes into has gone away.
+ * Error codes that mean the reader went away, for an error that arrived on one
+ * of the streams this module watches.
  *
- * `EPIPE` is the pipe being closed by the reader; `ERR_STREAM_DESTROYED` is a
- * later write to the stream Node then tore down in response.
+ * `EPIPE` is a pipe closed by its reader, and `ERR_STREAM_DESTROYED` a later
+ * write to the stream Node tore down in response. The other two are the same
+ * event over a socket. Standard output is not always a pipe: when one program
+ * runs another and captures its output, libuv hands the child a socket rather
+ * than a `pipe(2)` on macOS, and a write once the far end has gone reports
+ * `ENOTCONN` or `ECONNRESET` instead of `EPIPE`.
+ *
+ * `ENOTCONN` is not a theoretical addition. It is what made the end-to-end test
+ * for #1019 fail about one run in sixty: which of the two a dead socket reports
+ * depends on whether unread data was still buffered when the reader closed, so
+ * a loaded machine - where the reader reacts late and more has piled up behind
+ * it - brought back crash dumps for a closed pipe, the exact thing #1019
+ * removed. Measured on macOS, writing to a `spawn`ed child's stdout: 290 runs
+ * where the reader closed promptly were all `EPIPE`, while delaying the close by
+ * a single event loop turn produced `ENOTCONN`.
+ *
+ * Deliberately still an allowlist rather than "any write error". A full disk
+ * (`ENOSPC`) or a permission problem is a genuine failure that must keep its
+ * crash dump.
  */
-const BROKEN_PIPE_CODES = new Set(['EPIPE', 'ERR_STREAM_DESTROYED']);
+const STREAM_BROKEN_PIPE_CODES = new Set([
+    'EPIPE',
+    'ERR_STREAM_DESTROYED',
+    'ENOTCONN',
+    'ECONNRESET',
+]);
+
+/**
+ * The narrower set the `uncaughtException` backstop matches on.
+ *
+ * Narrower because that path is guessing. An error reaching the stream listener
+ * names the stream it came from, so "my output has gone" is a fact; the same
+ * code reaching `uncaughtException` might have come from anywhere.
+ *
+ * `ECONNRESET` is the reason the two sets have to differ rather than one being
+ * widened. Every Qlik Sense connection BSI opens can be reset by the far end,
+ * and that is a real failure an operator needs the crash dump for. Accepting it
+ * here would trade a rare missing dump for routinely discarding the dump that
+ * matters most. `ENOTCONN` is left out for the same reason, being just as much
+ * a socket error as a stdout error.
+ */
+const BACKSTOP_BROKEN_PIPE_CODES = new Set(['EPIPE', 'ERR_STREAM_DESTROYED']);
 
 /** True once a fatal event is being handled. Later fatal events are dropped. */
 let handlingFatal = false;
@@ -152,12 +201,18 @@ function toError(reason) {
 /**
  * Reports whether an error says the stream being written to has gone away.
  *
+ * The set is a parameter rather than a constant read from the enclosing scope,
+ * so that the two call sites have to name which one they mean. They differ - see
+ * {@link STREAM_BROKEN_PIPE_CODES} and {@link BACKSTOP_BROKEN_PIPE_CODES} - and
+ * the difference is easy to erase by accident when it lives out of sight.
+ *
  * @param {Error|unknown} err - The error to classify.
+ * @param {Set<string>} codes - The error codes that count as the reader going away.
  *
  * @returns {boolean} `true` for a broken-pipe error code.
  */
-function isBrokenPipeError(err) {
-    return BROKEN_PIPE_CODES.has(err?.code);
+function isBrokenPipeError(err, codes) {
+    return codes.has(err?.code);
 }
 
 /**
@@ -273,7 +328,7 @@ function handleFatal(err, source, deps) {
     // Output going away is an ordinary end to a piped run, not a crash. Only
     // from `uncaughtException`, and only as a backstop to the stream listeners
     // below — see the header for why a rejection never qualifies.
-    if (source === 'uncaughtException' && isBrokenPipeError(err)) {
+    if (source === 'uncaughtException' && isBrokenPipeError(err, BACKSTOP_BROKEN_PIPE_CODES)) {
         handleBrokenOutputPipe(deps);
         return;
     }
@@ -409,12 +464,16 @@ export function installFatalHandlers({
      * genuine failure to write output still produces a dump and exit 1, exactly
      * as it did when it arrived as an uncaught exception.
      *
+     * Matches the wider {@link STREAM_BROKEN_PIPE_CODES}, because the event
+     * names the stream: whatever this error says, it is about output that can no
+     * longer be written, not about some socket elsewhere in the process.
+     *
      * @param {Error} err - The stream error.
      *
      * @returns {void}
      */
     const onOutputStreamError = (err) => {
-        if (isBrokenPipeError(err)) {
+        if (isBrokenPipeError(err, STREAM_BROKEN_PIPE_CODES)) {
             handleBrokenOutputPipe(deps);
             return;
         }

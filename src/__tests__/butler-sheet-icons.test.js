@@ -367,7 +367,21 @@ describe('a closed output pipe leaves nothing behind, end to end (issue #1019)',
     test('no crash dump is written', () => {
         // The whole point of the issue: an operator piping to `head` should not
         // accumulate crash reports in the working directory.
-        expect(fs.readdirSync(dumpDir)).toEqual([]);
+        //
+        // Asserted with the dump's own error message rather than as a bare file
+        // list, because a bare list cannot be diagnosed after the fact. Which
+        // error a dead output stream raises depends on whether it is a pipe or a
+        // socket and on how much was still unread when the reader went - so a
+        // failure here is almost always one more code that is not recognised as
+        // the reader leaving. `ENOTCONN` was exactly that, and cost several
+        // hundred re-runs to identify from a list of two filenames.
+        const files = fs.readdirSync(dumpDir);
+        const reasons = files
+            .filter((file) => file.endsWith('.json'))
+            .map((file) => JSON.parse(fs.readFileSync(path.join(dumpDir, file), 'utf-8')))
+            .map((dump) => `${dump?.context?.source}: ${dump?.error?.message}`);
+
+        expect({ files, reasons }).toEqual({ files: [], reasons: [] });
     });
 
     test('the run ends on its own, with the shell convention for a closed pipe', () => {

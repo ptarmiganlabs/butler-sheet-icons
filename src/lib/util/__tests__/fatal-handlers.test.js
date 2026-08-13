@@ -51,16 +51,23 @@ const install = (overrides = {}) =>
         ...overrides,
     });
 
+/** The wording Node uses for the codes that do not follow the `write X` shape. */
+const WRITE_ERROR_MESSAGES = { ERR_STREAM_DESTROYED: 'Cannot call write after destroy' };
+
 /**
- * Builds an error carrying a broken-pipe code, shaped like the one Node raises
- * when the reader of a pipe closes it.
+ * Builds an error carrying a write-failure code, shaped like the one Node raises
+ * when a write cannot be delivered.
+ *
+ * The messages are the real ones: `write EPIPE` and `write ENOTCONN` are what a
+ * dead pipe and a dead socket actually produce, which matters because a reader
+ * of a failing test should recognise what they are looking at.
  *
  * @param {string} [code] - The error code. Defaults to `EPIPE`.
  *
  * @returns {Error} The error, with `code` and `syscall` set.
  */
 const brokenPipeError = (code = 'EPIPE') => {
-    const err = new Error(code === 'EPIPE' ? 'write EPIPE' : 'Cannot call write after destroy');
+    const err = new Error(WRITE_ERROR_MESSAGES[code] ?? `write ${code}`);
     err.code = code;
     err.syscall = 'write';
     return err;
@@ -358,15 +365,105 @@ describe('output pipe closing is not a crash (issue #1019)', () => {
     // used to leave a crash report behind for an operator who did nothing
     // wrong.
 
+    // Which error codes each catch site treats as "the reader went away", stated
+    // as one table rather than as scattered cases, because the whole point is
+    // that the two sites deliberately DISAGREE. Reading down the two verdict
+    // columns is how that disagreement stays visible; a code asserted at only
+    // one site says nothing about the other, which is how ENOTCONN came to be
+    // handled at neither.
+    //
+    // `quiet` is exit 141 with no crash dump. `crash` is the ordinary fatal
+    // path: one dump, exit 1.
+    const CODE_MATRIX = [
+        {
+            code: 'EPIPE',
+            why: 'a pipe closed by its reader, the original #1019 case',
+            atStream: 'quiet',
+            atBackstop: 'quiet',
+        },
+        {
+            code: 'ERR_STREAM_DESTROYED',
+            why: 'a write after Node tore the stream down in response',
+            atStream: 'quiet',
+            atBackstop: 'quiet',
+        },
+        {
+            code: 'ENOTCONN',
+            // The flake this table was written for. Captured output is a socket
+            // rather than a pipe, and a socket reports its reader leaving this
+            // way when data was still buffered - so the end-to-end test for
+            // #1019 wrote crash dumps about one loaded run in sixty.
+            why: 'the same event over a socket, which captured output is',
+            atStream: 'quiet',
+            atBackstop: 'crash',
+        },
+        {
+            code: 'ECONNRESET',
+            // Why the two sets cannot be collapsed into one. On a stream we
+            // watch this is our own output going away; arriving loose, it is far
+            // more likely to be a Qlik Sense connection dropping, and that needs
+            // its dump.
+            why: 'a socket reader that went away - or a Qlik Sense connection reset',
+            atStream: 'quiet',
+            atBackstop: 'crash',
+        },
+        {
+            code: 'ENOSPC',
+            why: 'a full disk is a real failure however it arrives',
+            atStream: 'crash',
+            atBackstop: 'crash',
+        },
+        {
+            code: 'EACCES',
+            why: 'so is a permission problem',
+            atStream: 'crash',
+            atBackstop: 'crash',
+        },
+    ];
+
+    /**
+     * Asserts one row of the matrix against whichever site raised the error.
+     *
+     * @param {'quiet'|'crash'} verdict - What the site is required to do.
+     * @param {Function} writeCrashDump - The crash dump spy.
+     * @param {Error} err - The error that was raised.
+     *
+     * @returns {void}
+     */
+    const expectVerdict = (verdict, writeCrashDump, err) => {
+        if (verdict === 'quiet') {
+            expect(writeCrashDump).not.toHaveBeenCalled();
+            expect(exit).toHaveBeenCalledTimes(1);
+            expect(exit).toHaveBeenCalledWith(BROKEN_PIPE_EXIT_CODE);
+
+            return;
+        }
+
+        expect(writeCrashDump).toHaveBeenCalledTimes(1);
+        expect(writeCrashDump).toHaveBeenCalledWith(err, 'uncaughtException');
+        expect(exit).toHaveBeenCalledWith(1);
+    };
+
     describe('caught at the stream, which is where the pipe is known', () => {
-        test.each([
-            ['stdout', () => stdout],
-            ['stderr', () => stderr],
-        ])('an EPIPE on %s exits quietly without a dump', async (_name, streamOf) => {
+        test.each(CODE_MATRIX)(
+            'a $code on the stream is $atStream — $why',
+            async ({ code, atStream }) => {
+                const writeCrashDump = jest.fn().mockResolvedValue(undefined);
+                install({ writeCrashDump });
+
+                const err = brokenPipeError(code);
+                stdout.emit('error', err);
+                await flush();
+
+                expectVerdict(atStream, writeCrashDump, err);
+            }
+        );
+
+        test('stderr is watched on the same terms as stdout', async () => {
             const writeCrashDump = jest.fn().mockResolvedValue(undefined);
             install({ writeCrashDump });
 
-            streamOf().emit('error', brokenPipeError());
+            stderr.emit('error', brokenPipeError());
             await flush();
 
             expect(writeCrashDump).not.toHaveBeenCalled();
@@ -385,34 +482,6 @@ describe('output pipe closing is not a crash (issue #1019)', () => {
             expect(consoleError).not.toHaveBeenCalled();
 
             consoleError.mockRestore();
-        });
-
-        test('ERR_STREAM_DESTROYED — a write after Node tore the stream down — counts too', async () => {
-            const writeCrashDump = jest.fn().mockResolvedValue(undefined);
-            install({ writeCrashDump });
-
-            stdout.emit('error', brokenPipeError('ERR_STREAM_DESTROYED'));
-            await flush();
-
-            expect(writeCrashDump).not.toHaveBeenCalled();
-            expect(exit).toHaveBeenCalledWith(BROKEN_PIPE_EXIT_CODE);
-        });
-
-        test('a stream error that is not a broken pipe is still a crash', async () => {
-            // Registering the listener took these errors away from Node's
-            // uncaughtException path, so the fatal handling has to be preserved
-            // here rather than assumed.
-            const writeCrashDump = jest.fn().mockResolvedValue(undefined);
-            install({ writeCrashDump });
-
-            const err = new Error('EACCES: permission denied, write');
-            err.code = 'EACCES';
-            stdout.emit('error', err);
-            await flush();
-
-            expect(writeCrashDump).toHaveBeenCalledTimes(1);
-            expect(writeCrashDump).toHaveBeenCalledWith(err, 'uncaughtException');
-            expect(exit).toHaveBeenCalledWith(1);
         });
 
         test('the stream listeners are removed on reset, and not doubled up on re-install', () => {
@@ -448,21 +517,35 @@ describe('output pipe closing is not a crash (issue #1019)', () => {
     });
 
     describe('backstop on the uncaughtException path', () => {
-        test.each([['EPIPE'], ['ERR_STREAM_DESTROYED']])(
-            'an uncaught %s exits quietly without a dump',
-            async (code) => {
+        // The same table, read down the other column. Attribution here is a
+        // guess - nothing says the error came from stdout - so this site matches
+        // fewer codes, and the rows where the two columns differ are the ones
+        // carrying the design.
+        test.each(CODE_MATRIX)(
+            'an uncaught $code is $atBackstop — $why',
+            async ({ code, atBackstop }) => {
                 const writeCrashDump = jest.fn().mockResolvedValue(undefined);
                 install({ writeCrashDump });
 
-                target.emit('uncaughtException', brokenPipeError(code));
+                const err = brokenPipeError(code);
+                target.emit('uncaughtException', err);
                 await flush();
 
-                expect(writeCrashDump).not.toHaveBeenCalled();
-                expect(logger.error).not.toHaveBeenCalled();
-                expect(exit).toHaveBeenCalledTimes(1);
-                expect(exit).toHaveBeenCalledWith(BROKEN_PIPE_EXIT_CODE);
+                expectVerdict(atBackstop, writeCrashDump, err);
             }
         );
+
+        test('the backstop is narrower than the stream listener, on purpose', () => {
+            // A guard on the table itself rather than on the code. Widening the
+            // backstop to match the stream listener would pass every case above
+            // if the table were widened with it, and would mean a Qlik Sense
+            // connection reset silently losing its crash dump.
+            const widerAtStream = CODE_MATRIX.filter(
+                (row) => row.atStream === 'quiet' && row.atBackstop === 'crash'
+            ).map((row) => row.code);
+
+            expect(widerAtStream).toEqual(['ENOTCONN', 'ECONNRESET']);
+        });
 
         test('an EPIPE-coded rejection is still a crash', async () => {
             // Every network call in BSI is promise-based, and a wrapper such as
