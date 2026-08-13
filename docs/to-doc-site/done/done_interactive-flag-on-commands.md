@@ -1,3 +1,20 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PR ptarmiganlabs/butler-sheet-icons-docs#78,
+into guide/interactive-mode.md.
+
+One claim below is WRONG and was not published. The "Which commands accept it" table says the
+thumbnail commands do not take `-i` -- "not yet - planned for the next release". They do, in the
+same 5.0.0 release: `addInteractiveOption` is called on browser install, browser uninstall, qseow
+create-sheet-thumbnails and qscloud create-sheet-thumbnails. The published table lists all four.
+The doc site page carried the same stale claim ("planned for a later release") and was corrected
+at the same time.
+
+Also changed while publishing: the worked example used `--browser firefox`, which 5.0.0 rejects.
+
+Everything else -- both banner lines, the browser uninstall exception, the no-terminal behaviour --
+was verified verbatim against src/lib/interactive/.
+-->
+
 # Interactive mode without leaving the command you were typing
 
 Interactive mode used to be reachable only through its own command:
