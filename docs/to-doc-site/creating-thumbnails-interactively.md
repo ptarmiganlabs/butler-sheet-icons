@@ -118,22 +118,24 @@ Confirming one costs a single keystroke, because the question opens on the value
 
 A skipped option is still **verified against your server**. Not asking you about it does not mean trusting it: an API key can be revoked, a content library deleted, a certificate moved, long after the `.env` file that names them was written.
 
-The check happens at the point in the conversation where the question would have been asked, and says so:
+**With a complete `.env` file, the checks run before the first question.** Everything the checks need is already in the file, so there is nothing to wait for:
 
 ```
-── Connection ────────────────────────────────────
+── Checking what you supplied ────────────────────
 
   ✓ --certfile (from BSI_QSEOW_CST_CERT_FILE) checked
   ✓ --certkeyfile (from BSI_QSEOW_CST_CERTKEY_FILE) checked
 
-── Sheets ────────────────────────────────────────
-
   ✓ --contentlibrary (from BSI_QSEOW_CST_CONTENT_LIBRARY) checked
 ```
 
-That line is also why the wizard pauses for a moment there — it is contacting your server.
+This is the common case once you have saved your answers, and it is the one worth having: a content library that was deleted last month is reported immediately, rather than after you have picked your way through a list of several hundred apps.
 
-**One check often covers several options**, and each gets its own line. The certificate check needs both paths, so it cannot run until you have given the second one — but it verifies both, and says so. On Qlik Sense Cloud the connection test does the same for `--tenanturl` and `--apikey`: a wrong tenant URL fails it as surely as a revoked key does.
+**A check waits when it depends on something you have not given yet.** The content library check opens a connection to the Qlik Sense repository service built from the host, the certificates and the API user — so if the host is not in your `.env` file, the check cannot run until you have typed it, and happens further down instead, at the point the question would have been asked. Nothing is skipped either way; only the timing differs.
+
+Those lines are also why the wizard pauses for a moment — it is contacting your server.
+
+**One check often covers several options**, and each gets its own line. The certificate check needs both paths and verifies both, and says so rather than naming only the key file. On Qlik Sense Cloud the connection test does the same for `--tenanturl` and `--apikey`: a wrong tenant URL fails it as surely as a revoked key does.
 
 If the check fails, the wizard names the option, the environment variable the value came from, and what is wrong. It then asks you the question after all, opening on the value that failed, so correcting it is an edit rather than a retype:
 

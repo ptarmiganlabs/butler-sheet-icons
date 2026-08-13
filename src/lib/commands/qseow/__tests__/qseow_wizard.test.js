@@ -158,6 +158,63 @@ describe('a value supplied before the wizard starts, carrying a probe', () => {
         expect(runtime.asked.map((a) => a.key)).not.toContain('contentlibrary');
     });
 
+    test('is checked before the first question when its inputs were supplied too', async () => {
+        // The saved-.env case: everything the QRS connection needs is in the
+        // file, so a library that no longer exists can be reported before the
+        // operator answers anything - rather than after the app picker has
+        // fetched and listed several hundred apps.
+        let askedWhenProbed;
+        qseowVerifyContentLibraryExists.mockImplementation(async () => {
+            askedWhenProbed = runtime.asked.map((entry) => entry.key);
+
+            return true;
+        });
+
+        const answers = baseAnswers();
+        const preset = {};
+        for (const key of [
+            'host',
+            'certfile',
+            'certkeyfile',
+            'apiuserdir',
+            'apiuserid',
+            'contentlibrary',
+        ]) {
+            preset[key] = answers[key];
+            delete answers[key];
+        }
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({ path: PATH, presetOptions: preset, runtime });
+
+        expect(askedWhenProbed).toEqual([]);
+        expect(runtime.output()).toContain('Checking what you supplied');
+    });
+
+    test('is checked in place when one of its inputs still has to be asked', async () => {
+        // The objection that ruled out an unconditional up-front pass: this probe
+        // opens a QRS connection built from the host, so with the host still to
+        // come it has to wait for its own position in the conversation.
+        let askedWhenProbed;
+        qseowVerifyContentLibraryExists.mockImplementation(async () => {
+            askedWhenProbed = runtime.asked.map((entry) => entry.key);
+
+            return true;
+        });
+
+        const runtime = scriptedRuntime(withoutLibrary());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { contentlibrary: 'From dot env' },
+            runtime,
+        });
+
+        expect(askedWhenProbed).toContain('host');
+        expect(runtime.output()).not.toContain('Checking what you supplied');
+    });
+
     test('is checked only once everything the check reads has been answered', async () => {
         // The reason the check happens here rather than in a pass before the
         // first question: this probe opens a QRS connection built from the host,

@@ -12,6 +12,9 @@ import { formatReviewTable } from './review-table.js';
 import { saveEnvFile, ENV_FILE } from './save-env-file.js';
 import { openingOn } from './spec-ops.js';
 
+/** Heading for the checks that run before the first question is asked. */
+const CHECKED_UP_FRONT = 'Checking what you supplied';
+
 /** What the review step can decide. */
 const REVIEW_CHOICES = [
     { name: 'Run it', value: 'run' },
@@ -201,6 +204,38 @@ export const runInteractive = async ({
         )
         .map((spec) => (checkOnly(spec) ? { ...spec, checkOnly: true } : spec));
 
+    // A check whose every input was supplied too can run before the first
+    // question, and should.
+    //
+    // The objection to checking everything up front is that a probe reads more
+    // than its own answer, so a `.env` supplying only the content library name
+    // would fail a check on a value that is fine. That objection is exactly
+    // `needs`, and it disappears when those keys were supplied as well - which is
+    // the saved-`.env` case this feature is for, and the one the wizard itself
+    // creates through "Save the answers to .env".
+    //
+    // What it buys is the whole point of probing: on a full `.env` the content
+    // library check used to fire after the app picker had fetched and listed
+    // several hundred apps. Now a library that no longer exists is reported
+    // before the first question, and the run becomes "verify the environment,
+    // then ask about this run".
+    //
+    // A question carrying `when` is left where it is regardless: its condition is
+    // written against answers that may not have been given yet, and evaluating it
+    // early would read a blank.
+    const upFront = (spec) =>
+        spec.checkOnly && !spec.when && (spec.needs ?? []).every((key) => key in presetOptions);
+
+    // Re-grouped rather than specially cased. Everything downstream - the
+    // heading, the probe, the promotion to a real question on failure - already
+    // works off order and `group`, so moving these to the front under one heading
+    // is the whole change. `specs` is untouched, so the review table and the
+    // echoed command line are unaffected.
+    const ordered = [
+        ...asked.filter(upFront).map((spec) => ({ ...spec, group: CHECKED_UP_FRONT })),
+        ...asked.filter((spec) => !upFront(spec)),
+    ];
+
     // Named by flag rather than by storage key, because the flag is what the
     // user typed. Secrets are named but never shown.
     const nameOf = (spec) => spec.option?.long ?? spec.key;
@@ -257,7 +292,7 @@ export const runInteractive = async ({
         const raw = await askQuestions(
             // Seeded with what is already known, so a later `when` or `choices`
             // sees the pre-filled answers as well as the typed ones.
-            asked,
+            ordered,
             { symbols, theme, answers: { ...presetOptions }, supplied: suppliedInfo },
             { runtime }
         );

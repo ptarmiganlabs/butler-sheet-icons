@@ -196,6 +196,49 @@ describe('an API key supplied before the wizard starts', () => {
         expect(runtime.output()).toContain('--apikey (from BSI_QSCLOUD_CST_APIKEY) checked');
     });
 
+    test('is tested before the first question when the tenant url was supplied too', async () => {
+        // The QSEoW twin of checking a supplied content library up front: with
+        // both halves of the connection in .env, a revoked key is reported before
+        // the operator answers anything.
+        let askedWhenProbed;
+        qscloudTestConnection.mockImplementation(async () => {
+            askedWhenProbed = runtime.asked.map((entry) => entry.key);
+
+            return { user: 'someone' };
+        });
+
+        const answers = baseAnswers();
+        delete answers.tenanturl;
+        delete answers.apikey;
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { tenanturl: 'acme.eu.qlikcloud.com', apikey: 'from-dot-env' },
+            runtime,
+        });
+
+        expect(askedWhenProbed).toEqual([]);
+        expect(runtime.output()).toContain('Checking what you supplied');
+    });
+
+    test('is tested in place when the tenant url still has to be asked', async () => {
+        let askedWhenProbed;
+        qscloudTestConnection.mockImplementation(async () => {
+            askedWhenProbed = runtime.asked.map((entry) => entry.key);
+
+            return { user: 'someone' };
+        });
+
+        const runtime = scriptedRuntime(withoutKey());
+
+        await runInteractive({ path: PATH, presetOptions: { apikey: 'from-dot-env' }, runtime });
+
+        expect(askedWhenProbed).toContain('tenanturl');
+        expect(runtime.output()).not.toContain('Checking what you supplied');
+    });
+
     test('reports the tenant url as well as the key, on a line each', async () => {
         // The QSEoW twin of the certificate pair: the connection test proves the
         // url as surely as the key, so a passing check says both.
