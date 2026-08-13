@@ -1,5 +1,7 @@
 import { jest, describe, test, expect } from '@jest/globals';
 import upath from 'upath';
+import extend from 'extend';
+import qrsInteractDefaults from 'qrs-interact/config/config.js';
 
 const BSI_EXECUTABLE_PATH = '/opt/butler-sheet-icons';
 
@@ -30,7 +32,26 @@ describe('setupQseowQrsConnection', () => {
         const config = setupQseowQrsConnection(BASE_OPTIONS);
 
         expect(config.hostname).toBe('sense.example.com');
-        expect(config.portnumber).toBe(4242);
+        expect(config.portNumber).toBe(4242);
+    });
+
+    test('the port survives the merge qrs-interact does with its own defaults', () => {
+        // The test that was missing. The old assertions checked the key this
+        // function *produces* against itself, so a spelling qrs-interact does not
+        // read passed happily: `portnumber` was merged in as a second key and the
+        // library went on using its own default of 4242, which made --qrsport a
+        // no-op on the command line as well as in the wizard.
+        //
+        // This asserts the contract instead - the merge the library actually
+        // performs, against the defaults it actually ships - so a re-typo fails
+        // here rather than silently on a customer's non-standard port.
+        const merged = extend(
+            true,
+            { ...qrsInteractDefaults },
+            setupQseowQrsConnection({ ...BASE_OPTIONS, qrsport: '4999' })
+        );
+
+        expect(merged.portNumber).toBe('4999');
     });
 
     test('always connects directly to QRS, with no virtual proxy', () => {
@@ -104,7 +125,7 @@ describe('setupQseowQrsConnection', () => {
             'certificates',
             'headers',
             'hostname',
-            'portnumber',
+            'portNumber',
             'virtualProxyPrefix',
         ]);
     });

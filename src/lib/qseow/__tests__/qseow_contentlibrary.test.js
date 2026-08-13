@@ -9,7 +9,7 @@ jest.unstable_mockModule('qrs-interact', () => ({ default: qrsInteract }));
 
 const setupQseowQrsConnection = jest
     .fn()
-    .mockReturnValue({ hostname: 'sense.example.com', portnumber: 4242 });
+    .mockReturnValue({ hostname: 'sense.example.com', portNumber: 4242 });
 
 jest.unstable_mockModule('../qseow-qrs.js', () => ({ setupQseowQrsConnection }));
 
@@ -30,7 +30,7 @@ const OPTIONS = { contentlibrary: 'BSI thumbnails' };
 
 beforeEach(() => {
     jest.clearAllMocks();
-    setupQseowQrsConnection.mockReturnValue({ hostname: 'sense.example.com', portnumber: 4242 });
+    setupQseowQrsConnection.mockReturnValue({ hostname: 'sense.example.com', portNumber: 4242 });
 });
 
 describe('qseowVerifyContentLibraryExists', () => {
@@ -119,7 +119,7 @@ describe('qseowVerifyContentLibraryExists', () => {
         expect(setupQseowQrsConnection).toHaveBeenCalledWith(OPTIONS);
         expect(qrsInteract).toHaveBeenCalledWith({
             hostname: 'sense.example.com',
-            portnumber: 4242,
+            portNumber: 4242,
         });
     });
 

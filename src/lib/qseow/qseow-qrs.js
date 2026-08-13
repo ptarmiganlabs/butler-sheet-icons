@@ -28,7 +28,15 @@ export const setupQseowQrsConnection = (options) => {
     // Always connect directly to QRS, i.e. with virtual proxy ''
     return {
         hostname: options.host,
-        portnumber: options.qrsport,
+        // `portNumber`, capital N. qrs-interact merges this object over its own
+        // defaults with `extend`, which matches keys literally, then reads
+        // `localConfig.portNumber` - so the lowercase spelling this carried until
+        // now was added as a second, unread key while the default 4242 survived
+        // underneath it. `--qrsport` therefore did nothing at all, on the command
+        // line as well as in the wizard: verified against a live server, a QRS
+        // call with `--qrsport 9999` succeeded and returned the same 15 content
+        // libraries as port 4242.
+        portNumber: options.qrsport,
         virtualProxyPrefix: '',
         certificates: {
             certFile,
