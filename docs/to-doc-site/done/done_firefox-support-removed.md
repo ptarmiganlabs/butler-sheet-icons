@@ -1,3 +1,22 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PR ptarmiganlabs/butler-sheet-icons-docs#74.
+
+Two claims below were wrong by the time this was published. Do not reuse them:
+
+1. "None of the option tables on those pages are generated" (below) was true of the doc site's
+   `main` when this was written, but doc site PR #73 landed on `next` first. `reference/browser.md`
+   carries 10 `generated:cli-options` blocks. Every `--browser` row was REGENERATED from the
+   Commander definitions, not hand-edited. The per-line instructions for those rows were ignored.
+2. The line numbers throughout "Page-by-page" are from `main` and did not match `next`. The Firefox
+   mention count for `reference/browser` was 20 on `next`, not the 18 stated below.
+
+Also corrected while publishing: the `uninstall-all` sample transcript on `reference/browser`
+carried a log line ("Removing any remaining files and directories in the browser cache directory")
+that the code no longer prints. Current wording is in `browser-uninstall.js`.
+
+Version gate used: 5.0.0, as this draft predicted. Confirmed against release PR #974.
+-->
+
 # Firefox is no longer a browser Butler Sheet Icons knows about
 
 Butler Sheet Icons no longer accepts `--browser firefox` anywhere. `chrome` is the only value the
