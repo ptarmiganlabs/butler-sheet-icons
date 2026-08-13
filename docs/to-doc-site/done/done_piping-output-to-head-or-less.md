@@ -1,3 +1,20 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PR ptarmiganlabs/butler-sheet-icons-docs#89,
+across the three pages the draft's own publishing notes asked for: guide/advanced/crash-dumps.md,
+guide/troubleshooting.md and reference/commands.md.
+
+Version gate: 5.0.0, not the "X.Y.Z from the open release-please PR" the notes below assume was
+4.2.0. The Firefox removal made the next release a major.
+
+Every claim verified verbatim against src/lib/util/fatal-handlers.js, including that
+BROKEN_PIPE_EXIT_CODE is declared unconditionally -- which is what makes the "141 on Windows too"
+claim true rather than aspirational.
+
+One nuance not published, recorded here instead: the uncaughtException backstop is deliberately
+narrow, and where it misreads a socket failure as a broken pipe the crash dump is lost but the run
+is still reported as failed. That is a design note, not something an administrator acts on.
+-->
+
 # Piping output to `head` or `less` no longer leaves a crash report behind
 
 Looking at the first few lines of a long list is an everyday thing to do:
