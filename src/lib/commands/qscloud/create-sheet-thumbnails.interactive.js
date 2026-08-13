@@ -48,33 +48,6 @@ const ADVANCED_KEYS = [
     'headless',
 ];
 
-/**
- * The connected tenant the pickers list from.
- *
- * Normally the API key's probe stashes this, which is the cheapest place to
- * build it: the connection has just been tested, so reusing it costs nothing.
- * But a key supplied in `.env` or on the command line is never asked about, so
- * its probe never runs - and the pickers would then have no client at all and
- * degrade to "type an id", which is exactly what they exist to avoid.
- *
- * Building it here on demand keeps the pickers working in that case. A bad key
- * still fails, only at the picker rather than at a prompt that was never shown.
- *
- * @param {object} ctx - Wizard context.
- *
- * @returns {object} A connected QlikSaas client.
- */
-const tenantClient = (ctx) => {
-    if (!ctx.clients?.tenant) {
-        ctx.clients = {
-            ...ctx.clients,
-            tenant: new QlikSaas({ url: ctx.answers.tenanturl, token: ctx.answers.apikey }),
-        };
-    }
-
-    return ctx.clients.tenant;
-};
-
 /** Which section each question belongs under, in the order the sections run. */
 const SECTIONS = [
     ['Connection', CONNECTION_KEYS],
@@ -178,7 +151,7 @@ export default {
             when: (ctx) =>
                 ctx.answers[APP_SOURCE] === APP_SOURCES.GROUPED || isSupplied(answers.collectionid),
             choices: async (ctx) => {
-                const collections = await listCollections(tenantClient(ctx));
+                const collections = await listCollections(ctx.clients.tenant);
                 const picked = collections.map((entry) => ({
                     name: labelForCollection(entry),
                     value: entry.id,
@@ -196,7 +169,8 @@ export default {
             },
             probe: resolvesToApps({
                 groupingKey: 'collectionid',
-                resolve: (ctx) => listAppsByCollection(tenantClient(ctx), ctx.answers.collectionid),
+                resolve: (ctx) =>
+                    listAppsByCollection(ctx.clients.tenant, ctx.answers.collectionid),
                 whenEmpty: (value) => `Collection '${value}' holds no apps.`,
                 whenFound: (count, value) =>
                     `${count} app(s) are in collection '${value}' and will be updated.`,
@@ -209,7 +183,7 @@ export default {
             supplied: answers.appid,
             groupingKey: 'collectionid',
             groupingLabel: GROUPING_LABEL,
-            listApps: (ctx) => listApps(tenantClient(ctx)),
+            listApps: (ctx) => listApps(ctx.clients.tenant),
             label: labelForApp,
         });
 
