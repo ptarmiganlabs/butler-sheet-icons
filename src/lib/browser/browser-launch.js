@@ -210,11 +210,20 @@ export const resolveBrowserExecutablePath = async (options) => {
     // the install cannot pick a different build than the cache was searched for.
     const browserInstallResult = await browserInstall(options, undefined, requestedBuildId);
 
-    const executablePath = computeExecutablePath({
-        browser: browserInstallResult.browser,
-        buildId: browserInstallResult.buildId,
-        cacheDir: browserPath,
-    });
+    // The path browserInstall() reports, in preference to deriving one. Deriving it from
+    // `browserPath` assumes the browser ended up in the directory this function would install
+    // into, and that is not guaranteed: browserInstall() returns without downloading when the
+    // build is already staged, and it looks for a staged build through the *reading* resolver,
+    // which still honours the previous default cache location. Recomputing would then name a
+    // path in an empty directory. The fallback keeps older callers and doubles working when the
+    // result carries no path of its own.
+    const executablePath =
+        browserInstallResult.executablePath ??
+        computeExecutablePath({
+            browser: browserInstallResult.browser,
+            buildId: browserInstallResult.buildId,
+            cacheDir: browserPath,
+        });
 
     logger.info(`Browser downloaded successfully`);
 

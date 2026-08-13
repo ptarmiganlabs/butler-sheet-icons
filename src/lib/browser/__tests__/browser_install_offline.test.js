@@ -11,6 +11,10 @@ jest.unstable_mockModule('@puppeteer/browsers', () => ({
     install: jest.fn(),
     resolveBuildId: jest.fn(),
     uninstall: jest.fn(),
+    // Reached through getBrowserInventory(), which browser-install.js consults for an
+    // already-staged build. Empty here: these tests are about failures on the way to a
+    // download, so nothing must short-circuit before them.
+    getInstalledBrowsers: jest.fn().mockResolvedValue([]),
 }));
 const { resolveBuildId } = await import('@puppeteer/browsers');
 
