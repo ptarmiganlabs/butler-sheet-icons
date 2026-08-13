@@ -6,11 +6,12 @@ import { runInteractive } from './index.js';
 import { isInteractiveOption } from './interactive-option.js';
 
 /**
- * The answers a wizard should start from, taken from what was already supplied.
+ * Every option the user actually supplied, with its value and where it came from.
  *
- * This is what makes `-i` compose rather than merely exist:
- * `bsi qseow create-sheet-thumbnails --host sense.acme.com -i` should ask for
- * everything *except* the host.
+ * One definition of "supplied", read once. The two exported maps below are keyed
+ * identically by construction, which matters: the wizard looks a value up in one
+ * and its origin in the other, and a key present in only one would name an option
+ * with no origin - or leave a supplied value unexplained.
  *
  * `getOptionValueSource()` is Commander's own record of where each value came
  * from, so no guessing is involved. Only `cli` and `env` count as supplied - a
@@ -20,10 +21,10 @@ import { isInteractiveOption } from './interactive-option.js';
  *
  * @param {import('commander').Command} command - The parsed command.
  *
- * @returns {object} Answers keyed by option attribute name.
+ * @returns {Array<[string, {value: unknown, source: string}]>} One entry per supplied option.
  */
-export const presetOptionsFrom = (command) => {
-    const presets = {};
+const suppliedEntries = (command) => {
+    const entries = [];
 
     for (const option of command?.options ?? []) {
         // The flag that started the wizard is not an answer to anything, and
@@ -37,12 +38,43 @@ export const presetOptionsFrom = (command) => {
         const source = command.getOptionValueSource(key);
 
         if (source === 'cli' || source === 'env') {
-            presets[key] = command.getOptionValue(key);
+            entries.push([key, { value: command.getOptionValue(key), source }]);
         }
     }
 
-    return presets;
+    return entries;
 };
+
+/**
+ * The answers a wizard should start from, taken from what was already supplied.
+ *
+ * This is what makes `-i` compose rather than merely exist:
+ * `bsi qseow create-sheet-thumbnails --host sense.acme.com -i` should ask for
+ * everything *except* the host.
+ *
+ * @param {import('commander').Command} command - The parsed command.
+ *
+ * @returns {object} Answers keyed by option attribute name.
+ */
+export const presetOptionsFrom = (command) =>
+    Object.fromEntries(suppliedEntries(command).map(([key, { value }]) => [key, value]));
+
+/**
+ * Where each supplied answer came from, `cli` or `env`.
+ *
+ * Read from Commander rather than inferred: `globals.js` loads `.env` into
+ * `process.env`, so testing whether an option's `BSI_*` variable is set cannot
+ * tell a value that came from the file apart from one typed on the command line
+ * that happens to have a stale variable behind it. That is precisely the case an
+ * operator needs named correctly, because it is the one they will otherwise
+ * misdiagnose.
+ *
+ * @param {import('commander').Command} command - The parsed command.
+ *
+ * @returns {object} `cli` or `env` per option attribute name, for supplied options only.
+ */
+export const presetSourcesFrom = (command) =>
+    Object.fromEntries(suppliedEntries(command).map(([key, { source }]) => [key, source]));
 
 /**
  * Run a leaf command's wizard instead of the command itself.
@@ -70,6 +102,7 @@ export const launchInteractive = async (logPrefix, path, command) =>
                 return await runInteractive({
                     path,
                     presetOptions: presetOptionsFrom(command),
+                    presetSources: presetSourcesFrom(command),
                 });
             } catch (err) {
                 if (isPromptCancellation(err)) {

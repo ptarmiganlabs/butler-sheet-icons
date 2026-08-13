@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
-import { presetOptionsFrom } from '../launch.js';
+import { presetOptionsFrom, presetSourcesFrom } from '../launch.js';
 import { addInteractiveOption } from '../interactive-option.js';
 import { buildQseowCommand } from '../../commands/qseow/index.js';
 
@@ -93,5 +93,50 @@ describe('presetOptionsFrom', () => {
 
     test('tolerates being handed no command at all', () => {
         expect(presetOptionsFrom(undefined)).toEqual({});
+    });
+});
+
+describe('presetSourcesFrom', () => {
+    // What lets a failing check name the environment variable behind the value.
+    // Read from Commander rather than inferred, because `.env` is loaded into
+    // process.env: testing whether BSI_* is set cannot tell a value that came
+    // from the file apart from one typed on the command line with a stale
+    // variable behind it - and that is the case an operator most needs named
+    // correctly.
+
+    test('reports a value given on the command line as cli', () => {
+        const sources = presetSourcesFrom(parseQseow(['--host', 'sense.acme.com', '-i']));
+
+        expect(sources.host).toBe('cli');
+    });
+
+    test('reports a value given through a BSI_* variable as env', () => {
+        process.env.BSI_QSEOW_CST_API_USER_DIR = 'INTERNAL';
+
+        const sources = presetSourcesFrom(parseQseow(['-i']));
+
+        expect(sources.apiuserdir).toBe('env');
+    });
+
+    test('the command line wins over a variable that is also set', () => {
+        // The misdiagnosis this exists to prevent: naming the variable when the
+        // value in force came from the command line.
+        process.env.BSI_QSEOW_CST_HOST = 'stale.acme.com';
+
+        const command = parseQseow(['--host', 'sense.acme.com', '-i']);
+
+        expect(presetOptionsFrom(command).host).toBe('sense.acme.com');
+        expect(presetSourcesFrom(command).host).toBe('cli');
+    });
+
+    test('leaves defaults out, so only supplied values are named', () => {
+        const sources = presetSourcesFrom(parseQseow(['-i']));
+
+        expect(sources).not.toHaveProperty('engineport');
+        expect(sources).not.toHaveProperty('contentlibrary');
+    });
+
+    test('tolerates being handed no command at all', () => {
+        expect(presetSourcesFrom(undefined)).toEqual({});
     });
 });

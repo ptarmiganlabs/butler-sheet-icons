@@ -124,6 +124,11 @@ export default {
                     ? {
                           ...spec,
                           needs: ['tenanturl'],
+                          // The connection test proves both: a wrong tenant url
+                          // fails the request outright, a wrong key fails it with
+                          // a 401. So a passing check has confirmed the url as
+                          // surely as the key, and says so.
+                          checks: ['tenanturl', 'apikey'],
                           probe: async (ctx) => {
                               const saas = new QlikSaas({
                                   url: ctx.answers.tenanturl,

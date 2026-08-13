@@ -122,6 +122,13 @@ export default {
                     ? {
                           ...spec,
                           needs: ['certfile'],
+                          // Both paths, because the helper checks both and this
+                          // question only carries the probe by virtue of being
+                          // the second of the pair - it cannot run until the key
+                          // file is known. Reporting only `--certkeyfile` as
+                          // checked hid the fact that `--certfile` had been
+                          // verified just as thoroughly.
+                          checks: ['certfile', 'certkeyfile'],
                           probe: async (ctx) => {
                               const ok = await qseowVerifyCertificatesExist(ctx.answers);
 
@@ -193,6 +200,20 @@ export default {
 
         const contentLibrary = {
             ...byKey.contentlibrary,
+            // What the probe actually reads, and therefore what can be at fault
+            // when it fails. `setupQseowQrsConnection` builds the QRS connection
+            // from exactly these, so when the library is supplied in a `.env`
+            // file and the check fails, these are the other values worth
+            // pointing at - a wrong host fails this check just as surely as a
+            // deleted library does.
+            //
+            // `qrsport` is read too, but it is deliberately absent: it lives in
+            // the Advanced section, which is asked *after* this question, so
+            // declaring it here would fail `assertNeedsAreSatisfiable` - the
+            // ordering graph correctly reporting issue #1047, where this check
+            // reaches QRS with `qrsport` undefined rather than with whatever the
+            // operator is about to set. Add it here as part of fixing that.
+            needs: ['host', 'certfile', 'certkeyfile', 'apiuserdir', 'apiuserid'],
             probe: async (ctx) => {
                 const exists = await qseowVerifyContentLibraryExists(ctx.answers);
 

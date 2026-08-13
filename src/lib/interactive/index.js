@@ -80,6 +80,8 @@ const review = async ({ path, specs, answers, runtime, theme, symbols }) => {
  * @param {object} args - Arguments.
  * @param {string} args.path - Command path, e.g. `browser uninstall`.
  * @param {object} [args.presetOptions] - Answers already known, used as starting values.
+ * @param {object} [args.presetSources] - Where each of those came from, `cli` or `env`, keyed the
+ *     same way. Used to name the environment variable behind a value whose check fails.
  * @param {object} [args.runtime] - Prompt runtime. Injectable for tests.
  * @param {string} [args.cwd] - Directory a saved `.env` is written to. Injectable for tests.
  *
@@ -89,6 +91,7 @@ const review = async ({ path, specs, answers, runtime, theme, symbols }) => {
 export const runInteractive = async ({
     path,
     presetOptions = {},
+    presetSources = {},
     runtime = defaultRuntime,
     cwd = process.cwd(),
 } = {}) => {
@@ -165,14 +168,38 @@ export const runInteractive = async ({
         ...refined.filter((spec) => spec.perRun).map((spec) => spec.key),
     ]);
 
+    // A supplied answer that carries a probe is checked rather than trusted.
+    //
+    // Not asked - it stays a property of the environment, and re-asking it is
+    // the tedium `-i` exists to remove - but the probe is the whole reason the
+    // wizard beats the plain CLI: a content library that no longer exists, a
+    // stale API key or a moved certificate is reported where it can be fixed,
+    // rather than after every other question has been answered and the run
+    // confirmed. Skipping the question was skipping the check with it, which is
+    // exactly the failure probes were added to prevent (issue #975).
+    //
+    // Checked in place rather than in a pass before the first question, because
+    // a probe reads more than its own answer: `qseowVerifyContentLibraryExists`
+    // opens a QRS connection built from the host, the certificates and the
+    // credentials. Run up front, against a `.env` supplying only the library
+    // name, it would fail on a value that is perfectly good. At its own position
+    // in the conversation everything it reads has been answered or supplied.
+    const checkOnly = (spec) =>
+        spec.key in presetOptions && !alwaysAsk.has(spec.key) && Boolean(spec.probe);
+
     // Opened on whatever was supplied, so asking again costs a keystroke rather
     // than a retype. Done here rather than in each wizard: the driver is what
-    // decided to ask, so it is what owes the pre-fill.
+    // decided to ask, so it is what owes the pre-fill. A checked question gets
+    // it too - if its check fails it becomes a real question, and it should open
+    // on the value being complained about.
     const asked = refined
-        .filter((spec) => !(spec.key in presetOptions) || alwaysAsk.has(spec.key))
+        .filter(
+            (spec) => !(spec.key in presetOptions) || alwaysAsk.has(spec.key) || checkOnly(spec)
+        )
         .map((spec) =>
             spec.key in presetOptions ? openingOn(spec, presetOptions[spec.key]) : spec
-        );
+        )
+        .map((spec) => (checkOnly(spec) ? { ...spec, checkOnly: true } : spec));
 
     // Named by flag rather than by storage key, because the flag is what the
     // user typed. Secrets are named but never shown.
@@ -180,6 +207,27 @@ export const runInteractive = async ({
     const supplied = specs.filter((spec) => spec.key in presetOptions);
     const prefilled = supplied.filter((spec) => !alwaysAsk.has(spec.key)).map(nameOf);
     const overridden = supplied.filter((spec) => alwaysAsk.has(spec.key)).map(nameOf);
+
+    // What a failing check needs in order to be actionable: the flag the user
+    // typed, and where the value came from. Naming the environment variable
+    // matters more than naming the flag here - the value is usually in a `.env`
+    // file the operator has not looked at in months, and "which of my settings
+    // is this?" is the question they are about to ask.
+    //
+    // Only the values that were not asked about, because those are the ones the
+    // operator has not just seen on screen.
+    const suppliedInfo = Object.fromEntries(
+        supplied
+            .filter((spec) => !alwaysAsk.has(spec.key))
+            .map((spec) => [
+                spec.key,
+                {
+                    flag: nameOf(spec),
+                    source: presetSources[spec.key],
+                    envVar: spec.option?.envVar,
+                },
+            ])
+    );
 
     // Said once, up front. There is no way back to a previous question - the
     // prompt library has no such gesture - so the two things a user can do
@@ -210,7 +258,7 @@ export const runInteractive = async ({
             // Seeded with what is already known, so a later `when` or `choices`
             // sees the pre-filled answers as well as the typed ones.
             asked,
-            { symbols, theme, answers: { ...presetOptions } },
+            { symbols, theme, answers: { ...presetOptions }, supplied: suppliedInfo },
             { runtime }
         );
         const answers = {

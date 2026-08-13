@@ -114,6 +114,39 @@ butler-sheet-icons qseow create-sheet-thumbnails --host sense.acme.com -i
 
 Confirming one costs a single keystroke, because the question opens on the value that was already there.
 
+### Skipped does not mean unchecked
+
+A skipped option is still **verified against your server**. Not asking you about it does not mean trusting it: an API key can be revoked, a content library deleted, a certificate moved, long after the `.env` file that names them was written.
+
+The check happens at the point in the conversation where the question would have been asked, and says so:
+
+```
+── Connection ────────────────────────────────────
+
+  ✓ --certfile (from BSI_QSEOW_CST_CERT_FILE) checked
+  ✓ --certkeyfile (from BSI_QSEOW_CST_CERTKEY_FILE) checked
+
+── Sheets ────────────────────────────────────────
+
+  ✓ --contentlibrary (from BSI_QSEOW_CST_CONTENT_LIBRARY) checked
+```
+
+That line is also why the wizard pauses for a moment there — it is contacting your server.
+
+**One check often covers several options**, and each gets its own line. The certificate check needs both paths, so it cannot run until you have given the second one — but it verifies both, and says so. On Qlik Sense Cloud the connection test does the same for `--tenanturl` and `--apikey`: a wrong tenant URL fails it as surely as a revoked key does.
+
+If the check fails, the wizard names the option, the environment variable the value came from, and what is wrong. It then asks you the question after all, opening on the value that failed, so correcting it is an edit rather than a retype:
+
+```
+  ✗ --contentlibrary (from BSI_QSEOW_CST_CONTENT_LIBRARY):
+    Content library 'Deleted last year' does not exist on sense.acme.com.
+    This check also uses these values you supplied: --host, --certfile.
+```
+
+That last line matters when the value being complained about is not the one at fault. A wrong `--host` in the same `.env` file makes the content library check fail too, and no amount of retyping the library name will fix it — press **Ctrl+C**, correct the file, and start again. Only the values this particular check reads are listed, so the line stays short even when your `.env` file sets everything.
+
+Without this, a stale `.env` file failed only once the run had started: on QSEoW, a missing content library aborts after every screenshot has already been taken.
+
 ### What that looks like for app selection
 
 You get the full list of apps from the server, and **the ones you supplied are listed first and already ticked**:
