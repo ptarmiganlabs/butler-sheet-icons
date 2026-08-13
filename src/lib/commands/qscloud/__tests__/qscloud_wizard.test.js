@@ -118,7 +118,7 @@ describe('the connection probe', () => {
 });
 
 describe('an API key supplied before the wizard starts', () => {
-    // Issue #975, the Cloud half. A key is a property of the environment, so it
+    // Issue #897, the Cloud half. A key is a property of the environment, so it
     // stays answered once supplied - but skipping the question was skipping the
     // connection test with it, and a key revoked since the .env file was written
     // failed only once the run started.

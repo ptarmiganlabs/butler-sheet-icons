@@ -126,7 +126,7 @@ describe('the content library probe', () => {
 });
 
 describe('a value supplied before the wizard starts, carrying a probe', () => {
-    // Issue #975. A content library or a certificate path is a property of the
+    // Issue #897. A content library or a certificate path is a property of the
     // environment, so it stays answered once supplied - but skipping the question
     // was skipping its check with it, and a `.env` naming a library that has since
     // been deleted failed only after every other question had been answered.

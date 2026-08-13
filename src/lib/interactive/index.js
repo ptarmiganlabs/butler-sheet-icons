@@ -176,7 +176,7 @@ export const runInteractive = async ({
     // stale API key or a moved certificate is reported where it can be fixed,
     // rather than after every other question has been answered and the run
     // confirmed. Skipping the question was skipping the check with it, which is
-    // exactly the failure probes were added to prevent (issue #975).
+    // exactly the failure probes were added to prevent (issue #897).
     //
     // Checked in place rather than in a pass before the first question, because
     // a probe reads more than its own answer: `qseowVerifyContentLibraryExists`
