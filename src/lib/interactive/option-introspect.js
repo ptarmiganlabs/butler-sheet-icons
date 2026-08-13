@@ -22,6 +22,12 @@ const SECRET_KEYS = new Set(BSI_SECRET_KEYS.map((key) => key.toLowerCase()));
  * @property {QuestionSpec} [fallback] - Used when an async `choices` throws.
  * @property {string[]} [replaces] - Real option keys a synthetic question collects between them, so
  *     the wizard knows a value supplied for one of them is asked about rather than skipped.
+ * @property {boolean} [checkOnly] - Set by the driver on a question whose answer was already
+ *     supplied but which carries a `probe`. The probe runs where the question would have been
+ *     asked; only if it fails is the question put to the user after all.
+ * @property {string[]} [checks] - Option keys this question's `probe` verifies, when it covers more
+ *     than its own. A probe needing two answers hangs off the second of them, so the question it is
+ *     attached to is not the whole of what it checks. Defaults to `[key]`.
  * @property {import('commander').Option} [option] - The option this was derived from.
  */
 

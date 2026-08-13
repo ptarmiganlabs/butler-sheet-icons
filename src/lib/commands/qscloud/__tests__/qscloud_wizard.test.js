@@ -117,6 +117,193 @@ describe('the connection probe', () => {
     });
 });
 
+describe('an API key supplied before the wizard starts', () => {
+    // Issue #897, the Cloud half. A key is a property of the environment, so it
+    // stays answered once supplied - but skipping the question was skipping the
+    // connection test with it, and a key revoked since the .env file was written
+    // failed only once the run started.
+
+    /**
+     * What a run needs when the API key is supplied rather than asked for.
+     *
+     * @param {object} [overrides] - Answers to replace or add.
+     *
+     * @returns {object} Answers for the scripted runtime, with no API key queued.
+     */
+    const withoutKey = (overrides = {}) => {
+        const answers = baseAnswers(overrides);
+        delete answers.apikey;
+
+        return answers;
+    };
+
+    test('is tested rather than trusted, without being asked about', async () => {
+        const runtime = scriptedRuntime(withoutKey());
+
+        await runInteractive({ path: PATH, presetOptions: { apikey: 'from-dot-env' }, runtime });
+
+        expect(qscloudTestConnection).toHaveBeenCalledTimes(1);
+        expect(runtime.asked.map((a) => a.key)).not.toContain('apikey');
+    });
+
+    test('still leaves the pickers a connected tenant to list from', async () => {
+        // The probe is what stashes the client. This is what makes the lazy
+        // `tenantClient` helper the app-selection work needed unnecessary: with
+        // the key checked, the pickers have a client the ordinary way.
+        const runtime = scriptedRuntime(withoutKey());
+
+        await runInteractive({ path: PATH, presetOptions: { apikey: 'from-dot-env' }, runtime });
+
+        const picker = runtime.asked.find((a) => a.key === 'appid');
+
+        expect(listApps).toHaveBeenCalledTimes(1);
+        expect(picker.choices.map((choice) => choice.value)).toEqual(['app-a', 'app-b']);
+    });
+
+    test('becomes a question, opening on the supplied key, when the tenant rejects it', async () => {
+        qscloudTestConnection
+            .mockRejectedValueOnce(new Error('401 Unauthorized'))
+            .mockResolvedValue({ user: 'someone' });
+
+        // The promoted question needs an answer queued: it is asked after all.
+        const runtime = scriptedRuntime(baseAnswers());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { apikey: 'revoked-key' },
+            presetSources: { apikey: 'env' },
+            runtime,
+        });
+
+        const asked = runtime.asked.filter((a) => a.key === 'apikey');
+
+        expect(asked).toHaveLength(1);
+        expect(asked[0].default).toBe('revoked-key');
+        expect(runtime.output()).toContain('--apikey (from BSI_QSCLOUD_CST_APIKEY)');
+        expect(runtime.output()).toContain('401 Unauthorized');
+    });
+
+    test('says so when the check passes, so a pause on the network is explained', async () => {
+        const runtime = scriptedRuntime(withoutKey());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { apikey: 'from-dot-env' },
+            presetSources: { apikey: 'env' },
+            runtime,
+        });
+
+        expect(runtime.output()).toContain('--apikey (from BSI_QSCLOUD_CST_APIKEY) checked');
+    });
+
+    test('is tested before the first question when the tenant url was supplied too', async () => {
+        // The QSEoW twin of checking a supplied content library up front: with
+        // both halves of the connection in .env, a revoked key is reported before
+        // the operator answers anything.
+        let askedWhenProbed;
+        qscloudTestConnection.mockImplementation(async () => {
+            askedWhenProbed = runtime.asked.map((entry) => entry.key);
+
+            return { user: 'someone' };
+        });
+
+        const answers = baseAnswers();
+        delete answers.tenanturl;
+        delete answers.apikey;
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { tenanturl: 'acme.eu.qlikcloud.com', apikey: 'from-dot-env' },
+            runtime,
+        });
+
+        expect(askedWhenProbed).toEqual([]);
+        expect(runtime.output()).toContain('Checking what you supplied');
+    });
+
+    test('is tested in place when the tenant url still has to be asked', async () => {
+        let askedWhenProbed;
+        qscloudTestConnection.mockImplementation(async () => {
+            askedWhenProbed = runtime.asked.map((entry) => entry.key);
+
+            return { user: 'someone' };
+        });
+
+        const runtime = scriptedRuntime(withoutKey());
+
+        await runInteractive({ path: PATH, presetOptions: { apikey: 'from-dot-env' }, runtime });
+
+        expect(askedWhenProbed).toContain('tenanturl');
+        expect(runtime.output()).not.toContain('Checking what you supplied');
+    });
+
+    test('reports the tenant url as well as the key, on a line each', async () => {
+        // The QSEoW twin of the certificate pair: the connection test proves the
+        // url as surely as the key, so a passing check says both.
+        const answers = baseAnswers();
+        delete answers.tenanturl;
+        delete answers.apikey;
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { tenanturl: 'acme.eu.qlikcloud.com', apikey: 'from-dot-env' },
+            presetSources: { tenanturl: 'env', apikey: 'env' },
+            runtime,
+        });
+
+        const lines = runtime
+            .output()
+            .split('\n')
+            .filter((text) => text.includes(' checked'));
+
+        expect(lines).toHaveLength(2);
+        expect(lines[0]).toContain('--tenanturl (from BSI_QSCLOUD_CST_TENANTURL) checked');
+        expect(lines[1]).toContain('--apikey (from BSI_QSCLOUD_CST_APIKEY) checked');
+    });
+
+    test('names the other values the check reads, because one may be the real cause', async () => {
+        // The QSEoW twin of this: a wrong tenant URL fails the key check just as
+        // a revoked key does, and re-typing the key can never fix it.
+        qscloudTestConnection
+            .mockRejectedValueOnce(new Error('401 Unauthorized'))
+            .mockResolvedValue({ user: 'someone' });
+
+        const answers = baseAnswers();
+        delete answers.tenanturl;
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { apikey: 'revoked-key', tenanturl: 'wrong.eu.qlikcloud.com' },
+            runtime,
+        });
+
+        expect(runtime.output()).toContain('This check also uses these values you supplied');
+        expect(runtime.output()).toContain('--tenanturl');
+    });
+
+    test('the corrected answer is what the run uses', async () => {
+        qscloudTestConnection
+            .mockRejectedValueOnce(new Error('401 Unauthorized'))
+            .mockResolvedValue({ user: 'someone' });
+
+        const runtime = scriptedRuntime(baseAnswers({ _review: 'run' }));
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { apikey: 'revoked-key' },
+            runtime,
+        });
+
+        expect(qscloudCreateThumbnails.mock.calls[0][0].apikey).toBe('a-real-key');
+    });
+});
+
 describe('choosing which apps to update', () => {
     test('offers the apps the tenant actually has', async () => {
         const runtime = scriptedRuntime(baseAnswers());

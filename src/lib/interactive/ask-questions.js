@@ -116,6 +116,110 @@ const runProbe = async (spec, ctx) => {
     }
 };
 
+/**
+ * Name a supplied value the way the operator will recognise it.
+ *
+ * The environment variable rather than the flag whenever the value came from one,
+ * because that is what has to be edited to fix it - and the file it lives in is
+ * usually one nobody has opened in months.
+ *
+ * @param {object} [info] - What the driver recorded about a supplied value.
+ *
+ * @returns {string} The flag, and where the value came from when that is known.
+ */
+const describeSupplied = (info) => {
+    if (!info) {
+        return '';
+    }
+
+    if (info.source === 'env' && info.envVar) {
+        return `${info.flag} (from ${info.envVar})`;
+    }
+
+    return info.source === 'cli' ? `${info.flag} (from the command line)` : info.flag;
+};
+
+/**
+ * Report the supplied values a check has just confirmed.
+ *
+ * One line each, because a probe often covers more than the question it hangs
+ * off: `qseowVerifyCertificatesExist` needs both certificate paths, so it cannot
+ * run until the second one is known and is therefore attached to `certkeyfile` -
+ * but it checks `certfile` just as thoroughly, and a single line naming only the
+ * key file under-reports what was verified. A spec says what it covers with
+ * `checks`; the default is the question's own key.
+ *
+ * Only the covered options that were actually supplied are named. One that was
+ * answered on screen a moment ago needs no confirmation that it exists - the
+ * operator just typed it - and this report is about the values they were not
+ * asked about.
+ *
+ * @param {import('./option-introspect.js').QuestionSpec} spec - The question that was checked.
+ * @param {object} ctx - Wizard context, carrying what the driver recorded about supplied values.
+ *
+ * @returns {string} The lines to write.
+ */
+const describePassedCheck = (spec, ctx) => {
+    const info = ctx.supplied ?? {};
+    const covered = (spec.checks ?? [spec.key]).filter((key) => key in info);
+    const named = covered.length > 0 ? covered : [spec.key];
+
+    return named
+        .map((key) => `  ${ctx.symbols.done} ${describeSupplied(info[key]) || key} checked\n`)
+        .join('');
+};
+
+/**
+ * Report a supplied value that failed its check.
+ *
+ * Names the other values the check reads, when those were supplied rather than
+ * asked about, because the real culprit is often one of them: a wrong `--host`
+ * is what makes the content library check fail, and re-typing the library name
+ * can never fix it. Without this line the only clue is a message about a value
+ * that is perfectly correct.
+ *
+ * Taken from the question's declared `needs` rather than from everything that
+ * was supplied. Naming all of them was the first attempt, and on the `.env`
+ * workflow this feature exists for that is two dozen flags wrapped over several
+ * rows, pushing the actual error off screen - a list that narrows nothing is
+ * worse than no list.
+ *
+ * @param {import('./option-introspect.js').QuestionSpec} spec - The question that was checked.
+ * @param {string} failure - The probe's message.
+ * @param {object} ctx - Wizard context, carrying what the driver recorded about supplied values.
+ *
+ * @returns {string} The block to write.
+ */
+const describeFailedCheck = (spec, failure, ctx) => {
+    const info = ctx.supplied ?? {};
+    const others = (spec.needs ?? []).filter((key) => key in info).map((key) => info[key].flag);
+
+    // `theme.style.error` supplies the ✗ itself, so the heading carries it and
+    // the two lines below are left plain - three of them in a row reads as three
+    // separate failures rather than as one explained.
+    const lines = [
+        `  ${ctx.theme.style.error(`${describeSupplied(info[spec.key]) || spec.key}:`)}`,
+        `    ${failure}`,
+    ];
+
+    if (others.length > 0) {
+        // Nothing is said when none of them were supplied: everything this check
+        // reads was then answered on screen a moment ago, so there is no unseen
+        // value to point at.
+        //
+        // "Uses", not "any of them could be the real cause". Measured against a
+        // live QRS: it answers 200 to a `/contentlibrary` GET carrying a
+        // nonsense `X-Qlik-User`, so `apiuserdir` and `apiuserid` are read by
+        // this check but cannot be what failed it. Naming them as suspects would
+        // send an operator to edit values that are fine.
+        lines.push(
+            `    ${ctx.theme.style.help(`This check also uses these values you supplied: ${others.join(', ')}.`)}`
+        );
+    }
+
+    return `${lines.join('\n')}\n`;
+};
+
 // The text shown for a choice, which may be a bare value or a {name, value}.
 const labelOf = (choice) =>
     typeof choice === 'object' && choice !== null ? choice.name : String(choice);
@@ -278,6 +382,31 @@ export const askQuestions = async (specs, ctx = {}, { runtime = defaultRuntime }
             currentGroup = spec.group;
             const rule = symbols.rule.repeat(Math.max(3, 46 - spec.group.length));
             runtime.write(`\n${symbols.rule.repeat(2)} ${spec.group} ${rule}\n`);
+        }
+
+        // Already answered, so check the answer instead of asking for it. The
+        // value is in `answers` already - the driver seeds them from what was
+        // supplied - so the probe has everything it needs.
+        if (spec.checkOnly) {
+            runtime.write('\n');
+
+            const failure = await runProbe(spec, context);
+
+            if (!failure) {
+                // Said out loud rather than passed over in silence. A probe
+                // reaches the network, so the wizard pauses here; without a line
+                // the pause has no explanation, and the operator has no way to
+                // tell a check that passed from one that never ran.
+                runtime.write(describePassedCheck(spec, context));
+
+                continue;
+            }
+
+            // Fall through and ask it after all. A value that cannot be used is
+            // worth one question however it arrived, and the spec is already
+            // opened on the supplied value, so correcting it is an edit rather
+            // than a retype. From here it behaves as any other question does.
+            runtime.write(describeFailedCheck(spec, failure, context));
         }
 
         const { choices, spec: asked } = await resolveChoices(spec, context);

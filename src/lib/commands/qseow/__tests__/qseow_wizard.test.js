@@ -125,6 +125,326 @@ describe('the content library probe', () => {
     });
 });
 
+describe('a value supplied before the wizard starts, carrying a probe', () => {
+    // Issue #897. A content library or a certificate path is a property of the
+    // environment, so it stays answered once supplied - but skipping the question
+    // was skipping its check with it, and a `.env` naming a library that has since
+    // been deleted failed only after every other question had been answered.
+
+    /**
+     * What a run needs when the content library is supplied rather than asked for.
+     *
+     * @param {object} [overrides] - Answers to replace or add.
+     *
+     * @returns {object} Answers for the scripted runtime, with no content library queued.
+     */
+    const withoutLibrary = (overrides = {}) => {
+        const answers = baseAnswers(overrides);
+        delete answers.contentlibrary;
+
+        return answers;
+    };
+
+    test('is checked rather than trusted, without being asked about', async () => {
+        const runtime = scriptedRuntime(withoutLibrary());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { contentlibrary: 'From dot env' },
+            runtime,
+        });
+
+        expect(qseowVerifyContentLibraryExists).toHaveBeenCalledTimes(1);
+        expect(runtime.asked.map((a) => a.key)).not.toContain('contentlibrary');
+    });
+
+    test('is checked before the first question when its inputs were supplied too', async () => {
+        // The saved-.env case: everything the QRS connection needs is in the
+        // file, so a library that no longer exists can be reported before the
+        // operator answers anything - rather than after the app picker has
+        // fetched and listed several hundred apps.
+        let askedWhenProbed;
+        qseowVerifyContentLibraryExists.mockImplementation(async () => {
+            askedWhenProbed = runtime.asked.map((entry) => entry.key);
+
+            return true;
+        });
+
+        const answers = baseAnswers();
+        const preset = {};
+        for (const key of [
+            'host',
+            'certfile',
+            'certkeyfile',
+            'apiuserdir',
+            'apiuserid',
+            'contentlibrary',
+        ]) {
+            preset[key] = answers[key];
+            delete answers[key];
+        }
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({ path: PATH, presetOptions: preset, runtime });
+
+        expect(askedWhenProbed).toEqual([]);
+        expect(runtime.output()).toContain('Checking what you supplied');
+    });
+
+    test('is checked in place when one of its inputs still has to be asked', async () => {
+        // The objection that ruled out an unconditional up-front pass: this probe
+        // opens a QRS connection built from the host, so with the host still to
+        // come it has to wait for its own position in the conversation.
+        let askedWhenProbed;
+        qseowVerifyContentLibraryExists.mockImplementation(async () => {
+            askedWhenProbed = runtime.asked.map((entry) => entry.key);
+
+            return true;
+        });
+
+        const runtime = scriptedRuntime(withoutLibrary());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { contentlibrary: 'From dot env' },
+            runtime,
+        });
+
+        expect(askedWhenProbed).toContain('host');
+        expect(runtime.output()).not.toContain('Checking what you supplied');
+    });
+
+    test('is checked only once everything the check reads has been answered', async () => {
+        // The reason the check happens here rather than in a pass before the
+        // first question: this probe opens a QRS connection built from the host,
+        // the certificates and the credentials, none of which a .env supplying
+        // only the library name has provided.
+        const runtime = scriptedRuntime(withoutLibrary());
+
+        // Snapshotted at call time, not read from `mock.calls` afterwards: the
+        // driver hands the probe the live answers object and keeps filling it in,
+        // so inspecting it after the run shows every later answer too - and the
+        // assertion would hold even if these had been answered afterwards, which
+        // is the one thing this test exists to rule out.
+        let seenByProbe;
+        qseowVerifyContentLibraryExists.mockImplementation(async (options) => {
+            seenByProbe = { ...options };
+
+            return true;
+        });
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { contentlibrary: 'From dot env' },
+            runtime,
+        });
+
+        expect(seenByProbe.contentlibrary).toBe('From dot env');
+        expect(seenByProbe.host).toBe('sense.acme.com');
+        expect(seenByProbe.logonpwd).toBe('a-password');
+    });
+
+    test('says so when the check passes, so a pause on the network is explained', async () => {
+        const runtime = scriptedRuntime(withoutLibrary());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { contentlibrary: 'From dot env' },
+            runtime,
+        });
+
+        // One string, not two `toContain`s: '--contentlibrary' appears in the
+        // opening banner as well, so asserting the two halves separately would
+        // pass even if the confirmation named a different option.
+        expect(runtime.output()).toContain('--contentlibrary checked');
+    });
+
+    test('becomes a question, opening on the supplied value, when the check fails', async () => {
+        qseowVerifyContentLibraryExists.mockResolvedValueOnce(false).mockResolvedValue(true);
+
+        // The promoted question needs an answer queued: it is asked after all.
+        const runtime = scriptedRuntime(baseAnswers());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { contentlibrary: 'Deleted last year' },
+            runtime,
+        });
+
+        const asked = runtime.asked.filter((a) => a.key === 'contentlibrary');
+
+        expect(asked).toHaveLength(1);
+        // Opened on what was supplied, so correcting it is an edit not a retype.
+        expect(asked[0].default).toBe('Deleted last year');
+        expect(qseowCreateThumbnails).not.toHaveBeenCalled();
+    });
+
+    test('the corrected answer is what the run uses', async () => {
+        qseowVerifyContentLibraryExists.mockResolvedValueOnce(false).mockResolvedValue(true);
+
+        const runtime = scriptedRuntime(
+            baseAnswers({ contentlibrary: 'Butler sheet thumbnails', _review: 'run' })
+        );
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { contentlibrary: 'Deleted last year' },
+            runtime,
+        });
+
+        expect(qseowCreateThumbnails.mock.calls[0][0].contentlibrary).toBe(
+            'Butler sheet thumbnails'
+        );
+    });
+
+    test('names the option and the environment variable the value came from', async () => {
+        // The value is usually in a .env file nobody has opened in months, so
+        // naming the variable is what makes the failure actionable.
+        qseowVerifyContentLibraryExists.mockResolvedValueOnce(false).mockResolvedValue(true);
+
+        // The promoted question needs an answer queued: it is asked after all.
+        const runtime = scriptedRuntime(baseAnswers());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { contentlibrary: 'Deleted last year' },
+            presetSources: { contentlibrary: 'env' },
+            runtime,
+        });
+
+        const output = runtime.output();
+
+        expect(output).toContain('--contentlibrary (from BSI_QSEOW_CST_CONTENT_LIBRARY)');
+        expect(output).toContain("Content library 'Deleted last year' does not exist");
+    });
+
+    test('names the other values the check reads, because one may be the real cause', async () => {
+        // A wrong --host is what makes this check fail, and re-typing the library
+        // name can never fix it. Without this line the only clue is a message
+        // about a value that is perfectly correct.
+        qseowVerifyContentLibraryExists.mockResolvedValueOnce(false).mockResolvedValue(true);
+
+        const answers = baseAnswers();
+        delete answers.host;
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { contentlibrary: 'Deleted last year', host: 'wrong.acme.com' },
+            runtime,
+        });
+
+        expect(runtime.output()).toContain('This check also uses these values you supplied');
+        expect(runtime.output()).toContain('--host');
+    });
+
+    test('names only what the check reads, not everything the .env file supplied', async () => {
+        // The list exists to narrow the search. Naming every supplied option is
+        // two dozen flags on the .env workflow this feature is for, which pushes
+        // the actual error off screen and narrows nothing.
+        qseowVerifyContentLibraryExists.mockResolvedValueOnce(false).mockResolvedValue(true);
+
+        const answers = baseAnswers();
+        delete answers.host;
+        delete answers.logonuserid;
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: {
+                contentlibrary: 'Deleted last year',
+                host: 'wrong.acme.com',
+                // Supplied, but nothing the content library check reads.
+                logonuserid: 'goran',
+            },
+            runtime,
+        });
+
+        const line = runtime
+            .output()
+            .split('\n')
+            .find((text) => text.includes('This check also uses'));
+
+        expect(line).toContain('--host');
+        expect(line).not.toContain('--logonuserid');
+    });
+
+    test('reports both certificate files, on a line each', async () => {
+        // The probe hangs off --certkeyfile only because it is the second of the
+        // pair and cannot run before both paths are known. It checks --certfile
+        // just as thoroughly, and naming only the key file hid that.
+        const answers = baseAnswers();
+        delete answers.certfile;
+        delete answers.certkeyfile;
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: {
+                certfile: '/certs/client.pem',
+                certkeyfile: '/certs/client_key.pem',
+            },
+            presetSources: { certfile: 'env', certkeyfile: 'env' },
+            runtime,
+        });
+
+        const lines = runtime
+            .output()
+            .split('\n')
+            .filter((text) => text.includes(' checked'));
+
+        expect(lines).toHaveLength(2);
+        expect(lines[0]).toContain('--certfile (from BSI_QSEOW_CST_CERT_FILE) checked');
+        expect(lines[1]).toContain('--certkeyfile (from BSI_QSEOW_CST_CERTKEY_FILE) checked');
+    });
+
+    test('reports only the covered options that were supplied', async () => {
+        // --certfile was typed on screen a moment ago, so confirming it exists
+        // tells the operator nothing they did not just do themselves.
+        const answers = baseAnswers();
+        delete answers.certkeyfile;
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { certkeyfile: '/certs/client_key.pem' },
+            runtime,
+        });
+
+        const lines = runtime
+            .output()
+            .split('\n')
+            .filter((text) => text.includes(' checked'));
+
+        expect(lines).toHaveLength(1);
+        expect(lines[0]).toContain('--certkeyfile checked');
+    });
+
+    test('checks the certificates supplied for it too', async () => {
+        // The other probe on this wizard, and a local one rather than a network
+        // one - the twin cases have to behave the same way.
+        qseowVerifyCertificatesExist.mockResolvedValueOnce(false).mockResolvedValue(true);
+
+        const answers = baseAnswers({ certkeyfile: './cert/client_key.pem' });
+
+        const runtime = scriptedRuntime(answers);
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { certkeyfile: './moved/client_key.pem' },
+            runtime,
+        });
+
+        expect(qseowVerifyCertificatesExist).toHaveBeenCalled();
+        expect(runtime.output()).toContain('Certificate file(s) not found');
+    });
+});
+
 describe('choosing which apps to update', () => {
     test('offers every app on the server', async () => {
         const runtime = scriptedRuntime(baseAnswers());
