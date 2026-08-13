@@ -92,8 +92,17 @@ describe('codeCell', () => {
 });
 
 describe('formatDefault', () => {
-    test('reports a mandatory option as required rather than as having no default', () => {
+    test('reports a mandatory option with no default as required', () => {
         expect(formatDefault({ mandatory: true, defaultValue: undefined })).toBe('**Required**');
+    });
+
+    // `.default(x).makeOptionMandatory()` is the shape of thirteen options on
+    // `qseow create-sheet-thumbnails`. Commander satisfies the mandatory check from the default,
+    // so the flag can be omitted - reporting it as required both overstates what the
+    // administrator must supply and hides the value they came to look up.
+    test('shows the default of a mandatory option that has one', () => {
+        expect(formatDefault({ mandatory: true, defaultValue: '4242' })).toBe('`4242`');
+        expect(formatDefault({ mandatory: true, defaultValue: true })).toBe('`true`');
     });
 
     test('renders a missing default as a dash', () => {
@@ -103,6 +112,10 @@ describe('formatDefault', () => {
     test('renders a scalar default as a code span', () => {
         expect(formatDefault({ mandatory: false, defaultValue: 'info' })).toBe('`info`');
         expect(formatDefault({ mandatory: false, defaultValue: false })).toBe('`false`');
+    });
+
+    test('renders an empty-string default visibly rather than as a blank code span', () => {
+        expect(formatDefault({ mandatory: false, defaultValue: '' })).toBe('`""`');
     });
 
     test('joins an array default, and treats an empty array as no default', () => {
