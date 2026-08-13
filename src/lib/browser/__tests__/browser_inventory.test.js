@@ -28,7 +28,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
     isSea: false,
 }));
 
-const { getBrowserInventory } = await import('../browser-inventory.js');
+const { getBrowserInventory, canRunOnHost } = await import('../browser-inventory.js');
 const { redactValue } = await import('../../util/redact-secrets.js');
 
 /**
@@ -127,6 +127,7 @@ describe('getBrowserInventory', () => {
             executablePath:
                 '/home/tester/.cache/puppeteer/chrome/mac_arm-151.0.7922.77/chrome-mac-arm64/chrome',
             isCurrentPlatform: true,
+            canRunHere: true,
         });
     });
 
@@ -190,11 +191,52 @@ describe('isCurrentPlatform', () => {
         expect(entry.isCurrentPlatform).toBe(true);
     });
 
+    test('is false for a build the host can run but was not built for', async () => {
+        // The narrower of the two fields on purpose: `browser uninstall` picks between several
+        // builds sharing an id and wants the exact host build, not merely a runnable one.
+        detectBrowserPlatform.mockReturnValue('win64');
+        getInstalledBrowsers.mockResolvedValue([fakeBuild({ platform: 'win32' })]);
+
+        const [entry] = await getBrowserInventory();
+
+        expect(entry.isCurrentPlatform).toBe(false);
+        expect(entry.canRunHere).toBe(true);
+    });
+
     test('detects the host platform once, not once per build', async () => {
         getInstalledBrowsers.mockResolvedValue([fakeBuild(), fakeBuild(), fakeBuild()]);
 
         await getBrowserInventory();
 
         expect(detectBrowserPlatform).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('canRunOnHost', () => {
+    test.each([
+        ['win64', 'win64', true],
+        // WOW64: 64-bit Windows runs 32-bit builds. detectBrowserPlatform() also reports win64
+        // for Windows 11 on ARM, which emulates x64, so this covers that host too.
+        ['win64', 'win32', true],
+        // Not the other way round: a 32-bit Windows host cannot run a 64-bit build.
+        ['win32', 'win64', false],
+        ['mac_arm', 'mac_arm', true],
+        // Rosetta 2.
+        ['mac_arm', 'mac', true],
+        ['mac', 'mac_arm', false],
+        ['linux', 'linux', true],
+        ['linux', 'linux_arm', false],
+        ['linux_arm', 'linux', false],
+        ['win64', 'mac_arm', false],
+        ['mac_arm', 'win64', false],
+        ['linux', 'win64', false],
+    ])('host %s running a %s build -> %s', (host, build, expected) => {
+        expect(canRunOnHost(host, build)).toBe(expected);
+    });
+
+    test('treats every build as runnable when the host platform is unknown', () => {
+        // Absence of evidence that a build is foreign is not evidence that it is.
+        expect(canRunOnHost(undefined, 'win64')).toBe(true);
+        expect(canRunOnHost('', 'linux_arm')).toBe(true);
     });
 });

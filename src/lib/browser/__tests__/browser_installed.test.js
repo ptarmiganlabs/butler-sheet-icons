@@ -74,7 +74,7 @@ afterEach(() => {
 describe('browserInstalled', () => {
     test('returns the installed builds as plain data', async () => {
         await expect(browserInstalled({ loglevel: 'info' })).resolves.toEqual([
-            { ...INSTALLED[0], isCurrentPlatform: true },
+            { ...INSTALLED[0], isCurrentPlatform: true, canRunHere: true },
         ]);
     });
 
