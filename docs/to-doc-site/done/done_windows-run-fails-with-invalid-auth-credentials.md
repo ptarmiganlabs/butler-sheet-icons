@@ -1,3 +1,28 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PRs
+ptarmiganlabs/butler-sheet-icons-docs#85 and #86, as a section in guide/troubleshooting.md.
+
+VERSION: the draft's "For the publisher" note says 4.2.0 throughout. The release is 5.0.0 -- the
+Firefox removal made it a major. The draft told the publisher to re-check, and was right to. All
+three version-dependent details were published as 5.0.0.
+
+Only two of the draft's three version-dependent items belong on this page. The third -- the
+spurious "closed from the other end, code 1000" warning on 4.1.0 -- went with the lost-connection
+material instead.
+
+Wording: the User-Agent decision diagram first labelled its branches "Macintosh, X11". Those are
+User-Agent substrings, not platform names; #86 changed them to "macOS, Linux" and "Windows". The
+TABLE still quotes `Macintosh; Intel Mac OS X` verbatim and must -- that column is what the header
+contains, and it is what the curl check tells the reader to send.
+
+No screenshot was published; an HTML comment marks where the QMC one would go.
+
+VERIFYING A MERMAID CHANGE ON THE LIVE SITE: grepping the page HTML does not work. VitePress emits
+<div class="mermaid"></div> empty and URL-encodes the diagram source into an assets/*.js chunk.
+Fetch the page, extract the assets/guide_*.md.*.js reference, fetch that, and grep for the encoded
+label (e.g. macOS%2C%20Linux).
+-->
+
 # QSEoW run fails on Windows with `ERR_INVALID_AUTH_CREDENTIALS`
 
 A run that works from macOS or Linux can fail from Windows with an authentication error, using the
