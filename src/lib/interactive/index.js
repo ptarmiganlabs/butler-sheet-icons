@@ -10,6 +10,7 @@ import { getSymbols } from './symbols.js';
 import { loadWizard } from './registry.js';
 import { formatReviewTable } from './review-table.js';
 import { saveEnvFile, ENV_FILE } from './save-env-file.js';
+import { openingOn } from './spec-ops.js';
 
 /** What the review step can decide. */
 const REVIEW_CHOICES = [
@@ -141,26 +142,44 @@ export const runInteractive = async ({
     // has to be built from the result before the first question is asked.
     const kept = refined.filter((spec) => !(spec.key in presetOptions));
 
-    // What a question stands in for counts as asked, even though its key
-    // differs. uninstall's picker is keyed `_build` and collects `browser` and
-    // `browserVersion` between them, so without this the banner announced that
-    // --browser-version would not be asked about and the wizard then asked for
-    // exactly that, using that option's help text as the prompt (issue #1013).
-    const covered = new Set(kept.flatMap((spec) => spec.replaces ?? []));
+    // Two reasons a question survives having been answered already, and one set
+    // to hold both, because everything downstream - the filter, the banner, the
+    // pre-fill - treats them identically.
+    //
+    // A question another one **stands in for**. uninstall's picker is keyed
+    // `_build` and collects `browser` and `browserVersion` between them, so
+    // without this the banner announced that --browser-version would not be
+    // asked about and the wizard then asked for exactly that, using that
+    // option's help text as the prompt (issue #1013). The Qlik wizards' app
+    // picker is the same shape: the question leading to it is synthetic, so
+    // dropping the questions it leads to left it announcing itself and then
+    // asking nothing at all.
+    //
+    // A question describing **this run rather than this environment**. A host or
+    // a certificate path is a property of the server and stays true; which apps
+    // to update, how much of each sheet to capture and which sheets to skip are
+    // decisions, and a decision taken once in a .env file should not be taken
+    // again silently on every later run. Wizards mark these with `perRun`.
+    const alwaysAsk = new Set([
+        ...kept.flatMap((spec) => spec.replaces ?? []),
+        ...refined.filter((spec) => spec.perRun).map((spec) => spec.key),
+    ]);
 
-    // A supplied value whose question a synthetic one stands in for is kept in
-    // the conversation rather than dropped: the synthetic question is asked, so
-    // the questions it leads to have to be there to be led to. Without this the
-    // app picker announced itself, was answered, and then asked nothing at all,
-    // because --appid was already supplied and its question had been removed.
-    const asked = refined.filter((spec) => !(spec.key in presetOptions) || covered.has(spec.key));
+    // Opened on whatever was supplied, so asking again costs a keystroke rather
+    // than a retype. Done here rather than in each wizard: the driver is what
+    // decided to ask, so it is what owes the pre-fill.
+    const asked = refined
+        .filter((spec) => !(spec.key in presetOptions) || alwaysAsk.has(spec.key))
+        .map((spec) =>
+            spec.key in presetOptions ? openingOn(spec, presetOptions[spec.key]) : spec
+        );
 
     // Named by flag rather than by storage key, because the flag is what the
     // user typed. Secrets are named but never shown.
     const nameOf = (spec) => spec.option?.long ?? spec.key;
     const supplied = specs.filter((spec) => spec.key in presetOptions);
-    const prefilled = supplied.filter((spec) => !covered.has(spec.key)).map(nameOf);
-    const overridden = supplied.filter((spec) => covered.has(spec.key)).map(nameOf);
+    const prefilled = supplied.filter((spec) => !alwaysAsk.has(spec.key)).map(nameOf);
+    const overridden = supplied.filter((spec) => alwaysAsk.has(spec.key)).map(nameOf);
 
     // Said once, up front. There is no way back to a previous question - the
     // prompt library has no such gesture - so the two things a user can do
@@ -176,12 +195,13 @@ export const runInteractive = async ({
     }
 
     if (overridden.length > 0) {
-        // Deliberately still asked. A picker over what is really there beats a
-        // value remembered from an earlier run - which may name something that
-        // has since been removed - but saying nothing would leave someone who
-        // set the value wondering why it was ignored.
+        // Deliberately still asked, and the wording has to cover both reasons:
+        // a picker over what is really there beats a value remembered from an
+        // earlier run, and a decision about this run should not be taken
+        // silently by a file. Saying nothing would leave someone who set the
+        // value wondering why it was ignored.
         runtime.write(
-            `${theme.style.help(`Supplied, but asked about again so the answer can be picked from what is actually there: ${overridden.join(', ')}.`)}\n`
+            `${theme.style.help(`Supplied, but asked about again so you can change it for this run: ${overridden.join(', ')}.`)}\n`
         );
     }
 

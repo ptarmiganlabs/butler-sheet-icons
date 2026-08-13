@@ -94,31 +94,51 @@ Untick every app and the wizard says so rather than letting you confirm a run th
 
 Naming no apps is still fine when a tag or collection is carrying the selection — the two add together, and one of them having apps is enough.
 
-## Everything you already supplied is kept
+## Two kinds of options, and only one of them is skipped
 
-Options given on the command line, or set through their `BSI_*` environment variables, are not asked about again:
+Options given on the command line, or set through their `BSI_*` environment variables, are treated in one of two ways, and the wizard opens by telling you which is which:
+
+```
+Already supplied, so not asked about again: --host, --certfile, --certkeyfile,
+  --apiuserdir, --apiuserid, --logonuserdir, --logonuserid, --logonpwd, --contentlibrary.
+Supplied, but asked about again so you can change it for this run: --appid, --includesheetpart.
+```
+
+**Options that describe your environment are skipped.** A hostname, a port, a certificate path, a credential, a browser build, the content library — properties of the server you are pointing at. They stay true until the environment itself changes, so re-asking them every run is exactly the tedium `-i` exists to remove. This is what makes `-i` useful for filling the gaps in a command you have partly written:
 
 ```bash
 butler-sheet-icons qseow create-sheet-thumbnails --host sense.acme.com -i
 ```
 
-```
-Already supplied, so not asked about again: --host.
-```
+**Options that describe this run are always asked**, opening on whatever you supplied. Which apps to update, which tag or collection to include, how much of each sheet to capture, which sheets to exclude or blur. These are decisions, not facts — and a decision taken once and left in a `.env` file should not be taken again silently on every later run, where you can neither see it nor change it without editing the file.
 
-This makes `-i` useful for filling the gaps in a command you have partly written, not only for starting from nothing.
+Confirming one costs a single keystroke, because the question opens on the value that was already there.
 
-### Except which apps to update, which you always get to confirm
+### What that looks like for app selection
 
-App selection is the exception, and it is asked about even when `--appid` — or `BSI_QSEOW_CST_APP_ID` in a `.env` file — already names one. The wizard says so:
+You get the full list of apps from the server, and **the ones you supplied are listed first and already ticked**:
 
 ```
-Supplied, but asked about again so the answer can be picked from what is actually there: --appid.
+  Apps you already supplied are listed first, ticked. Untick to leave one out.
+? Which apps?
+❯◉ Employee salaries  (id: ded8d27d-53b1-4d46-8d4e-44f552aeb8bc)
+ ◯ _s_QVD Generator - App scriptlog extract  (id: ede067b0-cbf9-4a2c-a422-bac1ffbdd4de)
+ ◯ User reload demo(2)  (id: ec31f83b-e8cd-41f8-846e-abd8b4e193ff)
 ```
 
-You get the full list of apps from the server, with the ones you supplied already ticked. Pressing Enter accepts them unchanged, so the common case still costs one keystroke — but you can add an app, swap it for another, or notice that the ID in your `.env` file names an app that has since been deleted. If you choose to type an ID instead, that question opens on the value you supplied.
+First, not merely ticked. On a server with several hundred apps, a ticked row sorted somewhere into the middle of the list is one you will never see — so pressing Enter would quietly update an app you had not chosen for this run. At the top it takes one keystroke to remove.
 
-This is why the app question is treated differently from `--host` or `--certfile`: a hostname you set once stays correct, while a stored app ID quietly goes stale when someone deletes or republishes the app.
+If an app ID in your `.env` file names an app the server no longer has, the wizard says so rather than letting it disappear from the selection without comment:
+
+```
+  ded8d27d-53b1-4d46-8d4e-44f552aeb8bc - supplied, but no longer on the server, so not listed below.
+```
+
+If you choose to type an ID instead, that question opens on the value you supplied.
+
+### And for the sheet filters
+
+A supplied `--exclude-sheet-number` or `--blur-sheet-tag` is shown even if you answer **no** to "Exclude or blur any sheets?". Declining that question means "nothing more", not "and forget what I already set" — the alternative would be a filter from your `.env` file silently skipping sheets behind a question you just declined. Filters you have not set stay behind the gate as before.
 
 ### A supplied tag or collection is shown too, whichever way you pick apps
 

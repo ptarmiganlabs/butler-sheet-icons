@@ -210,6 +210,102 @@ describe('choosing which apps to update', () => {
     });
 });
 
+describe('the static/dynamic classification', () => {
+    // PER_RUN_KEYS in spec-ops.js is the one statement of the rule: an option
+    // describing this run is always asked, opening on what was supplied; an
+    // option describing this environment stays answered.
+    const connection = {
+        host: 'sense.acme.com',
+        certfile: './cert/client.pem',
+        certkeyfile: './cert/client_key.pem',
+        apiuserdir: 'INTERNAL',
+        apiuserid: 'sa_api',
+        logonuserdir: 'ACME',
+        logonuserid: 'goran',
+        logonpwd: 'a-password',
+    };
+
+    test('a supplied --includesheetpart is asked again, opening on that value', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ includesheetpart: '4' }));
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...connection, includesheetpart: '2' },
+            runtime,
+        });
+
+        const question = runtime.asked.find((a) => a.key === 'includesheetpart');
+        expect(question).toBeDefined();
+        expect(question.default).toBe('2');
+    });
+
+    test('a supplied sheet filter is shown even when the filtering gate is declined', async () => {
+        // Otherwise the worst of both worlds: a filter from a .env file quietly
+        // excluding sheets, behind a question answered "no".
+        const runtime = scriptedRuntime(
+            baseAnswers({ _filtering: false, excludeSheetNumber: '2' })
+        );
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...connection, excludeSheetNumber: ['7'] },
+            runtime,
+        });
+
+        const question = runtime.asked.find((a) => a.key === 'excludeSheetNumber');
+        expect(question).toBeDefined();
+        expect(question.default).toBe('7');
+    });
+
+    test('the other filters stay behind the gate', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({ _filtering: false, excludeSheetNumber: '2' })
+        );
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...connection, excludeSheetNumber: ['7'] },
+            runtime,
+        });
+
+        expect(runtime.asked.map((a) => a.key)).not.toContain('blurSheetNumber');
+    });
+
+    test('an option describing the environment stays answered', async () => {
+        // --contentlibrary and --imagedir sit outside PER_RUN_KEYS on purpose.
+        const runtime = scriptedRuntime(baseAnswers());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...connection, contentlibrary: 'Butler sheet thumbnails' },
+            runtime,
+        });
+
+        expect(runtime.asked.map((a) => a.key)).not.toContain('contentlibrary');
+        expect(runtime.output()).toContain('not asked about again');
+    });
+
+    test('a supplied option inside the advanced block is shown, gate declined or not', async () => {
+        // PER_RUN_KEYS promises that moving a key in or out is the whole edit.
+        // It only holds if a gated question can see what was supplied: without
+        // that, reclassifying --image-dir would have the banner promise it and
+        // the advanced gate silently swallow it.
+        const runtime = scriptedRuntime(baseAnswers({ _advanced: false, imagedir: './out' }));
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...connection, imagedir: './from-env' },
+            runtime,
+        });
+
+        // Static today, so not asked - but the gate no longer hides it, which is
+        // what makes the reclassification safe.
+        const hidden = runtime.asked.map((a) => a.key);
+        expect(hidden).not.toContain('imagedir');
+        expect(runtime.output()).toContain('not asked about again');
+    });
+});
+
 describe('a selection that would process nothing', () => {
     test('is refused where it was made, not after the run is confirmed', async () => {
         const runtime = scriptedRuntime(baseAnswers({ _appSource: 'typed', appid: ['', 'app-z'] }));
@@ -259,7 +355,11 @@ describe('an app id supplied before the wizard starts', () => {
         contentlibrary: 'Butler sheet thumbnails',
     };
 
-    test('still gets the picker, with the supplied app already ticked', async () => {
+    test('still gets the picker, with the supplied app ticked and listed first', async () => {
+        // First, not merely ticked. On the QSEoW test server the app that came
+        // from a .env file sat at index 16 of 519, ten rows below the fold, so
+        // the list looked entirely unticked and submitting it silently kept an
+        // app nobody had chosen in this run.
         const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'] }));
 
         await runInteractive({ path: PATH, presetOptions: supplied, runtime });
@@ -267,9 +367,40 @@ describe('an app id supplied before the wizard starts', () => {
         const question = runtime.asked.find((a) => a.key === 'appid');
         expect(question).toBeDefined();
         expect(question.choices).toEqual([
-            expect.objectContaining({ value: 'app-a', checked: false }),
             expect.objectContaining({ value: 'app-b', checked: true }),
+            expect.objectContaining({ value: 'app-a', checked: false }),
         ]);
+    });
+
+    test('matches a supplied id that differs only in case', async () => {
+        // GUIDs are not case-sensitive and are routinely pasted out of the QMC
+        // in upper case. Comparing exactly reported an app that is plainly on
+        // the server as missing, and left its row unticked so it was dropped.
+        const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'] }));
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...supplied, appid: ['APP-B'] },
+            runtime,
+        });
+
+        const question = runtime.asked.find((a) => a.key === 'appid');
+        expect(question.choices[0]).toEqual(
+            expect.objectContaining({ value: 'app-b', checked: true })
+        );
+        expect(runtime.output()).not.toContain('no longer on the server');
+    });
+
+    test('says a supplied app the server no longer has is not in the list', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'] }));
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...supplied, appid: ['app-gone'] },
+            runtime,
+        });
+
+        expect(runtime.output()).toContain('app-gone - supplied, but no longer on the server');
     });
 
     test('is announced as asked again rather than as skipped', async () => {
@@ -277,7 +408,7 @@ describe('an app id supplied before the wizard starts', () => {
 
         await runInteractive({ path: PATH, presetOptions: supplied, runtime });
 
-        expect(runtime.output()).toContain('picked from what is actually there: --appid');
+        expect(runtime.output()).toContain('so you can change it for this run: --appid');
         expect(runtime.output()).not.toMatch(/not asked about again:[^\n]*--appid/);
     });
 

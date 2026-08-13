@@ -61,6 +61,21 @@ describe('gatedBy', () => {
         expect(hidden.when({ answers: {} })).toBe(false);
     });
 
+    test('shows a supplied value whatever the gate says', () => {
+        // Declining the gate means "nothing more", not "and forget what I set".
+        const hidden = gatedBy('_advanced', ['pagewait'], { pagewait: '7' })(spec('pagewait'));
+
+        expect(hidden.when({ answers: { _advanced: false } })).toBe(true);
+    });
+
+    test('an empty supplied value still respects the gate', () => {
+        const hidden = gatedBy('_filtering', ['excludeSheetTag'], { excludeSheetTag: '' })(
+            spec('excludeSheetTag')
+        );
+
+        expect(hidden.when({ answers: { _filtering: false } })).toBe(false);
+    });
+
     test('leaves other questions untouched, identity included', () => {
         const untouched = spec('host');
 
@@ -219,6 +234,21 @@ describe('assertAppSelectionNotEmpty', () => {
         expect(() =>
             assertAppSelectionNotEmpty({ appid: [], qliksensetag: 'BSI' }, 'qliksensetag', 'a tag')
         ).not.toThrow();
+    });
+
+    test('names only what can actually be done from this prompt', () => {
+        // There is no way back to an earlier question, so advising one sends
+        // the operator hunting for a key that does not exist.
+        let thrown;
+
+        try {
+            assertAppSelectionNotEmpty({}, 'qliksensetag', 'a tag');
+        } catch (err) {
+            thrown = err;
+        }
+
+        expect(thrown.message).toContain('Ctrl+C');
+        expect(thrown.message).not.toContain('go back');
     });
 
     test('throws when neither names anything', () => {
