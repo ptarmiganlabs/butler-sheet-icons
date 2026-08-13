@@ -306,6 +306,50 @@ describe('the static/dynamic classification', () => {
     });
 });
 
+describe('the sheet filters', () => {
+    test('a status can actually be ticked and submitted', async () => {
+        // --exclude-sheet-status is a checkbox over a closed value set, and the
+        // prompt validates the selected *choices* rather than their values. That
+        // made every entry stringify to "[object Object]", so ticking `private`
+        // was rejected with "Allowed choices are private, published, public" and
+        // the operator could not get past the prompt at all.
+        const runtime = scriptedRuntime(
+            baseAnswers({
+                _filtering: true,
+                excludeSheetStatus: ['private'],
+                excludeSheetTag: '',
+                excludeSheetNumber: '',
+                excludeSheetTitle: '',
+                // Covered too, and not as an empty list: --blur-sheet-status
+                // takes a narrower set than --exclude-sheet-status, and an empty
+                // list short-circuits validateEntries without calling the
+                // option's parser even once.
+                blurSheetStatus: ['published'],
+                blurSheetTag: '',
+                blurSheetNumber: '',
+                blurSheetTitle: '',
+                blurFactor: '5',
+                _review: 'run',
+            })
+        );
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(qseowCreateThumbnails).toHaveBeenCalledWith(
+            expect.objectContaining({
+                excludeSheetStatus: ['private'],
+                blurSheetStatus: ['published'],
+            })
+        );
+        // Accepted first time. A rejected answer is re-asked, so a second entry
+        // here is what the defect looked like from the operator's seat - the
+        // validator message itself never reaches the transcript, so asserting on
+        // its text would prove nothing.
+        expect(runtime.asked.filter((a) => a.key === 'excludeSheetStatus')).toHaveLength(1);
+        expect(runtime.asked.filter((a) => a.key === 'blurSheetStatus')).toHaveLength(1);
+    });
+});
+
 describe('a selection that would process nothing', () => {
     test('is refused where it was made, not after the run is confirmed', async () => {
         const runtime = scriptedRuntime(baseAnswers({ _appSource: 'typed', appid: ['', 'app-z'] }));

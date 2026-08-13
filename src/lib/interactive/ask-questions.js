@@ -158,7 +158,17 @@ const CONFIG_BUILDERS = Object.freeze({
                     ? { ...choice, checked: check(choice.value) }
                     : { value: choice, name: String(choice), checked: check(choice) }
             ),
-            ...(spec.validate ? { validate: spec.validate } : {}),
+            // The prompt hands its validator the *selected choices* - whole
+            // objects - while a spec's validator is built from the option's own
+            // parser and expects the values. Passing it straight through meant
+            // every entry stringified to "[object Object]", so any option with a
+            // closed value set could never be answered: ticking `private` on
+            // --exclude-sheet-status was rejected with `Entry 1
+            // ("[object Object]"): Allowed choices are private, published,
+            // public.` and there was no way past the prompt.
+            ...(spec.validate
+                ? { validate: (picked) => spec.validate(picked.map((choice) => choice.value)) }
+                : {}),
         };
     },
 
