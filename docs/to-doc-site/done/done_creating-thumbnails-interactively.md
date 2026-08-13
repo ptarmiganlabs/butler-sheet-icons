@@ -1,3 +1,21 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PR ptarmiganlabs/butler-sheet-icons-docs#79,
+into guide/interactive-mode.md, plus a pointer on each of the two thumbnail reference pages.
+
+The question counts below are RIGHT but the draft states them inconsistently: the heading says "It
+asks about ten questions, not thirty-six", which mixes the two platforms. Measured by running each
+wizard's refine() over the real command definitions with both gates declined:
+
+  qseow create-sheet-thumbnails   36 options -> 14 questions (15 via the "choose a tag" path)
+  qscloud create-sheet-thumbnails 25 options -> 10 questions
+
+NOTHING IN THE TEST SUITE LOCKS THESE NUMBERS. Re-measure rather than trust them if the option
+lists change. The QSEoW wizard repeats the 36/14 figure in a code comment, which is also unlocked.
+
+Everything else -- gate messages, app-source choices, the certificate error, the app and collection
+labels, the fallback to typing an id -- was verified verbatim.
+-->
+
 # Creating sheet thumbnails without assembling a command line
 
 `qseow create-sheet-thumbnails` takes 36 options. `qscloud create-sheet-thumbnails` takes 25. Getting a first run working has meant reading `--help`, assembling a long command line, and finding out only at the end if a certificate path or an API key was wrong.
