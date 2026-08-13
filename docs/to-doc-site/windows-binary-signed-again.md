@@ -48,12 +48,41 @@ especially in the first weeks after a new certificate is put into use. Choose **
 Worth doing if you are deploying into a controlled environment, or confirming a download before distributing it internally. In PowerShell, in the folder holding the executable:
 
 ```powershell
-Get-AuthenticodeSignature -LiteralPath .\butler-sheet-icons.exe | Format-List Status, StatusMessage, SignerCertificate
+$sig = Get-AuthenticodeSignature -LiteralPath .\butler-sheet-icons.exe
+$sig | Format-List Status, StatusMessage
+$sig.SignerCertificate | Format-List Subject, Issuer, Thumbprint, NotAfter
 ```
 
-`Status` reads `Valid` for a correctly signed file, and the signer certificate names the publisher above, issued by `Certum Code Signing 2021 CA`.
-
 You can also right-click the file, choose **Properties**, and look at the **Digital Signatures** tab.
+
+### Check the thumbprint, not only the status
+
+`Status` reading `Valid` means the file carries an intact signature from a certificate Windows trusts. It does **not** mean the file came from us — any correctly signed program on earth passes that test. Comparing the thumbprint is what actually confirms the publisher.
+
+| | |
+|---|---|
+| Subject | `CN=Open Source Developer Karl Göran Sander, O=Open Source Developer, L=Saltsjö-Duvnäs, S=Stockholm, C=SE` |
+| Issuer | `CN=Certum Code Signing 2021 CA, O=Asseco Data Systems S.A., C=PL` |
+| Thumbprint | `1674DF1C6EAD6DB9D816705CD230281B87A1C97E` |
+| Valid | 2026-08-12 to 2027-08-12 |
+
+None of this is confidential. The certificate is embedded in every signed release, so anyone holding a download can read it out; publishing it here only saves you the step.
+
+Two things that surprise people:
+
+- **The thumbprint is a SHA-1 hash _of the certificate_**, which has nothing to do with the SHA-256 digest used for the signature itself. Windows has identified certificates this way for years. It is not a weakness in the signature.
+- **A renewal changes the thumbprint.** Releases signed before 2026-08-12 carry an older certificate, and releases after 2027-08-12 will carry its replacement. If the thumbprint does not match, check this page before assuming the worst.
+
+### Building an application control rule
+
+If you allow programs by publisher through AppLocker or Windows Defender Application Control, you can build the rule from the publisher certificate rather than from a specific binary. Export it from any signed release:
+
+```powershell
+$sig = Get-AuthenticodeSignature -LiteralPath .\butler-sheet-icons.exe
+[System.IO.File]::WriteAllBytes("$PWD\butler-sheet-icons-publisher.cer", $sig.SignerCertificate.RawData)
+```
+
+That `.cer` file is what `Add-SignerRule` expects when adding a signer to a WDAC policy. Prefer this to a file hash rule: a publisher rule keeps working across releases, while a hash rule has to be updated for every new version.
 
 One point worth understanding: **the signature is timestamped**. It therefore stays valid after the signing certificate itself expires, so a release downloaded years from now still verifies. Without a timestamp, every previously released binary would stop validating the day the certificate lapsed.
 
@@ -83,6 +112,21 @@ Still to confirm before publishing:
     release is also unsigned depends on when this change ships - check the releases
     page and update.
   - Set the version gate at the top.
+  - Re-check the certificate table against the live certificate. The thumbprint in it
+    was read off the signing host on 2026-08-12 and matches the WIN_CODESIGN_THUMBPRINT
+    secret; confirm both still agree at publication.
+
+MAINTENANCE, and the reason this page is not fire-and-forget: it publishes the
+certificate thumbprint, so it goes stale the moment the certificate is renewed - due
+2027-08-12. A wrong thumbprint on this page is worse than no thumbprint, because the
+whole point of the section is telling administrators to distrust a binary whose
+thumbprint does not match. Renewing the certificate means updating this page in the
+same pass as the WIN_CODESIGN_THUMBPRINT secret.
+
+The certificate details are deliberately public. The certificate is embedded in every
+signed binary, so nothing here is disclosed that a release download does not already
+carry - which is also why the page can tell administrators to export it from a release
+rather than asking us for a file.
 
 The SmartScreen section deliberately does NOT promise the warning disappears. This is a
 standard certificate, not EV, so it earns reputation over time rather than receiving it
