@@ -137,7 +137,7 @@ Those lines are also why the wizard pauses for a moment — it is contacting you
 
 **One check often covers several options**, and each gets its own line. The certificate check needs both paths and verifies both, and says so rather than naming only the key file. On Qlik Sense Cloud the connection test does the same for `--tenanturl` and `--apikey`: a wrong tenant URL fails it as surely as a revoked key does.
 
-If the check fails, the wizard names the option, the environment variable the value came from, and what is wrong. It then asks you the question after all, opening on the value that failed, so correcting it is an edit rather than a retype:
+If the check fails, the wizard names the option, the environment variable the value came from, and what is wrong. It then asks you the question after all, opening on the value that failed, so correcting it is an edit rather than a retype — except for a credential such as `--apikey`, which is asked as a masked prompt and cannot be pre-filled:
 
 ```
   ✗ --contentlibrary (from BSI_QSEOW_CST_CONTENT_LIBRARY):

@@ -149,6 +149,34 @@ describe('askQuestions', () => {
         expect(runtime.output()).toContain('Connection');
         expect(runtime.output()).toContain('Output');
     });
+
+    test('offers a default to a text prompt', async () => {
+        const runtime = scriptedRuntime({ k: 'typed' });
+
+        await askQuestions([spec({ default: 'from-env' })], ctx(), { runtime });
+
+        expect(runtime.asked[0].default).toBe('from-env');
+    });
+
+    test('never offers a default to a password prompt', async () => {
+        // `@inquirer/password` accepts message, mask, validate and theme, and its
+        // implementation never reads `default` - so one set here would be
+        // silently dropped and the wizard would be promising a pre-fill that a
+        // masked prompt cannot give. The library is right to omit it: an
+        // invisible default is one you answer blind.
+        //
+        // Kept as a rule about the prompt type rather than about any one option,
+        // because every secret goes through here - `logonpwd` as much as
+        // `apikey` - and a default reaches them whenever their BSI_* variable is
+        // set or a supplied value is promoted after a failed check.
+        const runtime = scriptedRuntime({ k: 'typed' });
+
+        await askQuestions([spec({ type: 'password', default: 'a-real-secret' })], ctx(), {
+            runtime,
+        });
+
+        expect(runtime.asked[0].default).toBeUndefined();
+    });
 });
 
 describe('live choices', () => {
