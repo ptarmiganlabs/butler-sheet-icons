@@ -1,5 +1,5 @@
 import { getVersionComparator, detectBrowserPlatform } from '@puppeteer/browsers';
-import { getBrowserInventory } from './browser-inventory.js';
+import { getBrowserInventory, hasUsableExecutable } from './browser-inventory.js';
 import { resolveBrowserCacheDir } from './browser-paths.js';
 import fs from 'fs';
 
@@ -236,12 +236,10 @@ export const detectAvailableBrowser = async (options, resolvedBuildId) => {
                 return false;
             });
 
-            // `computeExecutablePath()` builds this path from the layout convention without
-            // ever stat-ing it, so a cache copied without its binaries - or without the
-            // `.metadata` file, which is what a tar invocation that skips dotfiles produces -
-            // yields a perfectly plausible path to nothing.
+            // Shared with `browser install`, so the two cannot disagree about whether a cached
+            // build is real - see hasUsableExecutable().
             const usable = ofPlatform.filter((b) => {
-                if (fs.existsSync(b.executablePath)) {
+                if (hasUsableExecutable(b)) {
                     return true;
                 }
 

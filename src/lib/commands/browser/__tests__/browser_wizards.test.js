@@ -34,6 +34,10 @@ jest.unstable_mockModule('../../../../globals.js', () => ({
 
 jest.unstable_mockModule('../../../browser/browser-inventory.js', () => ({
     getBrowserInventory,
+    // Not used by the wizards, but browser-detect.js and browser-install.js both import it from
+    // here, and ESM checks named exports across the whole linked graph - so omitting it fails
+    // this suite before a single test runs, with no test failure to point at the cause.
+    hasUsableExecutable: jest.fn(() => true),
 }));
 jest.unstable_mockModule('../../../browser/browser-uninstall.js', () => ({
     browserUninstall,

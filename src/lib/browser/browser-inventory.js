@@ -1,4 +1,5 @@
 import { getInstalledBrowsers, detectBrowserPlatform } from '@puppeteer/browsers';
+import fs from 'fs';
 
 import { logger } from '../../globals.js';
 import { resolveBrowserCacheDir } from './browser-paths.js';
@@ -38,10 +39,31 @@ const RUNNABLE_PLATFORMS = Object.freeze({
 });
 
 /**
+ * Whether a cache entry actually has a browser behind it.
+ *
+ * `computeExecutablePath()` derives this path from the layout convention without ever stat-ing
+ * it, so a cache copied without its binaries - or without the `.metadata` file, which is what a
+ * tar invocation that skips dotfiles produces - yields a perfectly plausible path to nothing.
+ *
+ * Shared rather than repeated at each call site because the answer has to be the same for every
+ * caller: `browser install` reporting a build as already present while detection refuses to use
+ * it, or the reverse, is worse than either answer on its own. Issue #931 may yet widen this to
+ * check the executable bit on POSIX, and that must land in one place.
+ *
+ * @param {object} build - An entry from the browser inventory.
+ *
+ * @returns {boolean} `true` when the browser binary is on disk.
+ */
+export const hasUsableExecutable = (build) => fs.existsSync(build.executablePath);
+
+/**
  * Whether a cached build can be executed on the host.
  *
  * With no host platform detected there is no evidence a build is foreign, and claiming otherwise
  * would label every entry unusable. Absence of evidence is reported as runnable, not as broken.
+ *
+ * Note this is the right rule for *using* a browser, and the wrong one for deciding whether the
+ * build a download would fetch is already present - see `findStagedBuild` in browser-install.js.
  *
  * @param {string} [hostPlatform] - Platform this machine runs, if it could be detected.
  * @param {string} buildPlatform - Platform the cached build was made for.

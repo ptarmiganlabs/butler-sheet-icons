@@ -8,6 +8,10 @@ jest.unstable_mockModule('@puppeteer/browsers', () => ({
     detectBrowserPlatform: jest.fn(),
     canDownload: jest.fn(),
     uninstall: jest.fn(),
+    // Reached through getBrowserInventory(), which browser-install.js consults for an
+    // already-staged build before touching the network. ESM checks named exports when the
+    // module graph is linked, so omitting it fails the whole suite rather than one test.
+    getInstalledBrowsers: jest.fn().mockResolvedValue([]),
 }));
 const { install, resolveBuildId, detectBrowserPlatform, canDownload, uninstall } =
     await import('@puppeteer/browsers');

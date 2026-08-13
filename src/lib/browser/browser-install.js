@@ -2,9 +2,11 @@ import { install, detectBrowserPlatform, canDownload, uninstall } from '@puppete
 import {
     assertCacheDirWritable,
     isPermissionDenied,
+    resolveBrowserCacheDir,
     resolveBrowserCacheDirForWriting,
     unwritableCacheDirMessage,
 } from './browser-paths.js';
+import { getBrowserInventory, hasUsableExecutable } from './browser-inventory.js';
 import cliProgress from 'cli-progress';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } from '../../globals.js';
@@ -13,11 +15,121 @@ import { resolveBrowserVersion } from './browser-version.js';
 import { alreadyReported } from '../util/reported-error.js';
 
 /**
+ * Finds a build already in the cache that makes downloading unnecessary.
+ *
+ * This is what lets an administrator confirm a staged browser *on the air-gapped machine itself*,
+ * which is the first thing they will try. Without it `browser install` runs `canDownload()` first
+ * and reports that a browser sitting right there on disk "cannot be downloaded".
+ *
+ * Three decisions worth stating, because each one is a way this could quietly be wrong:
+ *
+ * - **The reading resolver, not the writing one.** They differ for a standalone build whose
+ *   primary cache is empty while the previous default location still holds browsers. Looking in
+ *   the write target would miss a browser that detection is happily using, and re-download
+ *   ~150 MB - the exact outcome the legacy fallback exists to prevent.
+ * - **An exact platform match against the platform this install would download for**, rather
+ *   than the inventory's `canRunHere`. Detection asks whether a build will start, so it accepts
+ *   a 32-bit build on 64-bit Windows. Install asks whether the build it would otherwise fetch is
+ *   already here, and that is a narrower question. It is also why `isCurrentPlatform` is not
+ *   used: that field reports every build as current when the host platform cannot be detected,
+ *   which is the right answer for "can I run this" and the wrong one here - `install()` would
+ *   throw `Unable to detect browser platform` rather than accept a foreign build, so a
+ *   `platform` of `undefined` must match nothing and fall through to that honest failure.
+ * - **The executable has to exist.** Reporting "already installed" for a directory with no
+ *   browser in it would reintroduce the false success that cached-browser detection stopped
+ *   producing in issue #943.
+ *
+ * @param {object} options - Options object, carrying `browser` and any cache directory override.
+ * @param {string} buildId - The exact build the caller is about to install.
+ * @param {string} [platform] - Platform this install would download for. Passed in rather than
+ * detected again here, so the platform named in the log and the one matched against are one value.
+ *
+ * @returns {Promise<object|null>} The staged build's inventory entry, or `null` to install.
+ */
+const findStagedBuild = async (options, buildId, platform) => {
+    const cacheDir = resolveBrowserCacheDir(options);
+
+    let inventory;
+    try {
+        inventory = await getBrowserInventory({ cacheDir });
+    } catch (err) {
+        // A short-circuit over the install path, not a precondition for it: an unreadable cache
+        // must fall through to a normal install rather than abort one that would have worked.
+        logger.debug(`Could not read the browser cache at ${cacheDir}: ${err?.message ?? err}`);
+        return null;
+    }
+
+    const sameBuild = inventory.filter(
+        (build) => build.browser === options.browser && build.buildId === buildId
+    );
+
+    // Every decline gets a line. Without them an administrator who staged a browser watches the
+    // download start with nothing anywhere in the log saying why their copy was not accepted.
+    if (sameBuild.length === 0) {
+        logger.debug(
+            `No cached ${options.browser} ${buildId} found in ${cacheDir}; it will be installed.`
+        );
+        return null;
+    }
+
+    const staged = sameBuild.find((build) => build.platform === platform);
+
+    if (!staged) {
+        logger.verbose(
+            `Cached ${options.browser} ${buildId} is present in ${cacheDir} but built for ${sameBuild
+                .map((build) => build.platform)
+                .join(', ')}, not "${platform}". Installing the build for this machine instead.`
+        );
+        return null;
+    }
+
+    if (!hasUsableExecutable(staged)) {
+        logger.warn(
+            `A cached ${options.browser} ${buildId} directory exists at ${staged.path}, but the browser executable is missing from it. ` +
+                `Butler Sheet Icons will remove that directory and install the build again, which needs internet access.`
+        );
+
+        // Removed here rather than left for install() to trip over. `install()` treats an
+        // existing install directory as an already-installed browser, so it skips the download
+        // and fails validation with "The browser folder exists but the executable is missing" -
+        // the retry loop below recovers from that, but only after a failed attempt the operator
+        // has to read past. Clearing it up front makes the warning above true, and loses
+        // nothing: the directory has no browser in it.
+        try {
+            await uninstall({ browser: options.browser, buildId, cacheDir, platform });
+        } catch (err) {
+            // Never let cleanup mask the install that follows.
+            logger.debug(
+                `Could not clear the incomplete install directory: ${err?.message ?? err}`
+            );
+        }
+
+        return null;
+    }
+
+    return staged;
+};
+
+/**
  * Install a browser into the Puppeteer cache directory.
  *
  * Downloads and unpacks the browser while showing a progress bar, and returns the installed
  * browser metadata on success. The version is interpreted by `resolveBrowserVersion`, which is the
  * only place in Butler Sheet Icons that reads a `--browser-version` value.
+ *
+ * **Installing is a no-op when the requested build is already staged in the cache.** That case
+ * returns without touching the network, which is what lets an administrator confirm a staged
+ * browser on an air-gapped machine - see `findStagedBuild`. It also means this function no longer
+ * reinstalls over the top of an existing build; there is no `--force` yet, so removing the build
+ * with `browser uninstall` is the way to replace one.
+ *
+ * The returned object therefore comes from one of two places, and callers must not depend on
+ * which: an `InstalledBrowser` instance from `@puppeteer/browsers` after a real install, or a
+ * plain inventory entry from {@link getBrowserInventory} for an already-staged build. Both carry
+ * `browser`, `buildId`, `platform`, `path` and `executablePath`; only the latter carries the
+ * inventory's own fields. Prefer the returned `executablePath` over recomputing one, because a
+ * staged build may have been found in the previous default cache location rather than the
+ * directory this function would have installed into.
  *
  * Failure is signalled by throwing, never by a falsy return value: the single `return` is
  * guarded by `if (!browser) throw lastError;`. Callers that need to add context to a failure
@@ -35,7 +147,7 @@ import { alreadyReported } from '../util/reported-error.js';
  * single run to one resolution, so the build that is installed is the same one the cache was
  * searched for.
  *
- * @returns {Promise<object>} Resolves with the installed browser metadata from `@puppeteer/browsers` (`browser`, `buildId`, `executablePath`, ...).
+ * @returns {Promise<object>} Resolves with the installed browser metadata (`browser`, `buildId`, `executablePath`, ...), whether it was just installed or already staged.
  *
  * @throws {Error} If required options are missing, the version cannot be resolved, the build is unavailable, or the install fails.
  */
@@ -67,10 +179,6 @@ export const browserInstall = async (options, _command, resolvedBuildId) => {
         // previous default location still installs beside its own executable.
         const browserPath = resolveBrowserCacheDirForWriting(options);
 
-        // Checked before the version lookup and the download, so a binary unzipped somewhere
-        // unwritable fails in one second with an explanation rather than after 150 MB.
-        assertCacheDirWritable(browserPath);
-
         const platform = await detectBrowserPlatform();
         logger.verbose(`Detected browser platform: ${platform}`);
 
@@ -92,6 +200,33 @@ export const browserInstall = async (options, _command, resolvedBuildId) => {
         logger.info(
             `Resolved browser build id: "${buildId}" for browser "${options.browser}" version "${options.browserVersion}" on platform "${platform}"`
         );
+
+        // Before anything that needs the network, and before the cache is required to be
+        // writable: a build already staged here needs neither.
+        //
+        // Note this makes `browser install` a no-op when the build is present, where it used to
+        // reinstall unconditionally. There is no --force yet; add one only if someone needs to
+        // reinstall over the top.
+        const staged = await findStagedBuild(options, buildId, platform);
+
+        if (staged) {
+            logger.info(
+                `${options.browser} ${buildId} is already installed at ${staged.path}. Nothing to download. ` +
+                    `To replace it, remove it first with "butler-sheet-icons browser uninstall --browser-version ${buildId}".`
+            );
+            return staged;
+        }
+
+        // Checked after the staged-build lookup but before the download, so a binary unzipped
+        // somewhere unwritable fails with an explanation rather than after 150 MB, while a
+        // browser already staged into a read-only cache still works.
+        //
+        // This used to run before the version lookup, which cost one round trip but did surface
+        // an unwritable directory even when that lookup failed. It no longer does: offline, a
+        // `--browser-version stable` run now reports only the version-service failure, and the
+        // unwritable cache is found on the next attempt. The default `recommended` resolves from
+        // a constant, so it reaches this line without a network call either way.
+        assertCacheDirWritable(browserPath);
 
         // Ensure browser can be downloaded
         const canDownloadBrowser = await canDownload({
