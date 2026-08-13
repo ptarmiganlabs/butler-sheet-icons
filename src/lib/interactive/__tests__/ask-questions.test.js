@@ -375,6 +375,58 @@ describe('scriptedRuntime', () => {
         expect(answers.status).toEqual(['private', 'published']);
     });
 
+    test('validates a checkbox against the values, not the choice objects', async () => {
+        // The prompt hands its validator the selected *choices*. A spec's
+        // validator comes from the option's own parser and expects values, so
+        // passing the objects through made every entry stringify to
+        // "[object Object]" - and any option with a closed value set could never
+        // be answered. Ticking `private` on --exclude-sheet-status was rejected
+        // with `Entry 1 ("[object Object]"): Allowed choices are private,
+        // published, public.` with no way past the prompt.
+        const seen = [];
+        const runtime = scriptedRuntime({ status: ['private'] });
+
+        await askQuestions(
+            [
+                spec({
+                    key: 'status',
+                    type: 'checkbox',
+                    choices: ['private', 'published', 'public'],
+                    validate: (values) => {
+                        seen.push(values);
+
+                        return values.every((v) => typeof v === 'string') ? true : 'not values';
+                    },
+                }),
+            ],
+            ctx(),
+            { runtime }
+        );
+
+        expect(seen).toEqual([['private']]);
+    });
+
+    test('refuses a checkbox answer the prompt never offered', async () => {
+        // Silently dropping it would let a script assert against an answer no
+        // user could give - and because an empty list passes most validators,
+        // the validator would never see it either.
+        const runtime = scriptedRuntime({ status: ['bogus'] });
+
+        await expect(
+            askQuestions(
+                [
+                    spec({
+                        key: 'status',
+                        type: 'checkbox',
+                        choices: ['private', 'published', 'public'],
+                    }),
+                ],
+                ctx(),
+                { runtime }
+            )
+        ).rejects.toThrow(/"status" was answered with \["bogus"\], which the prompt never offered/);
+    });
+
     test('pre-ticks a checkbox default that differs only in case', async () => {
         // App ids are GUIDs, which are not case-sensitive and are routinely
         // pasted out of the QMC in upper case. Comparing them exactly left the

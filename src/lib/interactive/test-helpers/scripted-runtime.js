@@ -9,10 +9,15 @@
  *
  * - It **fails loudly on an unqueued key**, so a question added without a test
  *   answer breaks the test rather than hanging it, which is the failure mode
- *   that makes prompt testing miserable.
+ *   that makes prompt testing miserable. It fails the same way on a checkbox
+ *   answer naming a value the prompt never offered, because a script asserting
+ *   against an answer no user could give proves nothing.
  * - It **runs the real validator and re-asks on rejection**, exactly as a real
  *   prompt does. Queue `['abc', '7']` against a numeric question and the key is
- *   recorded twice: once rejected, once accepted.
+ *   recorded twice: once rejected, once accepted. A checkbox validator is given
+ *   the selected choices rather than their values, which is what the real
+ *   prompt passes - being kinder here once let a validator that stringified its
+ *   input pass every test and then reject every answer in front of a user.
  * - It **records what it was asked**, so "the version list was fetched for the
  *   browser the user chose" is an ordinary assertion.
  *
@@ -108,11 +113,38 @@ export const scriptedRuntime = (script = {}) => {
                     source: config.source,
                 });
 
+                // The real checkbox prompt validates the *selected choices* -
+                // whole objects - not the values behind them. Handing the
+                // validator plain values here would make this double kinder
+                // than the terminal, and it was: a validator that stringified
+                // its input passed every test and then rejected every answer in
+                // front of a user, because each entry became "[object Object]".
+                const selected =
+                    spec.type === 'checkbox' && Array.isArray(answer)
+                        ? (config.choices ?? []).filter((choice) => answer.includes(choice.value))
+                        : undefined;
+
+                // A checkbox answer can only ever be values the prompt offered.
+                // Quietly dropping the rest would let a script assert against an
+                // answer no user could give - and because an empty list passes
+                // most validators, the validator would never see it either.
+                // Loud, like an unqueued key, for the same reason.
+                if (selected) {
+                    const offered = (config.choices ?? []).map((choice) => choice.value);
+                    const impossible = answer.filter((value) => !offered.includes(value));
+
+                    if (impossible.length > 0) {
+                        throw new Error(
+                            `scriptedRuntime: "${spec.key}" was answered with ${JSON.stringify(impossible)}, which the prompt never offered. It offered ${JSON.stringify(offered)}.`
+                        );
+                    }
+                }
+
                 if (!config.validate) {
                     return answer;
                 }
 
-                lastVerdict = await config.validate(answer);
+                lastVerdict = await config.validate(selected ?? answer);
 
                 if (lastVerdict === true) {
                     return answer;

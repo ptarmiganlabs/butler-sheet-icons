@@ -247,6 +247,40 @@ describe('the static/dynamic classification', () => {
     });
 });
 
+describe('the sheet filters', () => {
+    test('a status can actually be ticked and submitted', async () => {
+        // QSEoW twin of the same block. The fix lives in the shared driver, so
+        // both platforms were affected and both are covered: --exclude-sheet-
+        // status and --blur-sheet-status are checkboxes over closed value sets,
+        // and the prompt validates the selected *choices* rather than their
+        // values, so every entry stringified to "[object Object]" and the
+        // prompt could not be answered at all.
+        const runtime = scriptedRuntime(
+            baseAnswers({
+                _filtering: true,
+                excludeSheetStatus: ['private'],
+                blurSheetStatus: ['published'],
+                _review: 'run',
+            })
+        );
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(qscloudCreateThumbnails).toHaveBeenCalledWith(
+            expect.objectContaining({
+                excludeSheetStatus: ['private'],
+                blurSheetStatus: ['published'],
+            })
+        );
+        // Accepted first time. A rejected answer is re-asked, so a second entry
+        // here is what the defect looked like from the operator's seat - the
+        // validator message itself never reaches the transcript, so asserting on
+        // its text would prove nothing.
+        expect(runtime.asked.filter((a) => a.key === 'excludeSheetStatus')).toHaveLength(1);
+        expect(runtime.asked.filter((a) => a.key === 'blurSheetStatus')).toHaveLength(1);
+    });
+});
+
 describe('a selection that would process nothing', () => {
     test('is refused where it was made, not after the run is confirmed', async () => {
         const runtime = scriptedRuntime(baseAnswers({ _appSource: 'typed', appid: ['', 'app-z'] }));
