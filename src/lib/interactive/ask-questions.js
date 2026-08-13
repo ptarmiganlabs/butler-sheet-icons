@@ -233,8 +233,23 @@ const hasDefault = (spec) => spec.default !== undefined && spec.default !== '';
  * A lookup rather than a chain of conditionals: each prompt's configuration is
  * independent of every other's, and phase 2 adds both types and per-type
  * behaviour to this. An if-chain grows a branch each time; a table grows a row.
+ *
+ * Every entry here is answering the same question - which fields of a spec does
+ * this* prompt read - and the answers legitimately differ, because the prompt
+ * library's options differ per prompt. What is not legitimate is differing by
+ * accident, which happened three times in one week: checkbox handed its
+ * validator the wrong shape, password was handed a `default` the prompt does not
+ * read (#1052), and a misspelled key made `--qrsport` a no-op (#1050). None of
+ * them raised anything at runtime, because a prompt ignores options it does not
+ * recognise.
+ *
+ * `__tests__/prompt-config-contract.test.js` is what makes those visible. It
+ * requires an explicit, tested decision for every (prompt type, spec field)
+ * pair, and checks the keys built here against the option lists in the installed
+ * `@inquirer/*` type declarations - so a key nothing reads fails the suite
+ * rather than the user. Exported for it.
  */
-const CONFIG_BUILDERS = Object.freeze({
+export const CONFIG_BUILDERS = Object.freeze({
     // A `<true|false>` option is a *string* option, so its supplied value is the
     // word rather than the boolean - and `Boolean('false')` is `true`. Reading
     // it that way pre-filled the prompt with the opposite of what was supplied,
@@ -276,6 +291,12 @@ const CONFIG_BUILDERS = Object.freeze({
         };
     },
 
+    // No `validate`, deliberately: `@inquirer/select` has no such option, and
+    // setting one would be a line of code that reads as a safety check and is in
+    // fact dead - the shape of the `--qrsport` and password bugs both. Nothing is
+    // lost by it. A select returns one of the values it was given, so a spec's
+    // validator has nothing to reject that the choice list has not already
+    // excluded.
     select: (spec, choices) => ({
         choices: choices ?? [],
         ...(hasDefault(spec) ? { default: spec.default } : {}),
@@ -283,6 +304,27 @@ const CONFIG_BUILDERS = Object.freeze({
 
     // `search` takes a source function rather than a list, so a fixed list is
     // wrapped into one.
+    //
+    // Unlike select, this prompt does read both `default` and `validate`, so
+    // both are forwarded.
+    //
+    // Neither changes what anyone sees today, and that is worth writing down
+    // rather than overselling. `browser install` is the only search question
+    // there is; its default is `recommended`, which is already the first entry
+    // the picker offers, and `@inquirer/search` starts on the first entry when
+    // given no default - so the cursor lands in the same place either way. Its
+    // choices are curated, so a validator has nothing to reject.
+    //
+    // Forwarded anyway, for two reasons that will outlast that coincidence. The
+    // same question renders as an `input` when the version list cannot be
+    // fetched, and that path has always pre-filled the default and run the
+    // validator; one spec answered two ways should not behave differently
+    // depending on whether the network was up. And a default that stops being
+    // the first choice, or a second search question, would otherwise reintroduce
+    // silently exactly the gap this was found in.
+    //
+    // Safe when the default names nothing in the list: the library looks it up
+    // and falls back to the first entry when it finds no match.
     search: (spec, choices) => {
         const list = choices ?? [];
 
@@ -293,12 +335,19 @@ const CONFIG_BUILDERS = Object.freeze({
                           labelOf(choice).toLowerCase().includes(term.toLowerCase())
                       )
                     : list,
+            ...(hasDefault(spec) ? { default: spec.default } : {}),
+            // Handed the selected value, not the choice object - the opposite of
+            // checkbox, and the reason each of these is decided against the
+            // library's own signature rather than by analogy with its neighbour.
+            ...(spec.validate ? { validate: spec.validate } : {}),
         };
     },
 });
 
-// input, password, list and number all take text and validate it.
-const textConfig = (spec) => {
+// input, password, list and number all take text and validate it. The fallback
+// for any type CONFIG_BUILDERS has no row for, and exported alongside it so the
+// contract test covers the types that land here too.
+export const textConfig = (spec) => {
     const config = {};
 
     // Never for a password. `@inquirer/password` accepts message, mask, validate
@@ -310,7 +359,13 @@ const textConfig = (spec) => {
     // is invisible, so pressing Enter over one is answering blind. Left off
     // deliberately rather than left in as a no-op, since the value would be a
     // live credential put into an object handed to code that never looks at it.
-    if (hasDefault(spec) && spec.type !== 'password') {
+    //
+    // The type is tested first so that a password's default is never so much as
+    // read here, rather than read and then discarded. For a secret that is worth
+    // the reordering on its own, and it also lets the contract test make the
+    // strongest form of the claim: not "no default came out" but "the value was
+    // never touched".
+    if (spec.type !== 'password' && hasDefault(spec)) {
         config.default =
             spec.type === 'list' ? splitEntries(spec.default).join(', ') : spec.default;
     }
@@ -350,7 +405,7 @@ const textConfig = (spec) => {
  *
  * @returns {object} Configuration for the runtime.
  */
-const configFor = (spec, choices, theme) => ({
+export const configFor = (spec, choices, theme) => ({
     message: spec.message,
     theme,
     ...(CONFIG_BUILDERS[spec.type] ?? textConfig)(spec, choices),

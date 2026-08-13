@@ -22,8 +22,15 @@
  * a variadic option as free text, which the driver splits and validates per
  * entry - there is no dedicated list prompt, and inventing one would put
  * parsing rules in the layer that is meant to be replaceable.
+ *
+ * Exported because it is also the map from a question type to the *package*
+ * whose options that question's configuration has to satisfy - `@inquirer/input`
+ * for both `input` and `list`, and so on. `ask-questions`' contract test reads
+ * the declared options out of those packages, and deriving the package from this
+ * map rather than restating it means a type added here cannot be checked against
+ * the wrong prompt.
  */
-const PROMPT_FOR_TYPE = Object.freeze({
+export const PROMPT_FOR_TYPE = Object.freeze({
     input: 'input',
     list: 'input',
     password: 'password',
