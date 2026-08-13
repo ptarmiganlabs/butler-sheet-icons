@@ -1,3 +1,23 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PRs
+ptarmiganlabs/butler-sheet-icons-docs#83 and #84.
+
+Corrections made while publishing, none of them the draft's fault -- they were pre-existing errors
+on the site that this draft exposed:
+
+  - reference/supported-versions called --sense-version "mandatory". It is not, and it has a
+    default: .choices(...).default(DEFAULT_QSEOW_SENSE_VERSION) with no makeOptionMandatory().
+  - That page's table was missing 2024-Feb, an accepted value since March 2024 (commit dc932a3).
+  - guide/configuration/qseow said "Critical: You must specify your QSEoW version".
+  - guide/troubleshooting carried a hand-typed list of accepted values missing four of them.
+
+The tested release is 2026-May **SR2**, not IR. #83 guessed IR from the surrounding rows and #84
+corrected it. If a later draft needs to state the tested QSEoW release, get it from the user or the
+server rather than inferring it from the table's existing rows.
+
+The logout behaviour described below was verified verbatim against src/lib/qseow/qseow-logout.js.
+-->
+
 # QSEoW 2026-May support and browser logout
 
 Butler Sheet Icons supports Qlik Sense Enterprise on Windows (QSEoW) 2026-May.
