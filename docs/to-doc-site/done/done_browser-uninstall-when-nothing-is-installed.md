@@ -1,3 +1,22 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PR ptarmiganlabs/butler-sheet-icons-docs#81,
+into guide/interactive-mode.md.
+
+Not published from below: the sample output's "info: App version: 4.1.0" line. It dates the page,
+and published binaries have been mis-stamped before, so a version in a draft transcript is not
+necessarily what a reader sees.
+
+Two things the draft did not have, both taken from the precheck in
+src/lib/commands/browser/uninstall.interactive.js and worth keeping in mind:
+  - the cache it inspects is the one the command would use, so --browser-cache-dir /
+    BSI_BROWSER_CACHE_DIR are respected;
+  - a cache that exists but cannot be read is deliberately NOT treated as empty, and still offers a
+    typed build id.
+
+The draft's re-explanation of the "Supplied, but asked about again" banner was dropped as duplicate;
+it is covered by done_interactive-flag-on-commands.md's section on the same page.
+-->
+
 # "Uninstall a browser" now says when there is nothing to uninstall
 
 If you ran `butler-sheet-icons browser uninstall -i` on a server with no browsers in the cache, it asked

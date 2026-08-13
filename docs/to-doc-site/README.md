@@ -4,15 +4,15 @@ Files in this folder are drafts of updates to the Butler Sheet Icons (BSI) docum
 
 This folder is a **staging area, not the published source**. The published site lives in a separate repository:
 
-| | |
-|---|---|
-| Published site | <https://butler-sheet-icons.ptarmiganlabs.com> |
-| Source repo | <https://github.com/ptarmiganlabs/butler-sheet-icons-docs> |
-| Local clone | `/Users/goran/code/butler-sheet-icons-docs` |
-| Site generator | [VitePress](https://vitepress.dev) |
-| Hosting | Cloudflare Pages — builds and publishes automatically on every push |
-| `next` branch | Where **all** doc site work goes. Preview URL only. |
-| `main` branch | Production. What the public site serves. Reached only by merging `next` at BSI release time. |
+|                |                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------- |
+| Published site | <https://butler-sheet-icons.ptarmiganlabs.com>                                               |
+| Source repo    | <https://github.com/ptarmiganlabs/butler-sheet-icons-docs>                                   |
+| Local clone    | `/Users/goran/code/butler-sheet-icons-docs`                                                  |
+| Site generator | [VitePress](https://vitepress.dev)                                                           |
+| Hosting        | Cloudflare Pages — builds and publishes automatically on every push                          |
+| `next` branch  | Where **all** doc site work goes. Preview URL only.                                          |
+| `main` branch  | Production. What the public site serves. Reached only by merging `next` at BSI release time. |
 
 The doc site is **single-version**: one copy of the docs, no per-release archive. Anything merged to its `main` is published to the public site within minutes and is presented as documentation for the current release, whatever version it actually describes.
 
@@ -86,7 +86,17 @@ Processed files stay in `done/` for traceability until there is a deliberate cle
 
 This is the standing instruction for "update the doc site from `docs/to-doc-site`". It covers the unprefixed files directly in this folder. Ignore the `done/` subfolder — it is already processed.
 
-**This is not a bulk pass.** Every file is approved individually before anything is written — see step 1.
+**This is not a bulk pass.** Files are processed **one at a time**, start to finish, and each one is approved twice: once before it is written, and once after it is live on `next`.
+
+```
+for each draft, in dependency order:
+    publish  →  PR into next  →  merge  →  report the changed pages as live URLs
+              →  WAIT for approval
+              →  approved?  git mv the draft into done/, move to the next draft
+              →  not approved?  revise, re-report, wait again
+```
+
+Do not start the next draft while the current one is unapproved, and do not batch several drafts into one doc site pull request. One draft, one pull request, one review.
 
 ### 1. Establish scope, then get approval
 
@@ -94,24 +104,35 @@ Before reading deeply, before editing anything, work out which files are in scop
 
 **Scope comes from how the request was phrased:**
 
-| Request | Files in scope |
-|---|---|
-| "Process `<filename>.md`" — a named file | **That file only.** Do not inventory the rest. Name the other pending drafts in one line at the end so nothing is forgotten, and leave them alone. |
-| "Update the doc site from `docs/to-doc-site`" — no file named | **Every** unprefixed file in this folder. |
+| Request                                                       | Files in scope                                                                                                                                     |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Process `<filename>.md`" — a named file                      | **That file only.** Do not inventory the rest. Name the other pending drafts in one line at the end so nothing is forgotten, and leave them alone. |
+| "Update the doc site from `docs/to-doc-site`" — no file named | **Every** unprefixed file in this folder.                                                                                                          |
 
 Work through steps 2–4 far enough to form a recommendation, then present a table covering the files in scope:
 
-| Draft | Recommendation | Target page(s) | Why |
-|---|---|---|---|
-| `example-draft.md` | Publish | `/reference/commands`, `/guide/advanced/ci-cd` | New behaviour, nothing on the site covers it |
-| `another-draft.md` | Skip | — | Internal refactor, no user-visible change |
+| Draft              | Recommendation | Target page(s)                                 | Why                                          |
+| ------------------ | -------------- | ---------------------------------------------- | -------------------------------------------- |
+| `example-draft.md` | Publish        | `/reference/commands`, `/guide/advanced/ci-cd` | New behaviour, nothing on the site covers it |
+| `another-draft.md` | Skip           | —                                              | Internal refactor, no user-visible change    |
 
-Then **stop and wait.**
+Where more than one file is in scope, **propose the order too** — see below. Then **stop and wait.**
 
 - **No file is written, moved, or committed until that specific file has been approved.**
 - Approval is per file. Approving one file says nothing about the others in the list — do not treat a general "yes" as covering the whole table.
 - Approval to publish is **not** approval to commit or push. The rule in step 7 still applies.
 - If a draft turns out to be larger or more entangled than the recommendation suggested, come back and say so rather than expanding the work unilaterally.
+
+#### Order the drafts by dependency, not by folder listing
+
+Drafts are written one per feature, in whatever order the features landed, and they routinely contradict each other. A draft written in June can state as fact something a draft written in July changed. Publishing in filename order therefore puts wrong text on the site and makes the next draft a correction pass.
+
+Read all the drafts in scope **before publishing the first one**, and sequence them so no draft lands before the facts it depends on. Two rules catch most of it:
+
+- A draft that **changes where something lives or what something is called** goes before every draft that mentions it.
+- A draft that says a feature is _"not yet available"_ or _"planned for a later release"_ is suspect. Check the source — the follow-up may be in the same release, in which case that sentence must be corrected rather than published.
+
+Where two drafts touch the same page, publishing them back to back keeps the rewrite in one head.
 
 ### 2. Review each file critically
 
@@ -142,6 +163,10 @@ This sets the version gate on the page. It does **not** affect which branch the 
 
 Most drafts in this folder are written right after the feature is implemented, so **"not released yet" is the common case.**
 
+**A version number written inside a draft is not evidence.** Read the open release-please PR title yourself, every time. A draft states the version that was pending on the day it was written, and one later commit can invalidate it: a single `feat!` landing after the draft turns a pending 4.2.0 into 5.0.0, and every draft still sitting in this folder now names a release that will never exist. This is not hypothetical — it is what happened to the whole 5.0.0 batch.
+
+The same applies to sample log output. **Do not paste a log line containing a version number**, such as `info: App version: 4.1.0`. It dates the page, and published binaries have been mis-stamped before, so the number in a draft's transcript is not necessarily what a reader will see. Trim the line or replace the version with the surrounding prose.
+
 The doc site describes the released product, and readers may be several versions behind. When a page documents behaviour that changed, gate it:
 
 ```markdown
@@ -154,21 +179,39 @@ In earlier versions ...
 
 Content lives under `docs/` in the doc site repo:
 
-| Directory | Contents |
-|---|---|
-| `docs/guide/` | Tutorials and conceptual explanation — including `concepts/`, `configuration/`, `advanced/`, and `troubleshooting.md` |
-| `docs/reference/` | Complete command and option reference |
-| `docs/examples/` | Practical, copy-paste ready examples |
+| Directory         | Contents                                                                                                              |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `docs/guide/`     | Tutorials and conceptual explanation — including `concepts/`, `configuration/`, `advanced/`, and `troubleshooting.md` |
+| `docs/reference/` | Complete command and option reference                                                                                 |
+| `docs/examples/`  | Practical, copy-paste ready examples                                                                                  |
 
 A **new page** also needs a sidebar entry in `docs/.vitepress/config.js`. A page with no sidebar entry is reachable only by search.
 
-Where a topic naturally spans page types, cover it in all three: the concept page explains *why*, the reference page states the *facts* per command, and troubleshooting handles *symptom → cause → fix*.
+Where a topic naturally spans page types, cover it in all three: the concept page explains _why_, the reference page states the _facts_ per command, and troubleshooting handles _symptom → cause → fix_.
 
 VitePress conventions used on the site:
 
 - Internal links are absolute and extensionless: `[text](/guide/concepts/browser-management)`
 - Callouts: `::: tip` / `::: warning` / `::: danger`, closed with `:::`
-- Per-shell examples use `::: code-group` with ` ```powershell [PowerShell] ` and ` ```bash [Bash] ` fences
+- Per-shell examples use `::: code-group` with ` ```powershell [PowerShell] ` and ` ```bash [Bash] ` fences — give **both**, not one
+- Images live in `docs/public/images/` and are referenced as `/images/file.png`
+- The doc site repo's `VITEPRESS_MARKDOWN.md` documents the rest: line highlighting, code diffs, line numbers, custom anchors
+
+#### Use the extensions where they carry meaning
+
+A draft is plain prose because it was written quickly, not because plain prose is the right final form. Reach for more when the content is actually shaped that way:
+
+- **Mermaid** for a decision or precedence that prose has to describe as a numbered list — "the first of these that is set wins", "this input leads to that outcome". A reader answering _"which one applies to me?"_ gets there faster from a diagram. Do not draw one to decorate a page that is already a straight sequence of steps.
+- **Callouts** for the things a reader must not miss: a version gate, a setting that breaks single sign-on for everyone if changed, a step that looks like the fix but is not.
+- **Tables** for anything with a repeating shape — platform vs path, symptom vs cause, version vs behaviour.
+
+#### Cross-link deliberately, in both directions
+
+A page nobody can reach from the page they are already on may as well not exist. Every published change adds links:
+
+- **Both ways.** Concept → reference and reference → concept. A one-way link leaves the other page a dead end.
+- **To the neighbours**, not just the obvious target. A troubleshooting symptom links to the concept page that explains the mechanism; the concept page links to the symptom.
+- **Outward** where the authority is elsewhere: the Qlik Sense help, a GitHub issue that tracks a known limitation, the release the behaviour ships in. External links are the right way to avoid restating something the site does not own.
 
 ### 6. Verify the build
 
@@ -208,34 +251,58 @@ The doc site is single-version and Cloudflare Pages publishes `main` automatical
 
 #### Rules
 
-- Create a feature branch in the doc site repo off an up-to-date `next` before the first edit. Never work directly on `next` itself, and never on `main`.
+- Create a feature branch in the doc site repo off an up-to-date `next` before the first edit. Never work directly on `next` itself, and never on `main`. **Pull first** — a local `next` left over from an earlier pass is usually behind, and branching off it silently reverts whatever landed in between.
+- One draft, one doc site branch, one pull request. Do not carry a second draft on the same branch.
 - Do the doc site edits and the `done/` moves in this repo as separate branches — they are separate repositories and separate pull requests.
 - **Never commit, push, open a pull request, or merge unless explicitly asked.** Authorisation is per request and does not carry over.
 - Commit messages in both repos use [Conventional Commits](https://www.conventionalcommits.org/). Doc site changes are `docs:`.
 
-Merging `next` into `main` at release time is a separate maintenance step owned by the doc site repo, not part of a publishing pass. It is documented in that repo's `README_DEPLOY.md`.
+#### When the request is the full one-at-a-time loop
 
-### 8. Mark the drafts as published
+A request that asks for drafts to be published "one by one, via PRs into `next`, reporting the changed pages after each lands" **is** the authorisation to commit, push, open and merge those pull requests — that is what "lands in `next`" means, and asking again before each merge just stalls the loop.
 
-Move each processed file to `docs/to-doc-site/done/` with the `done_` prefix added, using `git mv` so history follows the file. See "Processing status" above. This applies to files that were approved and deliberately skipped as well as to files that were published.
+It authorises nothing else. Specifically:
 
-A file that was **not approved** in step 1 is not processed. Leave it unprefixed and in place — it is still pending.
+- **`next` only.** `main` is untouched. Merging `next` into `main` at release time is a separate maintenance step owned by the doc site repo, documented in that repo's `README_DEPLOY.md`.
+- **Nothing in this repo is pushed on that authorisation.** The `done_` moves are committed locally as the loop runs; the pull request for them is a separate ask.
+- **It expires with the batch.** The next request starts from the default: branch, implement, verify, stop.
 
-### 9. Report
+### 8. Report, as live URLs
 
-Report in two views, because they answer different questions.
+Report **after the change is on `next`**, not while it sits on a branch, and report in two views because they answer different questions.
 
-**Per draft** — published or skipped, what was corrected against the implementation, and where the content ended up.
+**Per doc site page** — this is the one that makes the change reviewable without diffing the branch. For every page created or edited, give a **URL the user can click**, not a page path:
 
-**Per doc site page** — this is the one that makes the change reviewable without diffing the branch. For every page on `next` that was created or edited:
+| Page                                                                | Created / edited | What changed                                                | From which draft                   |
+| ------------------------------------------------------------------- | ---------------- | ----------------------------------------------------------- | ---------------------------------- |
+| <https://next.butler-sheet-icons-docs.pages.dev/reference/commands> | Edited           | New "Exit codes" section, documenting 141 alongside 0 and 1 | `piping-output-to-head-or-less.md` |
 
-| Page | Created / edited | What changed | From which draft |
-|---|---|---|---|
-| `/reference/commands` | Edited | New "Exit codes" section | `exit-code-now-reflects-failures.md` |
+Cloudflare Pages builds every branch, and `next` is served at `next.butler-sheet-icons-docs.pages.dev`. Link the **specific page**, deep — a reader should not have to navigate to the section under review. Where a change is a new section on a long page, link its anchor.
 
-Also state the `done/` moves made, and that `npm run docs:build` passed.
+Two things worth saying alongside the links:
 
-Then weigh what is left — rough cost, value, and one recommended next step. Files left unapproved from step 1 are part of what is left; list them.
+- The build takes a minute or two after the merge, so a URL given immediately may 404 briefly.
+- If reporting on an unmerged branch instead, read the branch alias from the Cloudflare check run rather than constructing it — it is lowercased, non-alphanumerics become `-`, and it is **truncated to 28 characters**, so a guessed URL 404s. The doc site repo's `CLAUDE.md` has the command.
+
+**Per draft** — what was corrected against the implementation, and where the content ended up. Say explicitly which of the draft's claims turned out to be wrong; that is the part which stops the same error being reintroduced later.
+
+Also state that `npm run docs:build` passed.
+
+Then **stop and wait for approval of that page** before touching the next draft.
+
+### 9. Mark the draft as published
+
+**Only once the user has approved the published page.** Move the file to `docs/to-doc-site/done/` with the `done_` prefix added, using `git mv` so history follows the file. See "Processing status" above. This applies to files that were approved and deliberately skipped as well as to files that were published.
+
+A file that was **not approved** is not processed. Leave it unprefixed and in place — it is still pending, and it is the next thing to revise, not to move on from.
+
+Where the draft contained a claim that turned out to be wrong, add a short HTML comment recording the correction before moving it, so a later reader of `done/` does not trust it.
+
+Then start the next draft at step 2.
+
+### 10. Close the pass
+
+When every draft in scope is done, weigh what is left — rough cost, value, and one recommended next step. Files left unapproved are part of what is left; list them.
 
 ## Ownership
 

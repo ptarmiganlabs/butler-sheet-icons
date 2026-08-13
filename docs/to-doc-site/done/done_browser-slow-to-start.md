@@ -1,3 +1,17 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PR ptarmiganlabs/butler-sheet-icons-docs#77,
+as a new section in guide/troubleshooting.md.
+
+One correction made while publishing: the "What to do about it" table below names
+`~/.cache/puppeteer` (and its Windows equivalent) as THE browser cache directory to exclude from
+antivirus scanning. That stopped being true in the same 5.0.0 release - see
+done_browser-cache-directory.md. It is now the last of four possible locations, and the wrong one
+for a standalone build, which is the deployment most likely to hit this. The published section uses
+a table keyed on how BSI is run.
+
+Everything else was verified verbatim against src/lib/browser/browser-launch.js.
+-->
+
 # When the browser takes a very long time to start
 
 Butler Sheet Icons creates thumbnails by starting a Chrome browser in the background and photographing each sheet. Starting that browser normally takes a second or two.

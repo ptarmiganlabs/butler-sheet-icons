@@ -1,3 +1,25 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PR ptarmiganlabs/butler-sheet-icons-docs#88,
+into guide/troubleshooting.md.
+
+PLACEMENT DIFFERS FROM THE DRAFT. The draft proposes the QS Cloud Authentication Problems section.
+Published under Run Failures and Exit Codes instead, with the other message-keyed entries: the
+distinguishing fact is that the request SUCCEEDED. Axios rejects on 4xx/5xx with no validateStatus
+override, so a rejected API key never reaches this check at all. The authentication section links
+across rather than hosting it.
+
+Added beyond the draft: the QSEoW counterpart, `QRS returned an unusable response for "<path>"`.
+The same guard exists over QRS responses and its message was nowhere on the site, although the fix
+it came from is described in the "Fixed in 4.1.0" section without quoting anything searchable.
+
+Note for anyone quoting that QRS message: `apiUrl` is a QRS PATH (`app/full`,
+`app/full?filter=...`), not a full URL. First draft of the published example used a full URL and
+was corrected against the call sites.
+
+Everything else -- both Cloud messages, the three API paths, the skip warning and its two `source`
+wordings, and that an empty list returns [] rather than throwing -- verified verbatim.
+-->
+
 # An unreadable reply from Qlik Sense Cloud now says so
 
 When Butler Sheet Icons asked your tenant for a list — your collections, the apps in a
