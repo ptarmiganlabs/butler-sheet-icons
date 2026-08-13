@@ -1,7 +1,26 @@
 # Air-gapped browser support, phase 1: make the browser findable
 
 Design document for the first phase of [issue #809](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/809).
-Not yet implemented.
+
+**Partly implemented.** Status against the sequencing in §12, which is the order this was meant to
+ship in:
+
+| # | Commit | Status |
+| --- | --- | --- |
+| 1 | Read the cache directory from one place | **Landed**, by another route: #887 consolidated the eight hardcoded sites into `browser-cache-dir.js`, which #1024 then grew into `browser-paths.js` |
+| 2 | Stop detection accepting cached browsers this machine cannot run | **Landed** |
+| 3 | `--browser-cache-dir` | **Landed** (#1024) |
+| 4 | `--browser-executable-path` | Not started |
+| 5 | `browser install` offline for an already-staged build | Not started |
+| 6 | `browser check`, on the check contract of §15.3 | Not started |
+| 7 | Uninstall the build that was actually found | **Landed** |
+
+Commits 1 and 3 shipped before commit 2, inverting the order §12 argues for. That is why the
+platform filter arrived after administrators could already point `--browser-cache-dir` anywhere.
+
+**Read the source before trusting the detail here.** Two sections are known to describe a codebase
+that no longer exists: §10's call-site table predates #887, and §11.1's version gate names 3.12.0
+when the open release train is well past it. Where this document and `src/` disagree, `src/` wins.
 
 **Phase 1 in one sentence:** Butler Sheet Icons (BSI) can already run without internet access if it
 finds a browser — so let administrators tell it where the browser is, and make it honest about what
@@ -361,7 +380,12 @@ Butler Sheet Icons will not fall back to downloading a browser when an executabl
 explicitly. Correct the path, or remove the option to let Butler Sheet Icons find a browser itself.
 ```
 
-**Platform mismatch** — `logger.warn`, three lines. The highest-value message in this change:
+**Platform mismatch** — `logger.warn`, three lines. The highest-value message in this change.
+
+Note that "platform mismatch" is not the same as "platforms differ": 64-bit Windows runs 32-bit
+builds, and Apple Silicon runs Intel builds under Rosetta, so those two pairings are accepted
+silently rather than reported here. The rule lives in `canRunOnHost()` in `browser-inventory.js`,
+which is also what `canRunHere` on each inventory entry is computed from — do not re-derive it.
 
 ```
 Found 2 cached chrome build(s), but none built for this machine (platform "win64").
@@ -386,12 +410,25 @@ Skipping cached chrome 138.0.7204.94: executable not found at <path>
 **Pinned version missed, but a usable build is cached** — `logger.warn`, three lines:
 
 ```
-No cached chrome build matches --browser-version "121.0.6167.85".
-Cached chrome builds that this machine can run: 138.0.7204.94. Use --browser-version latest to
-accept any of them.
-Butler Sheet Icons will now try to download chrome "121.0.6167.85", which needs internet access. On
+No cached chrome build matches --browser-version "recommended" (build 138.0.7204.94).
+Cached chrome builds that this machine can run: 131.0.6778.204. Set --browser-version to one of
+those build ids to use it instead.
+Butler Sheet Icons will now try to download chrome 138.0.7204.94, which needs internet access. On
 a machine without internet access this will fail.
 ```
+
+Two things this wording is careful about, both of which an earlier draft of this section got wrong:
+
+- **Name the version as the user set it, with the resolved build in brackets.** `recommended` is the
+  default and resolves from a constant, so most readers of this message never typed a version at
+  all. Quoting the resolved build id as the value of `--browser-version` describes a command line
+  nobody wrote, and sends them hunting through scheduled tasks for a version they never set. The raw
+  value is on `options.browserVersion`; the resolved one arrives as `resolvedBuildId`.
+- **Do not suggest `--browser-version latest`.** Since #878 every version resolves to exactly one
+  build *before* the cache is searched, keywords included, so `latest` misses in precisely the same
+  way and merely changes which build is missed. The earlier draft of this document advised it, which
+  would have sent the administrator round the same loop. Listing the cached build ids is the only
+  remedy that works.
 
 `warn`, not `error`: on a connected machine the run still succeeds. Do not promise a `--no-download`
 behaviour in this text — that is phase 2.
