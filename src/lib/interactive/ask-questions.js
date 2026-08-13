@@ -301,7 +301,16 @@ const CONFIG_BUILDERS = Object.freeze({
 const textConfig = (spec) => {
     const config = {};
 
-    if (hasDefault(spec)) {
+    // Never for a password. `@inquirer/password` accepts message, mask, validate
+    // and theme, and its implementation never reads `config.default` - so one
+    // set here was silently dropped, and the wizard was quietly promising a
+    // pre-fill that a secret prompt cannot give.
+    //
+    // Not worth working around, because the library is right: a masked default
+    // is invisible, so pressing Enter over one is answering blind. Left off
+    // deliberately rather than left in as a no-op, since the value would be a
+    // live credential put into an object handed to code that never looks at it.
+    if (hasDefault(spec) && spec.type !== 'password') {
         config.default =
             spec.type === 'list' ? splitEntries(spec.default).join(', ') : spec.default;
     }

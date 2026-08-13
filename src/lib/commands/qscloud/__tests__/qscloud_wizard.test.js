@@ -160,7 +160,7 @@ describe('an API key supplied before the wizard starts', () => {
         expect(picker.choices.map((choice) => choice.value)).toEqual(['app-a', 'app-b']);
     });
 
-    test('becomes a question, opening on the supplied key, when the tenant rejects it', async () => {
+    test('becomes a question when the tenant rejects it', async () => {
         qscloudTestConnection
             .mockRejectedValueOnce(new Error('401 Unauthorized'))
             .mockResolvedValue({ user: 'someone' });
@@ -178,9 +178,33 @@ describe('an API key supplied before the wizard starts', () => {
         const asked = runtime.asked.filter((a) => a.key === 'apikey');
 
         expect(asked).toHaveLength(1);
-        expect(asked[0].default).toBe('revoked-key');
         expect(runtime.output()).toContain('--apikey (from BSI_QSCLOUD_CST_APIKEY)');
         expect(runtime.output()).toContain('401 Unauthorized');
+    });
+
+    test('is not pre-filled, because a secret prompt cannot offer one', async () => {
+        // This used to assert `default` was the supplied key, which was true of
+        // the config the driver built and false of anything the operator would
+        // see: `@inquirer/password` accepts message, mask, validate and theme,
+        // and never reads `default`. Asserting our own output rather than the
+        // library's contract is exactly what let the --qrsport bug live (#1050),
+        // so this pins the contract instead.
+        qscloudTestConnection
+            .mockRejectedValueOnce(new Error('401 Unauthorized'))
+            .mockResolvedValue({ user: 'someone' });
+
+        const runtime = scriptedRuntime(baseAnswers());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { apikey: 'revoked-key' },
+            runtime,
+        });
+
+        const asked = runtime.asked.find((a) => a.key === 'apikey');
+
+        expect(asked.type).toBe('password');
+        expect(asked.default).toBeUndefined();
     });
 
     test('says so when the check passes, so a pause on the network is explained', async () => {
