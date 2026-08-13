@@ -139,7 +139,13 @@ Where two drafts touch the same page, publishing them back to back keeps the rew
 For each unprefixed file, answer three questions before writing anything:
 
 1. **Should it be published at all?** Some drafts describe internal refactors, or behaviour that never reaches a user. Some are already covered on the site. Some describe behaviour that has since changed again. Say so and process the file into `done/` without publishing rather than adding noise to the site.
+
+    **A draft that states its own precondition is not ready until that precondition holds**, and it stays pending rather than being archived. `windows-binary-signed-again.md` says "do not publish until a signed release actually exists" — publishing it early would have told administrators the Windows download is signed while the only download available was not, which is worse than silence: the page tells them to distrust a binary whose signature does not match.
+
 2. **Where does it fit?** See "Site structure" below. Strongly prefer **editing an existing page** over adding a new one — a fact stated in two places drifts out of sync. A draft's suggested target page is a starting point, not a decision.
+
+    **Check whether the site already covers the symptom** before writing a new section. `browser-build-stops-responding-immediately.md` was most of the way covered by an existing troubleshooting section quoting the same two error lines; publishing it as written would have produced two answers to one search. What it actually needed was three paragraphs added to what was there.
+
 3. **What is the right wording and cross-linking?** Rewrite in the doc site's voice rather than pasting the draft. Add cross-links both ways: from the concept page to the reference page, and back.
 
 ### 3. Verify every claim against the implementation
@@ -297,6 +303,20 @@ Then **stop and wait for approval of that page** before touching the next draft.
 A file that was **not approved** is not processed. Leave it unprefixed and in place — it is still pending, and it is the next thing to revise, not to move on from.
 
 Where the draft contained a claim that turned out to be wrong, add a short HTML comment recording the correction before moving it, so a later reader of `done/` does not trust it.
+
+#### Re-read the draft against `main` before moving it
+
+**A draft can be rewritten while it is being published.** Publishing a batch takes hours or days; the feature it describes is often still being worked on, and the person working on it updates the draft. Archiving the version you started from then buries content nobody has published, in the one folder nobody re-reads.
+
+Before each `git mv`, check the file against current `main`:
+
+```bash
+git fetch upstream main && git diff HEAD..upstream/main -- docs/to-doc-site/<draft>.md
+```
+
+If it has changed, **do not archive it**. Treat it as pending again: read the new version, publish what is new, and check whether anything already on the site has been contradicted. Quotes are the usual casualty — a prompt or a log line reworded in the same commit that expanded the draft.
+
+This is not hypothetical. In the 5.0.0 batch, `creating-thumbnails-interactively.md` gained about 130 lines mid-pass and two of the strings already published from it were reworded in the code at the same time. The archive commit hit a merge conflict, which is the only reason it was caught.
 
 Then start the next draft at step 2.
 

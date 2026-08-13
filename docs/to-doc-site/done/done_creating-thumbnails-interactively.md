@@ -1,3 +1,33 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, into guide/interactive-mode.md.
+
+Published TWICE. PR ptarmiganlabs/butler-sheet-icons-docs#79 published an earlier version of this
+draft; #90 republished it after this file was substantially rewritten mid-pass.
+
+THAT REWRITE IS WHY THE "re-read against main before archiving" RULE EXISTS. About 130 lines were
+added here while the earlier version was being published, and two strings already published from it
+were reworded in the code at the same time:
+
+  "Choose from all apps on the server" / "Choose a tag, then apps carrying it" / "Type an app id"
+    -> "Pick apps from a list" / "Update every app carrying a tag" / "Type app id(s)"
+  "Supplied, but asked about again so the answer can be picked from what is actually there"
+    -> "Supplied, but asked about again so you can change it for this run"
+
+Both were wrong on the live site until #90. The archive commit hit a merge conflict, which is the
+only reason it was caught at all.
+
+ONE CLAIM BELOW IS STILL WRONG. The empty-selection message is quoted as offering to "go back and
+choose a tag". There is no way back to a previous question, and the code says "press Ctrl+C and
+start again to choose <tag|collection> instead". Published as the code has it.
+
+A section that stopped being true: browser uninstall's picker was documented as "One exception, and
+it says so" to the option-skipping rule. Under the two-kinds framing it is not an exception at all,
+and is now a note under that rule.
+
+Question counts (36->14, 25->10) were measured by running each wizard's refine(), not taken from
+here. Nothing in the test suite locks them.
+-->
+
 # Creating sheet thumbnails without assembling a command line
 
 `qseow create-sheet-thumbnails` takes 36 options. `qscloud create-sheet-thumbnails` takes 25. Getting a first run working has meant reading `--help`, assembling a long command line, and finding out only at the end if a certificate path or an API key was wrong.
