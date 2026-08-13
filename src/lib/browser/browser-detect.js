@@ -1,4 +1,5 @@
-import { getInstalledBrowsers, getVersionComparator } from '@puppeteer/browsers';
+import { getVersionComparator, detectBrowserPlatform } from '@puppeteer/browsers';
+import { getBrowserInventory } from './browser-inventory.js';
 import { resolveBrowserCacheDir } from './browser-paths.js';
 import fs from 'fs';
 
@@ -37,10 +38,111 @@ const sortNewestFirst = (browsers, browser) => {
 };
 
 /**
+ * Lists the distinct platforms a set of cache entries was built for.
+ *
+ * @param {Array<object>} browsers - Installed browser entries.
+ *
+ * @returns {string} Comma-separated platform names.
+ */
+const platformsOf = (browsers) => [...new Set(browsers.map((b) => b.platform))].join(', ');
+
+/**
+ * Explains why the cache yielded nothing usable.
+ *
+ * Called only once the funnel has emptied, and reports on the last stage that still had
+ * entries, so the message describes the real obstacle rather than the final emptiness.
+ *
+ * The exact wording matters more than usual: these strings are what an administrator pastes
+ * into a search box, and the troubleshooting documentation quotes them verbatim.
+ *
+ * @param {object} args - Funnel state.
+ * @param {string} args.browser - Requested browser type.
+ * @param {string} [args.requestedVersion] - What the user actually asked for, which may be a
+ * keyword such as `recommended`. Never the resolved build id: quoting a resolved id back as the
+ * value of `--browser-version` sends the reader looking for a version they never set.
+ * @param {string} [args.resolvedBuildId] - The concrete build that version resolved to.
+ * @param {string} args.cacheDir - Directory that was searched.
+ * @param {string} [args.hostPlatform] - Platform this machine runs, if recognised.
+ * @param {Array<object>} args.ofType - Entries matching the requested browser type.
+ * @param {Array<object>} args.ofPlatform - Of those, the ones built for this machine.
+ * @param {Array<object>} args.usable - Of those, the ones whose executable exists.
+ *
+ * @returns {void}
+ */
+const reportEmptyFunnel = ({
+    browser,
+    requestedVersion,
+    resolvedBuildId,
+    cacheDir,
+    hostPlatform,
+    ofType,
+    ofPlatform,
+    usable,
+}) => {
+    if (ofType.length === 0) {
+        logger.debug(`No cached browsers matching type "${browser}" found`);
+        return;
+    }
+
+    if (ofPlatform.length === 0) {
+        // The highest-value message here. The connected machine is usually the administrator's
+        // Mac and the target a Windows server, so this is the most likely staging mistake -
+        // and until now the only sign of it was an unrelated-looking failure at launch.
+        logger.warn(
+            `Found ${ofType.length} cached ${browser} build(s), but none built for this machine (platform "${hostPlatform}"). ` +
+                `Cached ${browser} builds are for: ${platformsOf(ofType)}. A browser cache copied from a machine with a different operating system cannot be used. ` +
+                `Browser cache directory: ${cacheDir}`
+        );
+        return;
+    }
+
+    if (usable.length === 0) {
+        logger.warn(
+            `Found ${ofPlatform.length} cached ${browser} build(s) for this machine, but none has a usable executable. ` +
+                `The cache directory may be incomplete - for example copied without the browser binary, or left behind by a failed install. ` +
+                `Browser cache directory: ${cacheDir}`
+        );
+        return;
+    }
+
+    // Only reachable with a pinned build: without one, every usable entry matches.
+    //
+    // The version is named as the user set it, with the build it resolved to in brackets. A
+    // keyword is the normal case - `recommended` is the default - so quoting the resolved id as
+    // though it were the flag's value would describe a command line nobody typed.
+    const asked = requestedVersion
+        ? `--browser-version "${requestedVersion}"${
+              resolvedBuildId && resolvedBuildId !== requestedVersion
+                  ? ` (build ${resolvedBuildId})`
+                  : ''
+          }`
+        : `build ${resolvedBuildId}`;
+
+    // No "use --browser-version latest to accept any of them" here: since issue #878 every
+    // version, keyword included, resolves to exactly one build before the cache is searched, so
+    // `latest` would miss in precisely the same way. Naming the build ids is the only advice
+    // that actually works.
+    //
+    // `warn` rather than `error` because on a connected machine the run still succeeds by
+    // downloading. The last sentence is what makes it actionable offline, where it will not.
+    logger.warn(
+        `No cached ${browser} build matches ${asked}. ` +
+            `Cached ${browser} builds that this machine can run: ${usable.map((b) => b.buildId).join(', ')}. Set --browser-version to one of those build ids to use it instead. ` +
+            `Butler Sheet Icons will now try to download ${browser} ${resolvedBuildId}, which needs internet access. On a machine without internet access this will fail.`
+    );
+};
+
+/**
  * Detects available browsers in the following priority order:
  * 1. System browser (via PUPPETEER_EXECUTABLE_PATH environment variable)
- * 2. Cached browsers in Puppeteer cache directory
+ * 2. Cached browsers in the resolved browser cache directory
  * 3. Returns null if no browser found (caller should download)
+ *
+ * A cached browser has to survive four narrowing stages before it is offered: it must be the
+ * requested type, built for this machine's platform, have an executable that actually exists,
+ * and match the pinned build id when one was given. The first two of those were missing until
+ * issue #943, where a cache staged on macOS and mounted into a Linux container was accepted and
+ * then failed at launch with an error that named none of this.
  *
  * Version matching works on a build id that the caller has already resolved, never on the raw
  * `--browser-version` value. That is what makes a keyword mean exactly one build: before this,
@@ -98,29 +200,63 @@ export const detectAvailableBrowser = async (options, resolvedBuildId) => {
         // Priority 2: Check for cached browsers in the browser cache directory
         const browserPath = resolveBrowserCacheDir(options);
 
-        const installedBrowsers = await getInstalledBrowsers({
-            cacheDir: browserPath,
-        });
+        // The shared inventory rather than getInstalledBrowsers() directly: it already answers
+        // "can this machine run that build" as `canRunHere`, and a second copy of that rule here
+        // would drift from the one `browser list-installed` and `browser uninstall` report.
+        const installedBrowsers = await getBrowserInventory({ cacheDir: browserPath });
 
         if (installedBrowsers && installedBrowsers.length > 0) {
             logger.info(`Found ${installedBrowsers.length} cached browser(s)`);
 
-            // Filter by requested browser type if specified
-            let matchingBrowsers = installedBrowsers;
-            if (options.browser) {
-                matchingBrowsers = matchingBrowsers.filter((b) => b.browser === options.browser);
-            }
+            // A funnel rather than a single filter, because the stage that empties *is* the
+            // diagnosis. Reporting only "no usable browser found" throws away the one fact the
+            // administrator needs: whether the cache is for the wrong machine, incomplete, or
+            // simply missing the pinned build.
+            const ofType = options.browser
+                ? installedBrowsers.filter((b) => b.browser === options.browser)
+                : installedBrowsers;
 
-            const ofRequestedType = matchingBrowsers.length;
+            // `canRunHere` is computed by the inventory, which owns the compatibility rule -
+            // it is wider than equality, because 64-bit Windows runs 32-bit builds and Apple
+            // Silicon runs Intel ones. An undetectable host platform leaves every build
+            // runnable, so a machine Butler Sheet Icons does not recognise keeps working.
+            //
+            // Read here only to name the host in the diagnostic below; the decision itself is
+            // not made from it. Synchronous, despite several call sites in this codebase
+            // awaiting it.
+            const hostPlatform = detectBrowserPlatform();
+            const ofPlatform = ofType.filter((b) => {
+                if (b.canRunHere) {
+                    return true;
+                }
 
-            if (resolvedBuildId) {
-                matchingBrowsers = matchingBrowsers.filter((b) => b.buildId === resolvedBuildId);
-            } else {
-                matchingBrowsers = sortNewestFirst(matchingBrowsers, options.browser);
-            }
+                logger.verbose(
+                    `Skipping cached ${b.browser} ${b.buildId}: built for ${b.platform}, which this machine (${hostPlatform}) cannot run`
+                );
+                return false;
+            });
 
-            if (matchingBrowsers.length > 0) {
-                const browser = matchingBrowsers[0];
+            // `computeExecutablePath()` builds this path from the layout convention without
+            // ever stat-ing it, so a cache copied without its binaries - or without the
+            // `.metadata` file, which is what a tar invocation that skips dotfiles produces -
+            // yields a perfectly plausible path to nothing.
+            const usable = ofPlatform.filter((b) => {
+                if (fs.existsSync(b.executablePath)) {
+                    return true;
+                }
+
+                logger.verbose(
+                    `Skipping cached ${b.browser} ${b.buildId}: executable not found at ${b.executablePath}`
+                );
+                return false;
+            });
+
+            const matching = resolvedBuildId
+                ? usable.filter((b) => b.buildId === resolvedBuildId)
+                : sortNewestFirst(usable, options.browser);
+
+            if (matching.length > 0) {
+                const browser = matching[0];
                 logger.info(`Using cached browser: ${browser.browser} ${browser.buildId}`);
 
                 return {
@@ -129,15 +265,21 @@ export const detectAvailableBrowser = async (options, resolvedBuildId) => {
                     browser: browser.browser,
                     buildId: browser.buildId,
                 };
-            } else if (ofRequestedType > 0) {
-                // The type matched and only the build did. Saying "no browsers of type chrome"
-                // here, as this used to, sends the reader looking for the wrong problem.
-                logger.debug(
-                    `Cached "${options.browser}" browsers found, but none matching build ${resolvedBuildId}`
-                );
-            } else {
-                logger.debug(`No cached browsers matching type "${options.browser}" found`);
             }
+
+            // Report from the last stage that still had entries. The `warn` blocks fire only
+            // when the funnel has emptied - a healthy run with one stale directory beside a
+            // usable build stays quiet, because warnings that fire on success get ignored.
+            reportEmptyFunnel({
+                browser: options.browser,
+                requestedVersion: options.browserVersion,
+                resolvedBuildId,
+                cacheDir: browserPath,
+                hostPlatform,
+                ofType,
+                ofPlatform,
+                usable,
+            });
         } else {
             logger.debug('No cached browsers found');
         }
