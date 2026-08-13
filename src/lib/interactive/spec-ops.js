@@ -36,6 +36,55 @@ export const SHEET_FILTER_KEYS = Object.freeze([
 ]);
 
 /**
+ * THE STATIC/DYNAMIC CLASSIFICATION. Edit this list to change it.
+ *
+ * Every option a Qlik wizard asks about falls into one of two kinds:
+ *
+ * - **This environment.** A host, a port, a certificate path, a credential, a
+ *   browser build. Properties of the server you are pointing at, true until the
+ *   environment itself changes. Supplied once in a `.env` file, they should stay
+ *   answered - re-asking them every run is the tedium `-i` exists to remove.
+ *
+ * - **This run.** Which apps to update, which sheets to skip, how much of each
+ *   sheet to capture. Decisions, not facts. A decision taken once and left in a
+ *   `.env` file should not be taken again silently on every later run, because
+ *   the operator cannot see it and cannot change it without editing the file.
+ *
+ * Keys listed here are the second kind: always asked, opening on whatever was
+ * supplied, so confirming costs one keystroke and changing costs a few.
+ * Everything not listed is the first kind and is skipped once supplied.
+ *
+ * **To reclassify an option, move its key in or out of this list.** Nothing else
+ * needs editing: the driver reads the `perRun` mark this produces, and the
+ * banner, the pre-fill and the gate bypass all follow from it. `contentlibrary`
+ * and `imagedir` sit outside deliberately - both were judged properties of the
+ * environment rather than of the run.
+ */
+export const PER_RUN_KEYS = Object.freeze([
+    // What gets updated.
+    'appid',
+    'qliksensetag',
+    'collectionid',
+    // How much of each sheet the screenshot covers.
+    'includesheetpart',
+    // Which sheets are skipped or blurred.
+    ...SHEET_FILTER_KEYS,
+]);
+
+/**
+ * Mark a question as describing this run, if the classification says it does.
+ *
+ * Applied to every question a wizard returns, so {@link PER_RUN_KEYS} is the
+ * single statement of the rule rather than a thing each question repeats.
+ *
+ * @param {object} spec - The question.
+ *
+ * @returns {object} The question, marked when it names a per-run decision.
+ */
+export const markPerRun = (spec) =>
+    PER_RUN_KEYS.includes(spec.key) ? { ...spec, perRun: true } : spec;
+
+/**
  * Whether a value was actually supplied, as opposed to left at nothing.
  *
  * An empty string is how both `--qliksensetag` and `--collectionid` say "none" -
@@ -90,8 +139,12 @@ export const assertAppSelectionNotEmpty = (answers, groupingKey, groupingLabel) 
         return;
     }
 
+    // Names only what can actually be done here. There is no way back to an
+    // earlier question - the prompt library has no such gesture, which is why
+    // the wizard says up front that Ctrl+C cancels - so telling someone to "go
+    // back" sends them hunting for a key that does not exist.
     throw new Error(
-        `No apps selected, so there would be nothing to do. Pick at least one app, or go back and choose ${groupingLabel} instead.`
+        `No apps selected, so there would be nothing to do. Pick at least one app, or press Ctrl+C and start again to choose ${groupingLabel} instead.`
     );
 };
 
@@ -217,7 +270,9 @@ export const appPickerQuestion = ({
             ...spec,
             type: 'checkbox',
             message: 'Which apps?',
-            hint: `Individually named apps. They are updated in addition to anything ${groupingLabel} matches.`,
+            hint: isSupplied(supplied)
+                ? `Apps you already supplied are listed first, ticked. Untick to leave one out. Anything ${groupingLabel} matches is updated as well.`
+                : `Individually named apps. They are updated in addition to anything ${groupingLabel} matches.`,
         },
         supplied
     ),
@@ -228,7 +283,36 @@ export const appPickerQuestion = ({
     choices: async (ctx) => {
         const apps = await listApps(ctx);
 
-        return apps.map((entry) => ({ name: label(entry), value: entry.id }));
+        // Compared case-insensitively, because an app id is a GUID and a GUID
+        // is not case-sensitive. They are routinely copied out of the QMC in
+        // upper case, and Qlik's own APIs match them either way, so treating
+        // 'DED8...' and 'ded8...' as different ids would report an app that is
+        // plainly there as missing and then drop it from the run.
+        const alreadyChosen = new Set(splitEntries(supplied).map((id) => String(id).toLowerCase()));
+        const wasSupplied = (entry) => alreadyChosen.has(String(entry.id).toLowerCase());
+
+        // Supplied ids first, because a ticked row the operator cannot see is
+        // the same as no choice at all. On a server with 519 apps the one that
+        // came from a .env file sat at index 16, ten rows below the fold: the
+        // list looked entirely unticked, and submitting it silently kept an app
+        // nobody had chosen in this run.
+        const ranked = [...apps.filter(wasSupplied), ...apps.filter((e) => !wasSupplied(e))];
+
+        // A supplied id the server no longer has cannot be shown, ticked or
+        // otherwise, so it would just vanish from the selection. Saying so is
+        // the whole reason this question is asked again rather than skipped.
+        const missing = splitEntries(supplied).filter(
+            (id) =>
+                !apps.some((entry) => String(entry.id).toLowerCase() === String(id).toLowerCase())
+        );
+
+        if (missing.length > 0) {
+            ctx.write(
+                `  ${missing.join(', ')} - supplied, but no longer on the server, so not listed below.\n`
+            );
+        }
+
+        return ranked.map((entry) => ({ name: label(entry), value: entry.id }));
     },
     probe: async (ctx) => assertAppSelectionNotEmpty(ctx.answers, groupingKey, groupingLabel),
     fallback: { type: 'list', message: 'App id(s) (could not fetch the list)' },
@@ -290,16 +374,27 @@ export const gate = ({ key, message, default: defaultValue = false }) => {
  * Returns a mapper, so it composes with the other reshaping a wizard does rather
  * than needing its own pass over the list.
  *
+ * A question whose value was already supplied is shown whatever the gate says.
+ * Hiding it would put the operator in the worst position of all: a filter from
+ * a `.env` file silently excluding sheets, behind a question they answered "no"
+ * to. Declining the gate means "nothing more", not "and forget what I set".
+ *
  * @param {string} gateKey - Key of the gate question.
  * @param {string[]|Set<string>} keys - Keys to hide behind it.
+ * @param {object} [supplied] - What the command line and environment already gave.
  *
  * @returns {(spec: object) => object} A mapper leaving other questions untouched.
  */
-export const gatedBy = (gateKey, keys) => {
+export const gatedBy = (gateKey, keys, supplied = {}) => {
     const hidden = new Set(keys);
 
     return (spec) =>
-        hidden.has(spec.key) ? { ...spec, when: (ctx) => ctx.answers[gateKey] === true } : spec;
+        hidden.has(spec.key)
+            ? {
+                  ...spec,
+                  when: (ctx) => ctx.answers[gateKey] === true || isSupplied(supplied[spec.key]),
+              }
+            : spec;
 };
 
 /**

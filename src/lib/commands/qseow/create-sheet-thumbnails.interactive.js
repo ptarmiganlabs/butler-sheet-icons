@@ -12,6 +12,7 @@ import {
     appPickerQuestion,
     typedAppQuestion,
     resolvesToApps,
+    markPerRun,
     APP_SOURCE,
     APP_SOURCES,
     SHEET_FILTER_KEYS,
@@ -209,9 +210,19 @@ export default {
                     !CONNECTION_KEYS.includes(spec.key) &&
                     !['appid', 'qliksensetag', 'contentlibrary'].includes(spec.key)
             )
-            .map(gatedBy(ADVANCED, ADVANCED_KEYS))
-            .map(gatedBy(FILTERING, SHEET_FILTER_KEYS));
+            // Both gates get what was already supplied, not just the filters.
+            // A gate that does not know cannot show a supplied value, and a
+            // per-run option inside a gated block would then be announced as
+            // asked about and never asked - the exact defect this wizard was
+            // rewritten to remove, re-armed by nothing more than moving a key
+            // into PER_RUN_KEYS.
+            .map(gatedBy(ADVANCED, ADVANCED_KEYS, answers))
+            .map(gatedBy(FILTERING, SHEET_FILTER_KEYS, answers));
 
+        // markPerRun last, over everything: PER_RUN_KEYS in spec-ops.js is the
+        // one statement of which options describe this run rather than this
+        // environment, and applying it here means no question can be left out
+        // of the classification by being built somewhere else in this file.
         return inSections(
             [
                 ...connection,
@@ -227,7 +238,7 @@ export default {
                         'Configure advanced options (ports, certificates, schema version, browser)?',
                 }),
                 ...rest,
-            ],
+            ].map(markPerRun),
             SECTIONS
         );
     },

@@ -301,7 +301,7 @@ describe('an option a synthetic question stands in for', () => {
         await runInteractive({ path: 'browser uninstall', presetOptions: PRESET, runtime });
 
         const output = runtime.output();
-        expect(output).toContain('asked about again so the answer can be picked');
+        expect(output).toContain('asked about again so you can change it for this run');
         expect(output).toContain('--browser-version');
     });
 

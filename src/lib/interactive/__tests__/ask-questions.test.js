@@ -374,4 +374,53 @@ describe('scriptedRuntime', () => {
 
         expect(answers.status).toEqual(['private', 'published']);
     });
+
+    test('pre-ticks a checkbox default that differs only in case', async () => {
+        // App ids are GUIDs, which are not case-sensitive and are routinely
+        // pasted out of the QMC in upper case. Comparing them exactly left the
+        // row unticked, so submitting the list dropped an id that was supplied.
+        const runtime = scriptedRuntime({ appid: ['a1b2'] });
+
+        await askQuestions(
+            [
+                spec({
+                    key: 'appid',
+                    type: 'checkbox',
+                    default: ['A1B2'],
+                    choices: ['a1b2', 'c3d4'],
+                }),
+            ],
+            ctx(),
+            { runtime }
+        );
+
+        const offered = runtime.asked.find((entry) => entry.key === 'appid').choices;
+        expect(offered).toEqual([
+            expect.objectContaining({ value: 'a1b2', checked: true }),
+            expect.objectContaining({ value: 'c3d4', checked: false }),
+        ]);
+    });
+
+    test('a <true|false> option supplied as "false" opens on no, not yes', async () => {
+        // These are string options carrying boolean defaults, and
+        // Boolean('false') is true - so reading the value that way offered to
+        // turn --secure or --reject-unauthorized back on.
+        const runtime = scriptedRuntime({ secure: false });
+
+        await askQuestions([spec({ key: 'secure', type: 'confirm', default: 'false' })], ctx(), {
+            runtime,
+        });
+
+        expect(runtime.asked.find((entry) => entry.key === 'secure').default).toBe(false);
+    });
+
+    test('a <true|false> option supplied as "true" still opens on yes', async () => {
+        const runtime = scriptedRuntime({ secure: true });
+
+        await askQuestions([spec({ key: 'secure', type: 'confirm', default: 'true' })], ctx(), {
+            runtime,
+        });
+
+        expect(runtime.asked.find((entry) => entry.key === 'secure').default).toBe(true);
+    });
 });

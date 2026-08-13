@@ -199,6 +199,54 @@ describe('choosing which apps to update', () => {
     });
 });
 
+describe('the static/dynamic classification', () => {
+    // QSEoW twin of the same block: PER_RUN_KEYS in spec-ops.js is the one
+    // statement of the rule, so both platforms get the same treatment.
+    const connection = { tenanturl: 'acme.eu.qlikcloud.com', apikey: 'a-real-key' };
+
+    test('a supplied --includesheetpart is asked again, opening on that value', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ includesheetpart: '4' }));
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...connection, includesheetpart: '2' },
+            runtime,
+        });
+
+        const question = runtime.asked.find((a) => a.key === 'includesheetpart');
+        expect(question).toBeDefined();
+        expect(question.default).toBe('2');
+    });
+
+    test('a supplied sheet filter is shown even when the filtering gate is declined', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({ _filtering: false, excludeSheetNumber: '2' })
+        );
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...connection, excludeSheetNumber: ['7'] },
+            runtime,
+        });
+
+        const question = runtime.asked.find((a) => a.key === 'excludeSheetNumber');
+        expect(question).toBeDefined();
+        expect(question.default).toBe('7');
+    });
+
+    test('an option describing the environment stays answered', async () => {
+        const runtime = scriptedRuntime(baseAnswers());
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...connection, imagedir: './img' },
+            runtime,
+        });
+
+        expect(runtime.asked.map((a) => a.key)).not.toContain('imagedir');
+    });
+});
+
 describe('a selection that would process nothing', () => {
     test('is refused where it was made, not after the run is confirmed', async () => {
         const runtime = scriptedRuntime(baseAnswers({ _appSource: 'typed', appid: ['', 'app-z'] }));
@@ -240,7 +288,9 @@ describe('an app id supplied before the wizard starts', () => {
         appid: ['app-b'],
     };
 
-    test('still gets the picker, with the supplied app already ticked', async () => {
+    test('still gets the picker, with the supplied app ticked and listed first', async () => {
+        // First, not merely ticked: a ticked row below the fold of a long list
+        // is the same as no choice at all.
         const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'] }));
 
         await runInteractive({ path: PATH, presetOptions: supplied, runtime });
@@ -248,9 +298,21 @@ describe('an app id supplied before the wizard starts', () => {
         const question = runtime.asked.find((a) => a.key === 'appid');
         expect(question).toBeDefined();
         expect(question.choices).toEqual([
-            expect.objectContaining({ value: 'app-a', checked: false }),
             expect.objectContaining({ value: 'app-b', checked: true }),
+            expect.objectContaining({ value: 'app-a', checked: false }),
         ]);
+    });
+
+    test('says a supplied app the tenant no longer has is not in the list', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ appid: ['app-a'] }));
+
+        await runInteractive({
+            path: PATH,
+            presetOptions: { ...supplied, appid: ['app-gone'] },
+            runtime,
+        });
+
+        expect(runtime.output()).toContain('app-gone - supplied, but no longer on the server');
     });
 
     test('is announced as asked again rather than as skipped', async () => {
@@ -258,7 +320,7 @@ describe('an app id supplied before the wizard starts', () => {
 
         await runInteractive({ path: PATH, presetOptions: supplied, runtime });
 
-        expect(runtime.output()).toContain('picked from what is actually there: --appid');
+        expect(runtime.output()).toContain('so you can change it for this run: --appid');
         expect(runtime.output()).not.toMatch(/not asked about again:[^\n]*--appid/);
     });
 

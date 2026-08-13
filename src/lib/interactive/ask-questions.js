@@ -131,11 +131,26 @@ const hasDefault = (spec) => spec.default !== undefined && spec.default !== '';
  * behaviour to this. An if-chain grows a branch each time; a table grows a row.
  */
 const CONFIG_BUILDERS = Object.freeze({
-    confirm: (spec) => ({ default: Boolean(spec.default) }),
+    // A `<true|false>` option is a *string* option, so its supplied value is the
+    // word rather than the boolean - and `Boolean('false')` is `true`. Reading
+    // it that way pre-filled the prompt with the opposite of what was supplied,
+    // which on --secure or --reject-unauthorized silently offers to weaken a TLS
+    // setting the operator had deliberately turned off. `to-cli-options` already
+    // treats the string 'true' as the true value; this is the same rule on the
+    // way in.
+    confirm: (spec) => ({
+        default: spec.default === true || String(spec.default).toLowerCase() === 'true',
+    }),
 
     checkbox: (spec, choices) => {
-        const chosen = new Set(splitEntries(spec.default).map(String));
-        const check = (value) => chosen.has(String(value));
+        // Case-insensitive, because the values here are frequently GUIDs, which
+        // are not case-sensitive and are routinely pasted in upper case. An id
+        // that differs only in case would otherwise leave its row unticked, so
+        // submitting the list would drop a value the operator had supplied.
+        const chosen = new Set(
+            splitEntries(spec.default).map((entry) => String(entry).toLowerCase())
+        );
+        const check = (value) => chosen.has(String(value).toLowerCase());
 
         return {
             choices: (choices ?? []).map((choice) =>
