@@ -1,3 +1,23 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PR ptarmiganlabs/butler-sheet-icons-docs#91.
+
+NOT published as a new page. The troubleshooting section "Every app fails with `Target closed` or
+`Protocol error`" already carried this symptom and quoted the same two error lines verbatim, so a
+second section would have been two answers to one search. That section was extended instead, and
+guide/concepts/browser-management gained a "What `recommended` points at" section.
+
+Version gate: 5.0.0, not the 4.2.0 stated below.
+
+THE BUILD IDS BELOW ARE CORRECT, but do not verify them from the repo's node_modules. That install
+was puppeteer-core 25.4.0, whose Chrome revision is 151.0.7922.47 -- the OLD value, and the one this
+draft attributes to 4.1.0. package.json requires ^25.5.0 and the lockfile pins 25.5.0, whose
+revision is 151.0.7922.71. Confirmed by installing 25.5.0 in a scratch directory and reading its
+revisions.js.
+
+The published page states the build for the named release and tells readers to trust their own run's
+log line over the page, since the value is version-specific by nature.
+-->
+
 # "Browser build … started but stopped responding immediately"
 
 Suggested target pages: `/guide/troubleshooting` (symptom → cause → fix) and
