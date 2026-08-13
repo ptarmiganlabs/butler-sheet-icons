@@ -1,3 +1,26 @@
+<!--
+PUBLISHED 2026-08-13 to the doc site `next` branch, PR ptarmiganlabs/butler-sheet-icons-docs#87,
+as a section in guide/troubleshooting.md under Network Issues.
+
+TWO CLAIMS BELOW WERE NOT PUBLISHED AS WRITTEN:
+
+1. "Consider a shorter --pagewait if your sheets render quickly. It shortens the time the
+   connection spends idle per sheet." This is pre-keep-alive reasoning. The keep-alive pings every
+   20 s regardless of how long the gap is, so shortening --pagewait buys nothing against an idle
+   drop and costs thumbnails of half-drawn charts. Published as a warning AGAINST doing it.
+
+2. The draft says the keep-alive makes drops "far less likely" but never says what it does not do.
+   socket-keepalive.js is explicit: nothing retries a session that has already gone. The published
+   page says so, because "less likely to happen" invites the opposite assumption.
+
+Also published here, not with the Windows auth material: the 4.1.0 "closed from the other end,
+code 1000" correction, which done_windows-run-fails-with-invalid-auth-credentials.md listed as one
+of its three version-dependent items.
+
+Everything else -- both log lines, the 20 s interval, the 25-40 s screenshot gap, both platforms
+with Cloud benefiting most -- verified verbatim.
+-->
+
 # When the connection to Qlik Sense drops in the middle of a run
 
 Butler Sheet Icons holds one connection to the Qlik Sense engine open for as long as it is working on an app. If that connection is lost part-way through — the app has ten sheets and the connection dies at sheet three — the run cannot finish that app.
