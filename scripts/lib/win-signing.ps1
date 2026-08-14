@@ -86,13 +86,18 @@ $BsiSessionHresult = [ordered]@{
 # `SignerSign() failed` is deliberately absent: it is signtool's generic wrapper for every signing
 # failure, so matching it would classify a broken invocation as an expired session. The HRESULT it
 # carries is what carries the information.
+#
+# Kept to the shortest distinctive fragment rather than the whole sentence. The first version of
+# this table matched "No certificates were found that meet all the given criteria" - the wording
+# everyone quotes - and signtool 10.0.22621 actually says "met". One tense turned every disconnected
+# insider build red, which is the thing this file exists to stop.
 $BsiSessionText = [ordered]@{
-    'No certificates were found that meet all the given criteria' = 'CertificateNotVisibleToSigntool'
-    'Keyset does not exist'                                       = 'KeysetDoesNotExist'
-    'Key not valid for use in specified state'                    = 'BadKeyState'
-    'provider DLL failed to initialize'                           = 'ProviderInitFailed'
-    'smart ?card'                                                 = 'SmartCardError'
-    'The RPC server is unavailable'                               = 'SimplySignNotAnswering'
+    'No certificates were found'              = 'CertificateNotVisibleToSigntool'
+    'Keyset does not exist'                   = 'KeysetDoesNotExist'
+    'Key not valid for use in specified state' = 'BadKeyState'
+    'provider DLL failed to initialize'       = 'ProviderInitFailed'
+    'smart ?card'                             = 'SmartCardError'
+    'The RPC server is unavailable'           = 'SimplySignNotAnswering'
 }
 
 # Guidance printed whenever signing cannot proceed. Both likely causes, because they look identical

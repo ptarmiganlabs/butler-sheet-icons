@@ -77,7 +77,19 @@ $cases = @(
         ReasonMatch = 'NTE_BAD_KEYSET'
     }
     [pscustomobject]@{
-        Name        = 'the certificate is no longer visible to signtool'
+        # Verbatim from insiders-build run 31771706108 on the win-code-sign runner, with SimplySign
+        # disconnected: signtool 10.0.22621.2428, exit 1, no HRESULT anywhere in the output. Note
+        # "met", not "meet" - matching the sentence everyone quotes instead of the one signtool
+        # prints is what turned that run red.
+        Name        = 'a disconnected SimplySign session, as observed on the runner'
+        TimedOut    = $false
+        ExitCode    = 1
+        Output      = "SignTool Error: No certificates were found that met all the given criteria.`n"
+        Kind        = 'SessionUnavailable'
+        ReasonMatch = '^CertificateNotVisibleToSigntool$'
+    }
+    [pscustomobject]@{
+        Name        = 'the same message in the tense the documentation uses'
         TimedOut    = $false
         ExitCode    = 1
         Output      = "SignTool Error: No certificates were found that meet all the given criteria.`n"

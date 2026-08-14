@@ -34,6 +34,15 @@ $signingRequested = -not [string]::IsNullOrWhiteSpace($env:CODESIGN_WIN_THUMBPRI
 $certificateRegistered = $false
 
 if ($signingRequested) {
+    # Checked by cause rather than by symptom. Test-BsiSigningCertificate strips non-hex characters
+    # before comparing, so a secret with a stray space or a smart quote still matches the store -
+    # and then signtool, which gets the raw string, reports a certificate it cannot find. That is
+    # indistinguishable from an ordinary lapsed session by the time the probe sees it, and it would
+    # go out unsigned and green forever. Here it is unambiguous.
+    if ($env:CODESIGN_WIN_THUMBPRINT -match '[^0-9A-Fa-f]') {
+        Write-Host '::warning title=Malformed signing thumbprint::WIN_CODESIGN_THUMBPRINT contains characters that are not hexadecimal. The certificate lookup tolerates that but signtool does not, so signing will fail even with an open SimplySign session. Check the secret for spaces or line breaks.'
+    }
+
     $certificate = Test-BsiSigningCertificate -Thumbprint $env:CODESIGN_WIN_THUMBPRINT
     $certificateRegistered = $certificate.Usable
 
@@ -108,17 +117,13 @@ if ($certificateRegistered) {
         }
 
         'SessionUnavailable' {
-            if ($session.Reason -eq 'CertificateNotVisibleToSigntool') {
-                # The one recognised symptom with a second possible cause. The store lookup matched
-                # this thumbprint moments ago, so signtool not seeing it means either the session
-                # ended in between - or the secret holds something signtool cannot parse, which is
-                # worth a warning rather than a notice because it would otherwise go out unsigned
-                # and green forever.
-                Write-Host '::warning title=Unsigned insider build::signtool could not see the signing certificate although the store lookup had just matched it. Usually the SimplySign session ended between the two. If it repeats, check the WIN_CODESIGN_THUMBPRINT secret for stray spaces or non-hex characters. This insider build is unsigned.'
-            }
-            else {
-                Write-Host "::notice title=Unsigned insider build::The certificate is registered but its private key is unreachable ($($session.Reason)), so this insider build is unsigned. SimplySign leaves certificates registered after a session ends. Log in to SimplySign Desktop on the runner to have insider builds signed again."
-            }
+            # Including "signtool cannot see the certificate", which is what a disconnected
+            # SimplySign actually produces on this runner: the certificate stays in the store with
+            # HasPrivateKey true, and signtool answers "No certificates were found that met all the
+            # given criteria" in about a second. That is the ordinary state between sessions, so it
+            # is a notice like the rest. A thumbprint secret that signtool cannot parse would look
+            # identical from here, which is why that is checked directly further up instead.
+            Write-Host "::notice title=Unsigned insider build::The certificate is registered but signtool cannot sign with it ($($session.Reason)), so this insider build is unsigned. SimplySign leaves certificates registered after a session ends. Log in to SimplySign Desktop on the runner to have insider builds signed again."
         }
 
         'ProbeError' {
