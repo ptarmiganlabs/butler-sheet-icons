@@ -130,6 +130,7 @@ The section above is about the browser BSI drives. This one is about the browser
 - Forgetting is cheap. `release-win64` preflights the certificate before it builds anything and fails in seconds; log in and re-run the job.
 - `scripts/lib/win-signing.ps1` holds the signing logic shared by the release build, the insider build and the diagnostics — including why the timestamp URL is `http` and must stay that way.
 - To check a machine, or to test signing without waiting for a release build, run `scripts/diag/win-signing-check.ps1` and `scripts/diag/win-signing-smoke.ps1` on the runner. The `windows-signing-canary` workflow runs both through the runner's own account, which is the part running them by hand cannot prove.
+- **Never decide from the certificate store alone whether a host can sign.** SimplySign leaves the certificate registered after a session ends and `HasPrivateKey` stays true, so a store lookup says yes on a machine that cannot sign at all. Use `Test-BsiSigningSession` (insider build, never throws) or `Invoke-BsiProveSigning` (release preflight, throws) — both answer by actually signing a scratch file. `BSI_PROBE_TIMEOUT_SECONDS` is the probe's own deadline, separate from `BSI_SIGN_TIMEOUT_SECONDS`.
 - signtool only sees certificates belonging to the Windows account it runs as. A runner running as a service, or as a different account than the one SimplySign is connected as, cannot sign at all — and the symptom looks exactly like an expired session.
 
 ## Security
