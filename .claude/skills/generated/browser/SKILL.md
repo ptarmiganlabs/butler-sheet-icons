@@ -1,91 +1,95 @@
 ---
 name: browser
-description: "Skill for the Browser area of butler-sheet-icons. 43 symbols across 23 files."
+description: "Skill for the Browser area of butler-sheet-icons. 92 symbols across 40 files."
 ---
 
 # Browser
 
-43 symbols | 23 files | Cohesion: 84%
+92 symbols | 40 files | Cohesion: 70%
 
 ## When to Use
 
 - Working with code in `src/`
-- Understanding how launchBrowserForApp, resolveBrowserVersion, assertInteractiveCapable work
+- Understanding how browserListAvailable, browserUninstall, qscloudListCollections work
 - Modifying browser-related functionality
 
 ## Key Files
 
 | File | Symbols |
 |------|---------|
-| `src/lib/browser/browser-launch.js` | logUnusableBrowser, watchForUnexpectedDisconnect, launchBrowserForApp, detectDocker, buildBrowserArgs (+2) |
-| `src/lib/browser/browser-version.js` | normalizeVersionKeyword, assertExplicitVersionIsWellFormed, markLookupFailure, logVersionLookupFailure, resolveBrowserVersion |
-| `src/lib/browser/browser-list-available.js` | extractVersions, mapPlatformToChrome, fetchAvailableVersions, browserListAvailable, getMostRecentUsableChromeBuildId |
+| `src/lib/browser/browser-paths.js` | resolveBrowserCacheDir, unwritableCacheDirMessage, isPermissionDenied, nearestExistingAncestor, assertCacheDirWritable (+6) |
+| `src/lib/browser/browser-version.js` | describeBrowserVersionOption, isVersionKeyword, isVersionLookupFailure, resolveLocalBrowserBuildId, assertBrowserIsSupported (+5) |
+| `src/lib/browser/browser-launch.js` | resolveRequestedBuildId, resolveBrowserExecutablePath, detectDocker, buildBrowserArgs, logUnusableBrowser (+3) |
+| `src/lib/browser/browser-list-available.js` | browserListAvailable, logVersionHistoryFailure, extractVersions, mapPlatformToChrome, fetchAvailableVersions |
+| `src/lib/commands/browser/uninstall.interactive.js` | run, labelForBuild, precheck, choices |
+| `src/lib/interactive/launch.js` | suppliedEntries, presetOptionsFrom, presetSourcesFrom, launchInteractive |
 | `src/lib/util/image-dir.js` | createAppImageDir, logPermissionAdvice, isProbablyContainer |
-| `src/lib/util/reported-error.js` | markReported, alreadyReported |
-| `src/globals.js` | getLoggingLevel, setLoggingLevel |
+| `src/lib/commands/helpers.js` | parsePositiveInteger, collectPositiveIntegers, buildBrowserCacheDirOption |
 | `src/lib/browser/browser-uninstall.js` | browserUninstall, browserUninstallAll |
-| `src/lib/browser/browser-detect.js` | sortNewestFirst, detectAvailableBrowser |
-| `src/lib/interactive/tty.js` | assertInteractiveCapable |
-| `src/lib/browser/browser-installed.js` | browserInstalled |
+| `src/lib/commands/browser/install.js` | handleBrowserInstall, buildBrowserInstallCommand |
 
 ## Entry Points
 
 Start here when exploring this area:
 
-- **`launchBrowserForApp`** (Function) — `src/lib/browser/browser-launch.js:287`
-- **`resolveBrowserVersion`** (Function) — `src/lib/browser/browser-version.js:354`
-- **`assertInteractiveCapable`** (Function) — `src/lib/interactive/tty.js:121`
-- **`createAppImageDir`** (Function) — `src/lib/util/image-dir.js:32`
-- **`markReported`** (Function) — `src/lib/util/reported-error.js:32`
+- **`browserListAvailable`** (Function) — `src/lib/browser/browser-list-available.js:190`
+- **`browserUninstall`** (Function) — `src/lib/browser/browser-uninstall.js:27`
+- **`qscloudListCollections`** (Function) — `src/lib/cloud/cloud-collections.js:21`
+- **`qscloudCreateThumbnails`** (Function) — `src/lib/cloud/cloud-create-thumbnails.js:36`
+- **`qscloudRemoveSheetIcons`** (Function) — `src/lib/cloud/cloud-remove-sheet-icons.js:166`
 
 ## Key Symbols
 
 | Symbol | Type | File | Line |
 |--------|------|------|------|
-| `launchBrowserForApp` | Function | `src/lib/browser/browser-launch.js` | 287 |
-| `resolveBrowserVersion` | Function | `src/lib/browser/browser-version.js` | 354 |
-| `assertInteractiveCapable` | Function | `src/lib/interactive/tty.js` | 121 |
-| `createAppImageDir` | Function | `src/lib/util/image-dir.js` | 32 |
-| `markReported` | Function | `src/lib/util/reported-error.js` | 32 |
-| `browserInstalled` | Function | `src/lib/browser/browser-installed.js` | 17 |
-| `browserUninstall` | Function | `src/lib/browser/browser-uninstall.js` | 24 |
-| `browserUninstallAll` | Function | `src/lib/browser/browser-uninstall.js` | 138 |
-| `qscloudListCollections` | Function | `src/lib/cloud/cloud-collections.js` | 19 |
-| `qscloudCreateThumbnails` | Function | `src/lib/cloud/cloud-create-thumbnails.js` | 35 |
-| `withQuietLogging` | Function | `src/lib/interactive/quiet.js` | 27 |
-| `qseowCreateThumbnails` | Function | `src/lib/qseow/qseow-create-thumbnails.js` | 30 |
-| `buildInteractiveCommand` | Function | `src/lib/interactive/interactive-command.js` | 112 |
-| `description` | Function | `src/lib/interactive/theme.js` | 54 |
-| `fetchAvailableVersions` | Function | `src/lib/browser/browser-list-available.js` | 146 |
-| `browserListAvailable` | Function | `src/lib/browser/browser-list-available.js` | 197 |
-| `getMostRecentUsableChromeBuildId` | Function | `src/lib/browser/browser-list-available.js` | 335 |
-| `choices` | Function | `src/lib/commands/browser/install.interactive.js` | 51 |
+| `browserListAvailable` | Function | `src/lib/browser/browser-list-available.js` | 190 |
+| `browserUninstall` | Function | `src/lib/browser/browser-uninstall.js` | 27 |
+| `qscloudListCollections` | Function | `src/lib/cloud/cloud-collections.js` | 21 |
+| `qscloudCreateThumbnails` | Function | `src/lib/cloud/cloud-create-thumbnails.js` | 36 |
+| `qscloudRemoveSheetIcons` | Function | `src/lib/cloud/cloud-remove-sheet-icons.js` | 166 |
+| `qscloudTestConnection` | Function | `src/lib/cloud/cloud-test-connection.js` | 31 |
+| `run` | Function | `src/lib/commands/browser/uninstall.interactive.js` | 155 |
+| `probe` | Function | `src/lib/commands/qscloud/create-sheet-thumbnails.interactive.js` | 104 |
+| `run` | Function | `src/lib/commands/qscloud/create-sheet-thumbnails.interactive.js` | 241 |
+| `run` | Function | `src/lib/commands/qseow/create-sheet-thumbnails.interactive.js` | 273 |
+| `runCommand` | Function | `src/lib/commands/run-command.js` | 26 |
+| `presetOptionsFrom` | Function | `src/lib/interactive/launch.js` | 58 |
+| `presetSourcesFrom` | Function | `src/lib/interactive/launch.js` | 75 |
+| `launchInteractive` | Function | `src/lib/interactive/launch.js` | 91 |
+| `qseowCreateThumbnails` | Function | `src/lib/qseow/qseow-create-thumbnails.js` | 31 |
+| `qseowRemoveSheetIcons` | Function | `src/lib/qseow/qseow-remove-sheet-icons.js` | 135 |
+| `toAppIdList` | Function | `src/lib/util/app-ids.js` | 23 |
+| `redactOptions` | Function | `src/lib/util/redact-secrets.js` | 149 |
 | `alreadyReported` | Function | `src/lib/util/reported-error.js` | 47 |
-| `detectAvailableBrowser` | Function | `src/lib/browser/browser-detect.js` | 61 |
+| `runOverApps` | Function | `src/lib/util/run-over-apps.js` | 36 |
 
 ## Execution Flows
 
 | Flow | Type | Steps |
 |------|------|-------|
-| `EveryLeafCommand → Description` | cross_community | 4 |
-| `BrowserListAvailable → GetErrorCategory` | cross_community | 4 |
-| `BrowserListAvailable → MarkReported` | cross_community | 4 |
-| `Choices → GetErrorCategory` | cross_community | 4 |
-| `Choices → MarkReported` | cross_community | 4 |
-| `GetMostRecentUsableChromeBuildId → GetErrorCategory` | cross_community | 4 |
-| `GetMostRecentUsableChromeBuildId → MarkReported` | cross_community | 4 |
-| `ResolveBrowserVersion → MarkReported` | intra_community | 3 |
-| `ResolveBrowserVersion → GetErrorCategory` | cross_community | 3 |
-| `LaunchBrowserForApp → LogUnusableBrowser` | intra_community | 3 |
+| `QseowRemoveSheetIcons → SafeString` | cross_community | 7 |
+| `QseowCreateThumbnails → SafeString` | cross_community | 7 |
+| `QseowRemoveSheetIcons → SafeRead` | cross_community | 6 |
+| `RunInteractive → ParsePositiveInteger` | cross_community | 6 |
+| `RunInteractive → DescribeBrowserVersionOption` | cross_community | 6 |
+| `RunInteractive → BuildBrowserCacheDirOption` | cross_community | 6 |
+| `QscloudRemoveSheetIcons → SafeString` | cross_community | 6 |
+| `HandleCloudCreateSheetThumbnails → SafeRead` | cross_community | 6 |
+| `HandleCloudCreateSheetThumbnails → Walk` | cross_community | 6 |
+| `Content → ParsePositiveInteger` | cross_community | 6 |
 
 ## Connected Areas
 
 | Area | Connections |
 |------|-------------|
-| Util | 2 calls |
+| Util | 18 calls |
+| Qseow | 4 calls |
+| Interactive | 4 calls |
+| Cloud | 3 calls |
 
 ## How to Explore
 
-1. `gitnexus_context({name: "launchBrowserForApp"})` — see callers and callees
-2. `gitnexus_query({query: "browser"})` — find related execution flows
+1. `context({name: "browserListAvailable"})` — see callers and callees
+2. `query({search_query: "browser"})` — find related execution flows
 3. Read key files listed above for implementation details
+4. `explain({target: "<file or symbol>"})` — persisted taint findings (source→sink data flows), when indexed with `--pdg`

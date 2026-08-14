@@ -62,6 +62,8 @@ Most work here happens in a worktree under `.claude/worktrees/`. Three things be
 | Work in the Qseow area                       | `.claude/skills/generated/qseow/SKILL.md`                   |
 | Work in the Util area                        | `.claude/skills/generated/util/SKILL.md`                    |
 | Work in the Diag area                        | `.claude/skills/generated/diag/SKILL.md`                    |
+| Work in the Docs area                        | `.claude/skills/generated/docs/SKILL.md`                    |
+| Work in the Scripts area                     | `.claude/skills/generated/scripts/SKILL.md`                 |
 
 <!-- gitnexus:end -->
 

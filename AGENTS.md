@@ -57,9 +57,13 @@ Most work here happens in a worktree under `.claude/worktrees/`. Three things be
 | Index, status, clean, wiki CLI commands      | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md`             |
 | Work in the Cloud area                       | `.claude/skills/generated/cloud/SKILL.md`                   |
 | Work in the Browser area                     | `.claude/skills/generated/browser/SKILL.md`                 |
+| Work in the Interactive area                 | `.claude/skills/generated/interactive/SKILL.md`             |
 | Work in the Qscloud area                     | `.claude/skills/generated/qscloud/SKILL.md`                 |
 | Work in the Qseow area                       | `.claude/skills/generated/qseow/SKILL.md`                   |
 | Work in the Util area                        | `.claude/skills/generated/util/SKILL.md`                    |
+| Work in the Diag area                        | `.claude/skills/generated/diag/SKILL.md`                    |
+| Work in the Docs area                        | `.claude/skills/generated/docs/SKILL.md`                    |
+| Work in the Scripts area                     | `.claude/skills/generated/scripts/SKILL.md`                 |
 
 <!-- gitnexus:end -->
 

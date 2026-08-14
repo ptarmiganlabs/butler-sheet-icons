@@ -1,85 +1,74 @@
 ---
 name: cloud
-description: "Skill for the Cloud area of butler-sheet-icons. 17 symbols across 12 files."
+description: "Skill for the Cloud area of butler-sheet-icons. 13 symbols across 7 files."
 ---
 
 # Cloud
 
-17 symbols | 12 files | Cohesion: 77%
+13 symbols | 7 files | Cohesion: 86%
 
 ## When to Use
 
 - Working with code in `src/`
-- Understanding how browserInstall, deleteCloudAppThumbnail, processCloudApp work
+- Understanding how listCollections, listApps, listAppsByCollection work
 - Modifying cloud-related functionality
 
 ## Key Files
 
 | File | Symbols |
 |------|---------|
+| `src/lib/cloud/cloud-apps.js` | appsFromItems, listCollections, listApps, listAppsByCollection |
 | `src/lib/cloud/cloud-repo-request.js` | bufferToStream, makeRequest, request |
-| `src/lib/util/socket-keepalive.js` | attachSocketKeepalive, stop |
-| `src/lib/cloud/cloud-remove-sheet-icons.js` | removeSheetIconsCloudApp, qscloudRemoveSheetIcons |
-| `src/lib/qseow/qseow-remove-sheet-icons.js` | removeSheetIconsQSEoWApp, qseowRemoveSheetIcons |
-| `src/globals.js` | sleep |
-| `src/lib/browser/browser-install.js` | browserInstall |
-| `src/lib/cloud/cloud-delete-thumbnails.js` | deleteCloudAppThumbnail |
-| `src/lib/cloud/process-cloud-app.js` | processCloudApp |
-| `src/lib/cloud/sheet-screenshot.js` | takeSheetScreenshot |
-| `src/lib/cloud/cloud-updatesheets.js` | qscloudUpdateSheetThumbnails |
+| `src/lib/commands/qscloud/create-sheet-thumbnails.interactive.js` | choices, resolve |
+| `src/lib/cloud/cloud-collections.js` | qscloudVerifyCollectionExists |
+| `src/lib/cloud/saas-response.js` | saasGetList |
+| `src/lib/interactive/labels.js` | labelForCollection |
+| `src/lib/cloud/cloud-repo.js` | qlikSaas |
 
 ## Entry Points
 
 Start here when exploring this area:
 
-- **`browserInstall`** (Function) — `src/lib/browser/browser-install.js:34`
-- **`deleteCloudAppThumbnail`** (Function) — `src/lib/cloud/cloud-delete-thumbnails.js:10`
-- **`processCloudApp`** (Function) — `src/lib/cloud/process-cloud-app.js:33`
-- **`takeSheetScreenshot`** (Function) — `src/lib/cloud/sheet-screenshot.js:19`
-- **`attachSocketKeepalive`** (Function) — `src/lib/util/socket-keepalive.js:38`
+- **`listCollections`** (Function) — `src/lib/cloud/cloud-apps.js:85`
+- **`listApps`** (Function) — `src/lib/cloud/cloud-apps.js:112`
+- **`listAppsByCollection`** (Function) — `src/lib/cloud/cloud-apps.js:139`
+- **`qscloudVerifyCollectionExists`** (Function) — `src/lib/cloud/cloud-collections.js:133`
+- **`saasGetList`** (Function) — `src/lib/cloud/saas-response.js:39`
 
 ## Key Symbols
 
 | Symbol | Type | File | Line |
 |--------|------|------|------|
-| `browserInstall` | Function | `src/lib/browser/browser-install.js` | 34 |
-| `deleteCloudAppThumbnail` | Function | `src/lib/cloud/cloud-delete-thumbnails.js` | 10 |
-| `processCloudApp` | Function | `src/lib/cloud/process-cloud-app.js` | 33 |
-| `takeSheetScreenshot` | Function | `src/lib/cloud/sheet-screenshot.js` | 19 |
-| `attachSocketKeepalive` | Function | `src/lib/util/socket-keepalive.js` | 38 |
-| `stop` | Function | `src/lib/util/socket-keepalive.js` | 48 |
-| `qscloudRemoveSheetIcons` | Function | `src/lib/cloud/cloud-remove-sheet-icons.js` | 171 |
-| `qscloudUpdateSheetThumbnails` | Function | `src/lib/cloud/cloud-updatesheets.js` | 36 |
-| `qseowRemoveSheetIcons` | Function | `src/lib/qseow/qseow-remove-sheet-icons.js` | 140 |
-| `assertAllProcessed` | Function | `src/lib/util/sheet-list.js` | 337 |
-| `sleep` | Function | `src/globals.js` | 291 |
-| `removeSheetIconsCloudApp` | Function | `src/lib/cloud/cloud-remove-sheet-icons.js` | 35 |
-| `removeSheetIconsQSEoWApp` | Function | `src/lib/qseow/qseow-remove-sheet-icons.js` | 35 |
+| `listCollections` | Function | `src/lib/cloud/cloud-apps.js` | 85 |
+| `listApps` | Function | `src/lib/cloud/cloud-apps.js` | 112 |
+| `listAppsByCollection` | Function | `src/lib/cloud/cloud-apps.js` | 139 |
+| `qscloudVerifyCollectionExists` | Function | `src/lib/cloud/cloud-collections.js` | 133 |
+| `saasGetList` | Function | `src/lib/cloud/saas-response.js` | 39 |
+| `choices` | Function | `src/lib/commands/qscloud/create-sheet-thumbnails.interactive.js` | 152 |
+| `resolve` | Function | `src/lib/commands/qscloud/create-sheet-thumbnails.interactive.js` | 171 |
+| `labelForCollection` | Function | `src/lib/interactive/labels.js` | 43 |
+| `appsFromItems` | Function | `src/lib/cloud/cloud-apps.js` | 22 |
 | `bufferToStream` | Function | `src/lib/cloud/cloud-repo-request.js` | 59 |
 | `makeRequest` | Function | `src/lib/cloud/cloud-repo-request.js` | 75 |
-| `request` | Function | `src/lib/cloud/cloud-repo-request.js` | 143 |
+| `request` | Function | `src/lib/cloud/cloud-repo-request.js` | 149 |
 | `qlikSaas` | Function | `src/lib/cloud/cloud-repo.js` | 19 |
 
 ## Execution Flows
 
 | Flow | Type | Steps |
 |------|------|-------|
-| `ProcessCloudApp → Sleep` | intra_community | 3 |
-| `QscloudRemoveSheetIcons → AssertAllProcessed` | intra_community | 3 |
-| `QseowLogout → Sleep` | cross_community | 3 |
-| `QseowRemoveSheetIcons → AssertAllProcessed` | intra_community | 3 |
-| `QlikSaas → BufferToStream` | intra_community | 3 |
-| `QlikSaas → MakeRequest` | intra_community | 3 |
+| `QscloudVerifyCollectionExists → SafeString` | cross_community | 6 |
+| `QscloudVerifyCollectionExists → SafeRead` | cross_community | 5 |
 
 ## Connected Areas
 
 | Area | Connections |
 |------|-------------|
-| Browser | 4 calls |
-| Util | 1 calls |
+| Util | 2 calls |
 
 ## How to Explore
 
-1. `gitnexus_context({name: "browserInstall"})` — see callers and callees
-2. `gitnexus_query({query: "cloud"})` — find related execution flows
+1. `context({name: "listCollections"})` — see callers and callees
+2. `query({search_query: "cloud"})` — find related execution flows
 3. Read key files listed above for implementation details
+4. `explain({target: "<file or symbol>"})` — persisted taint findings (source→sink data flows), when indexed with `--pdg`
