@@ -1,6 +1,7 @@
 import { getBrowserInventory } from '../../browser/browser-inventory.js';
 import { resolveBrowserCacheDir } from '../../browser/browser-paths.js';
 import { browserUninstall } from '../../browser/browser-uninstall.js';
+import { buildToRemove } from '../../browser/browser-selection.js';
 
 /** Key of the synthetic question that replaces the browser/version pair. */
 const BUILD = '_build';
@@ -19,16 +20,29 @@ const BUILD = '_build';
  * cache "cannot run here" while browser detection was perfectly willing to use
  * it - the picker and the run disagreeing about the same build.
  *
- * @param {object} build - An entry from the browser inventory.
+ * @param {object} build - An entry from the browser inventory: the one that will actually be
+ * removed, not merely one that shares its build id.
+ * @param {number} [cachedForPlatforms] - How many platforms this browser and build id are cached
+ * for, this one included.
  *
  * @returns {string} The label to show.
  */
-export const labelForBuild = (build) => {
+export const labelForBuild = (build, cachedForPlatforms = 1) => {
     const base = `${build.browser}  ${build.buildId}`;
 
-    return build.canRunHere
-        ? `${base}  (${build.platform})`
-        : `${base}  (built for ${build.platform} - cannot run here)`;
+    const platform = build.canRunHere
+        ? `(${build.platform})`
+        : `(built for ${build.platform} - cannot run here)`;
+
+    // Said here rather than left to the warning `browserUninstall` prints afterwards, because
+    // by then the operator has already confirmed a removal believing it was the only one.
+    const remaining = cachedForPlatforms - 1;
+    const more =
+        remaining > 0
+            ? `  - also cached for ${remaining} other platform${remaining === 1 ? '' : 's'}, re-run to remove`
+            : '';
+
+    return `${base}  ${platform}${more}`;
 };
 
 export default {
@@ -119,13 +133,43 @@ export default {
                         cacheDir: resolveBrowserCacheDir(answers),
                     });
 
-                    // Builds for other platforms stay selectable on purpose:
+                    // Builds this machine cannot run stay selectable on purpose:
                     // wanting the disk space back is a perfectly good reason to
                     // remove a browser you cannot run.
-                    return inventory.map((build) => ({
-                        name: labelForBuild(build),
-                        value: { browser: build.browser, buildId: build.buildId },
-                    }));
+                    //
+                    // One row per browser and build id, though, not one per
+                    // platform. That pair is all the command can name, and
+                    // `browserUninstall` removes one build per run - so a row
+                    // per platform would let an operator pick a row and watch a
+                    // different build disappear. The consequence, said plainly
+                    // in the label: when one build id is cached for several
+                    // platforms they come off one at a time, this machine's own
+                    // copy first, so reaching a foreign copy takes a second run.
+                    const groups = new Map();
+
+                    for (const build of inventory) {
+                        // A space is enough of a separator: neither a browser name nor a build
+                        // id can contain one, so no two distinct pairs collide.
+                        const key = `${build.browser} ${build.buildId}`;
+                        const group = groups.get(key);
+
+                        if (group) {
+                            group.push(build);
+                        } else {
+                            groups.set(key, [build]);
+                        }
+                    }
+
+                    // `buildToRemove` rather than a copy of its rule, so the row cannot come to
+                    // describe a different build than the run removes.
+                    return [...groups.values()].map((builds) => {
+                        const build = buildToRemove(builds);
+
+                        return {
+                            name: labelForBuild(build, builds.length),
+                            value: { browser: build.browser, buildId: build.buildId },
+                        };
+                    });
                 },
                 fallback: {
                     type: 'input',
