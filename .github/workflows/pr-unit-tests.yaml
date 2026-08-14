@@ -75,3 +75,20 @@ jobs:
 
       - name: Run unit tests
         run: npm run test:unit
+
+      # The Windows signing library is PowerShell, so jest never sees it. This checks the two parts
+      # of it that can break silently: how a failed signtool run is classified - which decides
+      # whether an insider build goes unsigned and green or red - and that the signtool argument
+      # list has not drifted. Neither touches the certificate store, so both legs can run it.
+      - name: Check the Windows signing library
+        shell: pwsh
+        run: ./scripts/diag/win-signing-selftest.ps1
+
+      # Again under Windows PowerShell 5.1, which is what release-win64 preflights with
+      # (`shell: powershell` in ci.yaml) and what windows-signing-canary uses. A PowerShell 7-only
+      # construct in the library would otherwise break the release path while leaving the insider
+      # build - which runs under pwsh - perfectly green.
+      - name: Check the Windows signing library under Windows PowerShell 5.1
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: ./scripts/diag/win-signing-selftest.ps1
