@@ -1,5 +1,39 @@
 # `browser check`: find out whether a server can take screenshots
 
+<!--
+PUBLISHED 2026-08-14, doc site PR #99, merged to `next` as be8f742.
+
+Published to four pages:
+  /reference/browser                    new "### check" section, first under Commands
+                                        Reference; `check` row in Available Commands;
+                                        now troubleshooting step 1
+  /guide/troubleshooting                quick diagnostic step 4 replaced; pointers added
+                                        to five symptom sections it diagnoses
+  /reference/commands                   `browser check` row in Quick Reference
+  /guide/concepts/browser-detection-and-environment-variables
+                                        confirmation step in the Strategy 3 staging
+                                        procedure, plus a run-as-the-service-account tip
+
+Corrections to this draft, recorded so they do not resurface:
+
+- "Suggested target pages" names an "air-gapped installation guide". No such page
+  exists on the doc site — docs/guide/advanced/ holds browser-cache-directory, ci-cd,
+  crash-dumps, docker and proxy. The staging cross-link went to the browser detection
+  concept page instead, which is where Strategy 3 lives. Note that seven findings in
+  src/lib/doctor/checks/ carry `docs: 'guide/advanced/air-gapped-installation'`, which
+  points at the same non-existent page; it is not rendered today, so no user sees a
+  dead link, but it will be one as soon as anything resolves that field to a URL.
+
+- "Status: new command, not yet on the doc site" was true when written; the version
+  gate published is 5.0.0, taken from the open release-please PR title rather than from
+  this draft. A `feat!` in the same window makes the next release major, not 4.2.0.
+
+Everything else verified as correct against the merged implementation (44209d8): the
+option table is byte-identical to what `docs:cli-tables` generates, and every message
+string, report label, `Result:` sentence and exit code was reproduced by running the
+command rather than read from this file.
+-->
+
 **Status:** new command, not yet on the doc site.
 **Suggested target pages:** a new section under `/reference/browser`, plus a link from the air-gapped installation guide and from the troubleshooting pages.
 
