@@ -4,6 +4,7 @@ import { buildBrowserUninstallCommand } from './uninstall.js';
 import { buildBrowserUninstallAllCommand } from './uninstall-all.js';
 import { buildBrowserInstallCommand } from './install.js';
 import { buildBrowserListAvailableCommand } from './list-available.js';
+import { buildBrowserCheckCommand } from './check.js';
 
 /**
  * Builds the "browser" command namespace and wires up the install/list/uninstall sub-commands.
@@ -18,6 +19,7 @@ const buildBrowserCommand = () => {
     browser.addCommand(buildBrowserUninstallAllCommand());
     browser.addCommand(buildBrowserInstallCommand());
     browser.addCommand(buildBrowserListAvailableCommand());
+    browser.addCommand(buildBrowserCheckCommand());
 
     return browser;
 };

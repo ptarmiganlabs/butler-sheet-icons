@@ -28,6 +28,8 @@ export const NOT_INTERACTIVE = Object.freeze({
     'browser list-installed': 'Takes nothing but a log level; there is nothing to ask.',
     'browser list-available': 'Takes nothing but a browser and a channel, both with defaults.',
     'browser uninstall-all': 'Takes nothing but a log level, and asks for confirmation itself.',
+    'browser check':
+        'A diagnostic: every option describes the machine it is run on, and each already defaults to what a real run would use. Asking would only invite an answer that makes the check less honest.',
     'qscloud list-collections': 'Phase 2 - needs tenant credentials.',
     'qscloud remove-sheet-icons': 'Phase 2 - needs tenant credentials.',
 });

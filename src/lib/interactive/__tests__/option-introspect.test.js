@@ -56,6 +56,7 @@ describe('true/false options, in both the forms Commander accepts', () => {
 describe('command-tree', () => {
     test('finds every leaf command, across all three namespaces', () => {
         expect(LEAVES.map((leaf) => leaf.path).sort()).toEqual([
+            'browser check',
             'browser install',
             'browser list-available',
             'browser list-installed',

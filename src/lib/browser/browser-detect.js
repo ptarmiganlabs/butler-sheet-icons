@@ -166,11 +166,19 @@ const reportEmptyFunnel = ({
  * @param {string} [resolvedBuildId] - Concrete build id from `resolveBrowserVersion`. When omitted,
  * any cached build of the requested type is acceptable and the newest is chosen - the fallback used
  * when a machine is offline and the requested keyword could not be resolved.
+ * @param {object} [snapshot] - A cache reading the caller has already taken.
+ * @param {string} [snapshot.cacheDir] - The directory that reading came from.
+ * @param {Array<object>} [snapshot.inventory] - The builds found there, from `getBrowserInventory`.
+ * Supplying both makes detection reason about the caller's snapshot instead of taking its own.
+ * `browser check` needs that: it prints the cache contents *and* reports what detection chose, and
+ * with two independent readings a build removed between them produced a report that listed a build
+ * as usable and, four lines later, said it was missing. It also halves the filesystem work, which
+ * on a Windows server means half as many opens for on-access antivirus to scan.
  *
  * @returns {Promise<object|null>} Browser info object, or `null` if no browser was found.
  * Returns an object with `executablePath`, `source` (`'system'` or `'cache'`), `browser`, and `buildId`.
  */
-export const detectAvailableBrowser = async (options, resolvedBuildId) => {
+export const detectAvailableBrowser = async (options, resolvedBuildId, snapshot = {}) => {
     try {
         // Priority 1: a browser the administrator named, by option or environment variable.
         const override = resolveExecutablePathOverride(options);
@@ -232,13 +240,21 @@ export const detectAvailableBrowser = async (options, resolvedBuildId) => {
             );
         }
 
-        // Priority 2: Check for cached browsers in the browser cache directory
-        const browserPath = resolveBrowserCacheDir(options);
+        // Priority 2: Check for cached browsers in the browser cache directory.
+        //
+        // A caller's snapshot wins when it supplies one, so that what it reported and what this
+        // decided cannot disagree. Both fields are required together: a directory without its
+        // reading, or a reading without the directory it came from, would put a path in the log
+        // that does not describe the builds being judged.
+        const reuseSnapshot = Boolean(snapshot.inventory && snapshot.cacheDir);
+        const browserPath = reuseSnapshot ? snapshot.cacheDir : resolveBrowserCacheDir(options);
 
         // The shared inventory rather than getInstalledBrowsers() directly: it already answers
         // "can this machine run that build" as `canRunHere`, and a second copy of that rule here
         // would drift from the one `browser list-installed` and `browser uninstall` report.
-        const installedBrowsers = await getBrowserInventory({ cacheDir: browserPath });
+        const installedBrowsers = reuseSnapshot
+            ? snapshot.inventory
+            : await getBrowserInventory({ cacheDir: browserPath });
 
         if (installedBrowsers && installedBrowsers.length > 0) {
             logger.info(`Found ${installedBrowsers.length} cached browser(s)`);
