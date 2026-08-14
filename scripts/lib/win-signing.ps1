@@ -23,7 +23,12 @@
 # renew it. So the certificate is present in the store for two hours after a human logs in, and
 # absent the rest of the time, and every caller here has to cope with that:
 #
-#   - Test-BsiSigningCertificate answers "can we sign right now?" without ever blocking.
+#   - Test-BsiSigningCertificate answers "is a certificate registered?" without ever blocking.
+#   - Test-BsiSigningSession answers the question that actually matters, "can this host sign right
+#     now?", by signing a scratch file. It has to exist because the store cannot answer it:
+#     SimplySign leaves the certificate registered after a session ends and HasPrivateKey stays
+#     true, so a store lookup says yes on a host that cannot sign at all. It never throws, and it
+#     gets its own deadline through BSI_PROBE_TIMEOUT_SECONDS.
 #   - Invoke-BsiSigntool runs signtool under a hard timeout, because a dead session makes signtool
 #     raise a *graphical* login prompt. On a runner nobody is watching - and in a service session
 #     nobody can even see - that prompt waits forever. A killed process is recoverable; a job
@@ -49,6 +54,51 @@
 $BsiTimestampUrl = 'http://time.certum.pl'
 $BsiSignDescription = 'Butler Sheet Icons'
 $BsiSignDescriptionUrl = 'https://butler-sheet-icons.ptarmiganlabs.com'
+
+# What "the SimplySign session is not open" looks like coming out of signtool.
+#
+# Used only by Get-BsiSigntoolFailureKind, which is used only by the insider build's probe. Coverage
+# does not rest on this list being complete - the classifier falls back to the whole 0x8009xxxx
+# (CNG) and 0x8010xxxx (smart card) families. What the list buys is a log line that names the cause
+# instead of printing a bare number.
+#
+# Matched as hex because signtool prints both forms - `(-2146893802/0x80090016)` - and the hex is
+# the stable one. -match is case-insensitive, so an uppercase 0x8009002E matches these too.
+$BsiSessionHresult = [ordered]@{
+    '0x80090016' = 'NTE_BAD_KEYSET - the keyset does not exist'
+    '0x8009000d' = 'NTE_NO_KEY - the key does not exist'
+    '0x8009000b' = 'NTE_BAD_KEY_STATE - the key is not valid for use in this state'
+    '0x8009001d' = 'NTE_PROVIDER_DLL_FAIL - the key storage provider failed to initialise'
+    '0x8009001e' = 'NTE_PROV_DLL_NOT_FOUND - the key storage provider is not installed'
+    '0x80090022' = 'NTE_SILENT_CONTEXT - the key wants a prompt and signtool asked silently'
+    '0x80090036' = 'NTE_USER_CANCELLED - the login or PIN prompt was dismissed'
+    '0x80092004' = 'CRYPT_E_NOT_FOUND - the certificate is no longer visible to signtool'
+    '0x800706ba' = 'RPC_S_SERVER_UNAVAILABLE - SimplySign Desktop is not answering'
+    '0x8010002e' = 'SCARD_E_NO_READERS_AVAILABLE - SimplySign is not presenting its virtual reader'
+    '0x80100069' = 'SCARD_W_REMOVED_CARD - the virtual card went away mid-operation'
+    '0x8010000c' = 'SCARD_E_NO_SMARTCARD - no virtual card present'
+    '0x8010001d' = 'SCARD_E_NO_SERVICE - the Smart Card service is not running'
+    '0x8010001e' = 'SCARD_E_SERVICE_STOPPED - the Smart Card service stopped'
+}
+
+# The same symptoms as words, for the signtool builds that print a message and no code.
+#
+# `SignerSign() failed` is deliberately absent: it is signtool's generic wrapper for every signing
+# failure, so matching it would classify a broken invocation as an expired session. The HRESULT it
+# carries is what carries the information.
+#
+# Kept to the shortest distinctive fragment rather than the whole sentence. The first version of
+# this table matched "No certificates were found that meet all the given criteria" - the wording
+# everyone quotes - and signtool 10.0.22621 actually says "met". One tense turned every disconnected
+# insider build red, which is the thing this file exists to stop.
+$BsiSessionText = [ordered]@{
+    'No certificates were found'              = 'CertificateNotVisibleToSigntool'
+    'Keyset does not exist'                   = 'KeysetDoesNotExist'
+    'Key not valid for use in specified state' = 'BadKeyState'
+    'provider DLL failed to initialize'       = 'ProviderInitFailed'
+    'smart ?card'                             = 'SmartCardError'
+    'The RPC server is unavailable'           = 'SimplySignNotAnswering'
+}
 
 # Guidance printed whenever signing cannot proceed. Both likely causes, because they look identical
 # from here - the certificate is simply not in the store either way - and the fix differs.
@@ -336,6 +386,47 @@ function Invoke-BsiSigntool {
     }
 }
 
+# Builds the signtool `sign` argument array.
+#
+# Pulled out of Invoke-BsiSignFile so that the live-session probe and the real sign cannot drift
+# apart. The probe asks "is the key reachable", and the only honest way to ask is with the same
+# invocation the real sign uses.
+#
+# The array literal below is newline-separated on purpose and must stay that way. Commas would make
+# $timestampArguments a *nested* array - one Object[] element where four strings should be - and
+# ConvertTo-BsiCommandLineArgument would render it as garbage on the command line. Newlines make
+# each line its own statement, which @() enumerates and flattens.
+function New-BsiSignArgumentList {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string] $Path,
+
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string] $Thumbprint,
+
+        # Omits /tr and /td. Only the probe passes this. A timestamp server that is down, or a
+        # timestamp URL that has been broken, must not be able to make the probe answer "no key" -
+        # because the real sign that follows is what has to keep catching exactly that, and it is
+        # the entire reason an insider build signs anything at all.
+        [switch] $NoTimestamp
+    )
+
+    $timestampArguments = if ($NoTimestamp) { @() } else { @('/tr', $BsiTimestampUrl, '/td', 'sha256') }
+
+    return @(
+        'sign'
+        '/sha1', $Thumbprint
+        '/fd', 'sha256'
+        $timestampArguments
+        '/d', $BsiSignDescription
+        '/du', $BsiSignDescriptionUrl
+        '/v'
+        $Path
+    )
+}
+
 # Strips an existing Authenticode signature.
 #
 # Not optional, and not part of signing: postject rewrites the binary afterwards, which invalidates
@@ -364,6 +455,278 @@ function Invoke-BsiStripSignature {
     }
 }
 
+# Puts a small, real executable somewhere disposable, for signing as a test.
+#
+# signtool signs PE files, not arbitrary bytes, so a test sign needs a genuine executable. These are
+# the smallest things guaranteed to be on any Windows install; node.exe works too but is 80 MB, and
+# hashing that would be the bulk of the time.
+function New-BsiScratchExecutable {
+    [CmdletBinding()]
+    param(
+        [string] $Prefix = 'bsi-signing-scratch',
+
+        [string] $FileName = 'scratch.exe'
+    )
+
+    $source = $null
+    foreach ($candidate in @('hostname.exe', 'whoami.exe', 'where.exe')) {
+        $path = Join-Path -Path ([System.Environment]::SystemDirectory) -ChildPath $candidate
+        if (Test-Path -LiteralPath $path -PathType Leaf) { $source = $path; break }
+    }
+
+    if (-not $source) {
+        $node = Get-Command -Name 'node.exe' -CommandType Application -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($node) { $source = $node.Source }
+    }
+
+    if (-not $source) {
+        throw 'Cannot prove signing: no scratch executable found to sign.'
+    }
+
+    $scratchRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
+    $directory = Join-Path -Path $scratchRoot -ChildPath "$Prefix-$([System.Guid]::NewGuid().ToString('N').Substring(0, 8))"
+
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    $target = Join-Path -Path $directory -ChildPath $FileName
+    Copy-Item -LiteralPath $source -Destination $target -Force
+
+    return [pscustomobject]@{
+        Source    = $source
+        Directory = $directory
+        Path      = $target
+    }
+}
+
+# Pairs with New-BsiScratchExecutable.
+#
+# Tolerates $null and swallows its own errors because it is called from a finally block, where a
+# throw would replace whatever the caller was already reporting with a cleanup failure.
+function Remove-BsiScratchExecutable {
+    [CmdletBinding()]
+    param(
+        $Scratch
+    )
+
+    if (-not $Scratch) { return }
+    if (Test-Path -LiteralPath $Scratch.Directory) {
+        Remove-Item -LiteralPath $Scratch.Directory -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+# The whole line a pattern matched on, so an annotation can quote signtool verbatim.
+function Get-BsiMatchingLine {
+    [CmdletBinding()]
+    param(
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string] $Text,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Pattern
+    )
+
+    foreach ($line in ([string]$Text -split "`r?`n")) {
+        if ($line -match $Pattern) { return $line.Trim() }
+    }
+
+    return $null
+}
+
+# Decides what one signtool run means: did it work, is the SimplySign session dead, or is this
+# something else entirely.
+#
+# A pure function of its three arguments - no certificate store, no file system, no clock - so the
+# whole rule set can be exercised from a table of recorded signtool output on any machine, including
+# a developer's Mac. scripts/diag/win-signing-selftest.ps1 does exactly that.
+#
+# Used only by Test-BsiSigningSession. Invoke-BsiSignFile deliberately does not consult it: the real
+# sign stays as strict as it has always been, and that is what keeps a broken invocation fatal.
+function Get-BsiSigntoolFailureKind {
+    [CmdletBinding()]
+    param(
+        [bool] $TimedOut,
+
+        [int] $ExitCode,
+
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string] $Output
+    )
+
+    $text = [string]$Output
+
+    $result = [pscustomobject]@{
+        Kind     = 'Unknown'
+        Reason   = 'UnrecognisedFailure'
+        ExitCode = $ExitCode
+        TimedOut = $TimedOut
+        Detail   = $null
+    }
+
+    # First, and before ExitCode is looked at: Invoke-BsiSigntool reports -1 on a timeout. That is a
+    # sentinel of ours, not a signtool exit code, and it must never reach the tables below. Detail
+    # stays $null too - a killed process's output buffer is arbitrary and not worth quoting.
+    if ($TimedOut) {
+        $result.Kind = 'Timeout'
+        $result.Reason = 'TimedOut'
+        return $result
+    }
+
+    # 0 is success. 2 is signtool's documented "succeeded with warnings", and for the one question
+    # being asked here - did the key answer - a warning is a yes.
+    if ($ExitCode -eq 0 -or $ExitCode -eq 2) {
+        $result.Kind = 'Ok'
+        $result.Reason = if ($ExitCode -eq 0) { 'Ok' } else { 'OkWithWarnings' }
+        return $result
+    }
+
+    foreach ($code in $BsiSessionHresult.Keys) {
+        $pattern = [regex]::Escape($code)
+        if ($text -match $pattern) {
+            $result.Kind = 'SessionUnavailable'
+            $result.Reason = $BsiSessionHresult[$code]
+            $result.Detail = Get-BsiMatchingLine -Text $text -Pattern $pattern
+            return $result
+        }
+    }
+
+    foreach ($pattern in $BsiSessionText.Keys) {
+        if ($text -match $pattern) {
+            $result.Kind = 'SessionUnavailable'
+            $result.Reason = $BsiSessionText[$pattern]
+            $result.Detail = Get-BsiMatchingLine -Text $text -Pattern $pattern
+            return $result
+        }
+    }
+
+    # Any other CNG (0x8009xxxx) or smart card (0x8010xxxx) error. This is where the coverage
+    # actually comes from, and it is a fair inference rather than a shrug: by the time the probe
+    # runs, everything else is pinned. The file was created milliseconds earlier by us, the
+    # thumbprint was matched in the store immediately before, and there is no timestamp server in
+    # the invocation. The only two unknowns left are whether signtool can see the certificate and
+    # whether the provider can reach the key - so a cryptographic-family error we do not have by
+    # name is still one of those two, and folding it in keeps the unrecognised bucket for things
+    # that are genuinely surprising.
+    $family = '0x8009[0-9a-f]{4}|0x8010[0-9a-f]{4}'
+    if ($text -match $family) {
+        $result.Kind = 'SessionUnavailable'
+        $result.Reason = 'CngOrSmartCardError'
+        $result.Detail = Get-BsiMatchingLine -Text $text -Pattern $family
+        return $result
+    }
+
+    # Non-zero and silent. Worth its own reason because it is a distinctive signature - signtool
+    # that crashed or never really started says nothing at all - and the annotation should say so
+    # rather than quoting an empty string.
+    if ([string]::IsNullOrWhiteSpace($text)) {
+        $result.Reason = 'NoOutput'
+    }
+
+    return $result
+}
+
+# Answers "can this host sign right now" by using the key, without throwing and without blocking
+# for long.
+#
+# The companion to Test-BsiSigningCertificate, not a replacement for it. That one is a store lookup:
+# free, read-only, and unable to answer this question, because SimplySign leaves the certificate
+# registered after its two-hour session ends and HasPrivateKey stays true. So the cheap check passes
+# on a host that cannot sign at all, which is why the insider build ran both.
+#
+# Three deliberate choices:
+#
+#   - It signs through signtool rather than calling GetRSAPrivateKey().SignData() in process. An
+#     in-process CNG call cannot be timed out: if the provider raises its login dialog, the
+#     PowerShell process itself is wedged and only the job timeout ends it. An out-of-process
+#     signtool can be killed, and Invoke-BsiSigntool kills it.
+#
+#   - It signs without a timestamp. See New-BsiSignArgumentList -NoTimestamp.
+#
+#   - It gets a shorter deadline than the real sign, and its own knob for it. A live-session sign of
+#     a few kilobytes takes a second or two, so 60 seconds is generous - and on most pushes to main
+#     the session will be dead, which makes this the cost paid by the common case. Raising the real
+#     sign's deadline must not quietly raise this one.
+function Test-BsiSigningSession {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string] $Thumbprint,
+
+        [string] $Signtool,
+
+        [int] $TimeoutSeconds = 0
+    )
+
+    if ($TimeoutSeconds -le 0) {
+        $TimeoutSeconds = 60
+        if (-not [string]::IsNullOrWhiteSpace($env:BSI_PROBE_TIMEOUT_SECONDS)) {
+            try {
+                $configured = [int]$env:BSI_PROBE_TIMEOUT_SECONDS
+                if ($configured -gt 0) { $TimeoutSeconds = $configured }
+            }
+            catch { }
+        }
+    }
+
+    $result = [pscustomobject]@{
+        Live           = $false
+        Kind           = 'ProbeError'
+        Reason         = 'NotRun'
+        ExitCode       = $null
+        TimedOut       = $false
+        Detail         = $null
+        Output         = ''
+        TimeoutSeconds = $TimeoutSeconds
+        Elapsed        = [timespan]::Zero
+    }
+
+    $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
+    $scratch = $null
+
+    try {
+        if ([string]::IsNullOrWhiteSpace($Signtool)) { $Signtool = Get-BsiSigntoolPath }
+
+        $scratch = New-BsiScratchExecutable -Prefix 'bsi-signing-probe' -FileName 'probe.exe'
+
+        Write-Host "Probing the signing session: signing a scratch copy of $(Split-Path -Leaf $scratch.Source), no timestamp, $TimeoutSeconds second limit."
+
+        $arguments = New-BsiSignArgumentList -Path $scratch.Path -Thumbprint $Thumbprint -NoTimestamp
+        $run = Invoke-BsiSigntool -Signtool $Signtool -Arguments $arguments -TimeoutSeconds $TimeoutSeconds
+
+        $verdict = Get-BsiSigntoolFailureKind -TimedOut $run.TimedOut -ExitCode $run.ExitCode -Output $run.Output
+
+        $result.Live = ($verdict.Kind -eq 'Ok')
+        $result.Kind = $verdict.Kind
+        $result.Reason = $verdict.Reason
+        $result.ExitCode = $run.ExitCode
+        $result.TimedOut = $run.TimedOut
+        $result.Detail = $verdict.Detail
+        $result.Output = $run.Output
+    }
+    catch {
+        # Catches everything and rethrows nothing, on purpose. This library is dot-sourced, so it
+        # runs under the caller's $ErrorActionPreference - and the insider build's is 'Stop', which
+        # turns every non-terminating error in here into a terminating one. A probe that can throw
+        # is a probe that fails the build it exists to keep green.
+        #
+        # ProbeError is not evidence about the signing session. It means the probe could not be
+        # carried out at all: no signtool, no scratch executable, a full temp directory.
+        $result.Live = $false
+        $result.Kind = 'ProbeError'
+        $result.Reason = 'ProbeError'
+        $result.Detail = $_.Exception.Message
+    }
+    finally {
+        $stopwatch.Stop()
+        $result.Elapsed = $stopwatch.Elapsed
+        Remove-BsiScratchExecutable -Scratch $scratch
+    }
+
+    return $result
+}
+
 # Proves a signing session is alive by actually signing something, and cleans up after itself.
 #
 # Necessary because looking in the certificate store is not a reliable test. SimplySign Desktop
@@ -385,40 +748,14 @@ function Invoke-BsiProveSigning {
 
     if ([string]::IsNullOrWhiteSpace($Signtool)) { $Signtool = Get-BsiSigntoolPath }
 
-    # signtool signs PE files, not arbitrary bytes, so the scratch file has to be a real executable.
-    # These are the smallest things guaranteed to be on any Windows install; node.exe works too but
-    # is 80 MB, and hashing that is the bulk of the time.
-    $source = $null
-    foreach ($candidate in @('hostname.exe', 'whoami.exe', 'where.exe')) {
-        $path = Join-Path -Path ([System.Environment]::SystemDirectory) -ChildPath $candidate
-        if (Test-Path -LiteralPath $path -PathType Leaf) { $source = $path; break }
-    }
-
-    if (-not $source) {
-        $node = Get-Command -Name 'node.exe' -CommandType Application -ErrorAction SilentlyContinue |
-            Select-Object -First 1
-        if ($node) { $source = $node.Source }
-    }
-
-    if (-not $source) {
-        throw 'Cannot prove signing: no scratch executable found to sign.'
-    }
-
-    $scratchRoot = if ($env:RUNNER_TEMP) { $env:RUNNER_TEMP } else { [System.IO.Path]::GetTempPath() }
-    $scratch = Join-Path -Path $scratchRoot -ChildPath "bsi-signing-proof-$([System.Guid]::NewGuid().ToString('N').Substring(0, 8))"
+    $scratch = New-BsiScratchExecutable -Prefix 'bsi-signing-proof' -FileName 'proof.exe'
 
     try {
-        New-Item -ItemType Directory -Path $scratch -Force | Out-Null
-        $target = Join-Path -Path $scratch -ChildPath 'proof.exe'
-        Copy-Item -LiteralPath $source -Destination $target -Force
-
-        Write-Host "Proving the signing session by signing a scratch copy of $(Split-Path -Leaf $source)."
-        Invoke-BsiSignFile -Path $target -Thumbprint $Thumbprint | Out-Null
+        Write-Host "Proving the signing session by signing a scratch copy of $(Split-Path -Leaf $scratch.Source)."
+        Invoke-BsiSignFile -Path $scratch.Path -Thumbprint $Thumbprint | Out-Null
     }
     finally {
-        if (Test-Path -LiteralPath $scratch) {
-            Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
-        }
+        Remove-BsiScratchExecutable -Scratch $scratch
     }
 }
 
@@ -448,17 +785,7 @@ function Invoke-BsiSignFile {
 
     $Path = Resolve-BsiPath -Path $Path
 
-    $signArguments = @(
-        'sign'
-        '/sha1', $Thumbprint
-        '/fd', 'sha256'
-        '/tr', $BsiTimestampUrl
-        '/td', 'sha256'
-        '/d', $BsiSignDescription
-        '/du', $BsiSignDescriptionUrl
-        '/v'
-        $Path
-    )
+    $signArguments = New-BsiSignArgumentList -Path $Path -Thumbprint $Thumbprint
 
     for ($attempt = 1; $attempt -le $TimestampAttempts; $attempt++) {
         $result = Invoke-BsiSigntool -Signtool $Signtool -Arguments $signArguments
