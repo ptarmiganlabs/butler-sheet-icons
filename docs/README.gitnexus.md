@@ -56,6 +56,28 @@ const ANALYZE_FLAGS = ['--no-stats', '--skip-agents-md'];
 
 `--skip-agents-md` is load-bearing, not cosmetic. See the top of this file for what happens without it.
 
+## The MCP tools run a different install
+
+The wrapper governs *indexing*. It does not govern the `gitnexus_*` tools an agent calls: those are served by a **globally installed** GitNexus, registered in `~/.claude.json` as
+
+```json
+"gitnexus": { "command": "/Users/<user>/.nvm/versions/node/<version>/bin/gitnexus", "args": ["mcp"] }
+```
+
+Claude Code spawns one of those per session, with the session's working directory. Two consequences:
+
+- **The pin and the MCP server drift independently.** Bumping `GITNEXUS_VERSION` changes what `npm run gitnexus:*` runs and nothing else — the tools keep running whatever is installed globally. Upgrade both together. The global install is per nvm node version, and the path in `~/.claude.json` names the one that actually matters.
+- **A pin the global install cannot satisfy breaks the npm scripts outright.** GitNexus is in no `node_modules`, so with nothing in the npx cache `npx --no-install gitnexus@<pin>` resolves the copy on `PATH` — the global one — and only when its version matches the pin, which the wrapper writes as an exact spec. Bump the pin past the global install and every `npm run gitnexus:*` dies with `npx canceled due to missing packages`; the re-index hook then prints its "not installed" line and skips, so the index quietly stops being maintained without any command failing. Upgrade the global install alongside the pin, or run `npm run gitnexus:install` to cache the pinned version explicitly.
+- **A global upgrade needs `--allow-scripts=@ladybugdb/core`**, for the same reason the npx path does. npm 12 blocks install scripts by default, and without that one `gitnexus --version` still prints a version while every real query dies with `LadybugDB native binary (lbugjs.node) is missing`. The binary ships in the tarball; only the step that moves it into place is blocked, so an install that already went wrong is repaired without re-downloading anything:
+
+    ```bash
+    node <prefix>/lib/node_modules/gitnexus/node_modules/@ladybugdb/core/install.js
+    ```
+
+    The other blocked scripts do not matter here. The tree-sitter grammars and `onnxruntime-node` ship prebuilt binaries for this platform, and GitNexus's own postinstall only activates vendored grammars for languages this repo does not contain.
+
+Like the hook fix below, this is machine-local: another machine needs the same treatment.
+
 ## The managed block is now hand-maintained
 
 Because `--skip-agents-md` is always passed, the block between `<!-- gitnexus:start -->` and `<!-- gitnexus:end -->` in `CLAUDE.md` and `AGENTS.md` is no longer regenerated. Edit it by hand when it needs to change.
@@ -88,6 +110,18 @@ On a stale index after a `git commit`, `merge`, `rebase`, `cherry-pick` or `pull
 It is also worktree-aware. A linked worktree under `.claude/worktrees/` never carries its own `.gitnexus/`, so the hook resolves the index to the canonical checkout — and therefore reads `HEAD` from that checkout too, not from the worktree. Comparing a worktree branch's `HEAD` against an index built from the canonical checkout marked the index stale on every commit made on a branch, and re-indexing would not have cleared it, because the index describes the canonical checkout either way. The warning now fires when the index is genuinely behind what it indexes, and names the canonical directory so the suggested command is runnable as written.
 
 **This fix is machine-local.** The hook sits outside the repository, so a fresh clone on another machine gets a stock hook and the old advice with it. Re-apply it there, or set `GITNEXUS_HOOK_CLI_PATH` and copy the fork across.
+
+## Worktrees
+
+Most agent work in this repo happens in a linked worktree under `.claude/worktrees/`. GitNexus is usable there, but three things behave differently and none of them announce themselves. `CLAUDE.md` and `AGENTS.md` carry the short version; this is the reasoning.
+
+A fourth thing looks like a worktree problem and is not: `Multiple repositories indexed` fails identically in the canonical checkout. GitNexus resolves the repository from the `repo` parameter alone — never from the working directory — so every tool call has to name it. That is one line in the managed block, not a worktree issue.
+
+**The graph describes the canonical checkout.** A linked worktree carries no `.gitnexus/` of its own, and the re-index hook skips it deliberately — see [Automatic re-indexing](#automatic-re-indexing). So `impact`, `context` and `query` answer as of `main` at its last index: the right answer for the blast radius of changing existing code, the wrong one for code the branch has just added. The work reaches the index when the branch is merged.
+
+**`detect_changes` needed GitNexus ≥ 1.6.6.** Before that it ran `git diff` in the indexed repo root — the canonical checkout — regardless of where it was called from. Since agents work in worktrees and the canonical checkout is normally clean, the answer was "No changes detected", and the managed block mandates that check before every commit. A required safety check that always passes is worse than no check at all, which is why the pin moved to 1.6.9. Upstream fixed it in 1.6.6 with `resolveWorktreeCwd`.
+
+**`rename` still has that shape as of 1.6.9.** It resolves every path against the indexed repo root — for the reads, for the ripgrep sweep, and for the final `writeFile`. Called with `dry_run: false` from a worktree it edits the canonical checkout instead of your branch. Use `dry_run: true` for the reference list and apply the edits by hand until upstream extends `resolveWorktreeCwd` to cover it.
 
 ## Version pinning
 
