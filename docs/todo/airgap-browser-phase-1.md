@@ -18,9 +18,10 @@ ship in:
 Commits 1 and 3 shipped before commit 2, inverting the order §12 argues for. That is why the
 platform filter arrived after administrators could already point `--browser-cache-dir` anywhere.
 
-**Read the source before trusting the detail here.** Two sections are known to describe a codebase
-that no longer exists: §10's call-site table predates #887, and §11.1's version gate names 3.12.0
-when the open release train is well past it. Where this document and `src/` disagree, `src/` wins.
+**Read the source before trusting the detail here.** §10 has been marked up as a historical record
+rather than instructions — the consolidation it describes happened by another route — and §11.1's
+version gate now reads 5.0.0. Both were stale for a while, which is the general hazard: where this
+document and `src/` disagree, `src/` wins.
 
 **Phase 1 in one sentence:** Butler Sheet Icons (BSI) can already run without internet access if it
 finds a browser — so let administrators tell it where the browser is, and make it honest about what
@@ -717,16 +718,24 @@ Also update `src/__tests__/butler-sheet-icons.test.js` so `browser --help` conta
 
 ## 10. Call sites to change
 
-The eight hardcoded cache-directory sites. Each currently reads:
+**Done, and by a different route than this section describes — kept only as the record of what the
+starting state was.** Do not work from the table below; it names line numbers in a layout that no
+longer exists.
 
-```js
-const browserPath = path.join(homedir(), '.cache/puppeteer');
-logger.debug(`Browser cache path: ${browserPath}`);
-```
+What actually happened: #887 consolidated the eight hardcoded
+`path.join(homedir(), '.cache/puppeteer')` sites into a single `getBrowserCacheDir()` while this
+document was being written, and #1024 then grew that module into `browser-paths.js` with the full
+tier list from §4.1. So the "replace eight sites" work described here was never done as such — the
+consolidation arrived first, and the resolver was added underneath it.
 
-Replace both lines with `const browserPath = resolveBrowserCacheDir(options);` — the resolver emits a
-strictly better debug line, so net log volume is unchanged — and drop the now-unused `path` / `homedir`
-imports where nothing else needs them.
+Where the cache directory is decided now:
+
+| Module | What it does |
+| --- | --- |
+| `src/lib/browser/browser-paths.js` | Owns every decision. `resolveBrowserCacheDir` for reading, `resolveBrowserCacheDirForWriting` for installing, `resolveExecutablePathOverride` for a named browser. |
+| `src/lib/browser/browser-inventory.js` | The one place that turns a cache directory into inspectable entries, including `canRunHere` and `hasUsableExecutable`. |
+
+The original table, for reference only — every line number in it is stale:
 
 | File | Line | Note |
 | --- | --- | --- |
@@ -738,9 +747,6 @@ imports where nothing else needs them.
 | `src/lib/browser/browser-uninstall.js` | 99 | plus the `emptyDir` fix, §8.2 |
 | `src/lib/browser/browser-list-available.js` | 169 | dead value; swap for consistency, no CLI option |
 | `src/lib/browser/browser-list-available.js` | 319 | ditto |
-
-`browser-paths.js` imports `logger` from `../../globals.js`. Every existing browser test already mocks
-that specifier, so no test gains a new mock because of this.
 
 ---
 
@@ -825,9 +831,9 @@ Content, all of it copy-pasteable rather than conceptual:
    in a deployment script.
 
 6. **A version gate** at the top: `::: warning Requires BSI X.Y.Z or later`. The next version is
-   **3.12.0** per the open release-please PR (`chore(main): release butler-sheet-icons 3.12.0`) —
-   re-check that PR at publication time rather than trusting this number, since it follows from the
-   unreleased commit types.
+   **5.0.0** per the open release-please PR — re-check that PR at publication time rather than
+   trusting this number, since it follows from the unreleased commit types and has already moved
+   once (this line said 3.12.0 while the phase 1 commits were landing).
 
 ### 11.2 `docs/to-doc-site/browser-flags-and-cache-dir.md`
 
