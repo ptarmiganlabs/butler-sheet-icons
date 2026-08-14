@@ -32,7 +32,7 @@ const SECRET_KEYS = new Set(BSI_SECRET_KEYS.map((key) => key.toLowerCase()));
  */
 
 /**
- * Whether an option is declared as `--flag <true|false>`.
+ * Whether an option is declared as `--flag <true|false>` or `--flag [true|false]`.
  *
  * These are the trap in this codebase: they are *string* options carrying
  * boolean* defaults, so `--secure` is `true` when defaulted and `'true'` when
@@ -40,11 +40,20 @@ const SECRET_KEYS = new Set(BSI_SECRET_KEYS.map((key) => key.toLowerCase()));
  * the answer back to the string form is what keeps the wizard's options bag
  * identical to the CLI's.
  *
+ * The optional-argument form matters as much as the required one. `browser
+ * check` declares `--skip-launch [true|false]` so that Commander passes an
+ * environment variable's *value* to the parser rather than setting the flag on
+ * the variable's mere presence - which is what made
+ * `BSI_BROWSER_C_SKIP_LAUNCH=false` turn skip-launch on. Matching only the
+ * angle-bracket form classified that option as free text, so the wizard would
+ * have asked for a boolean with an input prompt.
+ *
  * @param {import('commander').Option} option - The option to test.
  *
- * @returns {boolean} True for a `<true|false>` option.
+ * @returns {boolean} True for a `<true|false>` or `[true|false]` option.
  */
-export const isTrueFalseOption = (option) => option.flags.includes('<true|false>');
+export const isTrueFalseOption = (option) =>
+    option.flags.includes('<true|false>') || option.flags.includes('[true|false]');
 
 /**
  * Split a description into the question and its supporting detail.
