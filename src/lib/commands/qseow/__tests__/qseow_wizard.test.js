@@ -926,6 +926,7 @@ describe('progressive disclosure', () => {
                 browserVersion: 'recommended',
                 browserPageTimeout: '90',
                 browserCacheDir: '',
+                browserExecutablePath: '',
             })
         );
 
@@ -937,6 +938,7 @@ describe('progressive disclosure', () => {
         // Behind the advanced gate rather than in the main flow: most runs never name a
         // browser cache directory, and an unplaced key would be asked last and ungated.
         expect(asked).toContain('browserCacheDir');
+        expect(asked).toContain('browserExecutablePath');
     });
 });
 

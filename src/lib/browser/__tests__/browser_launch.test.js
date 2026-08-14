@@ -29,6 +29,7 @@ jest.unstable_mockModule('../browser-detect.js', () => ({
     detectAvailableBrowser: jest.fn(),
 }));
 const { detectAvailableBrowser } = await import('../browser-detect.js');
+const { BrowserNotFoundError } = await import('../../util/errors.js');
 
 jest.unstable_mockModule('../browser-install.js', () => ({
     browserInstall: jest.fn(),
@@ -355,8 +356,29 @@ describe('launchBrowserForApp', () => {
 
         await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow(TestError);
         await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow(
-            'Failed to install a browser for test app test-app-id'
+            'Could not obtain a browser for test app test-app-id'
         );
+        expect(puppeteer.launch).not.toHaveBeenCalled();
+    });
+
+    test('lets a refusal from detection through, without attempting an install', async () => {
+        // detectAvailableBrowser's outer catch turns any failure into `null`, and only an
+        // `instanceof BsiError` re-throw keeps a deliberate refusal - an explicitly named
+        // --browser-executable-path that does not exist - from becoming a silent download.
+        // That is invisible inside browser-detect's own suite: it is only observable here.
+        const refusal = new BrowserNotFoundError(
+            '--browser-executable-path is set to "/nope/chrome" but no such file exists on this machine.'
+        );
+        detectAvailableBrowser.mockRejectedValue(refusal);
+
+        const err = await launchBrowserForApp(OPTIONS, CONTEXT).catch((caught) => caught);
+
+        expect(err).toBeInstanceOf(TestError);
+        expect(err.message).toBe('Could not obtain a browser for test app test-app-id');
+        // The specific reason travels as the cause, which is what logError renders after the
+        // app context. Losing it would leave the operator with only "could not obtain".
+        expect(err.cause).toBe(refusal);
+        expect(browserInstall).not.toHaveBeenCalled();
         expect(puppeteer.launch).not.toHaveBeenCalled();
     });
 

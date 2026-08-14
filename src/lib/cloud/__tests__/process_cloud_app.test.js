@@ -594,9 +594,7 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         ).rejects.toThrow();
 
         const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
-        expect(logged).toContain(
-            'Failed to install a browser for Qlik Sense Cloud app test-app-id'
-        );
+        expect(logged).toContain('Could not obtain a browser for Qlik Sense Cloud app test-app-id');
         expect(puppeteer.launch).not.toHaveBeenCalled();
     });
 });

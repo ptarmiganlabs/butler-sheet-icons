@@ -87,6 +87,26 @@ export class CloudError extends BsiError {
 }
 
 /**
+ * No usable browser could be obtained, and Butler Sheet Icons will not look further.
+ *
+ * Thrown only where continuing would contradict something the operator asked for - today,
+ * an explicitly named `--browser-executable-path` that does not exist. A browser merely being
+ * absent is not this error: detection returns `null` for that, and the caller downloads one.
+ */
+export class BrowserNotFoundError extends BsiError {
+    /**
+     * Construct a browser-not-found error.
+     *
+     * @param {string} message - Human-readable error message.
+     * @param {object} [options] - Standard `Error` options.
+     */
+    constructor(message, options = {}) {
+        super(message, options);
+        this.name = 'BrowserNotFoundError';
+    }
+}
+
+/**
  * QSEoW processing failure (sheet exclude status, app processing, etc.).
  */
 export class QseowError extends BsiError {

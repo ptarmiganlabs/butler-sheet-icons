@@ -1,6 +1,12 @@
 import { getVersionComparator, detectBrowserPlatform } from '@puppeteer/browsers';
 import { getBrowserInventory, hasUsableExecutable } from './browser-inventory.js';
-import { resolveBrowserCacheDir } from './browser-paths.js';
+import {
+    EXECUTABLE_SOURCE_LABELS,
+    EXECUTABLE_SOURCE_REMOVAL,
+    resolveBrowserCacheDir,
+    resolveExecutablePathOverride,
+} from './browser-paths.js';
+import { BrowserNotFoundError, BsiError } from '../util/errors.js';
 import fs from 'fs';
 
 import { logger } from '../../globals.js';
@@ -166,35 +172,64 @@ const reportEmptyFunnel = ({
  */
 export const detectAvailableBrowser = async (options, resolvedBuildId) => {
     try {
-        // Priority 1: Check for system browser via PUPPETEER_EXECUTABLE_PATH
-        if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-            const systemBrowserPath = process.env.PUPPETEER_EXECUTABLE_PATH;
+        // Priority 1: a browser the administrator named, by option or environment variable.
+        const override = resolveExecutablePathOverride(options);
 
-            // Verify the path exists
-            if (fs.existsSync(systemBrowserPath)) {
-                logger.info(`Found system browser at: ${systemBrowserPath}`);
-                logger.info('Using system browser (PUPPETEER_EXECUTABLE_PATH is set)');
+        if (override) {
+            const label = EXECUTABLE_SOURCE_LABELS[override.source];
+
+            if (fs.existsSync(override.path)) {
+                logger.info(`Found system browser at: ${override.path}`);
+                logger.info(`Using system browser (${label})`);
 
                 // Asking for a specific build and silently getting a different one is worth a
                 // warning: the version was requested deliberately, and this path ignores it.
                 // A keyword is Butler Sheet Icons' own choice, so overriding it is unremarkable.
                 if (options.browserVersion && !isVersionKeyword(options.browserVersion)) {
                     logger.warn(
-                        `PUPPETEER_EXECUTABLE_PATH overrides --browser-version "${options.browserVersion}": the browser at ${systemBrowserPath} will be used instead. Unset PUPPETEER_EXECUTABLE_PATH to use the requested build.`
+                        `The browser executable ${label} overrides --browser-version "${options.browserVersion}": the browser at ${override.path} will be used instead. ` +
+                            `${EXECUTABLE_SOURCE_REMOVAL[override.source]} to use the requested build.`
                     );
                 }
 
                 return {
-                    executablePath: systemBrowserPath,
+                    executablePath: override.path,
                     source: 'system',
                     browser: options.browser,
                     buildId: 'system-installed',
                 };
-            } else {
-                logger.warn(
-                    `PUPPETEER_EXECUTABLE_PATH is set to "${systemBrowserPath}" but file does not exist`
+            }
+
+            // The file is not there. What happens next depends entirely on how firmly it was
+            // named, and the two cases are deliberately different.
+            if (override.explicit) {
+                // Named through a Butler Sheet Icons option, so this is a stated intent that
+                // cannot be met. Downloading some other browser instead would be a compliance
+                // problem in a regulated Qlik estate, and on an air-gapped machine it is a
+                // failure reported as something unrelated.
+                //
+                // Thrown without being logged here, and deliberately so. `logError` renders an
+                // error together with its whole `cause` chain, so the caller that attaches the
+                // app context prints this message in full anyway - logging it here as well is
+                // how the same failure ends up described twice, which is the symptom issue #785
+                // was about. `markReported` does not help: the wrapper is a new error, and
+                // `logError` does not consult the marker.
+                throw new BrowserNotFoundError(
+                    `--browser-executable-path is set to "${override.configuredValue}" but no such file exists on this machine. ` +
+                        `Butler Sheet Icons will not fall back to downloading a browser when an executable path has been given explicitly. ` +
+                        `Correct the path, or remove the option to let Butler Sheet Icons find a browser itself.`
                 );
             }
+
+            // A stale PUPPETEER_EXECUTABLE_PATH inherited from a container image or a shell is
+            // a much weaker signal, and falling through to the cache is what the Docker
+            // documentation tells people to rely on. Unchanged on purpose.
+            //
+            // The value is quoted as the operator set it, not as it resolved: a relative path
+            // printed back absolute is one they cannot find in their unit file.
+            logger.warn(
+                `PUPPETEER_EXECUTABLE_PATH is set to "${override.configuredValue}" but file does not exist`
+            );
         }
 
         // Priority 2: Check for cached browsers in the browser cache directory
@@ -286,6 +321,14 @@ export const detectAvailableBrowser = async (options, resolvedBuildId) => {
         logger.debug('No system or cached browser available - download will be required');
         return null;
     } catch (err) {
+        // This catch exists so that a cache that cannot be read degrades into "download one"
+        // rather than taking the run down. A Butler Sheet Icons error is the opposite case: it
+        // was raised on purpose, by code that had already decided the run must not continue, so
+        // swallowing it here would turn a deliberate refusal into a silent download.
+        if (err instanceof BsiError) {
+            throw err;
+        }
+
         logger.error(`Error detecting available browser: ${err.message}`);
         if (err.stack) {
             logger.debug(err.stack);

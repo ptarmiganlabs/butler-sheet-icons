@@ -59,6 +59,30 @@ export const SOURCE_LABELS = Object.freeze({
 });
 
 /**
+ * Human-readable phrase for each way the browser executable can be named.
+ *
+ * Separate from {@link SOURCE_LABELS} rather than sharing its `option` and `puppeteer-env`
+ * keys, because the two answer different questions and print different variable names. A
+ * message that said "from --browser-cache-dir" about an executable would be actively wrong.
+ */
+export const EXECUTABLE_SOURCE_LABELS = Object.freeze({
+    option: 'from --browser-executable-path / BSI_BROWSER_EXECUTABLE_PATH',
+    'puppeteer-env': 'from PUPPETEER_EXECUTABLE_PATH',
+});
+
+/**
+ * How to stop each source winning, phrased as the start of a sentence.
+ *
+ * A remedy that says "remove that setting" makes the reader work out which of two possible
+ * settings was meant. Naming it is what makes the line copy-pasteable, which is the whole
+ * point of putting a remedy in a log message.
+ */
+export const EXECUTABLE_SOURCE_REMOVAL = Object.freeze({
+    option: 'Remove --browser-executable-path / BSI_BROWSER_EXECUTABLE_PATH',
+    'puppeteer-env': 'Unset PUPPETEER_EXECUTABLE_PATH',
+});
+
+/**
  * The cache directory Butler Sheet Icons has always used.
  *
  * Built with `path.join(homedir(), '.cache', 'puppeteer')`, which is byte-identical to the
@@ -317,6 +341,64 @@ export const resolveBrowserCacheDirForWriting = (options) => {
     });
 
     return described.primaryCacheDir;
+};
+
+/**
+ * The browser executable an administrator has named, if any.
+ *
+ * Two tiers, and the order between them matters more than it looks:
+ *
+ * 1. `--browser-executable-path` / `BSI_BROWSER_EXECUTABLE_PATH`
+ * 2. `PUPPETEER_EXECUTABLE_PATH`
+ *
+ * `explicit` is what separates them, and it is load-bearing rather than decorative. A path
+ * named through a Butler Sheet Icons option is a stated intent: if the file is not there,
+ * quietly downloading some other browser instead is a compliance problem in a regulated Qlik
+ * estate and, on an air-gapped machine, a guaranteed failure with a misleading error. A
+ * `PUPPETEER_EXECUTABLE_PATH` inherited from a container image or a developer shell is a far
+ * weaker signal, and thousands of existing setups depend on it falling through to the cache.
+ * `detectAvailableBrowser` acts on that distinction; this function only records it.
+ *
+ * The option outranking `PUPPETEER_EXECUTABLE_PATH` also means it outranks the value the
+ * official Docker image sets. That is intended - it is how a container user points Butler
+ * Sheet Icons at a different browser - and it is documented.
+ *
+ * Read here rather than through Commander for the same reasons `PUPPETEER_CACHE_DIR` is:
+ * `Option.env()` holds one variable name, and Commander has a single environment precedence
+ * level, so "BSI_ beats PUPPETEER_" is not expressible there.
+ *
+ * `configuredValue` is the value as the operator wrote it, and messages quote that rather than
+ * `path`. The two differ for a relative path, and quoting the resolved one back at someone
+ * hunting through a unit file for a string they never typed helps nobody.
+ *
+ * @param {object} [options] - Options bag as Commander produces it.
+ * @param {string} [options.browserExecutablePath] - Path named by the administrator.
+ *
+ * @returns {{path: string, configuredValue: string, source: string, explicit: boolean}|null}
+ * The override, or `null` when nothing names one.
+ */
+export const resolveExecutablePathOverride = (options) => {
+    /**
+     * One tier of the lookup.
+     *
+     * @param {string} [value] - Raw configured value.
+     * @param {string} source - Which setting it came from.
+     * @param {boolean} explicit - Whether it was named through a Butler Sheet Icons option.
+     *
+     * @returns {object|null} The override for this tier, or `null` when it is unset.
+     */
+    const tier = (value, source, explicit) => {
+        const resolved = configured(value);
+
+        return resolved
+            ? { path: resolved, configuredValue: value.trim(), source, explicit }
+            : null;
+    };
+
+    return (
+        tier(options?.browserExecutablePath, 'option', true) ??
+        tier(process.env.PUPPETEER_EXECUTABLE_PATH, 'puppeteer-env', false)
+    );
 };
 
 /**

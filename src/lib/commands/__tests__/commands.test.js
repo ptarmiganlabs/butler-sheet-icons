@@ -1343,3 +1343,68 @@ describe('option keys match the property names the code reads (issue #890)', () 
         });
     });
 });
+
+describe('--browser-executable-path (issue #929)', () => {
+    // Only the two commands that launch a browser. `browser install` deliberately does not
+    // carry it: pointing at an executable is the alternative to installing one, so the option
+    // would be a knob that does nothing there.
+    const carriers = [
+        ['qseow create-sheet-thumbnails', () => thumbnailCommand(buildQseowCommand())],
+        ['qscloud create-sheet-thumbnails', () => thumbnailCommand(buildQscloudCommand())],
+    ];
+
+    test.each(carriers)('%s carries the option', (_name, build) => {
+        const option = build().options.find((opt) => opt.long === '--browser-executable-path');
+
+        expect(option).toBeDefined();
+    });
+
+    test.each(carriers)('%s reads the shared environment variable', (_name, build) => {
+        const option = build().options.find((opt) => opt.long === '--browser-executable-path');
+
+        expect(option.envVar).toBe('BSI_BROWSER_EXECUTABLE_PATH');
+    });
+
+    test.each(carriers)('%s leaves the tiers to the resolver', (_name, build) => {
+        // A Commander default would make the value always truthy, so PUPPETEER_EXECUTABLE_PATH
+        // would never be consulted.
+        const option = build().options.find((opt) => opt.long === '--browser-executable-path');
+
+        expect(option.defaultValue).toBeUndefined();
+    });
+
+    test.each(carriers)('%s accepts a set-but-empty environment variable', (_name, build) => {
+        // Same reasoning as the cache directory: `PUPPETEER_EXECUTABLE_PATH=""` meaning
+        // "ignore this" is a documented Docker idiom, and an argParser would turn the
+        // equivalent BSI_ line into a hard CLI error instead of a no-op.
+        const option = build().options.find((opt) => opt.long === '--browser-executable-path');
+
+        expect(option.parseArg).toBeUndefined();
+
+        const saved = process.env.BSI_BROWSER_EXECUTABLE_PATH;
+        process.env.BSI_BROWSER_EXECUTABLE_PATH = '';
+
+        try {
+            const parent = new Command();
+            parent.exitOverride();
+            parent.addOption(option);
+
+            expect(() => parent.parse(['node', 'test'])).not.toThrow();
+            expect(parent.opts().browserExecutablePath).toBe('');
+        } finally {
+            if (saved === undefined) {
+                delete process.env.BSI_BROWSER_EXECUTABLE_PATH;
+            } else {
+                process.env.BSI_BROWSER_EXECUTABLE_PATH = saved;
+            }
+        }
+    });
+
+    test('browser install does not carry it', () => {
+        const option = buildBrowserInstallCommand().options.find(
+            (opt) => opt.long === '--browser-executable-path'
+        );
+
+        expect(option).toBeUndefined();
+    });
+});

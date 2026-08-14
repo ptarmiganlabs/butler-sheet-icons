@@ -103,11 +103,14 @@ const testOnPosix = process.platform === 'win32' ? test.skip : test;
 const SAVED_ENV = {
     BSI_BROWSER_CACHE_DIR: process.env.BSI_BROWSER_CACHE_DIR,
     PUPPETEER_CACHE_DIR: process.env.PUPPETEER_CACHE_DIR,
+    BSI_BROWSER_EXECUTABLE_PATH: process.env.BSI_BROWSER_EXECUTABLE_PATH,
+    PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH,
 };
 
 beforeEach(() => {
-    delete process.env.BSI_BROWSER_CACHE_DIR;
-    delete process.env.PUPPETEER_CACHE_DIR;
+    for (const name of Object.keys(SAVED_ENV)) {
+        delete process.env[name];
+    }
 });
 
 afterEach(() => {
@@ -556,5 +559,114 @@ describe('assertCacheDirWritable', () => {
             // Restored so the afterEach cleanup can remove it.
             fs.chmodSync(parent, 0o700);
         }
+    });
+});
+
+describe('the browser executable override', () => {
+    test('is absent when nothing names one', async () => {
+        const { paths } = await loadPaths();
+
+        expect(paths.resolveExecutablePathOverride({})).toBeNull();
+        expect(paths.resolveExecutablePathOverride(undefined)).toBeNull();
+    });
+
+    test('takes --browser-executable-path, and marks it explicit', async () => {
+        const { paths } = await loadPaths();
+
+        expect(
+            paths.resolveExecutablePathOverride({ browserExecutablePath: '/opt/chrome' })
+        ).toEqual({
+            path: path.resolve('/opt/chrome'),
+            configuredValue: '/opt/chrome',
+            source: 'option',
+            explicit: true,
+        });
+    });
+
+    test('falls back to PUPPETEER_EXECUTABLE_PATH, and does not mark it explicit', async () => {
+        // The `explicit` flag is load-bearing: a path named with a Butler Sheet Icons option is
+        // a stated intent and a missing file is fatal, while a stale inherited environment
+        // variable is a much weaker signal that thousands of Docker setups rely on falling
+        // through.
+        process.env.PUPPETEER_EXECUTABLE_PATH = '/usr/bin/chromium';
+        const { paths } = await loadPaths();
+
+        expect(paths.resolveExecutablePathOverride({})).toEqual({
+            path: path.resolve('/usr/bin/chromium'),
+            configuredValue: '/usr/bin/chromium',
+            source: 'puppeteer-env',
+            explicit: false,
+        });
+    });
+
+    test('prefers the option over PUPPETEER_EXECUTABLE_PATH', async () => {
+        // Which also means it outranks the value the Docker image sets - that is how a
+        // container user overrides the embedded Chromium, and it has to be documented.
+        process.env.PUPPETEER_EXECUTABLE_PATH = '/usr/bin/chromium';
+        const { paths } = await loadPaths();
+
+        expect(
+            paths.resolveExecutablePathOverride({ browserExecutablePath: '/opt/chrome' }).path
+        ).toBe(path.resolve('/opt/chrome'));
+    });
+
+    test('reads BSI_BROWSER_EXECUTABLE_PATH as the option', async () => {
+        // Commander puts the environment value on the same option property, so this is really
+        // a check that nothing downstream cares which of the two the operator used.
+        const { paths } = await loadPaths();
+
+        expect(paths.resolveExecutablePathOverride({ browserExecutablePath: '/from/env' })).toEqual(
+            {
+                path: path.resolve('/from/env'),
+                configuredValue: '/from/env',
+                source: 'option',
+                explicit: true,
+            }
+        );
+    });
+
+    test.each([
+        ['an empty string', ''],
+        ['whitespace', '   '],
+    ])('treats %s as unset at every tier', async (_label, value) => {
+        // `PUPPETEER_EXECUTABLE_PATH=""` meaning "ignore this" is a documented idiom for Docker
+        // users; breaking it would be a regression, and Commander hands a bare
+        // `BSI_BROWSER_EXECUTABLE_PATH=` line through as an empty string too.
+        process.env.PUPPETEER_EXECUTABLE_PATH = value;
+        const { paths } = await loadPaths();
+
+        expect(paths.resolveExecutablePathOverride({ browserExecutablePath: value })).toBeNull();
+    });
+
+    test('resolves a relative path against the working directory', async () => {
+        const { paths } = await loadPaths();
+
+        expect(
+            paths.resolveExecutablePathOverride({ browserExecutablePath: './chrome' }).path
+        ).toBe(path.resolve('./chrome'));
+    });
+});
+
+describe('the configured value a message should quote', () => {
+    test('is the value as written, not as resolved', async () => {
+        // A relative path printed back absolute is a string the operator cannot find in the
+        // unit file or Dockerfile they are searching.
+        const { paths } = await loadPaths();
+
+        const override = paths.resolveExecutablePathOverride({
+            browserExecutablePath: 'browsers/chrome',
+        });
+
+        expect(override.configuredValue).toBe('browsers/chrome');
+        expect(override.path).toBe(path.resolve('browsers/chrome'));
+    });
+
+    test('is trimmed, so surrounding whitespace never reaches a message', async () => {
+        const { paths } = await loadPaths();
+
+        expect(
+            paths.resolveExecutablePathOverride({ browserExecutablePath: '  /opt/chrome  ' })
+                .configuredValue
+        ).toBe('/opt/chrome');
     });
 });

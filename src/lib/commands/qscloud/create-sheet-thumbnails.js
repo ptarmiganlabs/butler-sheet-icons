@@ -12,6 +12,7 @@ import {
     collectPositiveIntegers,
     collectAppIds,
     buildBrowserCacheDirOption,
+    buildBrowserExecutablePathOption,
 } from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
@@ -277,7 +278,8 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 .default('90')
                 .env('BSI_BROWSER_PAGE_TIMEOUT')
         )
-        .addOption(buildBrowserCacheDirOption());
+        .addOption(buildBrowserCacheDirOption())
+        .addOption(buildBrowserExecutablePathOption());
 
     addInteractiveOption(command);
 
