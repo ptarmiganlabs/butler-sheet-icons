@@ -145,4 +145,32 @@ const buildBrowserCacheDirOption = () =>
         'Directory where Butler Sheet Icons keeps downloaded browsers. Defaults to a "browser-cache" folder next to the Butler Sheet Icons executable for standalone builds, and to the .cache/puppeteer folder in the current user\'s home directory otherwise.'
     ).env('BSI_BROWSER_CACHE_DIR');
 
-export { parsePositiveInteger, collectPositiveIntegers, collectAppIds, buildBrowserCacheDirOption };
+/**
+ * The `--browser-executable-path` option, for the commands that launch a browser.
+ *
+ * A factory for the same reason as {@link buildBrowserCacheDirOption}: Commander stores parsed
+ * values on the Option object, so commands cannot share one instance.
+ *
+ * The environment variable is shared across commands rather than per-command prefixed, because
+ * where the browser is installed is a property of the machine, not of one command.
+ *
+ * Neither a `.default()` nor an `argParser`, for the reasons spelled out on the cache directory
+ * option: the tiers below this one live in the resolver, and Commander runs `parseArg` on
+ * environment values too, so rejecting the empty string would turn `PUPPETEER_EXECUTABLE_PATH=""`
+ * - a documented Docker idiom - into a hard CLI error.
+ *
+ * @returns {Option} A new `--browser-executable-path` option.
+ */
+const buildBrowserExecutablePathOption = () =>
+    new Option(
+        '--browser-executable-path <path>',
+        'Full path to a browser executable to use, for example a Microsoft Edge or Google Chrome already installed on this machine. Butler Sheet Icons then neither downloads nor manages a browser. Takes precedence over PUPPETEER_EXECUTABLE_PATH. If the file does not exist the run stops rather than downloading a browser instead.'
+    ).env('BSI_BROWSER_EXECUTABLE_PATH');
+
+export {
+    parsePositiveInteger,
+    collectPositiveIntegers,
+    collectAppIds,
+    buildBrowserCacheDirOption,
+    buildBrowserExecutablePathOption,
+};

@@ -1,5 +1,9 @@
 import puppeteer from 'puppeteer-core';
-import { resolveBrowserCacheDirForWriting } from './browser-paths.js';
+import fs from 'fs';
+import {
+    resolveBrowserCacheDirForWriting,
+    resolveExecutablePathOverride,
+} from './browser-paths.js';
 import { computeExecutablePath } from '@puppeteer/browsers';
 
 import { logger } from '../../globals.js';
@@ -168,6 +172,10 @@ const resolveRequestedBuildId = async (options) => {
  * browser that cannot be driven is otherwise reported as an anonymous protocol failure with
  * nothing tying it to `--browser-version` (issue #878).
  *
+ * @throws {import('../util/errors.js').BrowserNotFoundError} If `--browser-executable-path` names
+ * a file that does not exist. Raised before any download is attempted, so it is not an install
+ * failure - which is why the caller wrapping this says "could not obtain" rather than "failed to
+ * install".
  * @throws {Error} If no browser is available and the install fails. Callers are expected to wrap
  * this in a platform-specific typed error carrying the app id.
  */
@@ -177,7 +185,21 @@ export const resolveBrowserExecutablePath = async (options) => {
     // back to the previous default location.
     const browserPath = resolveBrowserCacheDirForWriting(options);
 
-    const { buildId: requestedBuildId, resolveError } = await resolveRequestedBuildId(options);
+    // A browser named by the operator, and actually present, decides everything: detection will
+    // return it whatever version was asked for. Resolving the version first would then be a
+    // network round trip whose answer is discarded - and on the air-gapped machine this option
+    // exists for, it is a lookup that fails slowly and logs two warnings about a build nobody
+    // is going to download.
+    //
+    // Only when the file is really there. A named path that is missing still needs the resolved
+    // build id: an explicit one is about to throw, and a stale PUPPETEER_EXECUTABLE_PATH falls
+    // through to the cache, where a pinned version must still match exactly (issue #878).
+    const namedBrowser = resolveExecutablePathOverride(options);
+    const namedBrowserExists = Boolean(namedBrowser && fs.existsSync(namedBrowser.path));
+
+    const { buildId: requestedBuildId, resolveError } = namedBrowserExists
+        ? { buildId: undefined, resolveError: undefined }
+        : await resolveRequestedBuildId(options);
 
     logger.info(`Checking for available browsers...`);
     const browserInfo = await detectAvailableBrowser(options, requestedBuildId);
@@ -373,7 +395,11 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
     try {
         browserInfo = await resolveBrowserExecutablePath(options);
     } catch (err) {
-        throw new ErrorClass(`Failed to install a browser for ${appLabel} ${appId}`, {
+        // "Could not obtain", not "Failed to install": nothing necessarily tried to install.
+        // An explicitly named --browser-executable-path that does not exist fails here without
+        // a download ever being attempted, and reporting that as an install failure sends the
+        // reader looking for a network problem they do not have.
+        throw new ErrorClass(`Could not obtain a browser for ${appLabel} ${appId}`, {
             cause: err,
         });
     }

@@ -42,6 +42,7 @@ jest.unstable_mockModule('fs', () => ({
 const fs = (await import('fs')).default;
 
 const { detectAvailableBrowser } = await import('../browser-detect.js');
+const { BrowserNotFoundError } = await import('../../util/errors.js');
 
 // These are ambient and leak between test files, so capture and restore them around every
 // test rather than assuming they start unset. PUPPETEER_CACHE_DIR joined the list when the
@@ -449,6 +450,130 @@ describe('detectAvailableBrowser — no resolved build id (offline fallback)', (
         const result = await detectAvailableBrowser({ browser: 'chrome' });
 
         expect(result.buildId).toBe('151.0.7922.109');
+    });
+});
+
+describe('detectAvailableBrowser — an explicitly named browser', () => {
+    test('prefers --browser-executable-path over PUPPETEER_EXECUTABLE_PATH', async () => {
+        // Which is also how a container user overrides the browser the Docker image sets.
+        process.env.PUPPETEER_EXECUTABLE_PATH = '/usr/bin/chromium';
+        fs.existsSync.mockReturnValue(true);
+
+        const result = await detectAvailableBrowser({
+            browser: 'chrome',
+            browserExecutablePath: '/opt/edge',
+        });
+
+        expect(result.executablePath).toBe(path.resolve('/opt/edge'));
+        expect(result.source).toBe('system');
+    });
+
+    test('throws when an explicitly named executable is missing', async () => {
+        // The asymmetry with PUPPETEER_EXECUTABLE_PATH is deliberate: naming a path with a
+        // Butler Sheet Icons option states an intent, and downloading a different browser
+        // instead is a compliance problem in a regulated estate - and offline, a guaranteed
+        // failure reported as something else entirely.
+        fs.existsSync.mockReturnValue(false);
+
+        await expect(
+            detectAvailableBrowser({ browser: 'chrome', browserExecutablePath: '/nope/chrome' })
+        ).rejects.toThrow(BrowserNotFoundError);
+    });
+
+    test('never consults the cache when an explicit executable is missing', async () => {
+        fs.existsSync.mockReturnValue(false);
+        getInstalledBrowsers.mockResolvedValue([cachedBrowser('chrome', '138.0.7204.94')]);
+
+        await detectAvailableBrowser({
+            browser: 'chrome',
+            browserExecutablePath: '/nope/chrome',
+        }).catch(() => undefined);
+
+        expect(getInstalledBrowsers).not.toHaveBeenCalled();
+    });
+
+    test('names the path and the way out when an explicit executable is missing', async () => {
+        fs.existsSync.mockReturnValue(false);
+
+        const err = await detectAvailableBrowser({
+            browser: 'chrome',
+            browserExecutablePath: '/nope/chrome',
+        }).catch((caught) => caught);
+
+        expect(err.message).toContain('/nope/chrome');
+        expect(err.message).toContain('--browser-executable-path');
+    });
+
+    test('does not also log the failure it is throwing', async () => {
+        // `logError` renders an error together with its whole cause chain, so the caller that
+        // attaches the app context prints this message in full. Logging it here as well is how
+        // one failure ends up described twice - the symptom issue #785 is about.
+        fs.existsSync.mockReturnValue(false);
+
+        await detectAvailableBrowser({
+            browser: 'chrome',
+            browserExecutablePath: '/nope/chrome',
+        }).catch(() => undefined);
+
+        expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    test('quotes a relative path as it was written, not as it resolved', async () => {
+        // An operator hunting through a unit file cannot find an absolute path they never typed.
+        process.env.PUPPETEER_EXECUTABLE_PATH = 'browsers/chrome';
+        fs.existsSync.mockReturnValue(false);
+        getInstalledBrowsers.mockResolvedValue([]);
+
+        await detectAvailableBrowser({ browser: 'chrome' });
+
+        const warned = logger.warn.mock.calls.map(([msg]) => msg).join('\n');
+        expect(warned).toContain('"browsers/chrome"');
+    });
+
+    test.each([
+        [
+            '--browser-executable-path',
+            { browserExecutablePath: '/opt/edge' },
+            'Remove --browser-executable-path',
+        ],
+        ['PUPPETEER_EXECUTABLE_PATH', {}, 'Unset PUPPETEER_EXECUTABLE_PATH'],
+    ])(
+        'warns that %s overrides an exact --browser-version, and names what to remove',
+        async (_label, extra, remedy) => {
+            // Untested until now, and the wording is quoted verbatim by a published doc page.
+            process.env.PUPPETEER_EXECUTABLE_PATH = '/opt/edge';
+            fs.existsSync.mockReturnValue(true);
+
+            await detectAvailableBrowser({
+                browser: 'chrome',
+                browserVersion: '121.0.6167.85',
+                ...extra,
+            });
+
+            const warned = logger.warn.mock.calls.map(([msg]) => msg).join('\n');
+            expect(warned).toContain('overrides --browser-version "121.0.6167.85"');
+            expect(warned).toContain(remedy);
+        }
+    );
+
+    test('says nothing about a version keyword being overridden', async () => {
+        // A keyword is Butler Sheet Icons' own choice, so overriding it is unremarkable.
+        process.env.PUPPETEER_EXECUTABLE_PATH = '/opt/edge';
+        fs.existsSync.mockReturnValue(true);
+
+        await detectAvailableBrowser({ browser: 'chrome', browserVersion: 'recommended' });
+
+        expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    test('still falls through to the cache when PUPPETEER_EXECUTABLE_PATH is missing', async () => {
+        // Unchanged legacy behaviour, and the Docker documentation depends on it.
+        process.env.PUPPETEER_EXECUTABLE_PATH = '/nope/chromium';
+        getInstalledBrowsers.mockResolvedValue([cachedBrowser('chrome', '138.0.7204.94')]);
+
+        const result = await detectAvailableBrowser({ browser: 'chrome' });
+
+        expect(result.source).toBe('cache');
     });
 });
 

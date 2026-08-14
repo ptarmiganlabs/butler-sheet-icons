@@ -45,6 +45,7 @@ const ADVANCED_KEYS = [
     'browserVersion',
     'browserPageTimeout',
     'browserCacheDir',
+    'browserExecutablePath',
     'headless',
 ];
 
