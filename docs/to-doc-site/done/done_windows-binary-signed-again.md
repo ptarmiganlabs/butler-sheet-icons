@@ -4,19 +4,24 @@
 
 **Suggested target pages:** the troubleshooting page (a "Windows warns about the publisher" symptom), and wherever the site covers downloading and installing the Windows binary. This is a short addition to existing pages rather than a page of its own.
 
-::: warning Version gate to be filled in at publication
-The version that first carries the restored signature is not yet decided — it is whatever release ships after this change. Set the gate before publishing; do not guess it.
+::: warning Requires Butler Sheet Icons 5.0.0 or later
+5.0.0 is the first release to carry the restored signature. Earlier downloads are unaffected by
+everything on this page.
 :::
 
 ## What changed
 
-Butler Sheet Icons' Windows executable carries a digital signature again. The certificate is issued by Certum to the project's maintainer as an open source developer, so the publisher shown by Windows is:
+From 5.0.0, Butler Sheet Icons' Windows executable carries a digital signature again. It is a
+proper, commercial code signing certificate issued by Certum.
 
-> **Open Source Developer Karl Göran Sander**
+The certificate is issued to an individual open source developer rather than to a company, so the
+publisher name Windows shows you is a person's name, not "Ptarmigan Labs". That is normal for open
+source projects and does not affect what the signature guarantees. You can read the exact publisher
+string out of any signed release yourself — see [Checking the signature
+yourself](#checking-the-signature-yourself) below.
 
-That is the name on the certificate rather than a company name, which is normal for open source projects and does not affect what the signature guarantees.
-
-The previous certificate expired shortly before version 4.0.0, and the versions released in between — **4.0.0 and 4.1.0** — shipped without any signature at all.
+The previous certificate expired shortly before version 4.0.0, and the versions released in
+between — **4.0.0 and 4.1.0** — shipped without any signature at all.
 
 Nothing about how Butler Sheet Icons works has changed. This affects only how Windows treats the file.
 
@@ -61,12 +66,16 @@ You can also right-click the file, choose **Properties**, and look at the **Digi
 
 | | |
 |---|---|
-| Subject | `CN=Open Source Developer Karl Göran Sander, O=Open Source Developer, L=Saltsjö-Duvnäs, S=Stockholm, C=SE` |
 | Issuer | `CN=Certum Code Signing 2021 CA, O=Asseco Data Systems S.A., C=PL` |
 | Thumbprint | `1674DF1C6EAD6DB9D816705CD230281B87A1C97E` |
 | Valid | 2026-08-12 to 2027-08-12 |
 
-None of this is confidential. The certificate is embedded in every signed release, so anyone holding a download can read it out; publishing it here only saves you the step.
+The thumbprint is the value that actually confirms the publisher, and it is the one to compare. The
+subject line — which names the individual the certificate was issued to — is printed by the commands
+above from the release you already hold, so there is no need to reproduce it here.
+
+None of this is confidential: the certificate is embedded in every signed release, so anyone holding
+a download can read all of it out.
 
 Two things that surprise people:
 
@@ -95,26 +104,69 @@ A valid signature proves the publisher, not the download source. Always download
 If you are running 4.0.0 or 4.1.0, upgrading to the current release is the fix. No configuration change is needed on your side — download the newer release as usual.
 
 <!--
-DRAFT - do not publish until a signed release actually exists.
+PUBLISHED to `next` on 2026-08-14, butler-sheet-icons-docs PR #98.
 
-Verified against the signing host on 2026-08-12 (scripts/diag/win-signing-check.ps1):
+*** THE RELEASE-TIME CONDITION BELOW IS STILL OPEN. It could not be discharged at
+*** publication because 5.0.0 has not been cut yet. Do NOT merge `next` to `main`
+*** without it. See "THE ONE CONDITION" further down.
 
-  - Publisher name is "Open Source Developer Karl Göran Sander", NOT "Ptarmigan Labs".
-    An earlier draft of this page said Ptarmigan Labs throughout and was wrong. The
-    certificate is an individual open source developer certificate, subject
-    CN=Open Source Developer Karl Göran Sander, O=Open Source Developer,
-    L=Saltsjö-Duvnäs, S=Stockholm, C=SE.
+Published to:
+  - reference/security.md - the Windows section (#windows-code-signing), previously a single
+    sentence, now the full treatment
+  - guide/installation.md - Windows platform notes, now version-qualified
+  - guide/troubleshooting.md - new #windows-publisher-warning symptom table
+
+The edit that set the 5.0.0 gate and removed the certificate holder's name was recovered from
+an uncommitted working tree in the worktree .claude/worktrees/github-actions-failure-99713f
+and committed as part of the archive. It had never been committed anywhere.
+
+NOT VERIFIED AT PUBLICATION, and the highest-risk item on the page: the thumbprint, the issuer
+string and the validity dates. WIN_CODESIGN_THUMBPRINT is a repository secret, so it is masked
+in workflow logs and absent from the repo - there was no independent source to check against.
+Those three values are the draft's own, from the 2026-08-12 signing-host run. Re-confirm them
+as part of the release-time check.
+
+What WAS verified independently: 4.1.0 shipped 2026-08-11 and the certificate was issued
+2026-08-12, so no released version can carry it. The "4.0.0 and 4.1.0 unsigned, 5.0.0 first
+signed" claim therefore holds without relying on the draft.
+
+ALSO CORRECTED, already wrong on the live site: both reference/security.md and
+guide/installation.md stated flatly that the Windows binary is signed, with no version
+qualification. For anyone on 4.0.0 or 4.1.0 that was misleading - their download is unsigned
+and the site gave them no way to know that was expected.
+
+Original draft note follows.
+
+---
+
+Verified against the signing host on 2026-08-12 (scripts/diag/win-signing-check.ps1), and
+re-confirmed on 2026-08-14 from the insiders-build log for main@5674fa8, which printed the
+same subject and "Certificate valid until 2027-08-12":
+
+  - The certificate is an individual open source developer certificate, NOT one issued to
+    Ptarmigan Labs. An earlier draft of this page said Ptarmigan Labs throughout and was
+    wrong.
   - Issuer is CN=Certum Code Signing 2021 CA, valid 2026-08-12 to 2027-08-12.
 
-Still to confirm before publishing:
+The certificate holder's name is deliberately NOT printed on this page. The doc site removed
+it from the security page on 2026-08-13 (butler-sheet-icons-docs ded6c35, "docs: drop the
+certificate holder's name from the Windows signing note"), and reinstating it here - with the
+locality, no less - would undo that decision. Everything an administrator needs still works:
+the thumbprint is what confirms the publisher, and the PowerShell snippets read the exact
+subject out of the release they already hold. Do not add the subject back without checking
+that the earlier decision has changed.
 
-  - The list of unsigned versions. 4.0.0 and 4.1.0 are unsigned. Whether any later
-    release is also unsigned depends on when this change ships - check the releases
-    page and update.
-  - Set the version gate at the top.
-  - Re-check the certificate table against the live certificate. The thumbprint in it
-    was read off the signing host on 2026-08-12 and matches the WIN_CODESIGN_THUMBPRINT
-    secret; confirm both still agree at publication.
+Resolved:
+
+  - Version gate is 5.0.0, confirmed by the maintainer.
+  - Unsigned versions are 4.0.0 and 4.1.0. 5.0.0 is signed.
+
+THE ONE CONDITION: Windows signing can fail silently in a way that still produces a release.
+On 2026-08-13 every insiders build was red for about 23 hours because the SimplySign session
+had expired, and the signing precheck reported the certificate as usable anyway. This page
+tells administrators the download is signed, so before `next` is merged to `main` at release
+time, confirm the published 5.0.0 Windows binary really does carry a signature -
+Get-AuthenticodeSignature on the actual release asset, not the CI log.
 
 MAINTENANCE, and the reason this page is not fire-and-forget: it publishes the
 certificate thumbprint, so it goes stale the moment the certificate is renewed - due
