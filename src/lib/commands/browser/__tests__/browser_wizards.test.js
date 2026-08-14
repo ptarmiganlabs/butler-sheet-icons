@@ -52,6 +52,10 @@ jest.unstable_mockModule('../../../browser/browser-install.js', () => ({ browser
 const { runInteractive } = await import('../../../interactive/index.js');
 const { scriptedRuntime } = await import('../../../interactive/test-helpers/scripted-runtime.js');
 
+// Both flags, because they are not the same question and the picker keys on the wider one.
+// `isCurrentPlatform` is "built for exactly this platform"; `canRunHere` is "this machine can
+// execute it", which is true for a 32-bit Windows build on 64-bit Windows and for an Intel
+// macOS build on Apple Silicon.
 const MAC_BUILD = {
     browser: 'chrome',
     buildId: '151.0.7922.47',
@@ -59,6 +63,7 @@ const MAC_BUILD = {
     path: '/cache/chrome/mac_arm-151.0.7922.47',
     executablePath: '/cache/chrome/mac_arm-151.0.7922.47/chrome',
     isCurrentPlatform: true,
+    canRunHere: true,
 };
 
 const WIN_BUILD = {
@@ -66,6 +71,22 @@ const WIN_BUILD = {
     platform: 'win64',
     path: '/cache/chrome/win64-151.0.7922.47',
     isCurrentPlatform: false,
+    canRunHere: false,
+};
+
+/**
+ * A build this machine can run even though it was not built for exactly this platform.
+ *
+ * `win32` rather than `mac`, for two reasons. It is the case `labelForBuild` documents - a 32-bit
+ * build on 64-bit Windows - and, unlike `mac`, it is not a substring of any other platform name,
+ * so an assertion on it cannot be satisfied by the wrong platform being rendered.
+ */
+const RUNNABLE_FOREIGN_BUILD = {
+    ...MAC_BUILD,
+    platform: 'win32',
+    path: '/cache/chrome/win32-151.0.7922.47',
+    isCurrentPlatform: false,
+    canRunHere: true,
 };
 
 beforeEach(() => {
@@ -142,6 +163,25 @@ describe('the uninstall wizard', () => {
         const labels = runtime.asked[0].choices.map((choice) => choice.name);
         expect(labels[0]).toContain('built for win64');
         expect(labels[0]).toContain('cannot run here');
+    });
+
+    test('does not claim a runnable build cannot run here', async () => {
+        // The regression this guards: keyed on `isCurrentPlatform`, the picker told a Windows
+        // administrator that the `win32` build in their cache "cannot run here" while browser
+        // detection was perfectly willing to launch it. The picker and the run have to agree.
+        getBrowserInventory.mockResolvedValue([RUNNABLE_FOREIGN_BUILD]);
+        const runtime = scriptedRuntime({
+            _build: { browser: 'chrome', buildId: '151.0.7922.47' },
+            _review: 'cancel',
+        });
+
+        await runInteractive({ path: 'browser uninstall', runtime });
+
+        // Asserted with the parentheses, so this cannot be satisfied by the platform appearing
+        // anywhere else in the label - including inside the "built for X" phrasing it must not use.
+        const labels = runtime.asked[0].choices.map((choice) => choice.name);
+        expect(labels[0]).toContain('(win32)');
+        expect(labels[0]).not.toContain('cannot run here');
     });
 
     test('shows the platform plainly for a build that does run here', async () => {
