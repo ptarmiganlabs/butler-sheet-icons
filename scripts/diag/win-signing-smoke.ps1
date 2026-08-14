@@ -11,9 +11,12 @@
 # signed rather than embedded signed, so there would be no signature to strip and that half of the
 # path would go untested.
 #
-# Usage:
-#   pwsh -File scripts/diag/win-signing-smoke.ps1
-#   pwsh -File scripts/diag/win-signing-smoke.ps1 -Thumbprint <hex> -KeepOutput
+# Usage, from a checkout on the runner:
+#   powershell -File scripts/diag/win-signing-smoke.ps1
+#   powershell -File scripts/diag/win-signing-smoke.ps1 -Thumbprint <hex> -KeepOutput
+#
+# powershell, not pwsh: the win-code-sign runner has no PowerShell 7 installed. CODESIGN_WIN_THUMBPRINT
+# is a repository secret and so is empty in an interactive shell - pass -Thumbprint by hand.
 #
 # Exits 0 when the file came out correctly signed, 1 otherwise.
 

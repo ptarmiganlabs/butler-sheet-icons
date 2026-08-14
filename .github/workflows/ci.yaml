@@ -1310,8 +1310,9 @@ jobs:
       # exists to prevent.
       #
       # Written for `shell: powershell` for the same reason as the version check below - it is the
-      # shell this self-hosted runner is known to have - which also keeps the signing scripts
-      # working under Windows PowerShell 5.1, not just the pwsh that runs the build step.
+      # shell this self-hosted runner is known to have. In fact it is the *only* one: the runner has
+      # no PowerShell 7 at all, so a `run:` step that names no shell resolves to Windows PowerShell
+      # too. Every signing script therefore has to work under 5.1, this one no more than the rest.
       - name: Preflight the Windows signing certificate
         shell: powershell
         run: ./scripts/diag/win-signing-check.ps1 -RequireSigning -ProveSigning

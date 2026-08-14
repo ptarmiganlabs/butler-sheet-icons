@@ -11,9 +11,17 @@
 # in as. A runner running as a service, or as a different account, sees nothing - and the symptom is
 # indistinguishable from an expired session unless something reports the account.
 #
-# Usage:
-#   pwsh -File scripts/diag/win-signing-check.ps1
-#   pwsh -File scripts/diag/win-signing-check.ps1 -Thumbprint <hex> -RequireSigning
+# Usage, from a checkout on the runner:
+#   powershell -File scripts/diag/win-signing-check.ps1
+#   powershell -File scripts/diag/win-signing-check.ps1 -Thumbprint <hex> -RequireSigning
+#
+# powershell, not pwsh: the win-code-sign runner has no PowerShell 7 installed, so `pwsh` there is
+# just a CommandNotFoundException. The working directory does not matter - this file locates its
+# library through $PSScriptRoot - but the path you type after -File is resolved against it.
+#
+# Note that CODESIGN_WIN_THUMBPRINT is a repository secret and is therefore empty in an interactive
+# shell. Without -Thumbprint the script reports "no thumbprint configured" and skips -ProveSigning
+# entirely, which reads as a pass. Pass the thumbprint explicitly when running this by hand.
 #
 # Without -RequireSigning it reports and exits 0 - useful for looking at a machine.
 #

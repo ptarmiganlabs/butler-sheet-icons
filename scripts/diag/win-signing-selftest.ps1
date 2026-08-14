@@ -17,7 +17,11 @@
 #      timestamp flag nobody was exercising.
 #
 # Usage:
-#   pwsh -File scripts/diag/win-signing-selftest.ps1
+#   pwsh -File scripts/diag/win-signing-selftest.ps1        # any OS with PowerShell 7
+#   powershell -File scripts/diag/win-signing-selftest.ps1  # Windows PowerShell 5.1
+#
+# Unlike its neighbours this one is not tied to the signing runner, so pwsh is a fair default. On
+# the win-code-sign runner itself use powershell - there is no PowerShell 7 installed there.
 
 [CmdletBinding()]
 param()
