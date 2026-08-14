@@ -148,3 +148,37 @@ the list in the message is guaranteed to match what you have.
 Verify each message above against the current implementation before publishing, and quote it
 **verbatim** — administrators search for these strings, so a paraphrase on the doc site is worse
 than no entry at all.
+
+<!--
+PUBLISHED to `next` on 2026-08-14, butler-sheet-icons-docs PR #93. Version gate 5.0.0,
+read from release-please PR #974. All three messages verified fragment-by-fragment against
+src/lib/browser/browser-detect.js, in both directions.
+
+Published to:
+  - guide/troubleshooting.md - new "A cached browser was rejected" entry
+    (#a-cached-browser-was-rejected), holding all three messages
+  - guide/concepts/browser-detection-and-environment-variables.md - section 2 rewritten,
+    plus a warning on Strategy 3
+
+CORRECTION to this draft, do not trust the text above:
+
+  - "Pointing Butler Sheet Icons at a browser with PUPPETEER_EXECUTABLE_PATH is unaffected"
+    was written before --browser-executable-path existed. Both settings bypass these
+    checks, and the published pages name both. See point-at-an-installed-browser.md.
+
+THREE THINGS WERE ALREADY WRONG ON THE LIVE SITE and were fixed in the same PR. They are
+not this draft's fault, but they were the same fact, so they could not be left standing
+next to it:
+
+  - The cached-browser section said a cached browser matches on TWO checks. It is four.
+  - It said `--browser-version latest` is the default and that any cached build is then
+    accepted. The default is `recommended`, and since issue #878 every keyword resolves to
+    exactly one build before the cache is searched. The whole `"latest" means "anything
+    cached"` tip callout was false and was replaced. Note guide/concepts/browser-management.md
+    had this right already - the site contradicted itself.
+  - The Strategy 3 staging example installed with `--browser-version latest`, which resolves
+    to whatever is newest that day and so cannot match the `recommended` build the target
+    machine looks for. That example produced the exact third failure this draft documents.
+    Now uses `recommended`.
+-->
+

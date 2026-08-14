@@ -80,3 +80,38 @@ Check both pages for any other occurrence of either string before publishing —
 the ones found in the staging files, and the live pages may have picked up more during editing. The
 `done_` staging files themselves are history and should be left alone; this page is the record of
 what changed.
+
+<!--
+PUBLISHED to `next` on 2026-08-14, butler-sheet-icons-docs PR #96. All quotes verified
+fragment-by-fragment against browser-detect.js, browser-paths.js and browser-launch.js, in
+both directions.
+
+TWO CORRECTIONS to this draft. Do not trust its target list.
+
+  1. WRONG PAGE for the version-override warning. This draft says
+     guide/advanced/docker.md, "which quotes this message in two places". The string is
+     NOT on docker.md at all. It is on docs/examples/browser-management.md, ONCE.
+     Following the draft literally would have edited nothing and left the stale quote live.
+
+  2. A THIRD RENAMED MESSAGE the draft does not mention:
+        old: info: Using system browser (PUPPETEER_EXECUTABLE_PATH is set)
+        new: info: Using system browser (from PUPPETEER_EXECUTABLE_PATH)
+     The suffix is EXECUTABLE_SOURCE_LABELS in browser-paths.js, the same table that
+     reworded the override warning - so it changed for the same reason and was missed.
+     It was on guide/advanced/docker.md, inside the block that page presents as PROOF an
+     air-gapped run never reached the internet. All five lines of that block were checked;
+     the other four are correct.
+
+The lesson is the one this draft states and then does not itself follow: sweep the site for
+the string, do not trust a draft's list of where it appears.
+
+Published to:
+  - docs/examples/browser-management.md - override warning + a "wording changed" callout
+  - guide/advanced/crash-dumps.md - both occurrences, + a callout so older dumps still match
+  - guide/advanced/docker.md - the system-browser line, + BSI_BROWSER_EXECUTABLE_PATH added
+    to "If you do not want the embedded browser", which previously offered only the
+    mounted-cache route
+
+Verified on the deployed site that the old strings appear zero times in sample output.
+-->
+

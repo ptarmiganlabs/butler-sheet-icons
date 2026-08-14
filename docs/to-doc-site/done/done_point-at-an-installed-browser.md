@@ -122,3 +122,41 @@ Verify the flag names, the environment variable names and the error message agai
 implementation before publishing, and quote the message verbatim. The option tables on the reference
 pages are generated — refresh them with `npm run docs:cli-tables` rather than typing the new option
 in by hand.
+
+<!--
+PUBLISHED to `next` on 2026-08-14, butler-sheet-icons-docs PR #95. Version gate 5.0.0,
+read from release-please PR #974. Every message verified fragment-by-fragment against
+browser-detect.js and browser-paths.js, in both directions.
+
+This draft was ACCURATE. Precedence, the promise-vs-hint distinction, empty-value handling
+and the error text all matched the implementation. Two things it did not say:
+
+  - The option is only on `qseow create-sheet-thumbnails` and `qscloud create-sheet-thumbnails`.
+    Confirmed against the Commander definitions, not assumed.
+  - Publishing it required RENUMBERING the browser detection order on the concepts page, from
+    three tiers to four.
+
+THE RENUMBERING BROKE TWO LIVE LINKS, and this is the part worth remembering. The heading
+"### 2. Cached browser (medium priority)" generated the anchor
+`#_2-cached-browser-medium-priority`, which guide/troubleshooting.md and
+guide/concepts/browser-management.md both linked to. Inserting a tier renamed it. VitePress
+`docs:build` does NOT validate #fragments, so both would have shipped as dead links with a
+green build.
+
+Both were repointed, and all four headings now carry stable custom anchors:
+#browser-you-named, #puppeteer-executable-path-browser, #cached-browser, #download-browser.
+Use those, and add a custom anchor to any new numbered heading, rather than relying on the
+generated one.
+
+Published to:
+  - guide/concepts/browser-detection-and-environment-variables.md - detection order, Strategy 2
+    rewritten (#use-a-browser-already-installed-on-the-server), new BSI_BROWSER_EXECUTABLE_PATH
+    env var entry, summary
+  - guide/troubleshooting.md - new #browser-executable-path-missing entry
+  - reference/qseow.md, reference/qscloud.md - option tables regenerated with docs:cli-tables
+
+NOT done, deliberately: the page's "Thumbnail generation examples" still use
+PUPPETEER_EXECUTABLE_PATH. They are not wrong - that variable still works - and converting
+them all is a larger rewrite than this draft called for.
+-->
+

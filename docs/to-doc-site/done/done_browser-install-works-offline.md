@@ -102,3 +102,46 @@ Verify every message above against the implementation before publishing, and quo
 The `browser install` option table on `reference/browser.md` is generated — refresh it with
 `npm run docs:cli-tables` rather than editing it by hand — but the prose describing what the command
 does needs the update above.
+
+<!--
+PUBLISHED to `next` on 2026-08-14, butler-sheet-icons-docs PR #94. Version gate 5.0.0,
+read from release-please PR #974. Both messages verified fragment-by-fragment against
+src/lib/browser/browser-install.js, in both directions.
+
+Published to:
+  - reference/browser.md - new "Installing a browser that is already there" section
+    (#install-already-present), plus the "Available Commands" table row
+  - guide/concepts/browser-detection-and-environment-variables.md - the `browser install`
+    row of the internet-access table
+  - guide/troubleshooting.md - the same row in the offline-commands table, plus a callout
+
+CORRECTION to this draft, do not trust the text above. The section "Why this matters" says
+the settings that still need internet are "latest, stable, or a release channel". That list
+is wrong in BOTH directions. Established by execution, not by reading: stub net.connect,
+tls.connect and dns.lookup, then call resolveBrowserVersion for each value.
+
+  recommended (default)          resolves OFFLINE
+  full build id 151.0.7922.47    resolves OFFLINE  <- draft implied it does not
+  stable / latest / beta         needs network
+  build prefix 151.0.7922        needs network     <- draft omitted
+  milestone 151                  needs network     <- draft omitted
+
+Practical consequence: an administrator staging an exact build CAN verify it offline. The
+draft's prose would have talked them out of trying.
+
+Note the doc site already had this matrix correct, under "What --browser-version costs on an
+offline machine". The published pages link to it rather than adding a fourth copy.
+
+Beware when re-testing: blocking only node:http/https or globalThis.fetch does NOT block
+@puppeteer/browsers. Both of those attempts appeared to prove every value resolved offline.
+Block at the socket layer.
+
+ALSO FIXED, already wrong on the live site: three places stated `browser install` always
+needs internet access, and the concepts page gave the removed download-precheck as the
+reason. A staging example using `--browser-version latest` was corrected too - same defect
+as the one found while publishing browser-cache-checked-before-use.md, different page.
+
+UNRELATED, not a docs issue: resolveBrowserVersion returns `usedNetwork: true` for a full
+build id even though that path touches no network. Not user-visible today.
+-->
+
