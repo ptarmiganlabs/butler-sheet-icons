@@ -7,6 +7,7 @@ import path from 'node:path';
 import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import { resolveLocalBrowserBuildId, VERSION_RECOMMENDED } from './browser-version.js';
+import { buildToRemove } from './browser-selection.js';
 
 /**
  * Uninstall a browser from the Butler Sheet Icons cache.
@@ -68,10 +69,7 @@ export const browserUninstall = async (options) => {
             return false;
         }
 
-        // Prefer the build that can actually run here. Previously this was
-        // whichever entry the filesystem happened to list first.
-        const browserToUninstall =
-            matches.find((browser) => browser.isCurrentPlatform) ?? matches[0];
+        const browserToUninstall = buildToRemove(matches);
 
         if (matches.length > 1) {
             logger.warn(

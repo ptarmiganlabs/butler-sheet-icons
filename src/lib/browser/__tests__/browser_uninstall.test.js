@@ -218,6 +218,23 @@ describe('browserUninstall — platform handling (issue #892)', () => {
         expect(uninstall).toHaveBeenCalledWith(expect.objectContaining({ platform: 'mac_arm' }));
     });
 
+    test('falls back to a build this machine can run before an arbitrary one', async () => {
+        // No build for exactly this platform, but an Intel one that Rosetta will run. The
+        // comment on this rule has always said "prefer the build that can actually run here";
+        // without this tier the choice fell back to filesystem order and could land on the
+        // win64 build, which cannot run at all.
+        const ROSETTA = { ...LOCAL, platform: 'mac', path: '/p/mac-intel' };
+        cacheReads([FOREIGN, ROSETTA], [FOREIGN]);
+
+        const result = await browserUninstall({
+            browser: 'chrome',
+            browserVersion: '151.0.7922.77',
+        });
+
+        expect(result).toBe(true);
+        expect(uninstall).toHaveBeenCalledWith(expect.objectContaining({ platform: 'mac' }));
+    });
+
     test('says so when a build id is cached for more than one platform', async () => {
         cacheReads([FOREIGN, LOCAL], [FOREIGN]);
 

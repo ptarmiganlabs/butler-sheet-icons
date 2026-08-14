@@ -165,6 +165,68 @@ describe('the uninstall wizard', () => {
         expect(labels[0]).toContain('cannot run here');
     });
 
+    test('offers one row per build id, not one per platform', async () => {
+        // `browser uninstall` can only name a browser and a build id, and removes one build per
+        // run. A row per platform would let an operator pick a row and watch a different build
+        // disappear, because browserUninstall resolves the ambiguity by host match.
+        getBrowserInventory.mockResolvedValue([MAC_BUILD, RUNNABLE_FOREIGN_BUILD]);
+        const runtime = scriptedRuntime({
+            _build: { browser: 'chrome', buildId: '151.0.7922.47' },
+            _review: 'cancel',
+        });
+
+        await runInteractive({ path: 'browser uninstall', runtime });
+
+        expect(runtime.asked[0].choices).toHaveLength(1);
+    });
+
+    test('names the build that will actually be removed', async () => {
+        // The representative has to be chosen the way browserUninstall chooses it, or the row
+        // describes one build and the run removes another. Listed foreign-build-first on
+        // purpose: taking entry [0] would name the win32 build here.
+        getBrowserInventory.mockResolvedValue([RUNNABLE_FOREIGN_BUILD, MAC_BUILD]);
+        const runtime = scriptedRuntime({
+            _build: { browser: 'chrome', buildId: '151.0.7922.47' },
+            _review: 'cancel',
+        });
+
+        await runInteractive({ path: 'browser uninstall', runtime });
+
+        expect(runtime.asked[0].choices[0].name).toContain('(mac_arm)');
+    });
+
+    test('says another platform is still cached, and that a re-run removes it', async () => {
+        getBrowserInventory.mockResolvedValue([MAC_BUILD, RUNNABLE_FOREIGN_BUILD]);
+        const runtime = scriptedRuntime({
+            _build: { browser: 'chrome', buildId: '151.0.7922.47' },
+            _review: 'cancel',
+        });
+
+        await runInteractive({ path: 'browser uninstall', runtime });
+
+        const label = runtime.asked[0].choices[0].name;
+        expect(label).toContain('1 other platform');
+        expect(label).toContain('re-run');
+    });
+
+    test('pluralises the other-platforms note', async () => {
+        // Two branches, and only the singular one was covered. `1 other platforms` in the case
+        // an operator is most likely to hit would otherwise ship with a green suite.
+        getBrowserInventory.mockResolvedValue([
+            MAC_BUILD,
+            RUNNABLE_FOREIGN_BUILD,
+            { ...RUNNABLE_FOREIGN_BUILD, platform: 'win64', canRunHere: false },
+        ]);
+        const runtime = scriptedRuntime({
+            _build: { browser: 'chrome', buildId: '151.0.7922.47' },
+            _review: 'cancel',
+        });
+
+        await runInteractive({ path: 'browser uninstall', runtime });
+
+        expect(runtime.asked[0].choices[0].name).toContain('2 other platforms');
+    });
+
     test('does not claim a runnable build cannot run here', async () => {
         // The regression this guards: keyed on `isCurrentPlatform`, the picker told a Windows
         // administrator that the `win32` build in their cache "cannot run here" while browser
