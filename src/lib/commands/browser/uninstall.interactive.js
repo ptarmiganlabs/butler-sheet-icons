@@ -12,6 +12,13 @@ const BUILD = '_build';
  * here. Repeating "mac_arm" against every row on a Mac is noise; saying it
  * against the one row that came from somewhere else is the whole point.
  *
+ * Keyed on `canRunHere`, not `isCurrentPlatform`, because the claim being made
+ * is about running the build. Those two differ: 64-bit Windows runs 32-bit
+ * builds, and Apple Silicon runs Intel ones under Rosetta. Keying on the
+ * narrower field told a Windows administrator that the `win32` build in their
+ * cache "cannot run here" while browser detection was perfectly willing to use
+ * it - the picker and the run disagreeing about the same build.
+ *
  * @param {object} build - An entry from the browser inventory.
  *
  * @returns {string} The label to show.
@@ -19,7 +26,7 @@ const BUILD = '_build';
 export const labelForBuild = (build) => {
     const base = `${build.browser}  ${build.buildId}`;
 
-    return build.isCurrentPlatform
+    return build.canRunHere
         ? `${base}  (${build.platform})`
         : `${base}  (built for ${build.platform} - cannot run here)`;
 };
