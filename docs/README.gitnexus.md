@@ -50,7 +50,7 @@ There is also an internal `check` subcommand that reports through its exit code 
 The pinned version and the analyze flags are defined there exactly once, so there is no second copy to keep in sync:
 
 ```js
-const GITNEXUS_VERSION = '1.6.5';
+const GITNEXUS_VERSION = '1.6.9';
 const ANALYZE_FLAGS = ['--no-stats', '--skip-agents-md'];
 ```
 

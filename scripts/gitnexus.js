@@ -30,7 +30,7 @@ import { join } from 'node:path';
  * This constant is the only place the version appears. It matches the pin in butler-sos;
  * bump both together.
  */
-const GITNEXUS_VERSION = '1.6.5';
+const GITNEXUS_VERSION = '1.6.9';
 
 /**
  * Flags shared by every `analyze` run.
