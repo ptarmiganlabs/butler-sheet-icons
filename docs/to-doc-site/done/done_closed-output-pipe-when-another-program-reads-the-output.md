@@ -64,3 +64,36 @@ unchanged, and the `| head -12` example is still correct.
 - Verified on macOS. A real shell pipe reports the reader leaving one way in every one of 30 runs;
   captured output intermittently reports it another way, and that case was still writing crash
   reports. Checked across 120 runs after the fix, including runs that took the intermittent path.
+
+<!--
+PUBLISHED to `next` on 2026-08-14, butler-sheet-icons-docs PR #97.
+
+This draft was ACCURATE - nothing in it needed correcting. It correctly judged that the site
+already covered the `| head` case and that this belonged as an extension of the existing
+section rather than a new page, so the published change is five lines.
+
+No second version gate was added. The section already carries "Requires BSI 5.0.0 or later",
+and this ships in 5.0.0 too - confirmed from release-please PR #974, as the draft asked.
+Confirmed too that the troubleshooting entry and the exit-code-141 reference entry needed no
+change.
+
+Published to:
+  - guide/advanced/crash-dumps.md, section #a-closed-output-pipe-is-not-a-crash
+
+THE CLAIM THAT NEEDS PROTECTING, if this area is ever refactored: the new bullet
+"A lost connection to Qlik Sense still produces a crash report" is only true because
+fatal-handlers.js keeps TWO different error-code sets:
+
+  STREAM_BROKEN_PIPE_CODES   = EPIPE, ERR_STREAM_DESTROYED, ENOTCONN, ECONNRESET
+  BACKSTOP_BROKEN_PIPE_CODES = EPIPE, ERR_STREAM_DESTROYED
+
+The wide set is what makes captured output quiet. The backstop excludes ECONNRESET and
+ENOTCONN precisely so a Qlik Sense connection reset by the far end keeps its crash dump.
+Merging the two sets "for simplicity" would silently make the published bullet false.
+
+METHOD NOTE for the next publishing pass: Cloudflare Pages propagates unevenly across edge
+nodes. A single successful fetch of the preview URL is NOT proof a page is live - during this
+pass one node served the new page while others still served the old, which briefly looked like
+a successful verification. Fetch with cache-busting until several consecutive responses agree.
+-->
+
