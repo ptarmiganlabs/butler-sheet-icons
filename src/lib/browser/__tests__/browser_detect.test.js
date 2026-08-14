@@ -579,16 +579,23 @@ describe('detectAvailableBrowser — an explicitly named browser', () => {
 
 describe('detectAvailableBrowser — system browser', () => {
     test('prefers PUPPETEER_EXECUTABLE_PATH and does not consult the cache', async () => {
-        process.env.PUPPETEER_EXECUTABLE_PATH = '/usr/bin/chromium-browser';
+        // Compared and asserted through `path.resolve`, never against the literal. The resolver
+        // resolves a configured path, and `path.resolve('/usr/bin/chromium-browser')` is
+        // `C:\usr\bin\chromium-browser` on Windows - so a hardcoded POSIX comparison here
+        // matched nothing there, detection fell through to the cache, and this test failed on
+        // the Windows runner alone.
+        const configuredPath = '/usr/bin/chromium-browser';
+        const resolvedPath = path.resolve(configuredPath);
+
+        process.env.PUPPETEER_EXECUTABLE_PATH = configuredPath;
         fs.existsSync.mockImplementation(
-            (candidate) =>
-                candidate === '/usr/bin/chromium-browser' || String(candidate).startsWith('/cache/')
+            (candidate) => candidate === resolvedPath || String(candidate).startsWith('/cache/')
         );
 
         const result = await detectAvailableBrowser({ browser: 'chrome' });
 
         expect(result).toEqual({
-            executablePath: '/usr/bin/chromium-browser',
+            executablePath: resolvedPath,
             source: 'system',
             browser: 'chrome',
             buildId: 'system-installed',
