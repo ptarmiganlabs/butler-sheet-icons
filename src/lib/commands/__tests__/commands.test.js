@@ -77,6 +77,10 @@ const mockBrowserListAvailablePromise = jest.unstable_mockModule(
     })
 );
 
+const mockBrowserCheckPromise = jest.unstable_mockModule('../../browser/browser-check.js', () => ({
+    browserCheck: jest.fn().mockResolvedValue({ ok: true, findings: [] }),
+}));
+
 let logger;
 let qseowCreateThumbnails;
 let qscloudCreateThumbnails;
@@ -87,6 +91,7 @@ let browserInstall;
 let browserUninstall;
 let browserUninstallAll;
 let browserListAvailable;
+let browserCheck;
 let parsePositiveInteger;
 let collectPositiveIntegers;
 let collectAppIds;
@@ -105,6 +110,8 @@ let handleBrowserListAvailable;
 let buildBrowserInstallCommand;
 let buildBrowserUninstallCommand;
 let buildBrowserListAvailableCommand;
+let handleBrowserCheck;
+let buildBrowserCheckCommand;
 
 beforeAll(async () => {
     await Promise.all([
@@ -117,6 +124,7 @@ beforeAll(async () => {
         mockBrowserInstallPromise,
         mockBrowserUninstallPromise,
         mockBrowserListAvailablePromise,
+        mockBrowserCheckPromise,
     ]);
     ({ logger } = await import('../../../globals.js'));
     ({ qseowCreateThumbnails } = await import('../../qseow/qseow-create-thumbnails.js'));
@@ -143,6 +151,8 @@ beforeAll(async () => {
     ({ handleBrowserInstall, buildBrowserInstallCommand } = await import('../browser/install.js'));
     ({ handleBrowserListAvailable, buildBrowserListAvailableCommand } =
         await import('../browser/list-available.js'));
+    ({ browserCheck } = await import('../../browser/browser-check.js'));
+    ({ handleBrowserCheck, buildBrowserCheckCommand } = await import('../browser/check.js'));
 });
 
 describe('parsePositiveInteger', () => {
@@ -376,6 +386,7 @@ describe('--browser-cache-dir (issue #1024)', () => {
         ['browser list-installed', () => browserCommand('list-installed')],
         ['browser uninstall', () => buildBrowserUninstallCommand()],
         ['browser uninstall-all', () => browserCommand('uninstall-all')],
+        ['browser check', () => browserCommand('check')],
         ['qseow create-sheet-thumbnails', () => thumbnailCommand(buildQseowCommand())],
         ['qscloud create-sheet-thumbnails', () => thumbnailCommand(buildQscloudCommand())],
     ];
@@ -907,6 +918,7 @@ describe('browser commands', () => {
                 'uninstall-all',
                 'install',
                 'list-available',
+                'check',
             ])
         );
     });
@@ -951,6 +963,189 @@ describe('browser commands', () => {
         expect(errors).toContain('Could not list available browsers.');
         expect(errors.join('\n')).not.toContain('BROWSER MAIN 10');
         expect(errors.join('\n')).not.toContain('at ');
+    });
+
+    describe('check', () => {
+        test('delegates to browserCheck', async () => {
+            const options = { browser: 'chrome', browserVersion: 'recommended' };
+
+            await handleBrowserCheck(options, {});
+
+            expect(browserCheck).toHaveBeenCalledWith(options);
+        });
+
+        // §7.4. `browser check` is meant to be a gate in a deployment script on the Sense server,
+        // so the outcome has to reach the shell. `process.exitCode`, never `process.exit()`: the
+        // latter would cut winston off mid-flush and lose the report that explains the exit code.
+        test('a healthy machine leaves the exit code alone', async () => {
+            browserCheck.mockResolvedValueOnce({ ok: true, findings: [] });
+
+            await handleBrowserCheck({}, {});
+
+            expect(process.exitCode).toBeUndefined();
+        });
+
+        test('a failing check exits 1', async () => {
+            browserCheck.mockResolvedValueOnce({ ok: false, findings: [] });
+
+            await handleBrowserCheck({}, {});
+
+            expect(process.exitCode).toBe(1);
+        });
+
+        test('a thrown check exits 1 rather than reporting success', async () => {
+            browserCheck.mockRejectedValueOnce(new Error('bad'));
+
+            await handleBrowserCheck({}, {});
+
+            expect(process.exitCode).toBe(1);
+        });
+
+        test('carries the options a real run would use', () => {
+            // A doctor that reports OK under different settings than the real run is worse than
+            // no doctor. Every option here changes which browser a thumbnail run would pick, or
+            // how it would be started.
+            const declared = buildBrowserCheckCommand().options.map((opt) => opt.long);
+
+            expect(declared).toEqual(
+                expect.arrayContaining([
+                    '--browser',
+                    '--browser-version',
+                    '--browser-cache-dir',
+                    '--browser-executable-path',
+                    '--headless',
+                    '--skip-launch',
+                ])
+            );
+        });
+
+        test('--skip-launch is stored under skipLaunch and defaults to false', () => {
+            const option = buildBrowserCheckCommand().options.find(
+                (opt) => opt.long === '--skip-launch'
+            );
+
+            expect(option.attributeName()).toBe('skipLaunch');
+            expect(option.defaultValue).toBe(false);
+        });
+
+        test('bare --skip-launch still turns it on', () => {
+            const opts = parseOptionInIsolation(buildBrowserCheckCommand(), '--skip-launch', []);
+
+            expect(opts.skipLaunch).toBe(true);
+        });
+
+        // The trap this closes: as a no-argument flag, Commander set skipLaunch on the mere
+        // PRESENCE of the environment variable and never read its value, so
+        // BSI_BROWSER_C_SKIP_LAUNCH=false turned skip-launch ON. The deployment gate then exited 0
+        // having never started a browser - the most valuable part of the check - and the generated
+        // doc table, which lists the variable with default `false`, invites exactly that line.
+        test.each([
+            ['false', false],
+            ['FALSE', false],
+            ['0', false],
+            ['no', false],
+            ['', false],
+            ['true', true],
+            ['1', true],
+            ['yes', true],
+        ])('BSI_BROWSER_C_SKIP_LAUNCH=%s parses to %s', (value, expected) => {
+            const saved = process.env.BSI_BROWSER_C_SKIP_LAUNCH;
+            process.env.BSI_BROWSER_C_SKIP_LAUNCH = value;
+
+            try {
+                const command = buildBrowserCheckCommand();
+                command.exitOverride();
+                command.parse([], { from: 'user' });
+
+                expect(command.opts().skipLaunch).toBe(expected);
+            } finally {
+                if (saved === undefined) {
+                    delete process.env.BSI_BROWSER_C_SKIP_LAUNCH;
+                } else {
+                    process.env.BSI_BROWSER_C_SKIP_LAUNCH = saved;
+                }
+            }
+        });
+
+        // A stray word after the flag used to be swallowed as its value and quietly parsed to
+        // false, so `browser check --skip-launch oops` ran the full check with the flag the
+        // operator typed silently discarded - and no diagnostic. As a bare flag Commander's arity
+        // check caught that; making the argument optional removed it, so the parser has to.
+        test.each(['oops', 'maybe', 'yes-please'])(
+            '--skip-launch %s is refused rather than silently ignored',
+            (value) => {
+                // Commander converts an argParser's InvalidArgumentError into its own
+                // CommanderError, so the assertion is on the message the operator sees.
+                expect(() =>
+                    parseOptionInIsolation(buildBrowserCheckCommand(), '--skip-launch', [value])
+                ).toThrow(/is not a true\/false value/);
+            }
+        );
+
+        test('--headless reads the same vocabulary as --skip-launch', () => {
+            // Two boolean options on one command accepted different words: `--headless off` ran
+            // headless while `--skip-launch off` worked. The doc page recommends `--headless` for
+            // exactly the case a silent coercion to headless would hide.
+            for (const [value, expected] of [
+                ['false', false],
+                ['FALSE', false],
+                ['off', false],
+                ['no', false],
+                ['0', false],
+                ['true', true],
+                ['on', true],
+            ]) {
+                const opts = parseOptionInIsolation(buildBrowserCheckCommand(), '--headless', [
+                    value,
+                ]);
+
+                expect({ value, headless: opts.headless }).toEqual({ value, headless: expected });
+            }
+        });
+
+        test('--headless rejects a value it cannot interpret', () => {
+            expect(() =>
+                parseOptionInIsolation(buildBrowserCheckCommand(), '--headless', ['maybe'])
+            ).toThrow(/is not a true\/false value/);
+        });
+
+        test('an empty BSI_BROWSER_C_HEADLESS means unset, not headed', () => {
+            // Empty means "unset" everywhere else in this codebase, and --headless defaults to
+            // true - so a bare `BSI_BROWSER_C_HEADLESS=` line must leave it headless rather than
+            // flipping it.
+            const saved = process.env.BSI_BROWSER_C_HEADLESS;
+            process.env.BSI_BROWSER_C_HEADLESS = '';
+
+            try {
+                const command = buildBrowserCheckCommand();
+                command.exitOverride();
+                command.parse([], { from: 'user' });
+
+                expect(command.opts().headless).toBe(true);
+            } finally {
+                if (saved === undefined) {
+                    delete process.env.BSI_BROWSER_C_HEADLESS;
+                } else {
+                    process.env.BSI_BROWSER_C_HEADLESS = saved;
+                }
+            }
+        });
+
+        test('--skip-launch false on the command line means do not skip', () => {
+            const opts = parseOptionInIsolation(buildBrowserCheckCommand(), '--skip-launch', [
+                'false',
+            ]);
+
+            expect(opts.skipLaunch).toBe(false);
+        });
+
+        test('offers no wizard flag, matching the interactive registry', () => {
+            // registry.test.js asserts the other direction; this is the half that fails inside
+            // this file if -i is ever added without a wizard behind it.
+            const flags = buildBrowserCheckCommand().options.map((opt) => opt.short);
+
+            expect(flags).not.toContain('-i');
+        });
     });
 
     test.each([
@@ -1110,6 +1305,7 @@ describe('option keys match the property names the code reads (issue #890)', () 
         ['browser list-installed', () => sub(buildBrowserCommand(), 'list-installed')],
         ['browser uninstall', () => sub(buildBrowserCommand(), 'uninstall')],
         ['browser uninstall-all', () => sub(buildBrowserCommand(), 'uninstall-all')],
+        ['browser check', () => sub(buildBrowserCommand(), 'check')],
     ];
 
     /**
@@ -1345,12 +1541,17 @@ describe('option keys match the property names the code reads (issue #890)', () 
 });
 
 describe('--browser-executable-path (issue #929)', () => {
-    // Only the two commands that launch a browser. `browser install` deliberately does not
-    // carry it: pointing at an executable is the alternative to installing one, so the option
-    // would be a knob that does nothing there.
+    // Only the commands that launch a browser. `browser install` deliberately does not carry it:
+    // pointing at an executable is the alternative to installing one, so the option would be a
+    // knob that does nothing there. `browser check` carries it because a configuration it cannot
+    // see is a configuration it cannot diagnose.
     const carriers = [
         ['qseow create-sheet-thumbnails', () => thumbnailCommand(buildQseowCommand())],
         ['qscloud create-sheet-thumbnails', () => thumbnailCommand(buildQscloudCommand())],
+        [
+            'browser check',
+            () => buildBrowserCommand().commands.find((cmd) => cmd.name() === 'check'),
+        ],
     ];
 
     test.each(carriers)('%s carries the option', (_name, build) => {

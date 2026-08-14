@@ -100,6 +100,63 @@ export const isVersionKeyword = (browserVersion) =>
 const EXPLICIT_VERSION_PATTERNS = [/^\d+$/, /^\d+\.\d+\.\d+$/, /^\d+\.\d+\.\d+\.\d+$/];
 
 /**
+ * What a `--browser-version` value is, and - the part callers actually need - whether it can be
+ * turned into a build id without asking the vendor.
+ *
+ * This exists because `browser check` must answer "which build would a real run use?" **without
+ * touching the network**, and the honest answer differs per form. Before it existed, that command
+ * carried its own copy of the build-id regex and treated everything else as a floating keyword,
+ * so `--browser-version garbage` passed the check and killed the real run, and `--browser-version
+ * 151` - an explicit pin - was described to the user as a value that floats.
+ *
+ * One classifier rather than a predicate per form, so the doctor and the resolver cannot hold
+ * different opinions about the same string. {@link assertExplicitVersionIsWellFormed} is built on
+ * it too.
+ */
+export const VERSION_FORM = Object.freeze({
+    /** `recommended`. Resolves from a constant compiled into puppeteer-core; no lookup. */
+    RECOMMENDED: 'recommended',
+    /** A full build id such as `151.0.7922.77`. Names exactly one build; no lookup. */
+    BUILD_ID: 'build-id',
+    /** A milestone (`151`) or build prefix (`151.0.7922`). An explicit pin, but resolving it to a build needs the vendor's version service. */
+    PARTIAL: 'partial',
+    /** `stable`, the `latest` alias, or a release channel. Whatever is newest at the time it runs. */
+    FLOATING: 'floating',
+    /** Not a form Butler Sheet Icons accepts at all. */
+    INVALID: 'invalid',
+});
+
+/**
+ * Classifies a `--browser-version` value. Pure: no logging, no network, no throwing.
+ *
+ * @param {string} browserVersion - Raw value from the command line or environment.
+ *
+ * @returns {string} One of {@link VERSION_FORM}.
+ */
+export const classifyBrowserVersion = (browserVersion) => {
+    if (browserVersion === VERSION_RECOMMENDED) {
+        return VERSION_FORM.RECOMMENDED;
+    }
+
+    if (isVersionKeyword(browserVersion)) {
+        return VERSION_FORM.FLOATING;
+    }
+
+    if (typeof browserVersion !== 'string') {
+        return VERSION_FORM.INVALID;
+    }
+
+    // Checked before the partial forms so a full build id is never reported as needing a lookup.
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(browserVersion)) {
+        return VERSION_FORM.BUILD_ID;
+    }
+
+    return EXPLICIT_VERSION_PATTERNS.some((pattern) => pattern.test(browserVersion))
+        ? VERSION_FORM.PARTIAL
+        : VERSION_FORM.INVALID;
+};
+
+/**
  * Browsers Butler Sheet Icons knows how to resolve a version for.
  *
  * Chrome, and only Chrome: the render path speaks the Chrome DevTools Protocol and passes a
@@ -242,7 +299,8 @@ const normalizeVersionKeyword = (browserVersion) => {
  * @throws {Error} If the value is neither a keyword nor a plausible build id.
  */
 const assertExplicitVersionIsWellFormed = (browser, browserVersion) => {
-    if (EXPLICIT_VERSION_PATTERNS.some((pattern) => pattern.test(browserVersion))) {
+    // Through the shared classifier, so `browser check` cannot accept a value this rejects.
+    if (classifyBrowserVersion(browserVersion) !== VERSION_FORM.INVALID) {
         return;
     }
 

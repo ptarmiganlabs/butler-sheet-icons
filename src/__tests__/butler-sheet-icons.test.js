@@ -158,6 +158,12 @@ describe('butler-sheet-icons CLI', () => {
         expect(result.status).toBe(0);
         expect(result.stdout).toContain('list-available');
     });
+
+    test('should handle browser check command', () => {
+        const result = execCLI(['browser', '--help']);
+        expect(result.status).toBe(0);
+        expect(result.stdout).toContain('check');
+    });
 });
 
 /** Printed by the child once the handlers are installed, to prove it got that far. */
@@ -604,6 +610,7 @@ describe('adding interactive mode changes nothing that already worked', () => {
             'uninstall-all',
             'list-installed',
             'list-available',
+            'check',
         ]) {
             expect(result.stdout).toContain(leaf);
         }

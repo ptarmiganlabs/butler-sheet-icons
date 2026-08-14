@@ -1,6 +1,12 @@
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import { Option } from 'commander';
 import { everyLeafCommand, leafCommandAt } from '../command-tree.js';
-import { specsFromCommand, specFromOption, splitDescription } from '../option-introspect.js';
+import {
+    specsFromCommand,
+    specFromOption,
+    splitDescription,
+    isTrueFalseOption,
+} from '../option-introspect.js';
 import { isInteractiveOption, INTERACTIVE_OPTION_ATTRIBUTE } from '../interactive-option.js';
 
 const ENV_SNAPSHOT = { ...process.env };
@@ -22,9 +28,35 @@ const LEAVES = everyLeafCommand();
 const EVERY_COMMAND = LEAVES.map(({ path, command }) => [path, command]);
 const optionOn = (path, long) => leafCommandAt(path).options.find((option) => option.long === long);
 
+describe('true/false options, in both the forms Commander accepts', () => {
+    // The optional-argument form is not cosmetic. An option declared as a bare flag takes its
+    // value from the mere *presence* of its environment variable, so `BSI_..._SKIP_LAUNCH=false`
+    // switches the flag on; declaring the argument optional is what makes Commander pass the
+    // variable's value to the parser instead. Recognising only the angle-bracket form classified
+    // such an option as free text, so the wizard would have asked for a boolean with an input
+    // prompt and fed it whatever was typed.
+    test.each([
+        ['<true|false>', true],
+        ['[true|false]', true],
+        ['<value>', false],
+        ['[value]', false],
+    ])('--flag %s -> isTrueFalseOption %s', (arg, expected) => {
+        expect(isTrueFalseOption(new Option(`--flag ${arg}`, 'description'))).toBe(expected);
+    });
+
+    test('both forms are asked as a confirm, not as free text', () => {
+        for (const arg of ['<true|false>', '[true|false]']) {
+            const spec = specFromOption(new Option(`--flag ${arg}`, 'description').default(false));
+
+            expect({ arg, type: spec.type }).toEqual({ arg, type: 'confirm' });
+        }
+    });
+});
+
 describe('command-tree', () => {
     test('finds every leaf command, across all three namespaces', () => {
         expect(LEAVES.map((leaf) => leaf.path).sort()).toEqual([
+            'browser check',
             'browser install',
             'browser list-available',
             'browser list-installed',
