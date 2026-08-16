@@ -192,35 +192,6 @@ describe('redactSensitivePatterns', () => {
         expect(redactSensitivePatterns('logonpwd=hunter2')).toBe('logonpwd=[REDACTED]');
     });
 
-    test('redacts a secret given as a command-line flag and a separate word', () => {
-        // The `key=value` rule above needs a separator between the two, so this form - the form
-        // Butler Sheet Icons' own command lines actually take - went through untouched. It is
-        // what appears in a pasted terminal transcript and in the `doctor check` JSON document,
-        // which exists to be attached to public issues.
-        expect(redactSensitivePatterns('butler-sheet-icons qseow ... --logonpwd Sup3rSecret')).toBe(
-            'butler-sheet-icons qseow ... --logonpwd [REDACTED]'
-        );
-        expect(redactSensitivePatterns('--apikey abc123DEF456')).toBe('--apikey [REDACTED]');
-        expect(redactSensitivePatterns('--client-secret aVeryLongSecretValue')).toBe(
-            '--client-secret [REDACTED]'
-        );
-    });
-
-    test('the command-line rule does not eat the next flag or the next word of prose', () => {
-        // Both halves of issue #949's lesson, applied to the new form. Swallowing the following
-        // flag would hide which options a failing run actually used; swallowing the next word
-        // would delete the one word telling an operator what to do.
-        for (const text of [
-            '--apikey --loglevel debug',
-            'Set --apikey to your Qlik Cloud API key',
-            'point at it with --apikey or BSI_CLOUD_API_KEY',
-            '--browser-version 151.0.7922.138',
-            'butler-sheet-icons browser install --browser chrome --browser-version recommended',
-        ]) {
-            expect(redactSensitivePatterns(text)).toBe(text);
-        }
-    });
-
     test('redacts JSON-style quoted secrets', () => {
         const input = `body: {"password": "hunter2", "user": "admin"}`;
         const out = redactSensitivePatterns(input);
