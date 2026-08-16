@@ -202,6 +202,22 @@ export function redactSensitivePatterns(text) {
         '$1=[REDACTED]'
     );
 
+    // 3b. The same secrets as a command-line flag and a separate word: `--logonpwd hunter2`.
+    //     Rule 3 needs an `=` or a `:` between the two, so this form went through untouched -
+    //     and it is the form Butler Sheet Icons' own command lines take, so it is what appears
+    //     in a pasted terminal transcript, in a remediation command and in the `doctor check`
+    //     JSON document that exists to be attached to public issues.
+    //
+    //     Two guards, and both are the #949 lesson rather than caution for its own sake. A value
+    //     starting with `-` is the next flag, so `--apikey --loglevel debug` must not swallow it.
+    //     And the prose test keeps `Set --apikey to your Qlik Cloud key` and `point at it with
+    //     --apikey or BSI_CLOUD_API_KEY` intact: without it, the one word telling an operator
+    //     what to do is the word that disappears.
+    result = result.replace(
+        /(--(?:logonpwd|password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)[= ])([^\s-][^\s]*)/gi,
+        (match, flag, value) => (isProseWord(value) ? match : `${flag}[REDACTED]`)
+    );
+
     // 4. JSON-style quoted key/value pairs for the same patterns
     //    e.g. `"password": "mysecret"` or `'token': 'abc123'`
     result = result.replace(
