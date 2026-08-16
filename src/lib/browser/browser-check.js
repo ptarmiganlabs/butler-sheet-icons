@@ -1,33 +1,7 @@
-import fs from 'node:fs';
-import puppeteer from 'puppeteer-core';
-import { detectBrowserPlatform } from '@puppeteer/browsers';
-
 import { logger, setLoggingLevel } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
-import {
-    describeBrowserCacheDir,
-    resolveExecutablePathOverride,
-    SOURCE_LABELS,
-    EXECUTABLE_SOURCE_LABELS,
-} from './browser-paths.js';
-import { getBrowserInventory, hasUsableExecutable } from './browser-inventory.js';
-import { detectAvailableBrowser } from './browser-detect.js';
-import {
-    BROWSER_LAUNCH_TIMEOUT_MS,
-    BROWSER_PROTOCOL_TIMEOUT_MS,
-    buildBrowserArgs,
-} from './browser-launch.js';
-import {
-    classifyBrowserVersion,
-    getRecommendedBuildId,
-    VERSION_FORM,
-    VERSION_RECOMMENDED,
-} from './browser-version.js';
-import { parseHeadlessOption } from '../util/headless-option.js';
-import { buildBaseContext } from '../doctor/context.js';
-import { checksForAreas } from '../doctor/checks/index.js';
-import { runChecks, allFindings } from '../doctor/run-checks.js';
-import { renderReport, BEST_EFFORT_DISCLAIMER } from '../doctor/render-report.js';
+import { runDoctorCheck } from '../doctor/doctor-check.js';
+import { BEST_EFFORT_DISCLAIMER } from '../doctor/render-report.js';
 
 /**
  * `browser check` - can this machine take screenshots?
@@ -35,27 +9,30 @@ import { renderReport, BEST_EFFORT_DISCLAIMER } from '../doctor/render-report.js
  * Answers that without touching Qlik Sense, so it is safe to hand to a customer as the first
  * troubleshooting step and safe to script into a deployment check.
  *
- * Two constraints shape everything here, and neither is negotiable.
+ * Since #1063 this is a **selection of `doctor check`**, not a separate implementation: the same
+ * gatherers, the same runner and the same renderer, asked for two areas instead of all of them.
+ * Its output, its options and its exit codes are unchanged, and
+ * `__tests__/browser_check_output_contract.test.js` holds the printed report line for line, because
+ * this command has shipped and people have scripted it as a deployment gate.
  *
- * **It must not touch the network.** `detectAvailableBrowser()` is called directly, never
- * `resolveBrowserExecutablePath()` - the latter falls through to `browserInstall()` and
- * `canDownload()`, which makes a network request. A doctor that hangs on a DNS timeout on an
- * air-gapped server is worse than no doctor at all. The same rule is why the requested version is
- * resolved locally or not at all: `stable` and the release channels need the vendor's version
- * service, and this command will not call it.
+ * Both commands remain, and neither is redundant - they are found by different people at different
+ * moments. An administrator whose thumbnails came out blank goes looking under `browser`; one
+ * holding a failed run and no theory runs `doctor`.
  *
- * **It does launch the browser.** Resolving a path proves far less than starting the process, so
- * unless `--skip-launch` is given the selected browser is started with the production arguments
- * and asked for its version. No page is opened, nothing is navigated to, and Qlik Sense is never
- * contacted.
- *
- * The facts are gathered here; the reasoning lives in the checks under `src/lib/doctor/checks/`
- * and the formatting in the shared renderer. That split is what makes the next diagnostic one new
- * file and one registry line rather than a rewrite of a command people already depend on.
+ * The facts are gathered in `browser-facts.js`, the reasoning lives in the checks under
+ * `src/lib/doctor/checks/`, and the formatting in the shared renderer.
  */
 
 /**
  * The areas of the check registry this command runs.
+ *
+ * **Not just `browser`.** §15.2 of the design describes this command as an alias for
+ * `doctor check --area browser`, and that would be a mistake: the environment check is where the
+ * LocalSystem trap is diagnosed - which account the run is under, which home directory, whether
+ * this is a standalone binary - and those facts are what *explain* the browser symptoms. A cached
+ * browser "missing" because a scheduled task runs as LocalSystem is diagnosed by the environment
+ * section, not the browser one. Dropping it would take the most useful thing this report says
+ * about a Windows Server with it.
  *
  * Exported so `checks.test.js` can assert that every registered check is actually selected by it,
  * rather than restating the list and proving only that two copies agree. A check whose `area` does
@@ -64,366 +41,10 @@ import { renderReport, BEST_EFFORT_DISCLAIMER } from '../doctor/render-report.js
 export const BROWSER_CHECK_AREAS = Object.freeze(['environment', 'browser']);
 
 /**
- * Interprets `--browser-version` without making a single network request.
- *
- * The form is classified by `classifyBrowserVersion`, which is the same function
- * `assertExplicitVersionIsWellFormed` uses on the real run's path - so this command cannot accept
- * a value a real run rejects, which it used to: an unrecognised value was treated as a floating
- * keyword, `browser check` exited 0, and the thumbnail run then died with
- * "Invalid --browser-version".
- *
- * Only two forms can be turned into a build id offline: `recommended`, which resolves from a
- * constant compiled into puppeteer-core, and a full build id, which needs no resolution at all.
- * The rest return no build id, which tells detection to accept the newest suitable cached build,
- * and carry their form so the report can say *why* the pin was not checked rather than implying it
- * was honoured.
- *
- * @param {object} options - Options bag carrying `browser` and `browserVersion`.
- *
- * @returns {{buildId: string|undefined, versionForm: string, requestedVersion: string, requested: string}}
- * What to match against the cache, the form the version takes, the version as the user gave it,
- * and how to describe the whole request.
- */
-const resolveBuildIdOffline = (options) => {
-    const browser = options.browser ?? 'chrome';
-    // `||` rather than `??`: an empty string means "unset" here, exactly as
-    // `parseBrowserVersionValue` treats it, so a bare `BSI_BROWSER_C_BROWSER_VERSION=` line in a
-    // unit file lands on the default instead of being classified as invalid.
-    const version = options.browserVersion || VERSION_RECOMMENDED;
-    const versionForm = classifyBrowserVersion(version);
-    const base = { versionForm, requestedVersion: version };
-
-    if (versionForm === VERSION_FORM.RECOMMENDED) {
-        try {
-            const buildId = getRecommendedBuildId(browser);
-
-            return { ...base, buildId, requested: `${browser} ${version} (build ${buildId})` };
-        } catch (err) {
-            // Only reachable for a browser Butler Sheet Icons does not support, which Commander's
-            // `.choices()` already refuses - so this covers a worker called directly.
-            //
-            // Reported as an unsupported *browser*, not as a malformed version. Overwriting the
-            // version form with INVALID here made the report say `--browser-version "recommended"
-            // is neither a keyword nor a build id` - false, and it sent the administrator to
-            // change the one setting that was correct.
-            logger.debug(`Could not resolve the recommended build: ${err?.message ?? err}`);
-
-            return {
-                ...base,
-                buildId: undefined,
-                browserError: err instanceof Error ? err.message : String(err),
-                requested: `${browser} ${version}`,
-            };
-        }
-    }
-
-    if (versionForm === VERSION_FORM.BUILD_ID) {
-        return { ...base, buildId: version, requested: `${browser} ${version}` };
-    }
-
-    return { ...base, buildId: undefined, requested: `${browser} ${version}` };
-};
-
-/**
- * Why a cached build cannot be used, or `undefined` when it can.
- *
- * The order matters. Browser type first, because detection filters on it before anything else, so
- * a `chrome-headless-shell` build is invisible to a `chrome` run however runnable it looks - and
- * reporting it as usable made the report offer build ids in remediation commands that fail
- * identically. Platform next, because a build made for another operating system is unusable
- * whether or not its binary is present.
- *
- * This function is the sole definition of "usable" that the checks reason about, and the checks
- * must stay able to explain every reason it can return: an unusable build whose reason no check
- * reports would otherwise leave the run with no error. `browser-selection.js` names the findings
- * that cover these reasons in its `supersededBy`, and the runner demotes it only when one of them
- * actually fired - so a new reason added here fails safe rather than silently passing.
- *
- * @param {object} build - An inventory entry, with `executableExists` already computed.
- * @param {string} requestedBrowser - The browser type a real run would look for.
- *
- * @returns {string|undefined} The reason, in the words the report prints.
- */
-const unusableReason = (build, requestedBrowser) => {
-    if (requestedBrowser && build.browser !== requestedBrowser) {
-        return `a ${build.browser} build, not the ${requestedBrowser} build this run needs`;
-    }
-
-    if (!build.canRunHere) {
-        return 'built for another platform';
-    }
-
-    if (!build.executableExists) {
-        return 'executable not found on disk';
-    }
-
-    return undefined;
-};
-
-/**
- * Starts the selected browser and asks it for its version.
- *
- * The production `buildBrowserArgs()` and `parseHeadlessOption()`, and the production timeouts, so
- * that a pass here means the same thing a real run means. `--headless` earns its place for the
- * same reason: a headed launch on a display-less server is a genuinely different test.
- *
- * The browser is closed in a `finally`. An unclosed browser holds hundreds of megabytes and, in
- * the test suite, hangs the run.
- *
- * Two phases, reported separately. `started` says the process came up; `ok` says it also answered.
- * A build that starts and then dies on the first command is issue #878, and its remedy - a
- * different build - has nothing to do with the remedy for a process that never started. Folding
- * them into one flag produced a finding that told an administrator their browser "could not be
- * started" about a browser that had started perfectly well.
- *
- * `elapsedMs` is measured for the same reason `launchBrowserForApp` measures it: `timeout` bounds
- * the wait for the debugging endpoint, not the process creation before it, and on Windows that
- * creation blocks the event loop. A launch that succeeds slowly is invisible to every timeout
- * there is, so the duration has to be carried out of here for a check to judge.
- *
- * `performance.now()` rather than `Date.now()`: this measures a duration on machines - virtualised
- * Sense servers - where an NTP step correction mid-launch is routine, and a wall clock that jumps
- * would invent a stall or hide one behind a negative elapsed time.
- *
- * @param {object} options - Options bag; `headless` is read from it.
- * @param {string} executablePath - The browser to start.
- *
- * @returns {Promise<{attempted: boolean, started: boolean, ok: boolean, version: string|null, error: string|null, skipped: boolean, elapsedMs: number}>}
- * What happened.
- */
-const tryLaunch = async (options, executablePath) => {
-    const result = {
-        attempted: true,
-        started: false,
-        ok: false,
-        version: null,
-        error: null,
-        skipped: false,
-        elapsedMs: 0,
-    };
-    const headless = parseHeadlessOption(options.headless);
-    const args = await buildBrowserArgs();
-
-    logger.verbose(`Starting ${executablePath} to check that it runs on this machine`);
-
-    let browser;
-    const startedAt = performance.now();
-
-    try {
-        browser = await puppeteer.launch({
-            timeout: BROWSER_LAUNCH_TIMEOUT_MS,
-            protocolTimeout: BROWSER_PROTOCOL_TIMEOUT_MS,
-            acceptInsecureCerts: true,
-            executablePath,
-            headless,
-            args,
-        });
-
-        // Recorded between the two calls, which is the whole point of the split: everything after
-        // this line is the browser refusing to be driven rather than refusing to start.
-        result.started = true;
-        result.elapsedMs = performance.now() - startedAt;
-
-        // The cheapest possible round trip to the browser, and exactly the `Browser.getVersion`
-        // call seen failing in issue #878: a build Puppeteer cannot drive launches perfectly well
-        // and then dies on the first command sent to it.
-        result.version = await browser.version();
-        result.ok = true;
-    } catch (err) {
-        // `||`, not `??`: an Error carrying an empty message is not `null`, so `??` kept it and
-        // produced a finding that named nothing at all.
-        result.error = (err instanceof Error ? err.message : String(err)) || String(err);
-
-        if (!result.started) {
-            result.elapsedMs = performance.now() - startedAt;
-        }
-    } finally {
-        if (browser) {
-            try {
-                await browser.close();
-            } catch (err) {
-                logger.debug(`Could not close the browser after the check: ${err?.message ?? err}`);
-            }
-        }
-    }
-
-    return result;
-};
-
-/**
- * Reads the browser cache, turning a failure into a fact rather than an exception.
- *
- * This guard is the difference between a diagnosis and nothing at all. `getInstalledBrowsers()`
- * runs `readdirSync` on each browser subdirectory, so a cache that is unreadable (EACCES on a
- * directory staged by another account) or malformed (ENOTDIR where a file sits in place of a
- * browser folder) throws. Unguarded, that rejected out of `gatherContext` and the command printed
- * one error line and exited - no Environment block, no cache location, not even the best-effort
- * disclaimer.
- *
- * An unreadable cache staged by an administrator and read by a service account is precisely the
- * LocalSystem trap this command exists to expose, so it has to be reported *by* the report.
- * `detectAvailableBrowser` already degrades the same failure to "download one" (browser-detect.js),
- * which is why the run continues to a selection verdict rather than stopping here.
- *
- * @param {string} cacheDir - Cache directory to read.
- * @param {string} requestedBrowser - Browser type a real run would look for.
- *
- * @returns {Promise<{inventory: object[], builds: object[], readError: string|undefined}>} The
- * inventory exactly as read (handed to detection so it reasons about this same snapshot), the same
- * builds annotated for the report, or empty lists and the reason they could not be read.
- */
-const readCache = async (cacheDir, requestedBrowser) => {
-    try {
-        const inventory = await getBrowserInventory({ cacheDir });
-
-        return {
-            inventory,
-            builds: inventory.map((build) => {
-                const withExistence = { ...build, executableExists: hasUsableExecutable(build) };
-                const reason = unusableReason(withExistence, requestedBrowser);
-
-                return { ...withExistence, usable: !reason, reason };
-            }),
-            readError: undefined,
-        };
-    } catch (err) {
-        const readError = err instanceof Error ? err.message : String(err);
-
-        logger.debug(`Could not read the browser cache at ${cacheDir}: ${readError}`);
-
-        // An empty inventory rather than none: detection is handed this snapshot too, and it must
-        // see the same "nothing here" the report describes rather than going and reading again.
-        return { inventory: [], builds: [], readError };
-    }
-};
-
-/**
- * Gathers every fact the browser checks reason about.
- *
- * All of the input/output lives here, so each check stays a pure function of what this produced -
- * which is what makes them testable against a fabricated context, with no filesystem and no
- * browser.
- *
- * @param {object} options - Resolved CLI options.
- *
- * @returns {Promise<object>} The check context.
- */
-const gatherContext = async (options) => {
-    const hostPlatform = detectBrowserPlatform();
-
-    // The pure describer rather than `resolveBrowserCacheDir()`: this command prints where the
-    // cache is as part of its report, and the resolver's own announcement would say the same
-    // thing twice in different words.
-    const described = describeBrowserCacheDir(options);
-    const rawOverride = resolveExecutablePathOverride(options);
-    const override = rawOverride
-        ? {
-              ...rawOverride,
-              sourceLabel: EXECUTABLE_SOURCE_LABELS[rawOverride.source],
-              exists: fs.existsSync(rawOverride.path),
-          }
-        : null;
-
-    // Whether the cache is consulted at all, following `detectAvailableBrowser` exactly. Two ways
-    // it is not, and they are different enough to be worth telling apart in the report:
-    //
-    // - a named executable that is present wins outright, and detection returns it;
-    // - a named executable that is *explicitly* configured and missing stops detection, so the
-    //   cache is never reached either.
-    //
-    // A stale PUPPETEER_EXECUTABLE_PATH is the third case and does fall through, which is why
-    // `explicit` is tested rather than just "an override exists". None of this is decoration:
-    // without it the report says the cache is in use when nothing will read it, and an
-    // administrator goes and re-stages a browser that was never the problem.
-    const notConsultedReason = (() => {
-        if (override?.exists) {
-            return 'an executable path is configured, so the cache is not consulted';
-        }
-
-        if (override?.explicit) {
-            return 'an executable path is configured but missing, so detection stops before the cache';
-        }
-
-        return undefined;
-    })();
-    const cacheInUse = !notConsultedReason;
-
-    // Normalised once, here, and used for every subsequent decision. `detectAvailableBrowser` was
-    // the one consumer still handed the raw bag, and it drops its browser-type filter entirely
-    // when `options.browser` is absent - so `browserCheck({})` selected a chrome-headless-shell
-    // build the render path cannot drive, while the same report said the cache held no chrome.
-    const requestedBrowser = options.browser ?? 'chrome';
-    const resolvedOptions = { ...options, browser: requestedBrowser };
-
-    const { inventory, builds, readError } = await readCache(described.cacheDir, requestedBrowser);
-
-    const { buildId, versionForm, requestedVersion, requested, browserError } =
-        resolveBuildIdOffline(resolvedOptions);
-
-    let selection = null;
-    let detectionError = null;
-
-    try {
-        // The reading taken above, rather than letting detection take its own. One snapshot means
-        // the cache this report describes is the cache this verdict came from.
-        selection = await detectAvailableBrowser(resolvedOptions, buildId, {
-            cacheDir: described.cacheDir,
-            inventory,
-        });
-    } catch (err) {
-        // Since #1061 detection throws when an explicitly named executable path does not exist,
-        // rather than returning null. That is a finding, not a crash: it is arguably the most
-        // valuable thing this command can catch, because it means somebody's explicit
-        // configuration is wrong.
-        detectionError = err;
-    }
-
-    const launch =
-        selection && !options.skipLaunch
-            ? await tryLaunch(options, selection.executablePath)
-            : {
-                  attempted: false,
-                  started: false,
-                  ok: false,
-                  version: null,
-                  error: null,
-                  skipped: Boolean(selection && options.skipLaunch),
-                  elapsedMs: 0,
-              };
-
-    return {
-        ...buildBaseContext(options, { hostPlatform }),
-        cache: {
-            dir: described.cacheDir,
-            source: described.source,
-            sourceLabel: SOURCE_LABELS[described.source],
-            exists: fs.existsSync(described.cacheDir),
-            inUse: cacheInUse,
-            notConsultedReason,
-            legacyInUse: described.source === 'legacy',
-            builds,
-            readError,
-        },
-        executableOverride: override,
-        detection: {
-            selection,
-            error: detectionError,
-            wouldDownload: !selection && !detectionError,
-            requested,
-            requestedVersion,
-            versionForm,
-            browserError,
-            resolvedBuildId: buildId,
-        },
-        launch,
-    };
-};
-
-/**
  * Runs the browser diagnostic and reports on it.
  *
  * Returns structured data as well as printing a report, so tests assert on values rather than on
- * log strings, and so a future `--output json` has something to serialise.
+ * log strings.
  *
  * @param {object} [options] - Options bag as Commander produces it.
  * @param {string} [options.browser] - Browser to check for. `chrome` is the only supported value.
@@ -444,18 +65,20 @@ export const browserCheck = async (options = {}) => {
     logger.verbose('Starting browser check');
     logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
-    const ctx = await gatherContext(options);
-    const results = await runChecks(checksForAreas(BROWSER_CHECK_AREAS), ctx);
-    const findings = allFindings(results);
-
-    const ok = renderReport({
+    const { ok, ctx, results, findings } = await runDoctorCheck({
+        options,
+        // Derived from the exported constant rather than written out again here. A second copy
+        // would prove only that two lists agree, and the failure mode is silent: a check whose
+        // area is not selected simply is not in the report.
+        areas: [...BROWSER_CHECK_AREAS],
+        command: 'browser check',
         heading: 'Butler Sheet Icons browser check',
-        results,
         // Qualified when the browser was never started, because "can take screenshots" is a
         // stronger claim than a skipped launch supports.
-        okMessage: ctx.launch.skipped
-            ? 'a browser was found on this machine. It was not started, so whether it runs here is untested.'
-            : 'Butler Sheet Icons can take screenshots on this machine without internet access.',
+        okMessage: (checked) =>
+            checked.launch.skipped
+                ? 'a browser was found on this machine. It was not started, so whether it runs here is untested.'
+                : 'Butler Sheet Icons can take screenshots on this machine without internet access.',
     });
 
     return {

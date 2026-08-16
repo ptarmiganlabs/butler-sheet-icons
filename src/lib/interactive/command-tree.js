@@ -1,6 +1,7 @@
 import { buildQseowCommand } from '../commands/qseow/index.js';
 import { buildQscloudCommand } from '../commands/qscloud/index.js';
 import { buildBrowserCommand } from '../commands/browser/index.js';
+import { buildDoctorCommand } from '../commands/doctor/index.js';
 
 /**
  * @typedef {object} LeafCommand
@@ -39,7 +40,12 @@ export const everyLeafCommand = () => {
         }
     };
 
-    for (const namespace of [buildQseowCommand(), buildQscloudCommand(), buildBrowserCommand()]) {
+    for (const namespace of [
+        buildQseowCommand(),
+        buildQscloudCommand(),
+        buildBrowserCommand(),
+        buildDoctorCommand(),
+    ]) {
         walk(namespace, [namespace.name()]);
     }
 

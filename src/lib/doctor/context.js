@@ -1,6 +1,8 @@
 import os from 'node:os';
+import { detectBrowserPlatform } from '@puppeteer/browsers';
 
 import { logger, isSea } from '../../globals.js';
+import { gatherBrowserFacts } from '../browser/browser-facts.js';
 
 /**
  * The facts every diagnostic check starts from.
@@ -9,10 +11,30 @@ import { logger, isSea } from '../../globals.js';
  * a check read the world for itself, is what makes checks unit-testable without mocking the
  * filesystem - and it is what lets the runner promise that a check never reaches the network.
  *
- * This module holds the part that is true of any subject. Area-specific facts are added by
- * whichever worker is running the checks: `browserCheck()` extends this with the browser cache,
- * the executable override, the cached builds and the launch result.
+ * This module holds the part that is true of any subject, plus the registry that says where an
+ * area's own facts come from.
  */
+
+/**
+ * Where each area's facts come from.
+ *
+ * The counterpart to the check registry, and it exists for the same reason: adding an area is one
+ * entry here and one entry in `checks/index.js`, with no change to the runner or to any command.
+ *
+ * An area with no entry needs nothing beyond the base context - `environment` reads only host
+ * facts - and areas with no checks yet have nothing to gather for.
+ *
+ * Gathering is gated on the areas actually being run, and that is a correctness requirement rather
+ * than an economy: `gatherBrowserFacts` starts Chrome. `doctor check --area environment` asks
+ * which account this process runs as, and must not launch a browser to answer it.
+ *
+ * The import specifier is a literal for the same reason the check registry's and the interactive
+ * registry's are: a templated import is not statically analysable, so esbuild would not bundle the
+ * target and the failure would appear only inside the packaged binary, on a user's machine.
+ */
+const AREA_FACTS = Object.freeze({
+    browser: gatherBrowserFacts,
+});
 
 /**
  * The account this process is running as.
@@ -70,3 +92,32 @@ export const buildBaseContext = (options, { hostPlatform } = {}) => ({
     // renderer's job, and the finding it should have returned is then invisible to JSON output.
     logger,
 });
+
+/**
+ * Builds the context for one run, gathering the facts the selected areas need.
+ *
+ * `hostPlatform` is resolved here rather than by the browser gatherer even though it is Puppeteer's
+ * name for this machine: the environment check prints it, so it has to be present on a run that
+ * gathers no browser facts at all. `detectBrowserPlatform()` reads `process.platform` and
+ * `process.arch` and touches nothing else, so it is safe on every path.
+ *
+ * @param {object} options - Resolved CLI options for the command being run.
+ * @param {string[]} areas - The areas being checked.
+ *
+ * @returns {Promise<object>} The context every check is handed.
+ */
+export const buildCheckContext = async (options, areas) => {
+    const ctx = buildBaseContext(options, { hostPlatform: detectBrowserPlatform() });
+
+    for (const area of areas) {
+        const gather = AREA_FACTS[area];
+
+        if (!gather) {
+            continue;
+        }
+
+        Object.assign(ctx, await gather(options));
+    }
+
+    return ctx;
+};

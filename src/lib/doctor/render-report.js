@@ -1,5 +1,5 @@
 import { logger } from '../../globals.js';
-import { SEVERITY, isHealthy, normalizeFinding, worstFirst } from './findings.js';
+import { CONFIDENCE, SEVERITY, isHealthy, normalizeFinding, worstFirst } from './findings.js';
 import { allFindings, RUNNER_ERROR_ID } from './run-checks.js';
 
 /**
@@ -58,14 +58,29 @@ const LOG_AT = Object.freeze({
  * A verdict that carries weight states what was observed; one that does not simply names the
  * question that was answered.
  *
+ * A finding that was inferred rather than observed says so, in its own line. §15.9 is explicit
+ * that the blanket best-effort disclaimer is not a licence to present a guess as a diagnosis, and
+ * a suffix on the line itself is the only place an administrator reading one paragraph of a long
+ * report will see it. Nothing emits `possible` yet - every finding a check produces is observed on
+ * this machine - so today this branch is unreachable from the registry and is held by a test
+ * instead, ready for `doctor analyze`.
+ *
  * @param {import('./findings.js').Finding} entry - The finding.
  *
  * @returns {string} The line to print.
  */
-const verdictLine = (entry) =>
-    entry.severity === SEVERITY.ERROR || entry.severity === SEVERITY.WARNING
-        ? `    ${entry.detail}`
-        : `    ${entry.title}`;
+const verdictLine = (entry) => {
+    const text =
+        entry.severity === SEVERITY.ERROR || entry.severity === SEVERITY.WARNING
+            ? entry.detail
+            : entry.title;
+    const qualifier =
+        entry.confidence === CONFIDENCE.POSSIBLE
+            ? ' (possible cause, not confirmed on this machine)'
+            : '';
+
+    return `    ${text}${qualifier}`;
+};
 
 /**
  * One `    Label               : value` row.

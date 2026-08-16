@@ -81,6 +81,15 @@ const mockBrowserCheckPromise = jest.unstable_mockModule('../../browser/browser-
     browserCheck: jest.fn().mockResolvedValue({ ok: true, findings: [] }),
 }));
 
+// Mocked for the same reason its browser sibling is: this file tests how commands are wired, and
+// the real worker reaches through the check context into browser-paths.js, which reads `isSea` off
+// the globals mock above. That mock carries only what the command layer needs, so importing the
+// worker for real fails at link time - a suite-load error, with every test in the file reported as
+// failing for a reason that has nothing to do with any of them.
+const mockDoctorCheckPromise = jest.unstable_mockModule('../../doctor/doctor-check.js', () => ({
+    doctorCheck: jest.fn().mockResolvedValue({ ok: true, findings: [] }),
+}));
+
 let logger;
 let qseowCreateThumbnails;
 let qscloudCreateThumbnails;
@@ -102,6 +111,7 @@ let handleCloudListCollections;
 let handleCloudRemoveSheetIcons;
 let buildQscloudCommand;
 let buildBrowserCommand;
+let buildDoctorCommand;
 let handleBrowserListInstalled;
 let handleBrowserUninstall;
 let handleBrowserUninstallAll;
@@ -125,6 +135,7 @@ beforeAll(async () => {
         mockBrowserUninstallPromise,
         mockBrowserListAvailablePromise,
         mockBrowserCheckPromise,
+        mockDoctorCheckPromise,
     ]);
     ({ logger } = await import('../../../globals.js'));
     ({ qseowCreateThumbnails } = await import('../../qseow/qseow-create-thumbnails.js'));
@@ -144,6 +155,7 @@ beforeAll(async () => {
     ({ handleCloudRemoveSheetIcons } = await import('../qscloud/remove-sheet-icons.js'));
     ({ buildQscloudCommand } = await import('../qscloud/index.js'));
     ({ buildBrowserCommand } = await import('../browser/index.js'));
+    ({ buildDoctorCommand } = await import('../doctor/index.js'));
     ({ handleBrowserListInstalled } = await import('../browser/list-installed.js'));
     ({ handleBrowserUninstall, buildBrowserUninstallCommand } =
         await import('../browser/uninstall.js'));
@@ -1393,9 +1405,9 @@ describe('option keys match the property names the code reads (issue #890)', () 
         // test: a hand-built options object in a unit test carries whichever spelling its author
         // chose, so it agrees with the reader and the mismatch never surfaces.
         //
-        // Scoped to src/lib/{cloud,qseow,browser} because those consume CLI options directly.
-        // Deliberately no allowlist - it currently passes with none, and an allowlist is where a
-        // rule like this rots.
+        // Scoped to src/lib/{cloud,qseow,browser,doctor} because those consume CLI options
+        // directly. Deliberately no allowlist - it currently passes with none, and an allowlist is
+        // where a rule like this rots.
         const optionReads = () => {
             const files = [];
             const walkDir = (dir) => {
@@ -1408,7 +1420,9 @@ describe('option keys match the property names the code reads (issue #890)', () 
                     }
                 }
             };
-            ['cloud', 'qseow', 'browser'].forEach((area) => walkDir(join(PLATFORM_ROOT, area)));
+            ['cloud', 'qseow', 'browser', 'doctor'].forEach((area) =>
+                walkDir(join(PLATFORM_ROOT, area))
+            );
 
             const found = new Map();
             for (const file of files) {
@@ -1435,7 +1449,12 @@ describe('option keys match the property names the code reads (issue #890)', () 
                 command.options.forEach((opt) => names.add(opt.attributeName()));
                 command.commands.forEach(collect);
             };
-            [buildQseowCommand(), buildQscloudCommand(), buildBrowserCommand()].forEach(collect);
+            [
+                buildQseowCommand(),
+                buildQscloudCommand(),
+                buildBrowserCommand(),
+                buildDoctorCommand(),
+            ].forEach(collect);
             return names;
         };
 

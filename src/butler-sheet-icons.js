@@ -8,6 +8,7 @@ import { installFatalHandlers } from './lib/util/fatal-handlers.js';
 import { buildQseowCommand } from './lib/commands/qseow/index.js';
 import { buildQscloudCommand } from './lib/commands/qscloud/index.js';
 import { buildBrowserCommand } from './lib/commands/browser/index.js';
+import { buildDoctorCommand } from './lib/commands/doctor/index.js';
 import { buildInteractiveCommand } from './lib/interactive/interactive-command.js';
 import { relaxMandatoryOptionsIfInteractive } from './lib/interactive/mandatory-relaxation.js';
 
@@ -33,6 +34,7 @@ const program = new Command();
     program.addCommand(buildQseowCommand());
     program.addCommand(buildQscloudCommand());
     program.addCommand(buildBrowserCommand());
+    program.addCommand(buildDoctorCommand());
     program.addCommand(buildInteractiveCommand());
 
     // Must happen before the parse: Commander rejects a command line missing a

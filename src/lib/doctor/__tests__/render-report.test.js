@@ -13,7 +13,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 }));
 
 const { renderReport, BEST_EFFORT_DISCLAIMER } = await import('../render-report.js');
-const { SEVERITY } = await import('../findings.js');
+const { CONFIDENCE, SEVERITY } = await import('../findings.js');
 
 /**
  * The shared renderer.
@@ -540,6 +540,62 @@ describe('the FAILED headline names the machine problem, not the diagnostic', ()
 
         expect(text).toContain('Stage a browser.');
         expect(text).toContain('File a Butler Sheet Icons issue.');
+    });
+});
+
+describe('a finding that was inferred rather than observed', () => {
+    // §15.9's third layer, and the one the disclaimer cannot do on its own: an administrator
+    // reading one paragraph of a long report has to be able to tell "I looked, and this is what
+    // is on your machine" from "this matches a known failure". Nothing emits `possible` yet -
+    // every finding a check produces is observed - so this holds the branch until `doctor
+    // analyze` needs it.
+    test('says so on its own line', () => {
+        renderReport({
+            heading: 'h',
+            results: [
+                result('A', [
+                    {
+                        id: 'X',
+                        severity: SEVERITY.ERROR,
+                        title: 't',
+                        detail: 'A proxy is intercepting HTTPS.',
+                        facts: [],
+                        remediation: [],
+                        supersededBy: [],
+                        confidence: CONFIDENCE.POSSIBLE,
+                    },
+                ]),
+            ],
+            okMessage: 'fine',
+        });
+
+        expect(errorLines()).toContain(
+            '    A proxy is intercepting HTTPS. (possible cause, not confirmed on this machine)'
+        );
+    });
+
+    test('a finding with no confidence stated is treated as observed, and reads unchanged', () => {
+        // Every existing check writes finding literals without the field, and `browser check`'s
+        // output is held line for line elsewhere. Absent has to mean confirmed.
+        renderReport({
+            heading: 'h',
+            results: [
+                result('A', [
+                    {
+                        id: 'X',
+                        severity: SEVERITY.ERROR,
+                        title: 't',
+                        detail: 'A proxy is intercepting HTTPS.',
+                        facts: [],
+                        remediation: [],
+                        supersededBy: [],
+                    },
+                ]),
+            ],
+            okMessage: 'fine',
+        });
+
+        expect(errorLines()).toContain('    A proxy is intercepting HTTPS.');
     });
 });
 

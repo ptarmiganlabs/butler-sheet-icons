@@ -1031,6 +1031,29 @@ describe('the registry', () => {
         expect(ids.length).toBe(new Set(ids).size);
     });
 
+    test('the ids the commands themselves emit collide with nothing a check emits', async () => {
+        // Three findings are produced outside any check - the runner's "a check threw", the
+        // normaliser's "a check returned something unreadable", and the command's "nothing was
+        // checked" - so `findingIds` above never sees them. They are allocated from the same
+        // BSI-DOCTOR block and are just as permanent, so they are held to the same rule here
+        // rather than being trusted to stay distinct.
+        const { RUNNER_ERROR_ID } = await import('../run-checks.js');
+        const { NO_CHECKS_ID } = await import('../doctor-check.js');
+        const MALFORMED_FINDING_ID = 'BSI-DOCTOR-002';
+
+        const ids = [
+            ...CHECKS.flatMap((check) => check.findingIds),
+            RUNNER_ERROR_ID,
+            MALFORMED_FINDING_ID,
+            NO_CHECKS_ID,
+        ];
+
+        expect(ids.length).toBe(new Set(ids).size);
+        for (const id of [RUNNER_ERROR_ID, MALFORMED_FINDING_ID, NO_CHECKS_ID]) {
+            expect(id).toMatch(/^BSI-[A-Z]+-\d{3}$/);
+        }
+    });
+
     test('every check id is unique', () => {
         const ids = CHECKS.map((check) => check.id);
 
@@ -1104,6 +1127,27 @@ describe('the registry', () => {
         // another area is added - the qseow connectivity check the design anticipates - this
         // assertion is the deliberate place to say so.
         expect(checksForAreas(BROWSER_CHECK_AREAS).map((check) => check.id)).toEqual(
+            CHECKS.map((check) => check.id)
+        );
+    });
+
+    test('doctor check runs every area, and every area runs every check', async () => {
+        // Asserted structurally, and that is the point. The registry holds only `environment` and
+        // `browser` checks today, so `doctor check` with no --area runs exactly what `browser
+        // check` runs: the two commands are currently indistinguishable by output. A behavioural
+        // comparison written now would pass for the wrong reason and keep passing after they
+        // genuinely diverge - which is the moment it would need to start failing.
+        //
+        // Both halves are read from the modules rather than restated: the default *is*
+        // CHECK_AREAS, and CHECK_AREAS between them select the whole registry. An area added to
+        // the contract is therefore one `doctor check` runs from that moment, and an area no
+        // check declares shows up here rather than as a quietly shorter report.
+        const { areasToRun } = await import('../doctor-check.js');
+        const { checksForAreas } = await import('../checks/index.js');
+        const { CHECK_AREAS } = await import('../run-checks.js');
+
+        expect(areasToRun(undefined)).toEqual([...CHECK_AREAS]);
+        expect(checksForAreas(areasToRun(undefined)).map((check) => check.id)).toEqual(
             CHECKS.map((check) => check.id)
         );
     });

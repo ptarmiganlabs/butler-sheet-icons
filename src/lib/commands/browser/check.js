@@ -1,14 +1,8 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
 import { browserCheck } from '../../browser/browser-check.js';
-import {
-    VERSION_RECOMMENDED,
-    describeBrowserVersionOption,
-    parseBrowserVersionValue,
-} from '../../browser/browser-version.js';
 import { runCommand } from '../run-command.js';
-import { buildBrowserCacheDirOption, buildBrowserExecutablePathOption } from '../helpers.js';
-import { booleanOptionParser } from '../../util/boolean-option.js';
+import { buildBrowserDiagnosticOptions } from '../browser-diagnostic-options.js';
 
 /**
  * Commander action that checks whether this machine can take screenshots.
@@ -53,7 +47,8 @@ const handleBrowserCheck = async (options = {}) => {
  * Every option here changes which browser a real run would pick, or how it would be started. A
  * doctor that reports OK under different settings than the run it is meant to predict is worse
  * than no doctor, which is why `--browser-cache-dir`, `--browser-executable-path` and `--headless`
- * are all carried rather than left to their defaults.
+ * are all carried rather than left to their defaults. They come from the shared factory that
+ * `doctor check` uses, so the two diagnostics cannot come to disagree about what a real run does.
  *
  * No `-i`: there is nothing to ask. Recorded in `NOT_INTERACTIVE` in the interactive registry,
  * which is where a command with no wizard has to declare itself.
@@ -73,59 +68,11 @@ const buildBrowserCheckCommand = () => {
                 .choices(['error', 'warn', 'info', 'verbose', 'debug', 'silly'])
                 .default('info')
                 .env('BSI_BROWSER_C_LOG_LEVEL')
-        )
-        .addOption(
-            // Chrome only: the render path speaks the Chrome DevTools Protocol. The option is
-            // carried so the check accepts the same command line the other browser commands do.
-            new Option('--browser <browser>', 'Browser to check for. Only "chrome" is supported.')
-                .choices(['chrome'])
-                .default('chrome')
-                .env('BSI_BROWSER_C_BROWSER')
-        )
-        .addOption(
-            // Same `'' -> recommended` normalisation the other browser commands apply, so a bare
-            // `BSI_BROWSER_C_BROWSER_VERSION=` line in a unit file means "unset" rather than an
-            // error - and so the check cannot report OK under different pin semantics than a real
-            // run would use.
-            new Option('--browser-version <version>', describeBrowserVersionOption('check for'))
-                .default(VERSION_RECOMMENDED)
-                .argParser(parseBrowserVersionValue)
-                .env('BSI_BROWSER_C_BROWSER_VERSION')
-        )
-        .addOption(buildBrowserCacheDirOption())
-        .addOption(buildBrowserExecutablePathOption())
-        .addOption(
-            // A headed launch on a display-less server is a genuinely different test from a
-            // headless one, which is what earns this option its place on a diagnostic.
-            // Parsed here rather than left to `parseHeadlessOption` at the point of use. That
-            // helper accepts only the exact strings 'true'/'false' and quietly returns `true` for
-            // everything else, so `--headless off` and `BSI_BROWSER_C_HEADLESS=0` ran headless -
-            // a false negative in the one option whose stated purpose is to catch a
-            // headless-only failure. An empty value means unset, and unset here is the default.
-            new Option('--headless <true|false>', 'Headless (=not visible) browser (true, false)')
-                .default(true)
-                .argParser(booleanOptionParser({ whenEmpty: true }))
-                .env('BSI_BROWSER_C_HEADLESS')
-        )
-        .addOption(
-            // The argument is optional, not absent, and that is load-bearing. Declared as a bare
-            // flag, Commander sets it from the mere *presence* of BSI_BROWSER_C_SKIP_LAUNCH and
-            // never reads the value - so `BSI_BROWSER_C_SKIP_LAUNCH=false` turned skip-launch on,
-            // and the deployment gate passed having never started a browser. With an optional
-            // argument the value reaches `argParser`, which Commander also runs on environment
-            // values, so `--skip-launch false` and `BSI_BROWSER_C_SKIP_LAUNCH=false` agree.
-            //
-            // Bare `--skip-launch` still means true: Commander stores boolean `true` for an
-            // optional-argument option supplied without a value, and the parser passes booleans
-            // through untouched.
-            new Option(
-                '--skip-launch [true|false]',
-                'Find a browser but do not start it. Faster, and useful where starting a browser is not allowed - but it leaves the most valuable part of the check undone.'
-            )
-                .default(false)
-                .argParser(booleanOptionParser({ whenEmpty: false }))
-                .env('BSI_BROWSER_C_SKIP_LAUNCH')
         );
+
+    // The same options `doctor check` carries, from the same factory, keeping this command's
+    // `BSI_BROWSER_C_*` environment variable names.
+    buildBrowserDiagnosticOptions('BSI_BROWSER_C').forEach((option) => command.addOption(option));
 
     return command;
 };
