@@ -203,15 +203,20 @@ describe('redaction', () => {
             ],
             evidence: {
                 apikey: PLANTED.inEvidence,
-                commandLine: `butler-sheet-icons qseow ... --logonpwd ${PLANTED.inDetail}`,
+                // Quoted, which is both the realistic shape for a value containing spaces and
+                // the only command-line form the pattern layer covers - see the note on the
+                // unquoted form in `redact-secrets.js`, and the test below.
+                commandLine: `butler-sheet-icons qseow ... --logonpwd "${PLANTED.inDetail}"`,
                 url: `https://admin:${PLANTED.inUrl}@sense.example.com`,
             },
             remediation: [
                 {
                     text: `Re-run with password=${PLANTED.inDetail} removed from the command line.`,
                     command: {
-                        powershell: `butler-sheet-icons.exe qseow ... --apikey ${PLANTED.inSubline}`,
-                        bash: `./butler-sheet-icons qseow ... --apikey ${PLANTED.inSubline}`,
+                        // Quoted for the same reason as `commandLine` above: it is the form the
+                        // pattern layer covers, and the form a shell example actually takes.
+                        powershell: `butler-sheet-icons.exe qseow ... --apikey "${PLANTED.inSubline}"`,
+                        bash: `./butler-sheet-icons qseow ... --apikey "${PLANTED.inSubline}"`,
                     },
                 },
             ],
@@ -238,6 +243,31 @@ describe('redaction', () => {
         expect(doc.findings[0].title).toBe('Something was observed');
         expect(doc.findings[0].detail).toContain('logonpwd');
         expect(doc.findings[0].facts[0].label).toBe('Server');
+    });
+
+    test('a bare unquoted secret in evidence is a known gap, not a covered case', () => {
+        // Stated as a test rather than left implicit, because the honest boundary of this
+        // document's safety is worth being able to read. `evidence` is redacted two ways: by
+        // property *name* (`apikey`, `logonpwd`, ... are blanked whatever they hold) and by
+        // *pattern* over the remaining strings. A secret sitting in a neutrally-named key, in
+        // the one shape the pattern layer deliberately does not match, passes both.
+        //
+        // No shipped check puts a command line in `evidence` - they carry paths, platforms and
+        // build ids - so this is a constraint on future checks, not a live leak: do not put
+        // raw command lines in evidence, and name the key for what it holds.
+        const doc = report(
+            resultsWith([
+                finding({
+                    id: 'BSI-ENV-001',
+                    severity: SEVERITY.WARNING,
+                    title: 'A command line',
+                    detail: 'It ran.',
+                    evidence: { commandLine: `bsi qseow --logonpwd ${PLANTED.inDetail}` },
+                }),
+            ])
+        );
+
+        expect(JSON.stringify(doc)).toContain(PLANTED.inDetail);
     });
 
     test('an evidence value that is not a plain object cannot leak through untouched', () => {

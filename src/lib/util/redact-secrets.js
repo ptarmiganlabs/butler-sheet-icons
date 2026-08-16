@@ -23,6 +23,31 @@
  * Both layers are best-effort: a determined attacker could craft values
  * that evade either, but normal Qlik Sense / Qlik Cloud / Qlik config
  * shapes are covered.
+ *
+ * ## What the free-text layer deliberately does not do
+ *
+ * It does not redact the **unquoted** command-line form, `--logonpwd hunter2`.
+ * That is a deliberate limit, not an oversight, and it was arrived at by
+ * shipping the opposite and measuring it:
+ *
+ * - There is no textual signal separating `--logonpwd correcthorsebattery`
+ *   from `Provide --apikey instead.` They are the same shape. Any rule that
+ *   redacts the first mangles the second, and a rule that spares the second
+ *   leaks the first. An attempt keyed on `isProseWord()` did both at once: it
+ *   let every all-lowercase password through *and* ate the capitalised word in
+ *   `see --auth Options for details`, which is issue #949 exactly.
+ * - Nothing in Butler Sheet Icons feeds a raw command line into this function.
+ *   `process.argv` is never logged (it reaches Commander and nowhere else), and
+ *   the one place a command line is rendered for a user - the interactive
+ *   wizard's `formatCommandLine()` - redacts by *option key*, which is reliable
+ *   because it knows which option is a secret rather than guessing from shape.
+ *
+ * So the unquoted form has no live source here, while a rule for it would run
+ * over every log line the product emits. If a future feature accepts pasted
+ * text or a user-supplied log file - `doctor analyze` is the one on the map -
+ * that input is untrusted in a way BSI's own prose is not, and over-redacting
+ * it is cheap. The aggressive rule belongs there, applied to that input only,
+ * and not in the formatter every `logger.info` passes through.
  */
 
 /**
@@ -200,6 +225,21 @@ export function redactSensitivePatterns(text) {
     result = result.replace(
         /\b(logonpwd|password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)\s*[=:]\s*[^\s&,;"'[\]{}()]+/gi,
         '$1=[REDACTED]'
+    );
+
+    // 3b. A secret whose value is *quoted*, in either the `--flag "value"` or the
+    //     `key="value"` form. Rule 3 stops at the opening quote, because its value class
+    //     excludes quote characters - so a password containing spaces, which is the only
+    //     reason anyone quotes one, survived every rule in this function untouched.
+    //
+    //     The quote is what makes this safe to do, and it is the whole reason this rule is
+    //     limited to the quoted form. A quoted token immediately after a secret-named flag is
+    //     that flag's argument; prose does not quote the word after a flag. The unquoted
+    //     `--logonpwd hunter2` form is deliberately NOT matched here - see the note below on
+    //     why it cannot be done in this function without re-creating issue #949.
+    result = result.replace(
+        /(\b(?:--)?(?:logonpwd|password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)\s*(?:=|\s)\s*)("[^"]+"|'[^']+')/gi,
+        (_match, lead, value) => `${lead}${value[0]}[REDACTED]${value[0]}`
     );
 
     // 4. JSON-style quoted key/value pairs for the same patterns

@@ -192,6 +192,59 @@ describe('redactSensitivePatterns', () => {
         expect(redactSensitivePatterns('logonpwd=hunter2')).toBe('logonpwd=[REDACTED]');
     });
 
+    test('redacts a quoted secret value, spaces and all', () => {
+        // Rule 3's value class excludes quote characters, so it stops at the opening quote -
+        // and a password containing spaces, which is the only reason anyone quotes one,
+        // survived every rule in the function. Half-redacting it was worse than not trying:
+        // `--logonpwd [REDACTED] secret pass"` reads as handled to anyone scanning for the
+        // placeholder, while two thirds of the password is still on the line.
+        expect(redactSensitivePatterns('--logonpwd "my secret pass"')).toBe(
+            '--logonpwd "[REDACTED]"'
+        );
+        expect(redactSensitivePatterns("--logonpwd 'my secret pass'")).toBe(
+            "--logonpwd '[REDACTED]'"
+        );
+        expect(redactSensitivePatterns('logonpwd="my secret pass"')).toBe('logonpwd="[REDACTED]"');
+        expect(
+            redactSensitivePatterns('bsi qseow --host h --logonpwd "correct horse" --userid g')
+        ).toBe('bsi qseow --host h --logonpwd "[REDACTED]" --userid g');
+    });
+
+    test('the quoted rule leaves prose mentioning a secret flag alone', () => {
+        // Issue #949's lesson, and the reason this rule is limited to the *quoted* form. An
+        // earlier attempt matched the bare `--flag word` form behind an isProseWord() guard and
+        // managed to fail in both directions at once: it let every all-lowercase password
+        // through, and it ate the capitalised word in the fourth line below. Prose does not
+        // quote the word after a flag, which is what makes the quoted form safe to act on.
+        for (const text of [
+            'Set --apikey to your Qlik Cloud key',
+            'point at it with --apikey or BSI_CLOUD_API_KEY',
+            'Provide --apikey instead.',
+            'see --auth Options for details',
+            "error: required option '--logonpwd <password>' not specified",
+            '--apikey --loglevel debug',
+            'butler-sheet-icons browser install --browser chrome --browser-version recommended',
+        ]) {
+            expect(redactSensitivePatterns(text)).toBe(text);
+        }
+    });
+
+    test('the unquoted command-line form is knowingly not covered', () => {
+        // Asserted as an absence so the trade-off is visible rather than forgotten.
+        // `--logonpwd correcthorsebattery` and `Provide --apikey instead.` are the same shape,
+        // so no rule can redact one and spare the other. Nothing in Butler Sheet Icons feeds a
+        // raw command line through this function - process.argv is never logged, and the wizard
+        // renders command lines redacted by option *key* - so the unquoted form has no live
+        // source, while a rule for it would run over every log line the product emits.
+        //
+        // If a feature ever accepts pasted text or a user-supplied log file (doctor analyze is
+        // the one on the map), the aggressive rule belongs there, on that input only. Change
+        // this test only alongside that decision.
+        expect(redactSensitivePatterns('--logonpwd correcthorsebattery')).toBe(
+            '--logonpwd correcthorsebattery'
+        );
+    });
+
     test('redacts JSON-style quoted secrets', () => {
         const input = `body: {"password": "hunter2", "user": "admin"}`;
         const out = redactSensitivePatterns(input);
