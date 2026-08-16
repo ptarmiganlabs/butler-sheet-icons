@@ -114,7 +114,11 @@ const findingDocument = (entry, check) => ({
  *
  * @param {object} args - What to render.
  * @param {string} args.command - The command that produced this, e.g. `doctor check`.
- * @param {string[]} args.areas - The areas that were run.
+ * @param {string[]} args.areas - The areas that were requested.
+ * @param {string[]} [args.examined] - The areas at least one check actually ran for. A subset of
+ * `areas`, and the field a consumer should read before believing `ok`: an area can be requested and
+ * still be examined by nothing, because it has no checks registered or because every check it does
+ * have was skipped.
  * @param {boolean} args.allowNetwork - Whether network-using checks were allowed.
  * @param {boolean} args.ok - Whether the run passed.
  * @param {import('./run-checks.js').CheckResult[]} args.results - Results from `runChecks`.
@@ -126,6 +130,7 @@ const findingDocument = (entry, check) => ({
 export const buildJsonReport = ({
     command,
     areas,
+    examined = areas,
     allowNetwork,
     ok,
     results,
@@ -146,6 +151,10 @@ export const buildJsonReport = ({
         command,
         generatedAt: generatedAt.toISOString(),
         areas: [...areas],
+        // What was asked for and what was actually looked at, separately. `ok` is a statement
+        // about `examined`, never about `areas`, and a consumer that reads only the latter can
+        // draw exactly the false conclusion this command exists to prevent.
+        examined: [...examined],
         allowNetwork,
         // A field, not just prose. §15.7 is explicit: the disclaimer has to survive into anything
         // that reformats this report, and a consumer building a page out of the findings would

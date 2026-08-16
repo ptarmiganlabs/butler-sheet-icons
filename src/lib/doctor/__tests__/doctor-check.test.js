@@ -133,6 +133,38 @@ describe('which areas run', () => {
         expect(areasToRun(['environment'])).toEqual(['environment']);
     });
 
+    test('a repeated area is collapsed to one', () => {
+        // `collectChoices` accumulates without de-duplicating, and `buildCheckContext` loops per
+        // entry - so a repeat used to call the area's fact gatherer twice. For `browser` that
+        // gatherer starts Chrome.
+        expect(areasToRun(['browser', 'browser'])).toEqual(['browser']);
+        expect(areasToRun(['environment', 'browser', 'environment'])).toEqual([
+            'environment',
+            'browser',
+        ]);
+    });
+
+    test('a repeated area does not gather its facts twice', async () => {
+        await doctorCheck(options({ area: ['browser', 'browser'], skipLaunch: true }));
+
+        // The measured symptom: two launch-and-close cycles, and the second gather's facts
+        // overwriting the first, so the report described a different browser from the one it
+        // judged.
+        expect(detectAvailableBrowser).toHaveBeenCalledTimes(1);
+        expect(getBrowserInventory).toHaveBeenCalledTimes(1);
+    });
+
+    test('a repeated area cannot inflate the run into a full-run claim', async () => {
+        // `BSI_DOCTOR_C_AREA=browser,environment,config,qseow,qseow` used to reach the area count
+        // of a full run with qscloud never selected, and printed the full-run verdict.
+        const report = await doctorCheck(
+            options({ area: ['browser', 'environment', 'config', 'qseow', 'qseow'] })
+        );
+
+        expect(report.areas).toEqual(['browser', 'environment', 'config', 'qseow']);
+        expect(loggedText()).not.toContain('found no problems on this machine');
+    });
+
     test('the default selects every registered check', async () => {
         // The other half of the structural claim: an area no check declares would leave the
         // default running less than the whole registry, silently.
@@ -182,10 +214,71 @@ describe('an area with no registered checks', () => {
         expect(loggedText()).toContain('config, qseow');
     });
 
-    test('cannot fire for the default selection while any check is registered', async () => {
+    test('named alongside a real area, it still fails the run', async () => {
+        // The hole the original guard left: it tested whether the selection was *entirely* empty,
+        // so one populated area was enough to restore the clean bill of health. Measured:
+        // `--area environment --area qseow` printed
+        // `Result: OK - ... found no problems in: environment, qseow.` and exited 0, having
+        // examined nothing whatsoever about qseow.
+        const report = await doctorCheck(options({ area: ['environment', 'qseow'] }));
+
+        expect(report.ok).toBe(false);
+        expect(report.findings.map((entry) => entry.id)).toContain(NO_CHECKS_ID);
+    });
+
+    test('the report never claims the unexamined area was fine', async () => {
+        await doctorCheck(options({ area: ['environment', 'qseow'] }));
+
+        expect(loggedText()).not.toMatch(/found no problems in: environment, qseow/);
+    });
+
+    test('the default run says what it did not examine, without failing', async () => {
+        // The other half, and why this cannot simply be an error per area: three of the five
+        // areas have no checks today, so holding the default to that rule would make plain
+        // `doctor check` exit 1 on every machine. Sweeping an area in is not a request for it.
         const report = await doctorCheck(options());
 
-        expect(report.findings.map((entry) => entry.id)).not.toContain(NO_CHECKS_ID);
+        expect(report.ok).toBe(true);
+        expect(report.examined).toEqual(['browser', 'environment']);
+        expect(loggedText()).toContain('Not examined: config, qseow, qscloud.');
+    });
+
+    test('the default run does not claim to have found no problems on this machine', async () => {
+        // It examined two areas of five. The sentence has to carry its own limits, because it is
+        // read - and pasted - on its own.
+        await doctorCheck(options());
+
+        expect(loggedText()).toMatch(/Result: OK[^\n]*Not examined/);
+    });
+});
+
+describe('--skip-launch', () => {
+    test('does not let the verdict claim the machine is fine', async () => {
+        // Measured: `doctor check --skip-launch true` printed
+        // `Result: OK - Butler Sheet Icons found no problems on this machine.` about a browser it
+        // never started, while the identical `browser check` run said so plainly. `doctorCheck`
+        // was passing `okMessage: () => ...`, throwing away the ctx argument the callback contract
+        // exists to supply.
+        await doctorCheck(options({ skipLaunch: true }));
+
+        expect(loggedText()).not.toContain('found no problems on this machine');
+        expect(loggedText()).toContain(
+            'The browser was not started, so whether it runs here is untested.'
+        );
+    });
+
+    test('still qualifies when only the browser area was asked for', async () => {
+        await doctorCheck(options({ area: ['browser'], skipLaunch: true }));
+
+        expect(loggedText()).toContain('whether it runs here is untested');
+    });
+
+    test('an area with no launch to report on does not break the sentence', async () => {
+        // `ctx.launch` exists only when the browser area was gathered.
+        await doctorCheck(options({ area: ['environment'] }));
+
+        expect(loggedText()).toContain('Result: OK');
+        expect(loggedText()).not.toContain('undefined');
     });
 });
 

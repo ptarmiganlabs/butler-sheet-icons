@@ -63,14 +63,44 @@ const networkCheck = {
     run: jest.fn(async () => []),
 };
 
-const REGISTRY = [throwingCheck, networkCheck];
+/**
+ * The only check in its area, and one that never runs without `--allow-network`.
+ *
+ * Its own area on purpose: it is how an area comes to be *selected* and yet examined by nothing,
+ * which the registry cannot currently produce - no shipped check declares `needsNetwork` - and
+ * which is exactly why that route reached production unnoticed.
+ */
+const soleNetworkCheck = {
+    id: 'config-reaches-out',
+    title: 'A config check that needs the network',
+    section: 'Config',
+    area: 'config',
+    needsNetwork: true,
+    findingIds: ['BSI-CONFIG-900'],
+    appliesTo: () => true,
+    run: jest.fn(async () => []),
+};
+
+/** A check that is the only one in its area and always says it does not apply. */
+const soleInapplicableCheck = {
+    id: 'qseow-never-applies',
+    title: 'A qseow check that never applies',
+    section: 'Qseow',
+    area: 'qseow',
+    needsNetwork: false,
+    findingIds: [],
+    appliesTo: () => false,
+    run: jest.fn(async () => []),
+};
+
+const REGISTRY = [throwingCheck, networkCheck, soleNetworkCheck, soleInapplicableCheck];
 
 jest.unstable_mockModule('../checks/index.js', () => ({
     CHECKS: Object.freeze(REGISTRY),
     checksForAreas: (areas) => REGISTRY.filter((check) => areas.includes(check.area)),
 }));
 
-const { doctorCheck } = await import('../doctor-check.js');
+const { doctorCheck, NO_CHECKS_ID } = await import('../doctor-check.js');
 const { RUNNER_ERROR_ID } = await import('../run-checks.js');
 const { BEST_EFFORT_DISCLAIMER } = await import('../render-report.js');
 
@@ -86,6 +116,50 @@ const loggedText = () =>
 
 beforeEach(() => {
     networkCheck.run.mockClear();
+    soleNetworkCheck.run.mockClear();
+    soleInapplicableCheck.run.mockClear();
+});
+
+describe('an area selected but examined by nothing', () => {
+    // The second route to a false pass, and the one no CLI invocation could reach when it
+    // shipped: with every selected check skipped, the report has zero findings, `isHealthy([])`
+    // is vacuously true, `renderSections` prints nothing, and the output is heading -> disclaimer
+    // -> `Result: OK`, exit 0. "Selected" is not "examined".
+    test('every check skipped for want of --allow-network fails the run', async () => {
+        const report = await doctorCheck({ area: ['config'] });
+
+        expect(soleNetworkCheck.run).not.toHaveBeenCalled();
+        expect(report.ok).toBe(false);
+        expect(report.findings.map((entry) => entry.id)).toContain(NO_CHECKS_ID);
+    });
+
+    test('the same area passes once its check is allowed to run', async () => {
+        const report = await doctorCheck({ area: ['config'], allowNetwork: true });
+
+        expect(soleNetworkCheck.run).toHaveBeenCalled();
+        expect(report.ok).toBe(true);
+        expect(report.examined).toEqual(['config']);
+    });
+
+    test('every check skipped by its own appliesTo fails the run too', async () => {
+        const report = await doctorCheck({ area: ['qseow'] });
+
+        expect(report.ok).toBe(false);
+        expect(report.findings.map((entry) => entry.id)).toContain(NO_CHECKS_ID);
+    });
+
+    test('an area that did run is not tarred with the one that did not', async () => {
+        const report = await doctorCheck({ area: ['environment', 'config'] });
+
+        // `environment` has a check that ran (and threw, which is its own finding); `config` has
+        // one that was skipped. The report must account for them separately rather than in
+        // aggregate. This run fails on the throwing check, so the coverage statement appears in
+        // the finding's detail - the `Not examined:` clause qualifies the OK sentence, and there
+        // is no OK sentence here.
+        expect(report.examined).toEqual(['environment']);
+        expect(loggedText()).toContain('Nothing was examined for: config');
+        expect(loggedText()).toContain('This report covers environment only');
+    });
 });
 
 describe('a check that throws', () => {

@@ -55,6 +55,12 @@ Three further areas — `config`, `qseow` and `qscloud` — are recognised but h
 them yet. They are added as real support cases show what is worth checking. Asking for one of them
 today reports that nothing was checked, and **fails**; see *Areas with no checks yet* below.
 
+**The verdict always states what it covered.** `doctor` will not say it found no problems "on this
+machine" unless every area was examined — with three areas still empty, a normal run says
+`found no problems in: browser, environment` and then names what it did not look at. That is
+deliberate: a line reading `Result: OK` is read on its own, and pasted on its own, so it has to
+carry its own limits rather than rely on you remembering which areas exist.
+
 ## A healthy server
 
 ```
@@ -86,14 +92,17 @@ info: Note: these findings are best-effort. Butler Sheet Icons reports what it c
 info: machine, and cannot see everything about your environment - group policy, antivirus, proxy rules
 info: and Qlik Sense itself are all invisible to it. Review suggested commands before running them on a
 info: production server.
-info: Result: OK - Butler Sheet Icons found no problems on this machine.
+info: Result: OK - Butler Sheet Icons found no problems in: browser, environment. Not examined: config, qseow, qscloud.
 ```
 
 Reading it:
 
-- **The first line names the areas that ran.** `Result: OK` after a full run is a much stronger
-  statement than `Result: OK` after `--area environment`, and this line is how you tell them apart
-  when you read the output again a week later.
+- **The last line names what was examined, and what was not.** It says `in: browser, environment`
+  rather than "on this machine", because `config`, `qseow` and `qscloud` have no checks behind them
+  yet. Once they do, the same run will read `found no problems on this machine.` Take the `Result:`
+  line at its word: it claims exactly as much as was checked and no more.
+- **The first line names the areas that were requested.** Together with the `Result:` line that is
+  how you tell a full run from `--area environment` when you read the output again a week later.
 - **The Environment block is the most valuable part on a Windows server**, even though it reports no
   problem. If a scheduled task runs as `LocalSystem`, `Running as user` says so, the home directory
   reads `C:\Windows\system32\config\systemprofile` and the working directory reads
@@ -186,7 +195,7 @@ info:     Home directory      : C:\Users\svc_butler
 info:     Working directory   : D:\butler-sheet-icons
 info:     Standalone binary   : true
 info: Note: these findings are best-effort. ...
-info: Result: OK - Butler Sheet Icons found no problems in: environment. Other areas were not checked.
+info: Result: OK - Butler Sheet Icons found no problems in: environment.
 ```
 
 Note the last line. It does not claim the server is fine — only that the one area asked about is.
@@ -201,8 +210,8 @@ butler-sheet-icons doctor check --area qseow
 
 ```
 info: Butler Sheet Icons doctor check (areas: qseow)
-info: Checks
-error:     Butler Sheet Icons has no checks registered for: qseow. Nothing about this machine was examined, so this report says nothing about whether it works.
+info: Coverage
+error:     Nothing was examined for: qseow (Butler Sheet Icons has no checks for this area yet). Nothing about this machine was examined, so this report says nothing about whether it works.
 ...
 error: Result: FAILED - No diagnostic checks were run
 ```
@@ -210,6 +219,29 @@ error: Result: FAILED - No diagnostic checks were run
 This **fails**, with exit code 1, and that is on purpose. If it exited 0 instead, a deployment
 script gating on `doctor check --area qseow` would report a healthy server having verified nothing
 at all. A run that checked nothing must never look like a run that passed.
+
+Naming an empty area **alongside** a real one fails for the same reason:
+
+```
+butler-sheet-icons doctor check --area environment --area qseow
+```
+
+```
+error:     Nothing was examined for: qseow (Butler Sheet Icons has no checks for this area yet). This report covers environment only, and says nothing about the rest.
+error: Result: FAILED - Some areas were not examined
+```
+
+You asked for `qseow` and Butler Sheet Icons cannot answer, so it says so rather than passing on
+the strength of the areas it *could* check.
+
+The default run is treated differently, and deliberately: running `doctor check` with no `--area`
+is not a request for any particular area, it means "check everything you can". Areas with nothing
+behind them are simply left out of the answer and named in the `Result:` line, and the run does not
+fail.
+
+There is a third case, which you will meet once network checks arrive: an area whose checks all
+need network access you did not grant. Nothing ran there either, so it is reported the same way
+rather than counted as passing.
 
 ## Machine-readable output
 
@@ -236,6 +268,7 @@ The document looks like this (abridged):
   "command": "doctor check",
   "generatedAt": "2026-08-15T19:30:02.417Z",
   "areas": ["environment"],
+  "examined": ["environment"],
   "allowNetwork": false,
   "disclaimer": "Note: these findings are best-effort. ...",
   "ok": true,
@@ -270,6 +303,10 @@ The document looks like this (abridged):
 
 Worth knowing about the fields:
 
+- **`areas` is what you asked for; `examined` is what was actually looked at.** They differ when an
+  area has no checks yet, or when every check it does have was skipped. **`ok` is a statement about
+  `examined`, never about `areas`** — a script that reads `ok` without reading `examined` can draw
+  exactly the false conclusion this command exists to prevent.
 - **`severity`** is `error`, `warning`, `info` or `ok`. Only `error` fails the run.
 - **`confidence`** is `confirmed` for everything this command produces: a check looked, and this is
   what it found on your machine. The field exists so that future features which infer a likely cause
