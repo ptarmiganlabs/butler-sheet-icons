@@ -225,6 +225,38 @@ const renderAuth = (auth) => {
 };
 
 /**
+ * The facts behind the writes warning, shared by the plain plan block and the
+ * contact-sheet board (issue #1074): what kind of write, how many apps, the
+ * dry-run tense, and the published-count suffix.
+ *
+ * One decision tree rather than two - the writes warning is the one line
+ * both renderers exist to get right, and a new `writes.kind` or a changed
+ * published-count rule must reach both from a single place. Each renderer
+ * supplies only its own casing and voice.
+ *
+ * @param {object} report - The report.
+ *
+ * @returns {{kind: string, appCount: number, would: boolean, published: string}|null}
+ *     The facts, or null when there is nothing to warn about - no writes
+ *     section, or an empty selection whose write was never possible.
+ */
+export const describeWrites = (report) => {
+    const writes = report.plan?.writes;
+    const appCount = report.selection?.total ?? report.apps.length;
+
+    if (!writes || appCount === 0) {
+        return null;
+    }
+
+    const published =
+        writes.publishedAppCount === null || writes.publishedAppCount === undefined
+            ? ''
+            : `, ${writes.publishedAppCount} of them published`;
+
+    return { kind: writes.kind, appCount, would: Boolean(report.dryRun), published };
+};
+
+/**
  * The writes warning: the one line in the plan block written in capitals,
  * because it is the part with no undo.
  *
@@ -233,22 +265,17 @@ const renderAuth = (auth) => {
  * @returns {string} The warning line.
  */
 const renderWrites = (report) => {
-    const { writes } = report.plan;
-    const appCount = report.selection?.total ?? report.apps.length;
+    const writes = describeWrites(report);
 
     if (writes.kind === 'clear-icons') {
-        const verb = report.dryRun ? 'WOULD REMOVE' : 'WILL REMOVE';
+        const verb = writes.would ? 'WOULD REMOVE' : 'WILL REMOVE';
 
-        return `  ${verb} sheet icons and thumbnail media files from ${appCount} app(s)`;
+        return `  ${verb} sheet icons and thumbnail media files from ${writes.appCount} app(s)`;
     }
 
-    const verb = report.dryRun ? 'WOULD OVERWRITE' : 'WILL OVERWRITE';
-    const published =
-        writes.publishedAppCount === null || writes.publishedAppCount === undefined
-            ? ''
-            : `, ${writes.publishedAppCount} of them published`;
+    const verb = writes.would ? 'WOULD OVERWRITE' : 'WILL OVERWRITE';
 
-    return `  ${verb} existing sheet thumbnails in ${appCount} app(s)${published}`;
+    return `  ${verb} existing sheet thumbnails in ${writes.appCount} app(s)${writes.published}`;
 };
 
 /**
@@ -472,6 +499,36 @@ export const verdictCounts = (report) => {
 };
 
 /**
+ * The verdict's app-level and outcome facts, shared by the plain verdict and
+ * the contact-sheet verdict (issue #1074).
+ *
+ * Extracted for the same reason as {@link verdictCounts}: these were derived
+ * inline by both renderers, and a change to what counts as a failed app or
+ * which apps contribute kept-image bytes must reach both verdicts or they
+ * describe different runs. The sums follow the recorded-or-null rule - a
+ * number in either verdict is always a number that happened.
+ *
+ * @param {object} report - The report.
+ *
+ * @returns {{okApps: number, failedApps: number, emptySelection: boolean,
+ *     sheetsUpdated: number|null, imagesKeptFiles: number|null,
+ *     imagesKeptBytes: number|null, mediaFilesDeleted: number|null}} The facts.
+ */
+export const verdictFacts = (report) => {
+    const failedApps = report.apps.filter((app) => app.failed).length;
+
+    return {
+        okApps: report.apps.length - failedApps,
+        failedApps,
+        emptySelection: (report.selection?.total ?? 0) === 0 && report.apps.length === 0,
+        sheetsUpdated: sumAppField(report, 'sheetsUpdated'),
+        imagesKeptFiles: sumAppField(report, 'imagesKeptFiles'),
+        imagesKeptBytes: sumAppField(report, 'imagesKeptBytes'),
+        mediaFilesDeleted: sumAppField(report, 'mediaFilesDeleted'),
+    };
+};
+
+/**
  * The verdict block: what actually changed, and whether the run worked.
  *
  * This is the part that does not exist at all today - a run in which 66
@@ -487,17 +544,16 @@ export const verdictCounts = (report) => {
 export const renderRunVerdictLines = (report) => {
     const lines = ['', `RESULT  ${report.succeeded ? 'ok' : 'FAILED'}`];
 
-    const failedApps = report.apps.filter((app) => app.failed).length;
-    const okApps = report.apps.length - failedApps;
+    const facts = verdictFacts(report);
 
-    if ((report.selection?.total ?? 0) === 0 && report.apps.length === 0) {
+    if (facts.emptySelection) {
         lines.push(row('apps', '0 selected - nothing was done'));
         lines.push(RUN_FRAME);
 
         return lines;
     }
 
-    lines.push(row('apps', `${okApps} ok, ${failedApps} failed`));
+    lines.push(row('apps', `${facts.okApps} ok, ${facts.failedApps} failed`));
 
     const { seen, captured, blurred, excluded, cleared, noIcon } = verdictCounts(report);
 
@@ -508,12 +564,11 @@ export const renderRunVerdictLines = (report) => {
         const noIconNote = noIcon > 0 ? `, ${noIcon} had no icon` : '';
         lines.push(row('sheets', `${seen} seen, ${cleared} icon(s) cleared${noIconNote}`));
 
-        const mediaFilesDeleted = sumAppField(report, 'mediaFilesDeleted');
-        if (mediaFilesDeleted !== null) {
+        if (facts.mediaFilesDeleted !== null) {
             lines.push(
                 row(
                     'media',
-                    `${mediaFilesDeleted} thumbnail file(s) deleted from app media libraries`
+                    `${facts.mediaFilesDeleted} thumbnail file(s) deleted from app media libraries`
                 )
             );
         }
@@ -523,26 +578,23 @@ export const renderRunVerdictLines = (report) => {
             row('sheets', `${seen} seen, ${captured} captured${blurNote}, ${excluded} excluded`)
         );
 
-        const sheetsUpdated = sumAppField(report, 'sheetsUpdated');
-        if (sheetsUpdated !== null) {
+        if (facts.sheetsUpdated !== null) {
             const destination = report.plan?.writes?.contentLibrary
                 ? `content library "${report.plan.writes.contentLibrary}"`
                 : 'app media libraries';
             lines.push(
                 row(
                     'thumbnails',
-                    `${sheetsUpdated} sheet(s) given new thumbnails in ${destination}`
+                    `${facts.sheetsUpdated} sheet(s) given new thumbnails in ${destination}`
                 )
             );
         }
 
-        const imagesKeptFiles = sumAppField(report, 'imagesKeptFiles');
-        if (imagesKeptFiles !== null && report.plan?.output) {
-            const bytes = sumAppField(report, 'imagesKeptBytes') ?? 0;
+        if (facts.imagesKeptFiles !== null && report.plan?.output) {
             lines.push(
                 row(
                     'images kept',
-                    `${report.plan.output.imageDir}/${report.plan.output.platformDir}   ${imagesKeptFiles} file(s), ${formatBytes(bytes)}`
+                    `${report.plan.output.imageDir}/${report.plan.output.platformDir}   ${facts.imagesKeptFiles} file(s), ${formatBytes(facts.imagesKeptBytes ?? 0)}`
                 )
             );
         }

@@ -189,6 +189,86 @@ describe('the sheet strip', () => {
         expect(cells).toHaveLength(3);
         expect(cells.map((cell) => cell.kind)).toEqual(['captured', 'failed', 'failed']);
     });
+
+    test('glyphs sit at the recorded sheet position, not the array position', () => {
+        // The sheet loop survives a mid-app failure and keeps recording the
+        // later sheets - sheet 2 failing must not shift sheets 3..n left and
+        // mark the wrong sheet as failed.
+        const app = {
+            id: 'app-x',
+            name: 'Mid Failure',
+            sheetCount: 5,
+            sheets: [
+                { n: 1, title: 'One', action: 'update', reason: null },
+                { n: 3, title: 'Three', action: 'blur', reason: null },
+                { n: 4, title: 'Four', action: 'update', reason: null },
+                { n: 5, title: 'Five', action: 'update', reason: null },
+            ],
+            failed: true,
+        };
+
+        expect(stripForApp(app, UNICODE_SYMBOLS).map((cell) => cell.kind)).toEqual([
+            'captured',
+            'failed',
+            'blurred',
+            'captured',
+            'captured',
+        ]);
+    });
+
+    test('a clear with no icon renders as excluded, matching the legend vocabulary', () => {
+        const app = {
+            id: 'app-r',
+            name: 'Removal',
+            sheetCount: 3,
+            sheets: [
+                { n: 1, title: 'One', action: 'clear', reason: null },
+                { n: 2, title: 'Two', action: 'clear', reason: 'no icon currently set' },
+                { n: 3, title: 'Three', action: 'clear', reason: null },
+            ],
+            failed: false,
+        };
+
+        expect(stripForApp(app, UNICODE_SYMBOLS).map((cell) => cell.kind)).toEqual([
+            'captured',
+            'excluded',
+            'captured',
+        ]);
+    });
+
+    test('a wide-character app name does not shift the strip column', () => {
+        // width() must count terminal columns, not code points: a CJK name is
+        // two columns per character, and an undercounted name pushes that
+        // row's whole strip band sideways.
+        const total = 2;
+        const ascii = {
+            id: 'a',
+            name: 'Sales Discovery',
+            sheetCount: 2,
+            sheets: [
+                { n: 1, title: 'x', action: 'update', reason: null },
+                { n: 2, title: 'y', action: 'update', reason: null },
+            ],
+            failed: false,
+        };
+        const cjk = { ...ascii, id: 'b', name: '売上ダッシュボード' };
+
+        const ctx = uniCtx();
+        // Terminal columns, not string index: the CJK prefix has fewer
+        // characters but the same rendered width when padding is correct.
+        const columnsOf = (text) =>
+            [...text].reduce(
+                (n, ch) => n + (ch.codePointAt(0) >= 0x1100 && ch.codePointAt(0) <= 0x9fff ? 2 : 1),
+                0
+            );
+        const stripColumn = (app, n) => {
+            const row = renderBoardAppRow(app, { n, total, removal: false }, ctx);
+
+            return columnsOf(row.slice(0, row.indexOf(ctx.symbols.stripCaptured)));
+        };
+
+        expect(stripColumn(cjk, 2)).toBe(stripColumn(ascii, 1));
+    });
 });
 
 describe('colour discipline', () => {
@@ -229,6 +309,17 @@ describe('the wordmark frame', () => {
         expect(frame).toContain('9.9.9-test');
         expect(frame).toContain('QSEoW sheet thumbnails');
         expect(frame).toContain('410 × 270');
+    });
+
+    test('a prerelease-length version is clipped instead of breaking the frame edge', () => {
+        const lines = renderBoardHeader(
+            { version: '5.0.0-beta.20260817+sha.deadbeef', jobLabel: 'QSEoW sheet thumbnails' },
+            uniCtx()
+        )
+            .split('\n')
+            .filter((line) => line.trim() !== '');
+
+        expect(new Set(lines.map((line) => [...line].length)).size).toBe(1);
     });
 
     test('every frame line is the same width, both sets, colour on or off', () => {
@@ -286,7 +377,77 @@ describe('the plan block', () => {
     });
 });
 
+describe('the app-row width budget', () => {
+    test('rows fit the 72-column gate even with the ASCII marker and removal vocabulary', () => {
+        // The board gate admits 72-column terminals; a row wider than that
+        // wraps on exactly the narrowest terminal the board accepts. The
+        // worst admitted case is the ASCII set (4-column markers) with the
+        // wider "cleared" summary and a minutes-long elapsed time.
+        const app = {
+            id: 'app-w',
+            name: 'A name at twenty chars',
+            sheetCount: 12,
+            sheets: Array.from({ length: 12 }, (_, i) => ({
+                n: i + 1,
+                title: `S${i}`,
+                action: 'clear',
+                reason: null,
+            })),
+            failed: false,
+            durationMs: 372000,
+        };
+
+        for (const ctx of [asciiCtx(), uniCtx()]) {
+            const row = renderBoardAppRow(app, { n: 12, total: 12, removal: true }, ctx);
+            expect([...row.replace('\n', '')].length).toBeLessThanOrEqual(72);
+        }
+    });
+});
+
 describe('the verdict block', () => {
+    test("the removal row's cleared count agrees with the verdict beneath it", () => {
+        // One app, three sheets, only one icon actually cleared: the row and
+        // the verdict must state the same number - the drift verdictCounts
+        // was extracted to prevent.
+        const app = {
+            id: 'app-r',
+            name: 'Removal',
+            sheetCount: 3,
+            sheets: [
+                { n: 1, title: 'One', action: 'clear', reason: null },
+                { n: 2, title: 'Two', action: 'clear', reason: 'no icon currently set' },
+                { n: 3, title: 'Three', action: 'clear', reason: 'no icon currently set' },
+            ],
+            failed: false,
+        };
+        const report = {
+            command: 'qscloud remove-sheet-icons',
+            dryRun: false,
+            selection: { named: 1, fromSelector: 0, selector: null, total: 1 },
+            plan: { writes: { kind: 'clear-icons' } },
+            apps: [app],
+            startedAt: 0,
+            finishedAt: 9000,
+            succeeded: true,
+        };
+
+        const row = stripAnsi(renderBoardAppRow(app, { n: 1, total: 1, removal: true }, uniCtx()));
+        const verdict = stripAnsi(renderBoardVerdict(report, uniCtx()));
+
+        expect(row).toContain('1/3 cleared');
+        expect(verdict).toContain('1 icon(s) cleared');
+        expect(verdict).toContain('2 had no icon');
+    });
+
+    test('the failed legend entry counts the failed cells the strips show, not apps', () => {
+        const verdict = stripAnsi(renderBoardVerdict(makeReport(), uniCtx()));
+
+        // app-3 recorded 1 of 3 sheets before failing: two positions render
+        // the failed glyph, and the legend must say two, not one.
+        expect(verdict).toContain('2 not processed');
+        expect(verdict).not.toContain('app(s) failed');
+    });
+
     test('counts from the recorded sheets and names the failure', () => {
         const verdict = stripAnsi(renderBoardVerdict(makeReport(), uniCtx()));
 

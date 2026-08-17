@@ -2,10 +2,13 @@ import { getBorderCharacters } from 'table';
 import { colours } from './colour.js';
 import { getSymbols, tableBorderName } from '../interactive/symbols.js';
 import { parseHeadlessOption } from './headless-option.js';
+import { CLEAR_REASON } from './sheet-decision-reasons.js';
 import {
     selectionParts,
     describeRules,
+    describeWrites,
     verdictCounts,
+    verdictFacts,
     isRemovalReport,
     isOptionEnabled,
     formatElapsed,
@@ -51,16 +54,28 @@ const LABEL_WIDTH = 11;
 const VALUE_WIDTH = 22;
 
 /**
- * Width of the app-name column on strip rows.
+ * App-row column budgets. The row must fit the 72-column terminal the board
+ * gate admits, in the WORST case the gate allows: the ASCII symbol set
+ * (whose `[ok]`/`[!!]` markers are four columns) on exactly 72 columns.
+ * The arithmetic, tested at the boundary:
+ *
+ *     indent 2 + marker 4 + space 1 + counter 5 ("99/99") + gap 2
+ *     + name 20 + gap 2 + strip 12 + gap 2 + summary 12 + elapsed 8  = 70
+ *
+ * An app with more sheets than the strip column simply overflows its own
+ * row - truncating the strip would hide the exact per-sheet signal it
+ * exists to show - and a run of 100+ apps widens the counter; both are
+ * accepted, budgeted overflows rather than silent wraps on every row.
  */
-const NAME_WIDTH = 24;
+const NAME_WIDTH = 20;
+
+const STRIP_WIDTH = 12;
 
 /**
- * Width of the sheet-strip column. An app with more sheets than this simply
- * overflows the column for its own row - truncating the strip would hide the
- * exact per-sheet signal the strip exists to show.
+ * Width of the per-app summary column ("10/11 up", "12/12 cleared"): sized
+ * for the removal vocabulary, which is the wider of the two.
  */
-const STRIP_WIDTH = 18;
+const SUMMARY_WIDTH = 12;
 
 /**
  * Width of the horizontal rules separating the board's sections.
@@ -68,19 +83,57 @@ const STRIP_WIDTH = 18;
 const RULE_WIDTH = 64;
 
 /**
- * Display width of a string, counted in code points.
+ * Whether a code point renders two columns wide in a monospace terminal.
  *
- * Not `.length`, which counts UTF-16 code units and would make a surrogate
- * pair two columns. Deliberately not a full grapheme/East-Asian-width
- * measure either - every symbol this module emits is single-width by the
- * rules `symbols.js` enforces, and app names are user data rendered as-is,
- * matching the plain renderer's behaviour.
+ * The standard wcwidth East-Asian ranges: Hangul Jamo, CJK and its
+ * punctuation/compatibility blocks, Hangul syllables, fullwidth forms, and
+ * the supplementary ideographic planes. Implemented inline rather than
+ * importing `string-width`: nothing in this epic may add a dependency (SEA
+ * build), and `table`'s copy is a transitive dependency this module must not
+ * reach into.
+ *
+ * @param {number} cp - The code point.
+ *
+ * @returns {boolean} True when terminals render it double-width.
+ */
+const isWideCodePoint = (cp) =>
+    cp >= 0x1100 &&
+    (cp <= 0x115f ||
+        (cp >= 0x2e80 && cp <= 0xa4cf && cp !== 0x303f) ||
+        (cp >= 0xac00 && cp <= 0xd7a3) ||
+        (cp >= 0xf900 && cp <= 0xfaff) ||
+        (cp >= 0xfe30 && cp <= 0xfe4f) ||
+        (cp >= 0xff00 && cp <= 0xff60) ||
+        (cp >= 0xffe0 && cp <= 0xffe6) ||
+        (cp >= 0x20000 && cp <= 0x3fffd));
+
+const ZERO_WIDTH = /\p{Mn}|\p{Me}|\u200d/u;
+
+/**
+ * Display width of a string in terminal columns.
+ *
+ * Counts East-Asian wide characters as two columns and combining marks as
+ * zero, because this module - unlike the plain renderer, which never
+ * column-aligns anything after a name - pads names into a column with the
+ * sheet strip after it: a miscounted name shifts that row's entire strip
+ * band, which is exactly the per-app comparison the board exists for.
  *
  * @param {string} text - The text to measure.
  *
  * @returns {number} The width in columns.
  */
-const width = (text) => [...text].length;
+const width = (text) => {
+    let columns = 0;
+
+    for (const ch of text) {
+        if (ZERO_WIDTH.test(ch)) {
+            continue;
+        }
+        columns += isWideCodePoint(ch.codePointAt(0)) ? 2 : 1;
+    }
+
+    return columns;
+};
 
 /**
  * Pad plain text to a target width. Never truncates.
@@ -96,13 +149,32 @@ const padTo = (text, target) =>
 /**
  * Clip plain text to a maximum width, marking the cut with `...`.
  *
+ * Cuts by accumulated display columns, not code points, so a wide character
+ * cannot smuggle two columns past the budget. The budget floor guards the
+ * degenerate `max <= 3` case, where a negative slice index would return the
+ * wrong end of the string; callers here use 20+.
+ *
  * @param {string} text - Plain text, no ANSI codes.
  * @param {number} max - Maximum width in columns.
  *
  * @returns {string} The clipped text.
  */
-const clip = (text, max) =>
-    width(text) <= max ? text : `${[...text].slice(0, max - 3).join('')}...`;
+const clip = (text, max) => {
+    if (width(text) <= max) {
+        return text;
+    }
+
+    const budget = Math.max(1, max - 3);
+    let kept = '';
+    for (const ch of text) {
+        if (width(kept + ch) > budget) {
+            break;
+        }
+        kept += ch;
+    }
+
+    return `${kept}...`;
+};
 
 /**
  * Build the rendering context the board renderers draw from.
@@ -148,13 +220,17 @@ export const renderBoardHeader = ({ version, jobLabel }, ctx) => {
 
     // Padded plain, coloured after: the gap is computed from the unpainted
     // name and version so the right edge cannot drift when colour is on.
+    // The version is clipped like the job label below it - release-please
+    // versions are short, but a prerelease/build-metadata string must not
+    // push the right border out of the frame.
     const name = 'BUTLER SHEET ICONS';
-    const gap = Math.max(1, FRAME_INNER - 3 - width(name) - width(version) - 3);
+    const shownVersion = clip(version, FRAME_INNER - 6 - width(name) - 1);
+    const gap = Math.max(1, FRAME_INNER - 3 - width(name) - width(shownVersion) - 3);
     const label = clip(jobLabel, FRAME_INNER - 6);
 
     const interior = [
         empty,
-        `   ${palette.bold(name)}${' '.repeat(gap)}${palette.dim(version)}   `,
+        `   ${palette.bold(name)}${' '.repeat(gap)}${palette.dim(shownVersion)}   `,
         `   ${palette.dim(padTo(label, FRAME_INNER - 6))}   `,
         empty,
     ];
@@ -222,24 +298,19 @@ const sectionRule = (ctx) => `  ${ctx.palette.dim(ctx.symbols.rule.repeat(RULE_W
  * @returns {string|null} The warning line, or null when there is nothing to warn about.
  */
 const warningLine = (report, ctx) => {
-    const { writes } = report.plan;
-    const appCount = report.selection?.total ?? report.apps.length;
+    // One decision tree with the plain renderer: only the casing and voice
+    // are this renderer's own.
+    const writes = describeWrites(report);
 
-    if (!writes || appCount === 0) {
+    if (!writes) {
         return null;
     }
 
-    const verb = report.dryRun ? 'would' : 'will';
-    let text;
-    if (writes.kind === 'clear-icons') {
-        text = `sheet icons and thumbnail media files ${verb} be removed from ${appCount} app(s)`;
-    } else {
-        const published =
-            writes.publishedAppCount === null || writes.publishedAppCount === undefined
-                ? ''
-                : `, ${writes.publishedAppCount} of them published`;
-        text = `sheet thumbnails ${verb} be overwritten in ${appCount} app(s)${published}`;
-    }
+    const verb = writes.would ? 'would' : 'will';
+    const text =
+        writes.kind === 'clear-icons'
+            ? `sheet icons and thumbnail media files ${verb} be removed from ${writes.appCount} app(s)`
+            : `sheet thumbnails ${verb} be overwritten in ${writes.appCount} app(s)${writes.published}`;
 
     return `  ${ctx.palette.yellow(`${ctx.symbols.warning}  ${text}`)}`;
 };
@@ -421,22 +492,42 @@ export const renderBoardPlan = (report, ctx) => {
  *     with its kind for colouring.
  */
 export const stripForApp = (appEntry, symbols) => {
-    const glyphFor = {
-        update: { glyph: symbols.stripCaptured, kind: 'captured' },
-        blur: { glyph: symbols.stripBlurred, kind: 'blurred' },
-        skip: { glyph: symbols.stripExcluded, kind: 'excluded' },
-        clear: { glyph: symbols.stripCaptured, kind: 'captured' },
+    const failedCell = { glyph: symbols.stripFailed, kind: 'failed' };
+    const cellFor = (sheet) => {
+        // A clear with nothing to clear is the removal run's "excluded":
+        // rendering it as a solid block would show a wall of cleared icons
+        // for an app that was mostly empty, and would contradict the
+        // verdict's cleared count for the same run.
+        if (sheet.action === 'clear') {
+            return sheet.reason === CLEAR_REASON.NO_ICON
+                ? { glyph: symbols.stripExcluded, kind: 'excluded' }
+                : { glyph: symbols.stripCaptured, kind: 'captured' };
+        }
+
+        const glyphFor = {
+            update: { glyph: symbols.stripCaptured, kind: 'captured' },
+            blur: { glyph: symbols.stripBlurred, kind: 'blurred' },
+            skip: { glyph: symbols.stripExcluded, kind: 'excluded' },
+        };
+
+        return glyphFor[sheet.action] ?? failedCell;
     };
 
-    const cells = appEntry.sheets.map(
-        (sheet) => glyphFor[sheet.action] ?? { glyph: symbols.stripFailed, kind: 'failed' }
+    // Placed by the recorded 1-based sheet position, never by array order:
+    // the sheet loop survives a mid-app failure and keeps recording the
+    // later sheets, so row i of the array is not sheet i of the app. Every
+    // position nothing was recorded for renders as failed - "not processed"
+    // - which also covers the failed app's missing tail.
+    const count = Math.max(
+        typeof appEntry.sheetCount === 'number' ? appEntry.sheetCount : 0,
+        appEntry.sheets.length,
+        ...appEntry.sheets.map((sheet) => sheet.n ?? 0)
     );
 
-    if (appEntry.failed && typeof appEntry.sheetCount === 'number') {
-        while (cells.length < appEntry.sheetCount) {
-            cells.push({ glyph: symbols.stripFailed, kind: 'failed' });
-        }
-    }
+    const cells = Array.from({ length: count }, () => failedCell);
+    appEntry.sheets.forEach((sheet, i) => {
+        cells[(sheet.n ?? i + 1) - 1] = cellFor(sheet);
+    });
 
     return cells;
 };
@@ -479,10 +570,15 @@ export const renderBoardAppRow = (appEntry, { n, total, removal }, ctx) => {
 
     const counts = verdictCounts({ apps: [appEntry] });
     const sheetCount = appEntry.sheetCount ?? counts.seen;
+    // Removal counts only the icons actually cleared - the same rule the
+    // verdict applies - so the row and the verdict cannot state two
+    // different numbers for one app; no-icon sheets show in the strip.
     const summary = removal
-        ? `${counts.cleared + counts.noIcon}/${sheetCount} cleared`
+        ? `${counts.cleared}/${sheetCount} cleared`
         : `${appEntry.sheetsUpdated ?? counts.captured}/${sheetCount} up`;
-    const summaryPart = appEntry.failed ? palette.red(padTo('failed', 10)) : padTo(summary, 10);
+    const summaryPart = appEntry.failed
+        ? palette.red(padTo('failed', SUMMARY_WIDTH))
+        : padTo(summary, SUMMARY_WIDTH);
 
     const elapsed =
         typeof appEntry.durationMs === 'number'
@@ -493,29 +589,11 @@ export const renderBoardAppRow = (appEntry, { n, total, removal }, ctx) => {
 };
 
 /**
- * Sums a nullable per-app numeric field, returning null when never recorded.
- * Mirrors the plain verdict's rule: a number on the board is always a number
- * that happened.
- *
- * @param {object} report - The report.
- * @param {string} field - The per-app field name.
- *
- * @returns {number|null} The sum, or null.
- */
-const sumAppField = (report, field) => {
-    let sum = null;
-
-    for (const app of report.apps) {
-        if (typeof app[field] === 'number') {
-            sum = (sum ?? 0) + app[field];
-        }
-    }
-
-    return sum;
-};
-
-/**
  * The board's verdict block: what actually changed, and whether it worked.
+ *
+ * All counts and sums come from {@link verdictFacts} and
+ * {@link verdictCounts}, shared with the plain verdict, so the two cannot
+ * describe different runs.
  *
  * @param {object} report - The report, after the app loop has finished and
  *     `succeeded`/`finishedAt` have been set on it.
@@ -532,7 +610,9 @@ export const renderBoardVerdict = (report, ctx) => {
             ? formatElapsed(report.finishedAt - report.startedAt)
             : null;
 
-    if ((report.selection?.total ?? 0) === 0 && report.apps.length === 0) {
+    const facts = verdictFacts(report);
+
+    if (facts.emptySelection) {
         const lines = [
             '',
             sectionRule(ctx),
@@ -544,8 +624,6 @@ export const renderBoardVerdict = (report, ctx) => {
         return `${lines.join('\n')}\n`;
     }
 
-    const failedApps = report.apps.filter((app) => app.failed).length;
-    const okApps = report.apps.length - failedApps;
     const removal = isRemovalReport(report);
     const counts = verdictCounts(report);
 
@@ -555,18 +633,15 @@ export const renderBoardVerdict = (report, ctx) => {
     } else {
         parts.push(palette.red('FAILED') + (elapsed ? ` ${palette.dim(`after ${elapsed}`)}` : ''));
     }
-    parts.push(`${okApps} app(s) ok`);
-    if (failedApps > 0) {
-        parts.push(palette.red(`${failedApps} failed`));
+    parts.push(`${facts.okApps} app(s) ok`);
+    if (facts.failedApps > 0) {
+        parts.push(palette.red(`${facts.failedApps} failed`));
     }
 
     if (removal) {
         parts.push(`${counts.cleared} icon(s) cleared`);
-    } else {
-        const uploaded = sumAppField(report, 'sheetsUpdated');
-        if (uploaded !== null) {
-            parts.push(`${uploaded} thumbnails uploaded`);
-        }
+    } else if (facts.sheetsUpdated !== null) {
+        parts.push(`${facts.sheetsUpdated} thumbnails uploaded`);
     }
 
     const legendEntry = (kind, count, label) =>
@@ -582,8 +657,18 @@ export const renderBoardVerdict = (report, ctx) => {
               legendEntry('blurred', counts.blurred, 'blurred'),
               legendEntry('excluded', counts.excluded, 'excluded'),
           ];
-    if (failedApps > 0) {
-        legendParts.push(legendEntry('failed', failedApps, 'app(s) failed'));
+
+    // The failed legend entry counts what the strips actually show - cells,
+    // not apps: every other legend number equals its glyph's occurrences on
+    // the strips, and this one must too or the legend disagrees with the
+    // board it explains. The failed-app count is already on the line above.
+    const failedCells = report.apps.reduce(
+        (sum, app) =>
+            sum + stripForApp(app, symbols).filter((cell) => cell.kind === 'failed').length,
+        0
+    );
+    if (failedCells > 0) {
+        legendParts.push(legendEntry('failed', failedCells, 'not processed'));
     }
 
     const lines = [
@@ -594,20 +679,17 @@ export const renderBoardVerdict = (report, ctx) => {
         `    ${legendParts.join('   ')}`,
     ];
 
-    const imagesKeptFiles = sumAppField(report, 'imagesKeptFiles');
-    if (!removal && imagesKeptFiles !== null && report.plan?.output) {
-        const bytes = sumAppField(report, 'imagesKeptBytes') ?? 0;
+    if (!removal && facts.imagesKeptFiles !== null && report.plan?.output) {
         lines.push(
             `    ${palette.dim(
-                `images in ${report.plan.output.imageDir}/${report.plan.output.platformDir}${dotSep(ctx)}${imagesKeptFiles} file(s)${dotSep(ctx)}${formatBytes(bytes)}`
+                `images in ${report.plan.output.imageDir}/${report.plan.output.platformDir}${dotSep(ctx)}${facts.imagesKeptFiles} file(s)${dotSep(ctx)}${formatBytes(facts.imagesKeptBytes ?? 0)}`
             )}`
         );
     }
 
-    const mediaFilesDeleted = sumAppField(report, 'mediaFilesDeleted');
-    if (removal && mediaFilesDeleted !== null) {
+    if (removal && facts.mediaFilesDeleted !== null) {
         lines.push(
-            `    ${palette.dim(`${mediaFilesDeleted} thumbnail media file(s) deleted from app media libraries`)}`
+            `    ${palette.dim(`${facts.mediaFilesDeleted} thumbnail media file(s) deleted from app media libraries`)}`
         );
     }
 
