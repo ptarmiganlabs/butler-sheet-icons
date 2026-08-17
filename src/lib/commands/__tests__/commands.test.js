@@ -1631,6 +1631,30 @@ describe('--browser-executable-path (issue #929)', () => {
     });
 });
 
+describe('doctor --help', () => {
+    test('says where the options are, because isDefault hides them', () => {
+        // Commander answers `doctor --help` with the namespace's help - one subcommand, no
+        // options - so every option of the command that bare `doctor` actually runs was
+        // invisible at exactly the keystroke an administrator tries first. The namespace cannot
+        // adopt the subcommand's help wholesale (more subcommands are coming), so it must point
+        // at it. `helpInformation()` does not include addHelpText hooks, which is why this
+        // captures `outputHelp()` instead.
+        const doctor = buildDoctorCommand();
+        let out = '';
+        doctor.configureOutput({ writeOut: (chunk) => (out += chunk) });
+        doctor.outputHelp();
+
+        expect(out).toContain('doctor check --help');
+        expect(out).toContain('Bare "doctor" runs "doctor check"');
+    });
+
+    test('the namespace describes itself in the top-level command list', () => {
+        // With no description, the `doctor` row in `butler-sheet-icons --help` was blank - the
+        // one line most users would ever read about the command.
+        expect(buildDoctorCommand().description()).toContain('diagnostic checks');
+    });
+});
+
 describe('the diagnostic option factory splits its environment variables deliberately', () => {
     // The factory takes an envPrefix and applies it to four of its six options. The other two -
     // the cache directory and the executable path - keep the unprefixed machine-scoped names on

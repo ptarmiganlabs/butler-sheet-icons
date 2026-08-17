@@ -42,6 +42,14 @@ butler-sheet-icons doctor
 `butler-sheet-icons doctor check` is the same thing written out in full, and is what you would put
 in a script.
 
+One thing to know about `--help`: `butler-sheet-icons doctor --help` describes the `doctor` family,
+not the options. The options — which areas to check, JSON output, allowing network access — are
+listed by:
+
+```
+butler-sheet-icons doctor check --help
+```
+
 ## What it checks
 
 Checks are grouped into **areas**. Today two areas have checks behind them:
