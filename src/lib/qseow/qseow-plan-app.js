@@ -9,7 +9,7 @@ import {
     sortSheetsByRank,
     SHEET_LIST_FIELDS_WITH_SHOW_CONDITION,
 } from '../util/sheet-list.js';
-import { addAppToReport, recordSheetDecision } from '../util/run-report.js';
+import { addAppToReport, recordPlannedSheet } from '../util/run-report.js';
 
 /**
  * Plans one QSEoW app without changing anything: the dry-run twin of
@@ -94,29 +94,24 @@ export const qseowPlanApp = async (appId, options, report) => {
                     logger
                 );
 
-                if (excludeSheet === true) {
-                    recordSheetDecision(appEntry, {
-                        n: iSheetNum,
-                        title: sheet.qMeta.title,
-                        action: 'skip',
-                        reason: excludeReason,
-                    });
-                } else {
-                    const { blurSheet, blurReason } = determineSheetBlurStatus(
-                        sheet,
-                        options,
-                        blurTagSheetAppMetadata,
-                        iSheetNum,
-                        logger
-                    );
+                const { blurSheet, blurReason } = excludeSheet
+                    ? { blurSheet: false, blurReason: null }
+                    : determineSheetBlurStatus(
+                          sheet,
+                          options,
+                          blurTagSheetAppMetadata,
+                          iSheetNum,
+                          logger
+                      );
 
-                    recordSheetDecision(appEntry, {
-                        n: iSheetNum,
-                        title: sheet.qMeta.title,
-                        action: blurSheet ? 'blur' : 'update',
-                        reason: blurReason,
-                    });
-                }
+                recordPlannedSheet(appEntry, {
+                    n: iSheetNum,
+                    title: sheet.qMeta.title,
+                    excludeSheet,
+                    excludeReason,
+                    blurSheet,
+                    blurReason,
+                });
 
                 iSheetNum += 1;
             }

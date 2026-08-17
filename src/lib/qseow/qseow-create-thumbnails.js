@@ -4,17 +4,11 @@ import { qseowVerifyContentLibraryExists } from './qseow-contentlibrary.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { qseowProcessApp } from './qseow-process-app.js';
 import { qseowPlanApp } from './qseow-plan-app.js';
-import { runOverApps } from '../util/run-over-apps.js';
 import { listAppsByTag } from './qseow-app-lookup.js';
 import { toAppIdList } from '../util/app-ids.js';
 import { QSEOW_SHEET_PARTS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
-import {
-    createRunReport,
-    recordSelection,
-    renderDryRunReport,
-    announceDryRun,
-} from '../util/run-report.js';
+import { runOverAppsWithReport, announceDryRun } from '../util/run-report.js';
 
 /**
  * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW).
@@ -105,36 +99,18 @@ export const qseowCreateThumbnails = async (options) => {
             appIdsToProcess.push(...taggedAppIds);
         }
 
-        // The report is built for both modes; only a dry run renders it today.
-        // Selection provenance is recorded up front because "the tag matched 40
-        // apps, not 4" is a silent surprise the report exists to catch (#993).
-        const report = createRunReport({ command: 'qseow create-sheet-thumbnails', dryRun });
-        recordSelection(report, {
+        return await runOverAppsWithReport({
+            command: 'qseow create-sheet-thumbnails',
+            dryRun,
+            appIds: appIdsToProcess,
             namedAppIds,
             selectorAppIds: taggedAppIds,
             selector: useTag ? { option: 'qliksensetag', value: options.qliksensetag } : null,
+            logPrefix: { plan: 'QSEOW PLAN APP', process: 'QSEOW PROCESS APP' },
+            emptySelectionHint: 'Check the --appid and --qliksensetag options.',
+            planApp: (appId, report) => qseowPlanApp(appId, options, report),
+            processApp: (appId) => qseowProcessApp(appId, options),
         });
-
-        const result = await runOverApps(
-            appIdsToProcess,
-            {
-                logPrefix: dryRun ? 'QSEOW PLAN APP' : 'QSEOW PROCESS APP',
-                action: dryRun ? 'plan' : 'process',
-                emptySelectionHint: 'Check the --appid and --qliksensetag options.',
-            },
-            dryRun
-                ? (appId) => qseowPlanApp(appId, options, report)
-                : (appId) => qseowProcessApp(appId, options)
-        );
-
-        // Rendered even when some apps failed to plan: the decisions that were
-        // reached are exactly what the operator needs to see alongside the
-        // per-app error lines runOverApps already logged.
-        if (dryRun) {
-            renderDryRunReport(report);
-        }
-
-        return result;
     } catch (err) {
         logError('QSEOW CREATE THUMBNAILS 2', err);
 

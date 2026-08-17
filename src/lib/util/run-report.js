@@ -1,4 +1,5 @@
 import { logger, getLoggingLevel, setLoggingLevel } from '../../globals.js';
+import { runOverApps } from './run-over-apps.js';
 
 /**
  * The run report: one object holding what a run resolved and decided, read by
@@ -329,4 +330,96 @@ export const renderDryRunReport = (report, log = logger) => {
     } else {
         emit();
     }
+};
+
+/**
+ * Record one planned sheet from the pair of decisions the shared modules made.
+ *
+ * The if/else mapping from (exclude, blur) to a report row is identical in
+ * every planner - this is that mapping, written once.
+ *
+ * @param {object} appEntry - From {@link addAppToReport}.
+ * @param {object} planned - The sheet and its decisions.
+ * @param {number} planned.n - 1-based sheet position.
+ * @param {string} planned.title - Sheet title.
+ * @param {boolean} planned.excludeSheet - Whether an exclude rule matched.
+ * @param {string|null} planned.excludeReason - The responsible exclude rule.
+ * @param {boolean} planned.blurSheet - Whether a blur rule matched.
+ * @param {string|null} planned.blurReason - The responsible blur rule.
+ *
+ * @returns {void}
+ */
+export const recordPlannedSheet = (
+    appEntry,
+    { n, title, excludeSheet, excludeReason, blurSheet, blurReason }
+) => {
+    if (excludeSheet === true) {
+        recordSheetDecision(appEntry, { n, title, action: 'skip', reason: excludeReason });
+    } else {
+        recordSheetDecision(appEntry, {
+            n,
+            title,
+            action: blurSheet ? 'blur' : 'update',
+            reason: blurReason,
+        });
+    }
+};
+
+/**
+ * The report-carrying app loop every dry-run-capable worker shares: build the
+ * report, record the selection, run the loop against the planner or the
+ * processor, and render the report when planning.
+ *
+ * One function rather than a block pasted into each worker - the three copies
+ * had already been flagged by review and by the duplication gate, and a
+ * report field added in one worker but not the others is exactly the drift
+ * the report exists to prevent.
+ *
+ * @param {object} run - The run.
+ * @param {string} run.command - The command, e.g. `qseow create-sheet-thumbnails`.
+ * @param {boolean} run.dryRun - Whether this is a dry run.
+ * @param {string[]} run.appIds - All selected app ids, in selection order.
+ * @param {string[]} run.namedAppIds - The `--appid` subset.
+ * @param {string[]} run.selectorAppIds - The tag/collection subset.
+ * @param {{option: string, value: string}|null} run.selector - The selector used, if any.
+ * @param {{plan: string, process: string}} run.logPrefix - Per-mode log prefixes.
+ * @param {string} run.emptySelectionHint - Guidance when nothing was selected.
+ * @param {(appId: string, report: object) => Promise<void>} run.planApp - The per-app planner.
+ * @param {(appId: string) => Promise<unknown>} run.processApp - The per-app processor.
+ *
+ * @returns {Promise<boolean>} The verdict from the app loop.
+ */
+export const runOverAppsWithReport = async ({
+    command,
+    dryRun,
+    appIds,
+    namedAppIds,
+    selectorAppIds,
+    selector,
+    logPrefix,
+    emptySelectionHint,
+    planApp,
+    processApp,
+}) => {
+    const report = createRunReport({ command, dryRun });
+    recordSelection(report, { namedAppIds, selectorAppIds, selector });
+
+    const result = await runOverApps(
+        appIds,
+        {
+            logPrefix: dryRun ? logPrefix.plan : logPrefix.process,
+            action: dryRun ? 'plan' : 'process',
+            emptySelectionHint,
+        },
+        dryRun ? (appId) => planApp(appId, report) : processApp
+    );
+
+    // Rendered even when some apps failed to plan: the decisions that were
+    // reached belong next to the per-app error lines already logged, and the
+    // renderer itself marks incomplete and unplanned apps.
+    if (dryRun) {
+        renderDryRunReport(report);
+    }
+
+    return result;
 };

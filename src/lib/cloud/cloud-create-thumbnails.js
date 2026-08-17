@@ -4,15 +4,9 @@ import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { processCloudApp } from './process-cloud-app.js';
 import { cloudPlanApp } from './cloud-plan-app.js';
-import { runOverApps } from '../util/run-over-apps.js';
 import { listAppsByCollection } from './cloud-apps.js';
 import { toAppIdList } from '../util/app-ids.js';
-import {
-    createRunReport,
-    recordSelection,
-    renderDryRunReport,
-    announceDryRun,
-} from '../util/run-report.js';
+import { runOverAppsWithReport, announceDryRun } from '../util/run-report.js';
 import { CLOUD_SHEET_PARTS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
 
@@ -132,38 +126,20 @@ export const qscloudCreateThumbnails = async (options) => {
             appIdsToProcess.push(...collectionAppIds);
         }
 
-        // The report is built for both modes; only a dry run renders it today.
-        // Selection provenance is recorded up front because "the collection
-        // matched 40 apps, not 4" is a silent surprise the report exists to
-        // catch (#993). Mirrors the QSEoW twin in qseow-create-thumbnails.js.
-        const report = createRunReport({ command: 'qscloud create-sheet-thumbnails', dryRun });
-        recordSelection(report, {
+        return await runOverAppsWithReport({
+            command: 'qscloud create-sheet-thumbnails',
+            dryRun,
+            appIds: appIdsToProcess,
             namedAppIds,
             selectorAppIds: collectionAppIds,
             selector: useCollection
                 ? { option: 'collectionid', value: options.collectionid }
                 : null,
+            logPrefix: { plan: 'CLOUD PLAN APP', process: 'CLOUD PROCESS APP' },
+            emptySelectionHint: 'Check the --appid and --collectionid options.',
+            planApp: (appId, report) => cloudPlanApp(appId, saasInstance, options, report),
+            processApp: (appId) => processCloudApp(appId, saasInstance, options),
         });
-
-        const result = await runOverApps(
-            appIdsToProcess,
-            {
-                logPrefix: dryRun ? 'CLOUD PLAN APP' : 'CLOUD PROCESS APP',
-                action: dryRun ? 'plan' : 'process',
-                emptySelectionHint: 'Check the --appid and --collectionid options.',
-            },
-            dryRun
-                ? (appId) => cloudPlanApp(appId, saasInstance, options, report)
-                : (appId) => processCloudApp(appId, saasInstance, options)
-        );
-
-        // Rendered even when some apps failed to plan: the decisions that were
-        // reached belong next to the per-app error lines already logged.
-        if (dryRun) {
-            renderDryRunReport(report);
-        }
-
-        return result;
     } catch (err) {
         logError('CLOUD CREATE THUMBNAILS 2', err);
 

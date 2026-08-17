@@ -3,7 +3,6 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
 import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
-import { runOverApps } from '../util/run-over-apps.js';
 import { CloudError } from '../util/errors.js';
 import {
     runOverSheets,
@@ -18,9 +17,7 @@ import { listAppsByCollection } from './cloud-apps.js';
 import { toAppIdList } from '../util/app-ids.js';
 import { CLEAR_REASON } from '../util/sheet-decision-reasons.js';
 import {
-    createRunReport,
-    recordSelection,
-    renderDryRunReport,
+    runOverAppsWithReport,
     announceDryRun,
     addAppToReport,
     recordSheetDecision,
@@ -349,32 +346,21 @@ export const qscloudRemoveSheetIcons = async (options) => {
             appIdsToProcess.push(...collectionAppIds);
         }
 
-        const report = createRunReport({ command: 'qscloud remove-sheet-icons', dryRun });
-        recordSelection(report, {
+        return await runOverAppsWithReport({
+            command: 'qscloud remove-sheet-icons',
+            dryRun,
+            appIds: appIdsToProcess,
             namedAppIds,
             selectorAppIds: collectionAppIds,
             selector: useCollection
                 ? { option: 'collectionid', value: options.collectionid }
                 : null,
+            logPrefix: { plan: 'CLOUD PLAN REMOVE ICONS', process: 'CLOUD REMOVE SHEET ICONS' },
+            emptySelectionHint: 'Check the --appid and --collectionid options.',
+            planApp: (appId, report) =>
+                planRemoveSheetIconsCloudApp(appId, saasInstance, options, report),
+            processApp: (appId) => removeSheetIconsCloudApp(appId, saasInstance, options),
         });
-
-        const result = await runOverApps(
-            appIdsToProcess,
-            {
-                logPrefix: dryRun ? 'CLOUD PLAN REMOVE ICONS' : 'CLOUD REMOVE SHEET ICONS',
-                action: dryRun ? 'plan' : 'process',
-                emptySelectionHint: 'Check the --appid and --collectionid options.',
-            },
-            dryRun
-                ? (appId) => planRemoveSheetIconsCloudApp(appId, saasInstance, options, report)
-                : (appId) => removeSheetIconsCloudApp(appId, saasInstance, options)
-        );
-
-        if (dryRun) {
-            renderDryRunReport(report);
-        }
-
-        return result;
     } catch (err) {
         logError('CLOUD REMOVE THUMBNAILS 3', err);
 
