@@ -63,6 +63,10 @@ beforeEach(() => {
     // mockReturnValue('warn') set in one describe would silently leak into
     // every later test without this reset.
     getLoggingLevel.mockReturnValue('info');
+    // A BSI_OUTPUT inherited from the developer's shell would change which
+    // rung the loop selects and route the blocks away from the logger these
+    // assertions read. The board rung has its own flow test.
+    delete process.env.BSI_OUTPUT;
 });
 
 describe('runOverAppsWithReport - the plan renders before the first write', () => {

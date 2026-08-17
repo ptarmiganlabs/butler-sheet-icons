@@ -5,7 +5,16 @@ import {
     renderRunPlanLines,
     renderRunVerdictLines,
     isRemovalReport,
+    logRunHeader,
 } from './run-report-render.js';
+import { selectRung, RUNG } from './select-rung.js';
+import {
+    boardContext,
+    renderBoardHeader,
+    renderBoardPlan,
+    renderBoardAppRow,
+    renderBoardVerdict,
+} from './run-board.js';
 import { toOptionValueList } from './option-values.js';
 import { measureImageFiles } from './image-dir.js';
 
@@ -58,6 +67,106 @@ const withReportVisible = (emit) => {
             setLoggingLevel(level);
         }
     }
+};
+
+/**
+ * Warned once per process, not once per emitting call site: the header and
+ * the report loop both consult the rung, and an unrecognised `BSI_OUTPUT`
+ * is the same typo both times.
+ */
+let warnedAboutOutputOverride = false;
+
+/**
+ * The output rung for this process, from the real stream and environment.
+ *
+ * A thin composition seam over the pure {@link selectRung}: this is the only
+ * place the real `process.stdout`, `process.env` and console log level are
+ * read, so every renderer stays injectable. Called at run start - the stream
+ * cannot become a terminal later - and deterministic for the life of the
+ * run, so the header emitter and the report loop cannot disagree.
+ *
+ * @param {boolean|string} [headless] - The run's raw `--headless` value, when
+ *     the command drives a browser.
+ *
+ * @returns {string} A value from {@link RUNG}.
+ */
+const decideRung = (headless) =>
+    selectRung({
+        stdout: process.stdout,
+        env: process.env,
+        options: { logLevel: getLoggingLevel(), headless },
+        warn: (message) => {
+            if (!warnedAboutOutputOverride) {
+                warnedAboutOutputOverride = true;
+                logger.warn(message);
+            }
+        },
+    });
+
+/**
+ * Emit a block through the logger with the console transport silenced.
+ *
+ * This is how the board avoids printing the same facts twice: the plain
+ * run-card block still goes through winston - so a file transport, if one is
+ * ever configured, gets the log the schedulers rely on - while the terminal
+ * gets the board block instead of both.
+ *
+ * @param {Function} emit - Function that writes the block through the logger.
+ *
+ * @returns {void}
+ */
+const withConsoleSilenced = (emit) => {
+    // Optional chaining: injected test loggers have no transports array, and
+    // a missing console transport must mean "nothing to silence", not a crash.
+    const consoleTransport = logger.transports?.find((transport) => transport.name === 'console');
+
+    if (!consoleTransport) {
+        emit();
+
+        return;
+    }
+
+    const previous = consoleTransport.silent;
+    consoleTransport.silent = true;
+    try {
+        emit();
+    } finally {
+        consoleTransport.silent = previous;
+    }
+};
+
+/**
+ * Emit the run header on the rung the terminal gets.
+ *
+ * On the board rung the terminal shows the wordmark frame (issue #1074) and
+ * the plain three-line header goes through the logger with the console
+ * silenced - one branding block, not two. Everywhere else this is exactly
+ * `logRunHeader`. `BSI_OUTPUT=off` keeps the plain header: it predates the
+ * ladder, and the version line it carries is the first thing support asks
+ * for.
+ *
+ * Rung C (issue #1075) does not exist yet, so a `live` verdict renders the
+ * board - today's top of the ladder.
+ *
+ * @param {object} run - The run.
+ * @param {string} run.version - The Butler Sheet Icons version.
+ * @param {string} run.jobLabel - Short job description, e.g. `QSEoW sheet thumbnails`.
+ * @param {object} [run.options] - The command's options bag; `headless` is
+ *     the only key read.
+ *
+ * @returns {void}
+ */
+export const emitRunHeader = ({ version, jobLabel, options = {} }) => {
+    const rung = decideRung(options.headless);
+
+    if (rung === RUNG.BOARD || rung === RUNG.LIVE) {
+        withConsoleSilenced(() => logRunHeader(logger, version, jobLabel));
+        process.stdout.write(renderBoardHeader({ version, jobLabel }, boardContext()));
+
+        return;
+    }
+
+    logRunHeader(logger, version, jobLabel);
 };
 
 /**
@@ -584,16 +693,36 @@ export const runOverAppsWithReport = async ({
     recordSelection(report, { namedAppIds, selectorAppIds, selector });
     report.plan = plan;
 
+    // Decided once, at the start of the run (issue #1076): the stream cannot
+    // become a terminal later. `live` renders as the board until rung C
+    // (issue #1075) exists.
+    const rung = decideRung(plan?.browser?.headless);
+    const board = rung === RUNG.BOARD || rung === RUNG.LIVE;
+    const ctx = board ? boardContext() : null;
+
     const emitPlan = () => {
         for (const line of renderRunPlanLines(report)) {
             logger.info(line);
         }
     };
-    if (dryRun) {
+    if (rung === RUNG.OFF) {
+        // BSI_OUTPUT=off suppresses the plan and verdict blocks only. The
+        // per-app and per-sheet lines still print - someone setting `off`
+        // wants the framed blocks gone, not a six-minute run with no output.
+    } else if (board) {
+        // The plain block still goes through the logger - a file transport,
+        // if one is ever configured, keeps the log schedulers rely on - with
+        // the console silenced so the terminal sees the board, not both.
+        withConsoleSilenced(emitPlan);
+        process.stdout.write(renderBoardPlan(report, ctx));
+    } else if (dryRun) {
         withReportVisible(emitPlan);
     } else {
         emitPlan();
     }
+
+    const totalApps = new Set(appIds).size;
+    const removal = isRemovalReport(report);
 
     const result = await runOverApps(
         appIds,
@@ -615,6 +744,7 @@ export const runOverAppsWithReport = async ({
                   }
               }
             : async (appId) => {
+                  const appStartedAt = Date.now();
                   try {
                       const result = await processApp(appId, report);
 
@@ -632,6 +762,25 @@ export const runOverAppsWithReport = async ({
                       // error lines above it.
                       markAppFailed(report, appId);
                       throw err;
+                  } finally {
+                      // Both paths above guarantee the entry exists by now.
+                      // Stamped by the loop, not the processors: one clock
+                      // for both platform twins.
+                      const entry = report.apps.find((app) => app.id === appId);
+                      if (entry) {
+                          entry.durationMs = Date.now() - appStartedAt;
+                          if (board) {
+                              // Appended as each app finishes - still no
+                              // cursor addressing, nothing repainted.
+                              process.stdout.write(
+                                  renderBoardAppRow(
+                                      entry,
+                                      { n: report.apps.length, total: totalApps, removal },
+                                      ctx
+                                  )
+                              );
+                          }
+                      }
                   }
               }
     );
@@ -642,12 +791,24 @@ export const runOverAppsWithReport = async ({
     // Rendered even when some apps failed to plan: the decisions that were
     // reached belong next to the per-app error lines already logged, and the
     // renderer itself marks incomplete and unplanned apps.
-    if (dryRun) {
-        renderDryRunReport(report);
-    } else {
+    const emitVerdict = () => {
         for (const line of renderRunVerdictLines(report)) {
             logger.info(line);
         }
+    };
+    if (dryRun) {
+        // The report is the entire product of a dry run, so no rung - `off`
+        // included - suppresses it. On the board rung the plan block above
+        // already rendered as a board; the per-sheet decisions stay in the
+        // log, where their reasons are.
+        renderDryRunReport(report);
+    } else if (rung === RUNG.OFF) {
+        // Suppressed together with the plan block.
+    } else if (board) {
+        withConsoleSilenced(emitVerdict);
+        process.stdout.write(renderBoardVerdict(report, ctx));
+    } else {
+        emitVerdict();
     }
 
     return result;

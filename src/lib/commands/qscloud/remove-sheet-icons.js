@@ -1,7 +1,7 @@
 import { Command, Option } from 'commander';
 import { addDryRunOption } from '../dry-run-option.js';
-import { logger, appVersion, setLoggingLevel } from '../../../globals.js';
-import { logRunHeader } from '../../util/run-report-render.js';
+import { appVersion, setLoggingLevel } from '../../../globals.js';
+import { emitRunHeader } from '../../util/run-report.js';
 import { qscloudRemoveSheetIcons } from '../../cloud/cloud-remove-sheet-icons.js';
 import { runCommand } from '../run-command.js';
 import { collectAppIds } from '../helpers.js';
@@ -19,7 +19,13 @@ const handleCloudRemoveSheetIcons = async (options = {}, cmd) => {
     if (options.loglevel) {
         setLoggingLevel(options.loglevel);
     }
-    logRunHeader(logger, appVersion, 'Qlik Sense Cloud sheet icon removal');
+    // Rung-aware (issue #1076): on the board rung the terminal gets the
+    // wordmark frame and the plain header goes to the log underneath.
+    emitRunHeader({
+        version: appVersion,
+        jobLabel: 'Qlik Sense Cloud sheet icon removal',
+        options,
+    });
 
     return runCommand('CLOUD MAIN 5', () => qscloudRemoveSheetIcons(options, cmd));
 };

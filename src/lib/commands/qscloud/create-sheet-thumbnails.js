@@ -1,6 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion, setLoggingLevel } from '../../../globals.js';
-import { logRunHeader } from '../../util/run-report-render.js';
+import { emitRunHeader } from '../../util/run-report.js';
 import { qscloudCreateThumbnails } from '../../cloud/cloud-create-thumbnails.js';
 import { CLOUD_SHEET_PARTS } from '../../cloud/sheet-parts.js';
 import {
@@ -36,7 +36,9 @@ const handleCloudCreateSheetThumbnails = async (options = {}, cmd) => {
     if (options.loglevel) {
         setLoggingLevel(options.loglevel);
     }
-    logRunHeader(logger, appVersion, 'Qlik Sense Cloud sheet thumbnails');
+    // Rung-aware (issue #1076): on the board rung the terminal gets the
+    // wordmark frame and the plain header goes to the log underneath.
+    emitRunHeader({ version: appVersion, jobLabel: 'Qlik Sense Cloud sheet thumbnails', options });
 
     // Joined explicitly: --appid is variadic, and letting a template literal coerce the
     // array reads as one strange id rather than as several.

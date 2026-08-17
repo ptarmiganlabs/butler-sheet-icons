@@ -107,11 +107,14 @@ export const isRemovalReport = (report) => (report.command ?? '').includes('remo
  * The provenance parts of the app-selection line, shared wording with the
  * pre-#1073 dry-run report: named count, selector count, overlap.
  *
+ * Exported for the contact-sheet renderer (issue #1074), which states the
+ * same provenance on its `apps` row - one wording, two layouts.
+ *
  * @param {object} selection - `report.selection` from `recordSelection`.
  *
  * @returns {string[]} The parts, ready to join with `, `.
  */
-const selectionParts = (selection) => {
+export const selectionParts = (selection) => {
     const parts = [`${selection.named} named by --appid`];
 
     if (selection.selector) {
@@ -158,13 +161,15 @@ const describeRule = ({ option, values, matchedSheetCount = null }) => {
  *
  * `none` is printed rather than the line being omitted, because the absence
  * of a rule is exactly what an operator checking "did my exclude flag
- * register?" needs stated.
+ * register?" needs stated. Exported for the contact-sheet renderer, which
+ * shows the same rules with the same match counts.
  *
  * @param {Array<object>} rules - Rules of one kind (exclude or blur).
  *
  * @returns {string} The joined rule descriptions.
  */
-const describeRules = (rules) => (rules.length === 0 ? 'none' : rules.map(describeRule).join(', '));
+export const describeRules = (rules) =>
+    rules.length === 0 ? 'none' : rules.map(describeRule).join(', ');
 
 /**
  * The target lines: which server or tenant the run talks to.
@@ -428,6 +433,45 @@ const sumAppField = (report, field) => {
 };
 
 /**
+ * Totals over the per-sheet rows the processors recorded while each sheet
+ * happened, in the vocabulary the verdict speaks.
+ *
+ * Extracted so the plain verdict and the contact-sheet verdict (issue #1074)
+ * count from one place - two counting loops would be two chances for the
+ * boards to disagree about the same run.
+ *
+ * @param {object} report - The report.
+ *
+ * @returns {{seen: number, captured: number, blurred: number, excluded: number,
+ *     cleared: number, noIcon: number}} The counts.
+ */
+export const verdictCounts = (report) => {
+    const counts = { seen: 0, captured: 0, blurred: 0, excluded: 0, cleared: 0, noIcon: 0 };
+
+    for (const app of report.apps) {
+        for (const sheet of app.sheets) {
+            counts.seen += 1;
+            if (sheet.action === 'skip') {
+                counts.excluded += 1;
+            } else if (sheet.action === 'blur') {
+                counts.captured += 1;
+                counts.blurred += 1;
+            } else if (sheet.action === 'update') {
+                counts.captured += 1;
+            } else if (sheet.action === 'clear') {
+                if (sheet.reason === CLEAR_REASON.NO_ICON) {
+                    counts.noIcon += 1;
+                } else {
+                    counts.cleared += 1;
+                }
+            }
+        }
+    }
+
+    return counts;
+};
+
+/**
  * The verdict block: what actually changed, and whether the run worked.
  *
  * This is the part that does not exist at all today - a run in which 66
@@ -455,33 +499,7 @@ export const renderRunVerdictLines = (report) => {
 
     lines.push(row('apps', `${okApps} ok, ${failedApps} failed`));
 
-    // Per-sheet rows recorded by the processors while each sheet happened.
-    let seen = 0;
-    let captured = 0;
-    let blurred = 0;
-    let excluded = 0;
-    let cleared = 0;
-    let noIcon = 0;
-
-    for (const app of report.apps) {
-        for (const sheet of app.sheets) {
-            seen += 1;
-            if (sheet.action === 'skip') {
-                excluded += 1;
-            } else if (sheet.action === 'blur') {
-                captured += 1;
-                blurred += 1;
-            } else if (sheet.action === 'update') {
-                captured += 1;
-            } else if (sheet.action === 'clear') {
-                if (sheet.reason === CLEAR_REASON.NO_ICON) {
-                    noIcon += 1;
-                } else {
-                    cleared += 1;
-                }
-            }
-        }
-    }
+    const { seen, captured, blurred, excluded, cleared, noIcon } = verdictCounts(report);
 
     // Decided from report.command via isRemovalReport, never from the
     // optional plan sections: a removal run whose caller supplied no plan
