@@ -1,4 +1,5 @@
 import { logger } from '../../globals.js';
+import { DRY_RUN_OPTION_ATTRIBUTE } from '../commands/dry-run-option.js';
 import { leafCommandAt } from './command-tree.js';
 import { specsFromCommand } from './option-introspect.js';
 import { askQuestions } from './ask-questions.js';
@@ -366,6 +367,18 @@ export const runInteractive = async ({
         }
 
         const options = answersToOptions(specs, answers);
+
+        // --dry-run is deliberately not a wizard question (#993), so it has no
+        // spec - and answersToOptions builds the bag from specs, which is how
+        // the flag used to evaporate here: typing the safety flag alongside -i
+        // produced a real, writing run. Carry it through explicitly, and say so
+        // out loud, because the review screen cannot show it either.
+        if (answers[DRY_RUN_OPTION_ATTRIBUTE] === true) {
+            options[DRY_RUN_OPTION_ATTRIBUTE] = true;
+            runtime.write(
+                '\nDRY RUN: --dry-run is in effect - the run below plans only, nothing will be changed.\n'
+            );
+        }
 
         runtime.write('\n');
 

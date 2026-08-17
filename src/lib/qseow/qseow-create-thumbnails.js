@@ -3,11 +3,12 @@ import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyContentLibraryExists } from './qseow-contentlibrary.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { qseowProcessApp } from './qseow-process-app.js';
-import { runOverApps } from '../util/run-over-apps.js';
+import { qseowPlanApp } from './qseow-plan-app.js';
 import { listAppsByTag } from './qseow-app-lookup.js';
 import { toAppIdList } from '../util/app-ids.js';
 import { QSEOW_SHEET_PARTS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
+import { runOverAppsWithReport, announceDryRun } from '../util/run-report.js';
 
 /**
  * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW).
@@ -32,6 +33,13 @@ import { logError } from '../util/log-error.js';
 export const qseowCreateThumbnails = async (options) => {
     try {
         setLoggingLevel(options.loglevel);
+
+        const dryRun = Boolean(options.dryRun);
+        if (dryRun) {
+            // Before anything connects: without this the log opens exactly like
+            // a real run and the first dry-run marker arrives after the last app.
+            announceDryRun('qseow create-sheet-thumbnails');
+        }
 
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');
         logger.verbose(`Running as standalone app: ${isSea}`);
@@ -75,26 +83,34 @@ export const qseowCreateThumbnails = async (options) => {
         }
 
         // Apps named directly. --appid is variadic, so this is a list.
-        appIdsToProcess.push(...toAppIdList(options.appid));
+        const namedAppIds = toAppIdList(options.appid);
+        appIdsToProcess.push(...namedAppIds);
 
         // --appid and --qliksensetag are additive, not alternatives: apps named either
         // way are all processed. runOverApps() dedupes, so an app that is both named by
         // --appid and carries the tag is still processed once.
-        if (options.qliksensetag && options.qliksensetag.length > 0) {
+        let taggedAppIds = [];
+        const useTag = Boolean(options.qliksensetag && options.qliksensetag.length > 0);
+        if (useTag) {
             // Get all apps matching the tag in --qliksensetag. listAppsByTag returns
             // { id, name } so a picker can label them; only the ids matter here.
             const taggedApps = await listAppsByTag(options);
-            appIdsToProcess.push(...taggedApps.map((app) => app.id));
+            taggedAppIds = taggedApps.map((app) => app.id);
+            appIdsToProcess.push(...taggedAppIds);
         }
 
-        return await runOverApps(
-            appIdsToProcess,
-            {
-                logPrefix: 'QSEOW PROCESS APP',
-                emptySelectionHint: 'Check the --appid and --qliksensetag options.',
-            },
-            (appId) => qseowProcessApp(appId, options)
-        );
+        return await runOverAppsWithReport({
+            command: 'qseow create-sheet-thumbnails',
+            dryRun,
+            appIds: appIdsToProcess,
+            namedAppIds,
+            selectorAppIds: taggedAppIds,
+            selector: useTag ? { option: 'qliksensetag', value: options.qliksensetag } : null,
+            logPrefix: { plan: 'QSEOW PLAN APP', process: 'QSEOW PROCESS APP' },
+            emptySelectionHint: 'Check the --appid and --qliksensetag options.',
+            planApp: (appId, report) => qseowPlanApp(appId, options, report),
+            processApp: (appId) => qseowProcessApp(appId, options),
+        });
     } catch (err) {
         logError('QSEOW CREATE THUMBNAILS 2', err);
 

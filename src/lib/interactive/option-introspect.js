@@ -1,6 +1,7 @@
 import { BSI_SECRET_KEYS } from '../util/redact-secrets.js';
 import { fromOption, validateEntries } from './validators.js';
 import { isInteractiveOption } from './interactive-option.js';
+import { isDryRunOption } from '../commands/dry-run-option.js';
 
 const SECRET_KEYS = new Set(BSI_SECRET_KEYS.map((key) => key.toLowerCase()));
 
@@ -229,6 +230,10 @@ export const specsFromCommand = (command, { env = process.env } = {}) => {
         // into the echoed command line, so the line the wizard tells you to
         // reuse would re-enter the wizard rather than run the command.
         .filter((option) => !isInteractiveOption(option))
+        // Nor is --dry-run: whether the wizard's review screen offers a dry run
+        // is an open design question (#993 q3, deferred to #897). Until then the
+        // wizard neither asks about it nor emits it.
+        .filter((option) => !isDryRunOption(option))
         .map((option) => specFromOption(option, { env }));
     const seen = new Set();
 

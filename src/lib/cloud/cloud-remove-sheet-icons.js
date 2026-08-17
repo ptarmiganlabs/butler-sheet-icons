@@ -3,7 +3,6 @@ import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals
 import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
-import { runOverApps } from '../util/run-over-apps.js';
 import { CloudError } from '../util/errors.js';
 import {
     runOverSheets,
@@ -11,10 +10,17 @@ import {
     saveIfChanged,
     getSheetList,
     SHEET_LIST_FIELDS_EXTENDED,
+    SHEET_SKIPPED,
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
-import { listAppsByCollection } from './cloud-apps.js';
-import { toAppIdList } from '../util/app-ids.js';
+import { resolveCloudAppSelection } from './cloud-app-selection.js';
+import { CLEAR_REASON } from '../util/sheet-decision-reasons.js';
+import {
+    runOverAppsWithReport,
+    announceDryRun,
+    addAppToReport,
+    recordSheetDecision,
+} from '../util/run-report.js';
 import { logError } from '../util/log-error.js';
 
 /**
@@ -81,6 +87,18 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
                             // Get properties of current sheet
                             const sheetObj = await app.getObject(sheet.qInfo.qId);
                             const sheetProperties = await sheetObj.getProperties();
+
+                            // A sheet without the thumbnail structure has no icon
+                            // to clear - failing the whole app over it turned a
+                            // no-op into an error, and made the dry run predict
+                            // success for exactly the input that broke the run.
+                            if (!sheetProperties?.thumbnail?.qStaticContentUrlDef) {
+                                logger.verbose(
+                                    `Sheet ${iSheetNum} has no thumbnail structure - nothing to clear`
+                                );
+
+                                return SHEET_SKIPPED;
+                            }
 
                             // Clear sheet icon
                             sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = '';
@@ -152,6 +170,107 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
 };
 
 /**
+ * Plans icon removal for one Cloud app without changing anything: the dry-run
+ * twin of `removeSheetIconsCloudApp`.
+ *
+ * Reads the same sheet list in the same order, plus each sheet's current
+ * thumbnail property so the report can say which sheets actually carry an icon
+ * - a read the real run skips because it clears unconditionally. Also counts
+ * the thumbnail media files the real run would delete afterwards. Writes
+ * nothing: no `setProperties`, no save, no media `Delete`.
+ *
+ * @param {string} appId - The Cloud app to plan.
+ * @param {import('./cloud-test-connection.js').QlikSaasInstance} saasInstance - QlikSaas object.
+ * @param {object} options - The same options bag the real run receives.
+ * @param {object} report - Run report; one app section is recorded onto it.
+ *
+ * @returns {Promise<void>} Resolves when the app's plan is recorded.
+ */
+const planRemoveSheetIconsCloudApp = async (appId, saasInstance, options, report) => {
+    // Get app name - the report is the product here, and a plan listing bare
+    // GUIDs cannot be recognised by the operator it exists for. This is one
+    // read the real remover does not make; that is the right trade.
+    const appMetadata = await saasInstance.Get(`apps/${appId}`);
+
+    const configEnigma = setupEnigmaConnection(appId, options);
+
+    await withEngineSession(
+        configEnigma,
+        {
+            logPrefix: 'CLOUD PLAN REMOVE ICONS',
+            sessionLogLevel: 'info',
+            loglevel: options.loglevel,
+            connectionLabel: `Qlik Sense Cloud tenant ${options.tenanturl}`,
+        },
+        async (global) => {
+            const app = await global.openDoc(appId, '', '', '', false);
+            logger.info(`Opened app ${appId}`);
+
+            const sheets = await getSheetList(app, SHEET_LIST_FIELDS_EXTENDED);
+            logger.info(`Number of sheets in app: ${sheets.length}`);
+
+            const appEntry = addAppToReport(report, {
+                id: appId,
+                name: appMetadata?.attributes?.name,
+                sheetCount: sheets.length,
+            });
+
+            sortSheetsByRank(sheets);
+
+            // Through runOverSheets, like the real run: one unreadable sheet
+            // fails alone rather than aborting the remaining rows.
+            const sheetRun = await runOverSheets(
+                sheets,
+                {
+                    logPrefix: 'CLOUD PLAN REMOVE ICONS',
+                    appId,
+                    action: 'plan icon removal for',
+                    ErrorClass: CloudError,
+                },
+                async (sheet, iSheetNum) => {
+                    // The real run clears every sheet unconditionally, so the
+                    // action is always `clear`; the reason column reports the
+                    // sheets where that clear is already a no-op. The sheet
+                    // list projection already carries /thumbnail, so prefer it
+                    // and only fall back to a per-sheet engine read when the
+                    // engine omitted the field from the projection.
+                    let iconUrl = sheet?.qData?.thumbnail?.qStaticContentUrlDef?.qUrl;
+                    if (sheet?.qData?.thumbnail === undefined) {
+                        const sheetObj = await app.getObject(sheet.qInfo.qId);
+                        const sheetProperties = await sheetObj.getProperties();
+                        iconUrl = sheetProperties?.thumbnail?.qStaticContentUrlDef?.qUrl;
+                    }
+
+                    recordSheetDecision(appEntry, {
+                        n: iSheetNum,
+                        title: sheet?.qMeta?.title,
+                        action: 'clear',
+                        reason: iconUrl ? null : CLEAR_REASON.NO_ICON,
+                    });
+                }
+            );
+
+            sheetRun.assertAllProcessed();
+
+            // The read half of the media cleanup, recorded on the report so the
+            // deletion count renders inside the app's section rather than as a
+            // log line scrolled far above it.
+            const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
+            if (mediaList.find((item) => item.type === 'directory' && item.name === 'thumbnails')) {
+                const existingThumbnails = await saasInstance.Get(
+                    `apps/${appId}/media/list/thumbnails`
+                );
+                appEntry.mediaFilesToDelete = existingThumbnails.filter(
+                    (item) => item.type === 'image'
+                ).length;
+            }
+        }
+    );
+
+    logger.verbose(`Planned icon removal for Qlik Sense Cloud app ${appId} - no changes made`);
+};
+
+/**
  * Removes all sheet icons from one or more Qlik Sense Cloud applications.
  *
  * @param {object} options - Configuration options for the command.
@@ -168,12 +287,17 @@ export const qscloudRemoveSheetIcons = async (options) => {
     try {
         setLoggingLevel(options.loglevel);
 
+        const dryRun = Boolean(options.dryRun);
+        if (dryRun) {
+            // Before anything connects - this command's real mode is the most
+            // destructive in the CLI, so the log must not open like it.
+            announceDryRun('qscloud remove-sheet-icons');
+        }
+
         logger.info('Starting removal of sheet icons for Qlik Sense Cloud');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
-
-        const appIdsToProcess = [];
 
         // Get array of all available collections
         const cloudConfig = {
@@ -203,26 +327,20 @@ export const qscloudRemoveSheetIcons = async (options) => {
             return false;
         }
 
-        // Apps named directly. --appid is variadic, so this is a list.
-        appIdsToProcess.push(...toAppIdList(options.appid));
+        // Selection resolution is shared with the other Cloud command; the
+        // provenance it returns feeds the run report directly.
+        const selection = await resolveCloudAppSelection(saasInstance, options);
 
-        // --appid and --collectionid are additive, not alternatives: apps named either
-        // way are all processed. runOverApps() dedupes, so an app that is both named by
-        // --appid and in the collection is still processed once.
-        if (options.collectionid && options.collectionid.length > 0) {
-            const apps = await listAppsByCollection(saasInstance, options.collectionid);
-            logger.verbose(`Collection '${options.collectionid}' exists`);
-            appIdsToProcess.push(...apps.map((app) => app.id));
-        }
-
-        return await runOverApps(
-            appIdsToProcess,
-            {
-                logPrefix: 'CLOUD REMOVE SHEET ICONS',
-                emptySelectionHint: 'Check the --appid and --collectionid options.',
-            },
-            (appId) => removeSheetIconsCloudApp(appId, saasInstance, options)
-        );
+        return await runOverAppsWithReport({
+            command: 'qscloud remove-sheet-icons',
+            dryRun,
+            ...selection,
+            logPrefix: { plan: 'CLOUD PLAN REMOVE ICONS', process: 'CLOUD REMOVE SHEET ICONS' },
+            emptySelectionHint: 'Check the --appid and --collectionid options.',
+            planApp: (appId, report) =>
+                planRemoveSheetIconsCloudApp(appId, saasInstance, options, report),
+            processApp: (appId) => removeSheetIconsCloudApp(appId, saasInstance, options),
+        });
     } catch (err) {
         logError('CLOUD REMOVE THUMBNAILS 3', err);
 

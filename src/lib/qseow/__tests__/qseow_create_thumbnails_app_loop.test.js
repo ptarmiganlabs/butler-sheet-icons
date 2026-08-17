@@ -14,6 +14,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
         warn: jest.fn(),
     },
     setLoggingLevel: jest.fn(),
+    getLoggingLevel: jest.fn(() => 'info'),
     bsiExecutablePath: '/test/path',
     isSea: false,
     sleep: jest.fn().mockResolvedValue(undefined),
@@ -37,6 +38,10 @@ jest.unstable_mockModule('../qseow-process-app.js', () => ({
     qseowProcessApp: jest.fn().mockResolvedValue(true),
 }));
 
+jest.unstable_mockModule('../qseow-plan-app.js', () => ({
+    qseowPlanApp: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.unstable_mockModule('../../util/redact-secrets.js', () => ({
     redactOptions: jest.fn((o) => o),
 }));
@@ -47,6 +52,8 @@ jest.unstable_mockModule('../../util/run-over-apps.js', () => ({ runOverApps }))
 const { logger } = await import('../../../globals.js');
 const qrsInteract = (await import('qrs-interact')).default;
 const { qseowCreateThumbnails } = await import('../qseow-create-thumbnails.js');
+const { qseowProcessApp } = await import('../qseow-process-app.js');
+const { qseowPlanApp } = await import('../qseow-plan-app.js');
 
 const OPTIONS = {
     host: 'sense.example.com',
@@ -211,5 +218,49 @@ describe('qseowCreateThumbnails app loop', () => {
         await expect(qseowCreateThumbnails({ ...OPTIONS })).resolves.toBe(false);
 
         expect(errorLog()).toContain('QSEOW CREATE THUMBNAILS 2');
+    });
+
+    describe('--dry-run routing (#993)', () => {
+        test('a dry run hands runOverApps the planner, never the processor', async () => {
+            runOverApps.mockResolvedValue(true);
+
+            await qseowCreateThumbnails({ ...OPTIONS, dryRun: true });
+
+            expect(runOverApps).toHaveBeenCalledTimes(1);
+            const processor = runOverApps.mock.calls[0][2];
+
+            await processor('app-under-test');
+
+            expect(qseowPlanApp).toHaveBeenCalledWith(
+                'app-under-test',
+                expect.objectContaining({ dryRun: true }),
+                expect.objectContaining({ dryRun: true, apps: expect.any(Array) })
+            );
+            // The write path must be unreachable in a dry run - this is the
+            // assertion that actually guards the feature.
+            expect(qseowProcessApp).not.toHaveBeenCalled();
+        });
+
+        test('a dry run renders the report after the app loop', async () => {
+            runOverApps.mockResolvedValue(true);
+
+            await qseowCreateThumbnails({ ...OPTIONS, dryRun: true });
+
+            const infoLog = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(infoLog).toContain('DRY RUN of qseow create-sheet-thumbnails');
+            expect(infoLog).toContain('Re-run without --dry-run to apply.');
+        });
+
+        test('a real run hands runOverApps the processor, never the planner', async () => {
+            runOverApps.mockResolvedValue(true);
+
+            await qseowCreateThumbnails({ ...OPTIONS });
+
+            const processor = runOverApps.mock.calls[0][2];
+            await processor('app-under-test');
+
+            expect(qseowProcessApp).toHaveBeenCalledWith('app-under-test', expect.any(Object));
+            expect(qseowPlanApp).not.toHaveBeenCalled();
+        });
     });
 });

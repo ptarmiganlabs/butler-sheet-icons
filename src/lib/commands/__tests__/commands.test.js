@@ -17,6 +17,8 @@ const loggerMock = {
 };
 
 const mockGlobalsPromise = jest.unstable_mockModule('../../../globals.js', () => ({
+    getLoggingLevel: jest.fn(() => 'info'),
+    setLoggingLevel: jest.fn(),
     logger: loggerMock,
     appVersion: 'test-version',
     sendConsoleLogToStderr: jest.fn(),

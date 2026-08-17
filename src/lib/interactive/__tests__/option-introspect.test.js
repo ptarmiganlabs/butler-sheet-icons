@@ -8,6 +8,7 @@ import {
     isTrueFalseOption,
 } from '../option-introspect.js';
 import { isInteractiveOption, INTERACTIVE_OPTION_ATTRIBUTE } from '../interactive-option.js';
+import { isDryRunOption } from '../../commands/dry-run-option.js';
 
 const ENV_SNAPSHOT = { ...process.env };
 
@@ -86,9 +87,10 @@ describe('command-tree', () => {
 });
 
 describe('every option yields exactly one question', () => {
-    // Every option except the flag that opens the wizard, which is not one of
-    // the wizard's own questions.
-    const askableOptions = (command) => command.options.filter((o) => !isInteractiveOption(o));
+    // Every option except the flag that opens the wizard and the dry-run flag,
+    // which the wizard neither asks about nor emits (#993 q3, deferred to #897).
+    const askableOptions = (command) =>
+        command.options.filter((o) => !isInteractiveOption(o) && !isDryRunOption(o));
 
     test.each(EVERY_COMMAND)('%s', (_path, command) => {
         const specs = specsFromCommand(command);

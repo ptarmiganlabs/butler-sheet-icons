@@ -1,4 +1,5 @@
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import { EXCLUDE_REASON } from '../../util/sheet-decision-reasons.js';
 
 import { determineSheetExcludeStatus } from '../determine-sheet-exclude-status.js';
 
@@ -71,7 +72,11 @@ beforeEach(() => {
 
 describe('determineSheetExcludeStatus (Cloud)', () => {
     test('processes a sheet when no exclusion options are set', async () => {
-        await expect(run()).resolves.toEqual({ excludeSheet: false, sheetIsHidden: false });
+        await expect(run()).resolves.toEqual({
+            excludeSheet: false,
+            sheetIsHidden: false,
+            excludeReason: null,
+        });
     });
 
     describe('sheets with missing metadata', () => {
@@ -81,6 +86,7 @@ describe('determineSheetExcludeStatus (Cloud)', () => {
             await expect(run({ sheet: {} })).resolves.toEqual({
                 excludeSheet: false,
                 sheetIsHidden: false,
+                excludeReason: null,
             });
         });
 
@@ -112,7 +118,11 @@ describe('determineSheetExcludeStatus (Cloud)', () => {
         test('treats a literal "false" showCondition as hidden', async () => {
             const result = await run({ sheet: createSheet({ showCondition: 'false' }) });
 
-            expect(result).toEqual({ excludeSheet: true, sheetIsHidden: true });
+            expect(result).toEqual({
+                excludeSheet: true,
+                sheetIsHidden: true,
+                excludeReason: EXCLUDE_REASON.HIDDEN,
+            });
         });
 
         test('matches the "false" literal case-insensitively', async () => {
@@ -129,14 +139,22 @@ describe('determineSheetExcludeStatus (Cloud)', () => {
             const result = await run({ sheet: createSheet({ showCondition: '=1=2' }), app });
 
             expect(app.evaluateEx).toHaveBeenCalledWith({ qExpression: '=1=2' });
-            expect(result).toEqual({ excludeSheet: true, sheetIsHidden: true });
+            expect(result).toEqual({
+                excludeSheet: true,
+                sheetIsHidden: true,
+                excludeReason: EXCLUDE_REASON.HIDDEN,
+            });
         });
 
         test('keeps a sheet whose show condition evaluates to numeric 1', async () => {
             const app = createApp({ qIsNumeric: true, qNumber: 1 });
             const result = await run({ sheet: createSheet({ showCondition: '=1=1' }), app });
 
-            expect(result).toEqual({ excludeSheet: false, sheetIsHidden: false });
+            expect(result).toEqual({
+                excludeSheet: false,
+                sheetIsHidden: false,
+                excludeReason: null,
+            });
         });
     });
 
@@ -239,6 +257,11 @@ describe('determineSheetExcludeStatus (Cloud)', () => {
             options: { excludeSheetStatus: ['private'] },
         });
 
-        expect(result).toEqual({ excludeSheet: true, sheetIsHidden: true });
+        expect(result).toEqual({
+            excludeSheet: true,
+            sheetIsHidden: true,
+            // Status ran first, so the reason names it - hidden did not overwrite it.
+            excludeReason: EXCLUDE_REASON.STATUS_PRIVATE,
+        });
     });
 });

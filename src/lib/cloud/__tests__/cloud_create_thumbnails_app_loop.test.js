@@ -13,6 +13,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
         warn: jest.fn(),
     },
     setLoggingLevel: jest.fn(),
+    getLoggingLevel: jest.fn(() => 'info'),
     bsiExecutablePath: '/test/path',
     isSea: false,
 }));
@@ -31,6 +32,10 @@ jest.unstable_mockModule('../process-cloud-app.js', () => ({
     processCloudApp: jest.fn().mockResolvedValue(true),
 }));
 
+jest.unstable_mockModule('../cloud-plan-app.js', () => ({
+    cloudPlanApp: jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.unstable_mockModule('../../util/redact-secrets.js', () => ({
     redactOptions: jest.fn((o) => o),
 }));
@@ -40,6 +45,8 @@ jest.unstable_mockModule('../../util/run-over-apps.js', () => ({ runOverApps }))
 
 const { logger } = await import('../../../globals.js');
 const { qscloudCreateThumbnails } = await import('../cloud-create-thumbnails.js');
+const { processCloudApp } = await import('../process-cloud-app.js');
+const { cloudPlanApp } = await import('../cloud-plan-app.js');
 
 const OPTIONS = {
     tenanturl: 'tenant.eu.qlikcloud.com',
@@ -239,6 +246,52 @@ describe('qscloudCreateThumbnails app loop', () => {
             ).resolves.toBe(true);
 
             expect(runOverApps.mock.calls[0][0]).toEqual(['test-app-id']);
+        });
+    });
+
+    describe('--dry-run routing (#993) - Cloud twin of the QSEoW block', () => {
+        test('a dry run hands runOverApps the planner, never the processor', async () => {
+            runOverApps.mockResolvedValue(true);
+
+            await qscloudCreateThumbnails({ ...OPTIONS, dryRun: true });
+
+            const processor = runOverApps.mock.calls[0][2];
+            await processor('app-under-test');
+
+            expect(cloudPlanApp).toHaveBeenCalledWith(
+                'app-under-test',
+                expect.any(Object),
+                expect.objectContaining({ dryRun: true }),
+                expect.objectContaining({ dryRun: true, apps: expect.any(Array) })
+            );
+            // The write path must be unreachable in a dry run.
+            expect(processCloudApp).not.toHaveBeenCalled();
+        });
+
+        test('a dry run renders the report after the app loop', async () => {
+            runOverApps.mockResolvedValue(true);
+
+            await qscloudCreateThumbnails({ ...OPTIONS, dryRun: true });
+
+            const infoLog = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(infoLog).toContain('DRY RUN of qscloud create-sheet-thumbnails');
+            expect(infoLog).toContain('Re-run without --dry-run to apply.');
+        });
+
+        test('a real run hands runOverApps the processor, never the planner', async () => {
+            runOverApps.mockResolvedValue(true);
+
+            await qscloudCreateThumbnails({ ...OPTIONS });
+
+            const processor = runOverApps.mock.calls[0][2];
+            await processor('app-under-test');
+
+            expect(processCloudApp).toHaveBeenCalledWith(
+                'app-under-test',
+                expect.any(Object),
+                expect.any(Object)
+            );
+            expect(cloudPlanApp).not.toHaveBeenCalled();
         });
     });
 });
