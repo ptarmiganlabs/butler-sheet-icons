@@ -35,6 +35,39 @@ import { buildJsonReport, emitJsonReport } from './render-json.js';
 export const NO_CHECKS_ID = 'BSI-DOCTOR-003';
 
 /**
+ * Reported when an area's fact gatherer threw.
+ *
+ * The counterpart to BSI-DOCTOR-001, one layer earlier. The runner isolates every check so a
+ * throwing check becomes a finding naming it; gathering used to have no such net, and it is where
+ * the risk actually lives - it reads the filesystem and starts a browser. An unguarded throw
+ * rejected out of the run before the heading printed, destroying the whole report - including the
+ * Environment section that would have explained the failure. Like BSI-DOCTOR-001 this says
+ * something about Butler Sheet Icons, not about the machine.
+ */
+export const GATHER_ERROR_ID = 'BSI-DOCTOR-004';
+
+/**
+ * The finding an area's gathering failure becomes.
+ *
+ * @param {{area: string, error: string}} failure - What failed, and how.
+ *
+ * @returns {import('./findings.js').Finding} An error finding naming the area.
+ */
+const gatherFailedFinding = (failure) =>
+    finding({
+        id: GATHER_ERROR_ID,
+        severity: SEVERITY.ERROR,
+        title: 'the facts for an area could not be gathered',
+        detail: `Collecting the facts for the "${failure.area}" area stopped with an error: ${failure.error}. The checks for that area did not run. Everything else in this report still ran.`,
+        evidence: { area: failure.area, error: failure.error },
+        remediation: [
+            {
+                text: 'Re-run with --loglevel debug and include the output in a Butler Sheet Icons issue. This is a fault in the diagnostic itself, not in the machine it was run on.',
+            },
+        ],
+    });
+
+/**
  * The areas to run, given what was asked for.
  *
  * Absent or empty means every area. `--area` deliberately carries no Commander `.default()`:
@@ -214,9 +247,30 @@ export const runDoctorCheck = async ({
     outputFormat = 'text',
     allowNetwork = false,
 }) => {
-    const selected = checksForAreas(areas);
     const ctx = await buildCheckContext(options, areas, { command });
+
+    // A check whose area failed to gather must not run: its facts are simply absent, so its
+    // `appliesTo` would throw on the first dereference and the runner would dutifully convert
+    // every one into a BSI-DOCTOR-001 - five findings naming five checks, none naming the
+    // gatherer that actually broke. One failure, one finding.
+    const failedAreas = new Set((ctx.gatherFailures ?? []).map((failure) => failure.area));
+    const selected = checksForAreas(areas).filter((check) => !failedAreas.has(check.area));
     const results = await runChecks(selected, ctx, { allowNetwork });
+
+    // Pushed before coverage is computed, so a failed area is accounted for by its own error
+    // finding rather than reported a second time as "not examined". Same pseudo-result route as
+    // the coverage finding: one path to the renderer, the exit code and the JSON document.
+    for (const failure of ctx.gatherFailures ?? []) {
+        results.push({
+            check: {
+                id: 'facts-gathered',
+                title: 'The facts for every requested area could be gathered',
+                section: 'Coverage',
+                area: failure.area,
+            },
+            findings: [gatherFailedFinding(failure)],
+        });
+    }
 
     const unexamined = unexaminedAreas(areas, selected, results);
     const examined = areas.filter((area) => !unexamined.some((entry) => entry.area === area));

@@ -119,6 +119,7 @@ export const buildBaseContext = (options, { hostPlatform, command = 'browser che
  */
 export const buildCheckContext = async (options, areas, { command } = {}) => {
     const ctx = buildBaseContext(options, { hostPlatform: detectBrowserPlatform(), command });
+    const gatherFailures = [];
 
     for (const area of areas) {
         const gather = AREA_FACTS[area];
@@ -127,8 +128,29 @@ export const buildCheckContext = async (options, areas, { command } = {}) => {
             continue;
         }
 
-        Object.assign(ctx, await gather(options));
+        // The same isolation the runner gives every check, extended to where the risk actually
+        // moved: gathering is the part that reads the filesystem and starts a browser, and an
+        // unguarded throw here rejected out of the whole run before the heading printed - no
+        // Environment block, no disclaimer, no Result line. For a browser-gatherer failure that
+        // destroyed precisely the section that would have explained it, since the LocalSystem
+        // diagnosis lives in Environment. A failed area becomes a recorded failure; the worker
+        // reports it as an error finding and the rest of the report still runs.
+        try {
+            Object.assign(ctx, await gather(options));
+        } catch (err) {
+            ctx.logger?.debug?.(
+                `Doctor: could not gather facts for area "${area}": ${err?.message ?? err}`
+            );
+            gatherFailures.push({
+                area,
+                error: (err instanceof Error ? err.message : String(err)) || String(err),
+            });
+        }
     }
+
+    // Attached after the loop, so a gatherer returning a key of this name cannot clobber the
+    // record of its own failure. The name is thereby reserved: no gatherer may return it.
+    ctx.gatherFailures = gatherFailures;
 
     return ctx;
 };

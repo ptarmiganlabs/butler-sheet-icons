@@ -74,13 +74,19 @@ export const browserCheck = async (options = {}) => {
         command: 'browser check',
         heading: 'Butler Sheet Icons browser check',
         // Qualified when the browser was never started, because "can take screenshots" is a
-        // stronger claim than a skipped launch supports.
+        // stronger claim than a skipped launch supports. `?.` because the browser facts are
+        // absent when their gatherer failed - the failure is already an error finding, and this
+        // sentence is only reached when nothing failed.
         okMessage: (checked) =>
-            checked.launch.skipped
+            checked.launch?.skipped
                 ? 'a browser was found on this machine. It was not started, so whether it runs here is untested.'
                 : 'Butler Sheet Icons can take screenshots on this machine without internet access.',
     });
 
+    // Every browser-fact read below is optional-chained for the same reason: when the gatherer
+    // fails, the report has already printed the error finding and returned `ok: false`, and the
+    // one thing this mapping must not do is throw after that - turning a diagnosed failure into
+    // a crash dump about the diagnostic. The fields simply go absent, exactly as they are.
     return {
         ok,
         hostPlatform: ctx.host.hostPlatform,
@@ -97,12 +103,12 @@ export const browserCheck = async (options = {}) => {
                   exists: ctx.executableOverride.exists,
               }
             : null,
-        cacheDir: ctx.cache.dir,
-        cacheDirSource: ctx.cache.source,
-        cacheDirExists: ctx.cache.exists,
-        cacheDirUsed: ctx.cache.inUse,
-        legacyCacheDirInUse: ctx.cache.legacyInUse,
-        cachedBrowsers: ctx.cache.builds.map((build) => ({
+        cacheDir: ctx.cache?.dir,
+        cacheDirSource: ctx.cache?.source,
+        cacheDirExists: ctx.cache?.exists,
+        cacheDirUsed: ctx.cache?.inUse,
+        legacyCacheDirInUse: ctx.cache?.legacyInUse,
+        cachedBrowsers: (ctx.cache?.builds ?? []).map((build) => ({
             browser: build.browser,
             buildId: build.buildId,
             platform: build.platform,
@@ -111,11 +117,11 @@ export const browserCheck = async (options = {}) => {
             usable: build.usable,
             reason: build.reason,
         })),
-        selection: ctx.detection.selection,
-        wouldDownload: ctx.detection.wouldDownload,
-        launched: ctx.launch.ok,
-        browserVersion: ctx.launch.version,
-        launchError: ctx.launch.error,
+        selection: ctx.detection?.selection ?? null,
+        wouldDownload: ctx.detection?.wouldDownload ?? false,
+        launched: ctx.launch?.ok ?? false,
+        browserVersion: ctx.launch?.version ?? null,
+        launchError: ctx.launch?.error ?? null,
         findings,
         results,
         disclaimer: BEST_EFFORT_DISCLAIMER,

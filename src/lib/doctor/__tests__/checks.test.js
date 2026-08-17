@@ -1038,7 +1038,7 @@ describe('the registry', () => {
         // BSI-DOCTOR block and are just as permanent, so they are held to the same rule here
         // rather than being trusted to stay distinct.
         const { RUNNER_ERROR_ID } = await import('../run-checks.js');
-        const { NO_CHECKS_ID } = await import('../doctor-check.js');
+        const { NO_CHECKS_ID, GATHER_ERROR_ID } = await import('../doctor-check.js');
         const MALFORMED_FINDING_ID = 'BSI-DOCTOR-002';
 
         const ids = [
@@ -1046,10 +1046,11 @@ describe('the registry', () => {
             RUNNER_ERROR_ID,
             MALFORMED_FINDING_ID,
             NO_CHECKS_ID,
+            GATHER_ERROR_ID,
         ];
 
         expect(ids.length).toBe(new Set(ids).size);
-        for (const id of [RUNNER_ERROR_ID, MALFORMED_FINDING_ID, NO_CHECKS_ID]) {
+        for (const id of [RUNNER_ERROR_ID, MALFORMED_FINDING_ID, NO_CHECKS_ID, GATHER_ERROR_ID]) {
             expect(id).toMatch(/^BSI-[A-Z]+-\d{3}$/);
         }
     });
