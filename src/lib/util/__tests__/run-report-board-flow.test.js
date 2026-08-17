@@ -35,8 +35,13 @@ jest.unstable_mockModule('../../../globals.js', () => ({
     setLoggingLevel: jest.fn(),
 }));
 
-const { runOverAppsWithReport, emitRunHeader, addAppToReport, recordSheetDecision } =
-    await import('../run-report.js');
+const {
+    runOverAppsWithReport,
+    emitRunHeader,
+    announceDryRun,
+    addAppToReport,
+    recordSheetDecision,
+} = await import('../run-report.js');
 const { logger } = await import('../../../globals.js');
 
 const stdoutWrites = [];
@@ -125,14 +130,29 @@ describe('the board rung (BSI_OUTPUT=board)', () => {
         expect(consoleTransport.silent).toBe(false);
     });
 
-    test('emitRunHeader writes the wordmark frame to stdout and logs the plain header silently', () => {
-        emitRunHeader({ version: '9.9.9-test', jobLabel: 'QSEoW sheet thumbnails', options: {} });
+    test('emitRunHeader writes the wordmark frame to stdout, logs the plain header silently, and returns the rung', () => {
+        const rung = emitRunHeader({
+            version: '9.9.9-test',
+            jobLabel: 'QSEoW sheet thumbnails',
+            options: {},
+        });
 
         const joined = stdoutWrites.join('');
+        expect(rung).toBe('board');
         expect(joined).toContain('BUTLER SHEET ICONS');
         expect(joined).toContain('9.9.9-test');
         expect(timeline.some((line) => line.startsWith('LOG(silent)'))).toBe(true);
         expect(consoleTransport.silent).toBe(false);
+    });
+
+    test('announceDryRun on the board rung sends one styled line to stdout, banner to the log silently', () => {
+        announceDryRun('qseow create-sheet-thumbnails', 'board');
+
+        // No rung-A `=` furniture on the terminal - one line, no frames.
+        const joined = stdoutWrites.join('');
+        expect(joined).toContain('DRY RUN of qseow create-sheet-thumbnails');
+        expect(joined).not.toContain('====');
+        expect(timeline.some((line) => line.startsWith('LOG(silent) ='))).toBe(true);
     });
 });
 
@@ -161,6 +181,20 @@ describe('the off rung (BSI_OUTPUT=off)', () => {
         );
 
         expect(timeline.some((line) => line.includes('DRY RUN of'))).toBe(true);
+    });
+
+    test('never suppresses a dry run PLAN block - provenance and match counts live only there', async () => {
+        await runOverAppsWithReport(
+            runArgs({
+                dryRun: true,
+                planApp: jest.fn(async (appId, report) => {
+                    const entry = addAppToReport(report, { id: appId, name: appId, sheetCount: 1 });
+                    recordSheetDecision(entry, { n: 1, title: 'One', action: 'update' });
+                }),
+            })
+        );
+
+        expect(timeline).toContain('LOG PLAN');
     });
 
     test('keeps the plain run header - the version line is support material', () => {

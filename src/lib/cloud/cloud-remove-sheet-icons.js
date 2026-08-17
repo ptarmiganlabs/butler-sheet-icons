@@ -1,5 +1,5 @@
 import { setupEnigmaConnection } from './cloud-enigma.js';
-import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { logger, appVersion, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
@@ -18,6 +18,7 @@ import { CLEAR_REASON } from '../util/sheet-decision-reasons.js';
 import {
     runOverAppsWithReport,
     announceDryRun,
+    emitRunHeader,
     addAppToReport,
     recordSheetDecision,
 } from '../util/run-report.js';
@@ -48,6 +49,12 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = n
     let appEntry = null;
 
     try {
+        // App name for the report - the board's per-app rows (issue #1074)
+        // render on real runs too, and a row naming only a clipped GUID
+        // cannot be recognised by the operator it exists for, least of all
+        // on the one command with no undo. This read used to be planner-only.
+        const appMetadata = report ? await saasInstance.Get(`apps/${appId}`) : null;
+
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
         await withEngineSession(
@@ -71,7 +78,11 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = n
                 logger.info(`  ${sheets.length} sheet(s)`);
 
                 if (report) {
-                    appEntry = addAppToReport(report, { id: appId, sheetCount: sheets.length });
+                    appEntry = addAppToReport(report, {
+                        id: appId,
+                        name: appMetadata?.attributes?.name,
+                        sheetCount: sheets.length,
+                    });
                 }
 
                 if (sheets.length > 0) {
@@ -344,11 +355,20 @@ export const qscloudRemoveSheetIcons = async (options) => {
     try {
         setLoggingLevel(options.loglevel);
 
+        // Emitted here rather than in the command handler: the wizard calls
+        // this worker directly, and the header's rung must be decided from
+        // the options the run actually uses - wizard answers included.
+        const rung = emitRunHeader({
+            version: appVersion,
+            jobLabel: 'Qlik Sense Cloud sheet icon removal',
+            options,
+        });
+
         const dryRun = Boolean(options.dryRun);
         if (dryRun) {
             // Before anything connects - this command's real mode is the most
             // destructive in the CLI, so the log must not open like it.
-            announceDryRun('qscloud remove-sheet-icons');
+            announceDryRun('qscloud remove-sheet-icons', rung);
         }
 
         logger.info('Starting removal of sheet icons for Qlik Sense Cloud');
@@ -391,6 +411,7 @@ export const qscloudRemoveSheetIcons = async (options) => {
         return await runOverAppsWithReport({
             command: 'qscloud remove-sheet-icons',
             dryRun,
+            rung,
             ...selection,
             plan: {
                 target: { platform: 'cloud', tenantUrl: options.tenanturl },

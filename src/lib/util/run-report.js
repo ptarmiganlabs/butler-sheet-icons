@@ -136,7 +136,57 @@ const withConsoleSilenced = (emit) => {
 };
 
 /**
- * Emit the run header on the rung the terminal gets.
+ * Emit one output block on the selected rung.
+ *
+ * The single dispatch point for the rung trichotomy, used by the header, the
+ * plan block and the verdict block - three call sites, one rule, and one
+ * insertion point when rung C (issue #1075) arrives. On the board rung the
+ * plain block still goes through the logger (console silenced, so the
+ * terminal is not told the same facts twice) and the board block goes to
+ * stdout in one write. `off` suppresses the block unless the caller marks it
+ * part of the command's product.
+ *
+ * @param {object} block - The block.
+ * @param {string} block.rung - From {@link selectRung}.
+ * @param {Function} block.plainEmit - Writes the plain block through the logger.
+ * @param {() => string} block.renderBoardBlock - Renders the board block.
+ * @param {boolean} [block.forceVisible] - Raise the console level for the
+ *     plain block (dry-run product semantics; see `withReportVisible`).
+ * @param {boolean} [block.suppressOnOff] - Whether `BSI_OUTPUT=off` may
+ *     suppress this block. False for blocks that are the command's product.
+ *
+ * @returns {void}
+ */
+const emitBlockOnRung = ({
+    rung,
+    plainEmit,
+    renderBoardBlock,
+    forceVisible = false,
+    suppressOnOff = true,
+}) => {
+    if (rung === RUNG.BOARD || rung === RUNG.LIVE) {
+        withConsoleSilenced(plainEmit);
+        process.stdout.write(renderBoardBlock());
+
+        return;
+    }
+
+    if (rung === RUNG.OFF && suppressOnOff) {
+        return;
+    }
+
+    if (forceVisible) {
+        withReportVisible(plainEmit);
+
+        return;
+    }
+
+    plainEmit();
+};
+
+/**
+ * Emit the run header on the rung the terminal gets, and hand the decision
+ * back so the caller can thread it through the rest of the run.
  *
  * On the board rung the terminal shows the wordmark frame (issue #1074) and
  * the plain three-line header goes through the logger with the console
@@ -145,8 +195,12 @@ const withConsoleSilenced = (emit) => {
  * ladder, and the version line it carries is the first thing support asks
  * for.
  *
- * Rung C (issue #1075) does not exist yet, so a `live` verdict renders the
- * board - today's top of the ladder.
+ * Called by the run *workers*, not the command handlers: the wizard invokes
+ * workers directly, so a handler-level header would be skipped on wizard
+ * runs and would be decided from pre-wizard options on `-i` runs. Returning
+ * the rung lets the worker pass the same decision to `announceDryRun` and
+ * `runOverAppsWithReport`, so the header and the blocks cannot disagree -
+ * not by re-deriving the same inputs, but by deciding once.
  *
  * @param {object} run - The run.
  * @param {string} run.version - The Butler Sheet Icons version.
@@ -154,19 +208,20 @@ const withConsoleSilenced = (emit) => {
  * @param {object} [run.options] - The command's options bag; `headless` is
  *     the only key read.
  *
- * @returns {void}
+ * @returns {string} The decided rung, from {@link RUNG}.
  */
 export const emitRunHeader = ({ version, jobLabel, options = {} }) => {
     const rung = decideRung(options.headless);
 
-    if (rung === RUNG.BOARD || rung === RUNG.LIVE) {
-        withConsoleSilenced(() => logRunHeader(logger, version, jobLabel));
-        process.stdout.write(renderBoardHeader({ version, jobLabel }, boardContext()));
+    emitBlockOnRung({
+        rung,
+        plainEmit: () => logRunHeader(logger, version, jobLabel),
+        renderBoardBlock: () => renderBoardHeader({ version, jobLabel }, boardContext()),
+        // `off` keeps the plain header - the version line is support material.
+        suppressOnOff: false,
+    });
 
-        return;
-    }
-
-    logRunHeader(logger, version, jobLabel);
+    return rung;
 };
 
 /**
@@ -178,15 +233,39 @@ export const emitRunHeader = ({ version, jobLabel, options = {} }) => {
  * watching a destructive-looking scroll for two minutes has no reason to wait
  * for it.
  *
+ * Rung-aware: on the board rung the plain `=`-framed banner would land as
+ * rung-A furniture between the wordmark frame and the board plan, so the
+ * terminal gets a single board-styled line instead while the plain banner
+ * still goes through the logger, console silenced - the same both-audiences
+ * split as every other board block.
+ *
  * @param {string} command - The command being planned, e.g. `qseow create-sheet-thumbnails`.
+ * @param {string} [rung] - The rung from {@link emitRunHeader}. Callers
+ *     without one get the plain banner.
  *
  * @returns {void}
  */
-export const announceDryRun = (command) => {
-    withReportVisible(() => {
+export const announceDryRun = (command, rung = RUNG.PLAIN) => {
+    const emit = () => {
         logger.info(RUN_FRAME);
         logger.info(`DRY RUN of ${command}: planning only - NOTHING WILL BE CHANGED`);
         logger.info(RUN_FRAME);
+    };
+
+    emitBlockOnRung({
+        rung,
+        plainEmit: emit,
+        renderBoardBlock: () => {
+            const ctx = boardContext();
+
+            return `\n  ${ctx.palette.yellow(
+                `${ctx.symbols.warning}  DRY RUN of ${command}: planning only - nothing will be changed`
+            )}\n`;
+        },
+        // The announcement is dry-run product: visible at warn/error, and
+        // never suppressed by `off`.
+        forceVisible: true,
+        suppressOnOff: false,
     });
 };
 
@@ -669,6 +748,9 @@ export const recordPlannedSheet = (
  * @param {{option: string, value: string}|null} run.selector - The selector used, if any.
  * @param {object} [run.plan] - Structural plan sections (target, auth, sheetPart,
  *     rules, browser, output, writes), assembled by the worker.
+ * @param {string} [run.rung] - The output rung decided by the worker's
+ *     `emitRunHeader` call, so header and blocks share one decision. Omitted
+ *     by callers without a header; decided fresh then.
  * @param {{plan: string, process: string}} run.logPrefix - Per-mode log prefixes.
  * @param {string} run.emptySelectionHint - Guidance when nothing was selected.
  * @param {(appId: string, report: object) => Promise<void>} run.planApp - The per-app planner.
@@ -684,6 +766,7 @@ export const runOverAppsWithReport = async ({
     selectorAppIds,
     selector,
     plan = null,
+    rung: providedRung = null,
     logPrefix,
     emptySelectionHint,
     planApp,
@@ -693,10 +776,12 @@ export const runOverAppsWithReport = async ({
     recordSelection(report, { namedAppIds, selectorAppIds, selector });
     report.plan = plan;
 
-    // Decided once, at the start of the run (issue #1076): the stream cannot
-    // become a terminal later. `live` renders as the board until rung C
-    // (issue #1075) exists.
-    const rung = decideRung(plan?.browser?.headless);
+    // Decided once, at the start of the run (issue #1076): workers pass the
+    // rung their `emitRunHeader` call decided, so the header and the blocks
+    // cannot disagree even if the terminal changes between them. The
+    // fallback decides fresh for callers without a header. `live` renders as
+    // the board until rung C (issue #1075) exists.
+    const rung = providedRung ?? decideRung(plan?.browser?.headless);
     const board = rung === RUNG.BOARD || rung === RUNG.LIVE;
     const ctx = board ? boardContext() : null;
 
@@ -705,21 +790,17 @@ export const runOverAppsWithReport = async ({
             logger.info(line);
         }
     };
-    if (rung === RUNG.OFF) {
-        // BSI_OUTPUT=off suppresses the plan and verdict blocks only. The
-        // per-app and per-sheet lines still print - someone setting `off`
-        // wants the framed blocks gone, not a six-minute run with no output.
-    } else if (board) {
-        // The plain block still goes through the logger - a file transport,
-        // if one is ever configured, keeps the log schedulers rely on - with
-        // the console silenced so the terminal sees the board, not both.
-        withConsoleSilenced(emitPlan);
-        process.stdout.write(renderBoardPlan(report, ctx));
-    } else if (dryRun) {
-        withReportVisible(emitPlan);
-    } else {
-        emitPlan();
-    }
+    // On a dry run the plan block is half the command's product - the
+    // selection provenance and rule match counts live only here - so
+    // `BSI_OUTPUT=off` may suppress it on real runs only, and dry runs keep
+    // the forced visibility rung A gave them.
+    emitBlockOnRung({
+        rung,
+        plainEmit: emitPlan,
+        renderBoardBlock: () => renderBoardPlan(report, ctx),
+        forceVisible: dryRun,
+        suppressOnOff: !dryRun,
+    });
 
     const totalApps = new Set(appIds).size;
     const removal = isRemovalReport(report);
@@ -791,24 +872,22 @@ export const runOverAppsWithReport = async ({
     // Rendered even when some apps failed to plan: the decisions that were
     // reached belong next to the per-app error lines already logged, and the
     // renderer itself marks incomplete and unplanned apps.
-    const emitVerdict = () => {
-        for (const line of renderRunVerdictLines(report)) {
-            logger.info(line);
-        }
-    };
     if (dryRun) {
         // The report is the entire product of a dry run, so no rung - `off`
         // included - suppresses it. On the board rung the plan block above
         // already rendered as a board; the per-sheet decisions stay in the
         // log, where their reasons are.
         renderDryRunReport(report);
-    } else if (rung === RUNG.OFF) {
-        // Suppressed together with the plan block.
-    } else if (board) {
-        withConsoleSilenced(emitVerdict);
-        process.stdout.write(renderBoardVerdict(report, ctx));
     } else {
-        emitVerdict();
+        emitBlockOnRung({
+            rung,
+            plainEmit: () => {
+                for (const line of renderRunVerdictLines(report)) {
+                    logger.info(line);
+                }
+            },
+            renderBoardBlock: () => renderBoardVerdict(report, ctx),
+        });
     }
 
     return result;

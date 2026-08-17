@@ -1,4 +1,4 @@
-import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { logger, appVersion, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
@@ -8,6 +8,7 @@ import { resolveCloudAppSelection } from './cloud-app-selection.js';
 import {
     runOverAppsWithReport,
     announceDryRun,
+    emitRunHeader,
     buildSheetRules,
     buildSheetPartSection,
     buildBrowserPlanSection,
@@ -44,10 +45,19 @@ export const qscloudCreateThumbnails = async (options) => {
     try {
         setLoggingLevel(options.loglevel);
 
+        // Emitted here rather than in the command handler: the wizard calls
+        // this worker directly, and the header's rung must be decided from
+        // the options the run actually uses - wizard answers included.
+        const rung = emitRunHeader({
+            version: appVersion,
+            jobLabel: 'Qlik Sense Cloud sheet thumbnails',
+            options,
+        });
+
         const dryRun = Boolean(options.dryRun);
         if (dryRun) {
             // Before anything connects - mirrors the QSEoW twin.
-            announceDryRun('qscloud create-sheet-thumbnails');
+            announceDryRun('qscloud create-sheet-thumbnails', rung);
         }
 
         logger.info('Starting creation of thumbnails for Qlik Sense Cloud');
@@ -120,6 +130,7 @@ export const qscloudCreateThumbnails = async (options) => {
         return await runOverAppsWithReport({
             command: 'qscloud create-sheet-thumbnails',
             dryRun,
+            rung,
             ...selection,
             plan: {
                 target: { platform: 'cloud', tenantUrl: options.tenanturl },

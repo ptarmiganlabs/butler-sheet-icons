@@ -1,6 +1,5 @@
 import { Command, Option } from 'commander';
-import { logger, appVersion, setLoggingLevel } from '../../../globals.js';
-import { emitRunHeader } from '../../util/run-report.js';
+import { logger, setLoggingLevel } from '../../../globals.js';
 import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
 import { QSEOW_SHEET_PARTS } from '../../qseow/sheet-parts.js';
 import { DEFAULT_QSEOW_SENSE_VERSION, QSEOW_SENSE_VERSIONS } from '../../qseow/qseow-selectors.js';
@@ -30,16 +29,15 @@ import { runCommand } from '../run-command.js';
  * @returns {Promise<void>} Resolves when the worker call finishes (successfully or after logging errors).
  */
 const handleQseowCreateSheetThumbnails = async (options = {}, command) => {
-    // Level set before the header, not only in the worker: a run at
-    // --log-level warn asked for a quiet log, and the run card - header
-    // included - respects that. Guarded for programmatic callers without the
-    // option; the worker sets the level again, which is idempotent.
+    // Level set before any handler-level logging: a run at --log-level warn
+    // asked for a quiet log. Guarded for programmatic callers without the
+    // option; the worker sets the level again, which is idempotent. The run
+    // header is emitted by the worker, not here - the wizard invokes workers
+    // directly, and the header must come from the same place on both paths,
+    // decided from the options the run actually uses.
     if (options.loglevel) {
         setLoggingLevel(options.loglevel);
     }
-    // Rung-aware (issue #1076): on the board rung the terminal gets the
-    // wordmark frame and the plain header goes to the log underneath.
-    emitRunHeader({ version: appVersion, jobLabel: 'QSEoW sheet thumbnails', options });
 
     // Joined explicitly: --appid is variadic, and letting a template literal coerce the
     // array reads as one strange id rather than as several.

@@ -1,4 +1,4 @@
-import { logger, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
+import { logger, appVersion, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import { qseowVerifyContentLibraryExists } from './qseow-contentlibrary.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
@@ -12,6 +12,7 @@ import { logError } from '../util/log-error.js';
 import {
     runOverAppsWithReport,
     announceDryRun,
+    emitRunHeader,
     buildSheetRules,
     buildSheetPartSection,
     buildBrowserPlanSection,
@@ -41,11 +42,22 @@ export const qseowCreateThumbnails = async (options) => {
     try {
         setLoggingLevel(options.loglevel);
 
+        // Emitted here rather than in the command handler: the wizard calls
+        // this worker directly, and the header's rung must be decided from
+        // the options the run actually uses - wizard answers included. The
+        // decided rung is threaded through the whole run so the header and
+        // the blocks cannot disagree.
+        const rung = emitRunHeader({
+            version: appVersion,
+            jobLabel: 'QSEoW sheet thumbnails',
+            options,
+        });
+
         const dryRun = Boolean(options.dryRun);
         if (dryRun) {
             // Before anything connects: without this the log opens exactly like
             // a real run and the first dry-run marker arrives after the last app.
-            announceDryRun('qseow create-sheet-thumbnails');
+            announceDryRun('qseow create-sheet-thumbnails', rung);
         }
 
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');
@@ -114,6 +126,7 @@ export const qseowCreateThumbnails = async (options) => {
         return await runOverAppsWithReport({
             command: 'qseow create-sheet-thumbnails',
             dryRun,
+            rung,
             appIds: appIdsToProcess,
             namedAppIds,
             selectorAppIds: taggedAppIds,
