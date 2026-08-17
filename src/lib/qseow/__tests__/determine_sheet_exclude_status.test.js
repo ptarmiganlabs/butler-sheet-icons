@@ -1,6 +1,7 @@
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 
 import { determineSheetExcludeStatus } from '../determine-sheet-exclude-status.js';
+import { EXCLUDE_REASON } from '../../util/sheet-decision-reasons.js';
 
 const mockLogger = {
     info: jest.fn(),
@@ -83,7 +84,11 @@ beforeEach(() => {
 describe('determineSheetExcludeStatus', () => {
     describe('no exclusion options set', () => {
         test('keeps a plain private sheet', async () => {
-            await expect(run()).resolves.toEqual({ excludeSheet: false, sheetIsHidden: false });
+            await expect(run()).resolves.toEqual({
+                excludeSheet: false,
+                sheetIsHidden: false,
+                excludeReason: null,
+            });
         });
 
         test('keeps a published sheet', async () => {
@@ -92,6 +97,7 @@ describe('determineSheetExcludeStatus', () => {
             await expect(run({ sheet })).resolves.toEqual({
                 excludeSheet: false,
                 sheetIsHidden: false,
+                excludeReason: null,
             });
         });
 
@@ -101,6 +107,7 @@ describe('determineSheetExcludeStatus', () => {
             await expect(run({ sheet })).resolves.toEqual({
                 excludeSheet: false,
                 sheetIsHidden: false,
+                excludeReason: null,
             });
         });
     });
@@ -177,6 +184,7 @@ describe('determineSheetExcludeStatus', () => {
             await expect(run({ sheet })).resolves.toEqual({
                 excludeSheet: false,
                 sheetIsHidden: false,
+                excludeReason: null,
             });
         });
 
@@ -186,6 +194,7 @@ describe('determineSheetExcludeStatus', () => {
             await expect(run({ sheet })).resolves.toEqual({
                 excludeSheet: true,
                 sheetIsHidden: true,
+                excludeReason: EXCLUDE_REASON.HIDDEN,
             });
         });
 
@@ -204,6 +213,7 @@ describe('determineSheetExcludeStatus', () => {
             await expect(run({ sheet, app })).resolves.toEqual({
                 excludeSheet: true,
                 sheetIsHidden: true,
+                excludeReason: EXCLUDE_REASON.HIDDEN,
             });
         });
 
@@ -214,6 +224,7 @@ describe('determineSheetExcludeStatus', () => {
             await expect(run({ sheet, app })).resolves.toEqual({
                 excludeSheet: false,
                 sheetIsHidden: false,
+                excludeReason: null,
             });
         });
 
@@ -256,6 +267,8 @@ describe('determineSheetExcludeStatus', () => {
             await expect(run({ sheet, options })).resolves.toEqual({
                 excludeSheet: true,
                 sheetIsHidden: true,
+                // Status ran first, so the reason names it - hidden did not overwrite it.
+                excludeReason: EXCLUDE_REASON.STATUS_PRIVATE,
             });
         });
     });

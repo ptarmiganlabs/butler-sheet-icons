@@ -10,6 +10,7 @@ import {
     saveIfChanged,
     getSheetList,
 } from '../util/sheet-list.js';
+import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
 
 /**
  * Updates sheet thumbnails in a Qlik Sense Cloud app.
@@ -88,85 +89,15 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
 
                                 return SHEET_SKIPPED;
                             } else {
-                                // Should blurred sheet thumbnail be used?
-                                // Options are
-                                // --blur-sheet-number <number...>
-                                // --blur-sheet-title <title...>
-                                // --blur-sheet-status <status...>
-
-                                let blurSheet = false;
-
-                                // Get published status of sheet
-                                let sheetPublished;
-                                if (
-                                    sheet.qMeta?.published === undefined ||
-                                    sheet.qMeta.published === false
-                                ) {
-                                    sheetPublished = false;
-                                } else {
-                                    sheetPublished = true;
-                                }
-
-                                // Get approved status of sheet
-                                let sheetApproved;
-                                if (
-                                    sheet.qMeta?.approved === undefined ||
-                                    sheet.qMeta.approved === false
-                                ) {
-                                    sheetApproved = false;
-                                } else {
-                                    sheetApproved = true;
-                                }
-
-                                // Should this sheet be blurred based on its published status?
-                                // Public sheets
-                                if (
-                                    sheetApproved === true &&
-                                    sheetPublished === true &&
-                                    options.blurSheetStatus &&
-                                    options.blurSheetStatus.includes('public')
-                                ) {
-                                    blurSheet = true;
-                                    logger.verbose(
-                                        `Blurred sheet thumbnail (status public): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
-                                    );
-                                }
-
-                                // Published sheets
-                                if (
-                                    sheetApproved === false &&
-                                    sheetPublished === true &&
-                                    options.blurSheetStatus &&
-                                    options.blurSheetStatus.includes('published')
-                                ) {
-                                    blurSheet = true;
-                                    logger.verbose(
-                                        `Blurred sheet thumbnail (status published): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
-                                    );
-                                }
-
-                                // Should this sheet be blurred based on its position/sheet number?
-                                if (options.blurSheetNumber && blurSheet === false) {
-                                    // Does the sheet number match any of the numbers in options.blurSheetNumber array?
-                                    // Take into account that iSheetNum is an integer, so we need to convert it to a string
-                                    if (options.blurSheetNumber.includes(iSheetNum.toString())) {
-                                        blurSheet = true;
-                                        logger.verbose(
-                                            `Blurred sheet thumbnail (via sheet number): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
-                                        );
-                                    }
-                                }
-
-                                // Should this sheet be blurred based on its title?
-                                if (options.blurSheetTitle && blurSheet === false) {
-                                    // Does the sheet title match any of the titles options.blurSheetTitle array?
-                                    if (options.blurSheetTitle.includes(sheet.qMeta.title)) {
-                                        blurSheet = true;
-                                        logger.verbose(
-                                            `Blurred sheet thumbnail (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
-                                        );
-                                    }
-                                }
+                                // The blur decision lives in determine-sheet-blur-status.js so
+                                // the dry-run planner shares it (#993); only the write below
+                                // stays here.
+                                const { blurSheet } = determineSheetBlurStatus(
+                                    sheet,
+                                    options,
+                                    iSheetNum,
+                                    logger
+                                );
 
                                 // Get properties of current sheet
                                 const sheetObj = await app.getObject(sheet.qInfo.qId);
