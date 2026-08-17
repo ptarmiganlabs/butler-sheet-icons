@@ -20,6 +20,17 @@ import { buildBrowserCacheDirOption, buildBrowserExecutablePathOption } from './
  * other reason they belong in one place rather than being copied.
  *
  * @param {string} envPrefix - Per-command environment variable stem, e.g. `BSI_BROWSER_C`.
+ * Applies to the four options that describe **this command's run**: `--browser`,
+ * `--browser-version`, `--headless` and `--skip-launch`. It deliberately does NOT apply to
+ * `--browser-cache-dir` and `--browser-executable-path`, whose variables are the unprefixed
+ * `BSI_BROWSER_CACHE_DIR` and `BSI_BROWSER_EXECUTABLE_PATH` on every command that carries them:
+ * where the browser lives is a property of the *machine*, not of a command, and the whole point
+ * of a diagnostic is to read the same cache the real run reads. A per-command
+ * `BSI_DOCTOR_C_BROWSER_CACHE_DIR` would let the doctor be pointed at a different cache than the
+ * run it predicts - the one configuration this file's opening paragraph exists to prevent. An
+ * administrator setting it by analogy with the four working siblings gets an "unknown variable"
+ * that silently does nothing, which is why the split is documented on the doc site's option table
+ * (the generated table shows the real variable name for every option) as well as here.
  *
  * @returns {Option[]} New option instances, in the order they should be declared.
  */

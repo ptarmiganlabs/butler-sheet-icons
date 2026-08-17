@@ -1572,6 +1572,7 @@ describe('--browser-executable-path (issue #929)', () => {
             'browser check',
             () => buildBrowserCommand().commands.find((cmd) => cmd.name() === 'check'),
         ],
+        ['doctor check', () => buildDoctorCommand().commands.find((cmd) => cmd.name() === 'check')],
     ];
 
     test.each(carriers)('%s carries the option', (_name, build) => {
@@ -1628,4 +1629,52 @@ describe('--browser-executable-path (issue #929)', () => {
 
         expect(option).toBeUndefined();
     });
+});
+
+describe('the diagnostic option factory splits its environment variables deliberately', () => {
+    // The factory takes an envPrefix and applies it to four of its six options. The other two -
+    // the cache directory and the executable path - keep the unprefixed machine-scoped names on
+    // every command, because where the browser lives is a property of the machine and a doctor
+    // pointed at a different cache than the real run reads is the failure the whole file exists
+    // to prevent. This holds both halves of that split, per command, so neither can drift: a
+    // prefixed variable quietly going machine-scoped would let two commands fight over one value,
+    // and a machine variable quietly gaining a prefix would split the cache location between the
+    // diagnostic and the run it predicts.
+    const checkCommands = [
+        [
+            'browser check',
+            'BSI_BROWSER_C',
+            () => buildBrowserCommand().commands.find((cmd) => cmd.name() === 'check'),
+        ],
+        [
+            'doctor check',
+            'BSI_DOCTOR_C',
+            () => buildDoctorCommand().commands.find((cmd) => cmd.name() === 'check'),
+        ],
+    ];
+
+    test.each(checkCommands)('%s prefixes its per-run options with %s', (_name, prefix, build) => {
+        const command = build();
+        const envOf = (long) => command.options.find((opt) => opt.long === long).envVar;
+
+        expect(envOf('--browser')).toBe(`${prefix}_BROWSER`);
+        expect(envOf('--browser-version')).toBe(`${prefix}_BROWSER_VERSION`);
+        expect(envOf('--headless')).toBe(`${prefix}_HEADLESS`);
+        expect(envOf('--skip-launch')).toBe(`${prefix}_SKIP_LAUNCH`);
+    });
+
+    test.each(checkCommands)(
+        '%s keeps the machine-scoped variables unprefixed',
+        (_n, _p, build) => {
+            const command = build();
+            const envOf = (long) => command.options.find((opt) => opt.long === long).envVar;
+
+            // In particular: BSI_DOCTOR_C_BROWSER_CACHE_DIR does not exist and must not start
+            // existing by accident. An administrator who sets it gets nothing, which is why the
+            // factory's JSDoc and the doc site's generated option table both spell out the real
+            // variable names.
+            expect(envOf('--browser-cache-dir')).toBe('BSI_BROWSER_CACHE_DIR');
+            expect(envOf('--browser-executable-path')).toBe('BSI_BROWSER_EXECUTABLE_PATH');
+        }
+    );
 });

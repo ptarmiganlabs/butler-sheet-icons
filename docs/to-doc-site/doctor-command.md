@@ -388,6 +388,12 @@ Two of these are shared with the other browser commands rather than being specif
 (`BSI_BROWSER_EXECUTABLE_PATH`). That is deliberate — where the browser lives is a property of the
 server, not of one command, so the same setting applies to every command that needs it.
 
+One consequence worth stating plainly, because the other four variables in the table do follow the
+`BSI_DOCTOR_C_` pattern: **there is no `BSI_DOCTOR_C_BROWSER_CACHE_DIR` and no
+`BSI_DOCTOR_C_BROWSER_EXECUTABLE_PATH`.** Setting either does nothing. Use the shared names from
+the table — that is also what guarantees the doctor reads the same cache your real runs read,
+which is the whole point of running it.
+
 The browser options are worth passing when your real runs pass them. A diagnostic that reports OK
 under different settings than the run it is meant to predict is worse than no diagnostic, so give
 `doctor check` the same `--browser-cache-dir`, `--browser-version` and `--headless` your scheduled
