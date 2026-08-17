@@ -49,12 +49,6 @@ export const RUNG = Object.freeze({
 const RUNG_VALUES = Object.freeze(Object.values(RUNG));
 
 /**
- * Log levels that drop the run to the plain rung. Somebody at these levels is
- * debugging and wants the stream they asked for, not a board printed over it.
- */
-const DEBUGGING_LEVELS = Object.freeze(['verbose', 'debug', 'silly']);
-
-/**
  * Parse the `BSI_OUTPUT` override.
  *
  * An enum, so it does not reuse the "anything other than empty/`0`/`false`"
@@ -105,10 +99,13 @@ const parseOutputOverride = (env, warn) => {
  *
  * Two gates that are not obvious (issue #1076):
  *
- * - Log level `verbose`+ drops to plain. Someone at that level is debugging,
- *   and a board printed over the stream they asked for is actively harmful.
- *   An explicit `BSI_OUTPUT=board` still wins - the operator stated both
- *   wishes, and the board does not repaint.
+ * - Any log level other than `info` drops to plain, in both directions.
+ *   Someone at `verbose`+ is debugging, and a board printed over the stream
+ *   they asked for is actively harmful. Someone at `warn`/`error` asked for
+ *   a *quiet* run - and the board writes to stdout past winston, so it
+ *   cannot honour a console level the way the plain rung's blocks (logged
+ *   at `info`, filtered by the transport) do. An explicit
+ *   `BSI_OUTPUT=board` still wins - the operator stated both wishes.
  * - `--headless false` blocks the live rung only. A real Chrome window is
  *   taking focus, and the operator has said the browser is the thing they
  *   want to watch; the board does not compete for attention, so it stays.
@@ -146,8 +143,12 @@ export const selectRung = ({ stdout, env, options = {}, warn = () => {} }) => {
         return override;
     }
 
+    // Both visual rungs require the default `info` level: above it the
+    // operator is debugging, below it they asked for quiet - and the board,
+    // writing to stdout past winston, could honour neither. The plain
+    // rung's blocks log at `info` and follow the console level naturally.
     const logLevel = options.logLevel ?? 'info';
-    if (DEBUGGING_LEVELS.includes(logLevel)) {
+    if (logLevel !== 'info') {
         return RUNG.PLAIN;
     }
 
@@ -164,7 +165,6 @@ export const selectRung = ({ stdout, env, options = {}, warn = () => {} }) => {
         columns >= 80 &&
         (stdout?.rows ?? 0) >= 24 &&
         env?.TERM !== 'dumb' &&
-        logLevel === 'info' &&
         parseHeadlessOption(options.headless)
     ) {
         return RUNG.LIVE;

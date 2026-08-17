@@ -49,20 +49,12 @@ describe('selectRung - automatic selection', () => {
             ],
             ['narrow terminal', tty({ columns: 60 }), {}, {}, RUNG.PLAIN],
             ['short terminal', tty({ rows: 10 }), {}, {}, RUNG.BOARD],
-            [
-                'log level warn fails the live gate only',
-                tty(),
-                {},
-                { logLevel: 'warn' },
-                RUNG.BOARD,
-            ],
-            [
-                'log level error fails the live gate only',
-                tty(),
-                {},
-                { logLevel: 'error' },
-                RUNG.BOARD,
-            ],
+            // warn/error asked for a QUIET run: the board writes to stdout
+            // past winston, so it cannot honour a console level - only the
+            // plain rung's info-logged blocks can. Both directions off info
+            // drop all the way to plain.
+            ['log level warn drops to plain', tty(), {}, { logLevel: 'warn' }, RUNG.PLAIN],
+            ['log level error drops to plain', tty(), {}, { logLevel: 'error' }, RUNG.PLAIN],
             ['log level verbose drops to plain', tty(), {}, { logLevel: 'verbose' }, RUNG.PLAIN],
             ['log level debug drops to plain', tty(), {}, { logLevel: 'debug' }, RUNG.PLAIN],
             ['log level silly drops to plain', tty(), {}, { logLevel: 'silly' }, RUNG.PLAIN],
