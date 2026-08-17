@@ -215,7 +215,7 @@ export const runDoctorCheck = async ({
     allowNetwork = false,
 }) => {
     const selected = checksForAreas(areas);
-    const ctx = await buildCheckContext(options, areas);
+    const ctx = await buildCheckContext(options, areas, { command });
     const results = await runChecks(selected, ctx, { allowNetwork });
 
     const unexamined = unexaminedAreas(areas, selected, results);

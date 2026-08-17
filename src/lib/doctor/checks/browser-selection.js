@@ -1,5 +1,6 @@
 import { SEVERITY, finding } from '../findings.js';
 import { VERSION_FORM } from '../../browser/browser-version.js';
+import { rerunWith } from './rerun-command.js';
 
 /**
  * Which browser a real run would use, decided the same way a real run decides it.
@@ -152,10 +153,8 @@ export const check = {
                     remediation: [
                         {
                             text: `Use one of the builds already on this machine: set --browser-version to ${usable.map((build) => build.buildId).join(' or ')}, or set the matching BSI_*_BROWSER_VERSION environment variable.`,
-                            command: {
-                                powershell: `butler-sheet-icons.exe browser check --browser-version ${usable[0].buildId}`,
-                                bash: `./butler-sheet-icons browser check --browser-version ${usable[0].buildId}`,
-                            },
+                            // The command the administrator actually ran - see rerun-command.js.
+                            command: rerunWith(ctx, `--browser-version ${usable[0].buildId}`),
                         },
                         {
                             text: 'Or, on a machine with internet access and the same operating system as this one, install the requested build and copy the browser cache directory here.',

@@ -308,6 +308,31 @@ describe('--outputformat json', () => {
     });
 });
 
+describe('a remediation that suggests re-running the diagnostic', () => {
+    test('names doctor check, not the narrower command', async () => {
+        // The launch-failure remediation offers a re-run with a different build. Reached from
+        // `doctor check`, it used to say `browser check` - sending the administrator from a
+        // five-area diagnostic to a two-area one, in the middle of advice about how to
+        // investigate.
+        launchMock.mockResolvedValue({
+            version: jest.fn().mockRejectedValue(new Error('Session closed')),
+            close: jest.fn().mockResolvedValue(undefined),
+        });
+
+        const report = await doctorCheck(options({ area: ['browser'] }));
+
+        const commands = report.findings
+            .flatMap((entry) => entry.remediation)
+            .map((step) => step.command?.bash)
+            .filter(Boolean);
+
+        expect(commands).toContain(
+            './butler-sheet-icons doctor check --browser-version recommended'
+        );
+        expect(commands.filter((line) => line.includes('browser check'))).toEqual([]);
+    });
+});
+
 describe('--skip-launch', () => {
     test('does not let the verdict claim the machine is fine', async () => {
         // Measured: `doctor check --skip-launch true` printed

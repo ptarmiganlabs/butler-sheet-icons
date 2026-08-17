@@ -66,11 +66,20 @@ const currentUser = () => {
  * @param {object} [extra] - Extra fields to merge in.
  * @param {string} [extra.hostPlatform] - Puppeteer's name for this machine's platform, when it
  * could be detected.
+ * @param {string} [extra.command] - The command path being run, e.g. `doctor check`. Checks that
+ * suggest re-running the diagnostic build their remediation around this rather than naming a
+ * command, so the advice matches what the administrator actually typed.
  *
  * @returns {object} The base context.
  */
-export const buildBaseContext = (options, { hostPlatform } = {}) => ({
+export const buildBaseContext = (options, { hostPlatform, command = 'browser check' } = {}) => ({
     options,
+    // Defaulted rather than required, because a check must never crash on a hand-built context -
+    // the per-check tests construct one directly, and the runner's promise is that a broken check
+    // cannot take the report down. `browser check` is the safe default: it is the narrower of the
+    // two commands, so the worst case is advice that under-claims rather than advice that sends
+    // someone to a command they did not run.
+    command,
     // A snapshot rather than `process.env` itself, so a check cannot read a variable that was set
     // after the run began, and so the environment a report describes is the one it was made from.
     env: {
@@ -103,11 +112,13 @@ export const buildBaseContext = (options, { hostPlatform } = {}) => ({
  *
  * @param {object} options - Resolved CLI options for the command being run.
  * @param {string[]} areas - The areas being checked.
+ * @param {object} [extra] - Extra context fields.
+ * @param {string} [extra.command] - The command path being run, e.g. `doctor check`.
  *
  * @returns {Promise<object>} The context every check is handed.
  */
-export const buildCheckContext = async (options, areas) => {
-    const ctx = buildBaseContext(options, { hostPlatform: detectBrowserPlatform() });
+export const buildCheckContext = async (options, areas, { command } = {}) => {
+    const ctx = buildBaseContext(options, { hostPlatform: detectBrowserPlatform(), command });
 
     for (const area of areas) {
         const gather = AREA_FACTS[area];

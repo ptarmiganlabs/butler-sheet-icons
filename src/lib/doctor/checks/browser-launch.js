@@ -1,5 +1,6 @@
 import { SEVERITY, finding } from '../findings.js';
 import { BROWSER_LAUNCH_TIMEOUT_MS } from '../../browser/browser-launch.js';
+import { rerunWith } from './rerun-command.js';
 
 /**
  * Whether the selected browser actually starts and answers.
@@ -64,10 +65,11 @@ const startFailureRemediation = (ctx) => {
         },
         {
             text: 'Try a different browser build - "recommended" selects the one Butler Sheet Icons is tested with.',
-            command: {
-                powershell: 'butler-sheet-icons.exe browser check --browser-version recommended',
-                bash: './butler-sheet-icons browser check --browser-version recommended',
-            },
+            // The command the administrator actually ran, not a named one. These remediations
+            // suggest re-running the diagnostic, and they were written when `browser check` was
+            // its only consumer - so reached from `doctor check` they told the reader to run a
+            // narrower command than the one they had just run.
+            command: rerunWith(ctx, '--browser-version recommended'),
         },
         {
             text: "On Linux, check that the browser's shared library dependencies are installed. A minimal container image often lacks them, and the failure names none of them.",
@@ -156,11 +158,7 @@ export const check = {
                     remediation: [
                         {
                             text: `Use a different browser build. "recommended" selects the build Butler Sheet Icons is tested against${build && build !== 'system-installed' ? `, rather than ${build}` : ''}.`,
-                            command: {
-                                powershell:
-                                    'butler-sheet-icons.exe browser check --browser-version recommended',
-                                bash: './butler-sheet-icons browser check --browser-version recommended',
-                            },
+                            command: rerunWith(ctx, '--browser-version recommended'),
                         },
                         {
                             text: "The same value can be set for a real run through the command's BSI_*_BROWSER_VERSION environment variable.",
