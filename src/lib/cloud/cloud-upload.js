@@ -47,7 +47,7 @@ export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
 
         const iconFolderAbsolute = path.resolve(`${options.imagedir}/cloud/${appId}`);
 
-        logger.info(
+        logger.verbose(
             `Uploading images in folder: ${iconFolderAbsolute} to Qlik Sense Cloud app ${appId}`
         );
 
@@ -58,7 +58,7 @@ export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
             // Each file is isolated so one bad image does not skip the ones after it.
             // Failures are counted rather than ignored - see the throw below the loop.
             try {
-                logger.info(`Uploading file: ${file.fileNameShort}`);
+                logger.verbose(`Uploading file: ${file.fileNameShort}`);
 
                 // Get complete path for file
                 const fileFullPath = path.join(iconFolderAbsolute, file.fileNameShort);
@@ -133,4 +133,8 @@ export const qscloudUploadToApp = async (filesToUpload, appId, options) => {
             `Failed to upload ${failedCount} of ${failedCount + uploadedCount} thumbnail image(s) to Qlik Sense Cloud app ${appId}`
         );
     }
+
+    // The countable line the per-file lines above used to approximate. Counted
+    // per sheet - each upload carries its blurred variant alongside.
+    logger.info(`  uploaded thumbnails for ${uploadedCount} sheet(s) to the app's media library`);
 };

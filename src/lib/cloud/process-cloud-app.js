@@ -16,6 +16,9 @@ import {
 import { withEngineSession } from '../util/engine-session.js';
 import { createAppImageDir } from '../util/image-dir.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
+import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
+import { addAppToReport, recordPlannedSheet, recordAppOutcome } from '../util/run-report.js';
+import { appProgressLine, sheetProgressLine } from '../util/run-report-render.js';
 import { logError } from '../util/log-error.js';
 
 // Selector paths to elements on login page
@@ -29,10 +32,13 @@ const selectorLoginPageLoginButton = '[id="\u0031-submit"]';
  * @param {string} appId - App ID of the app to process.
  * @param {import('./cloud-test-connection.js').QlikSaasInstance} saasInstance - QlikSaas object.
  * @param {object} options - Options object.
+ * @param {object} [report] - Run report from `createRunReport`; per-sheet
+ *     decisions and outcome counts are recorded onto it as they happen. The
+ *     progress lines and the run verdict render from these records.
  *
  * @returns {Promise<void>} Resolves when thumbnail generation, upload, and property updates for the app have completed (or thrown, which is logged by the caller).
  */
-export const processCloudApp = async (appId, saasInstance, options) => {
+export const processCloudApp = async (appId, saasInstance, options, report = null) => {
     // Get page timeout from options
     let pageTimeout = 90000; // 90 seconds
     if (options.browserPageTimeout && options.browserPageTimeout > 0) {
@@ -40,6 +46,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
     }
 
     let sheetRun;
+    let appEntry = null;
 
     // Create image directory on disk for this app
     createAppImageDir({
@@ -109,17 +116,33 @@ export const processCloudApp = async (appId, saasInstance, options) => {
             },
             async (global) => {
                 const app = await global.openDoc(appId, '', '', '', false);
-                logger.info(`Opened app ${appId}`);
-                logger.info(`App name: "${appMetadata.attributes.name}"`);
-                logger.info(`App is published: ${appMetadata.attributes.published}`);
+                logger.verbose(`Opened app ${appId}`);
+                logger.verbose(`App name: "${appMetadata.attributes.name}"`);
+                logger.verbose(`App is published: ${appIsPublished}`);
 
                 // Get list of app sheets
                 const sheets = await getSheetList(app, SHEET_LIST_FIELDS_WITH_SHOW_CONDITION);
 
-                if (sheets.length > 0) {
-                    // sheets[] now contains array of app sheets.
-                    logger.info(`Number of sheets in app: ${sheets.length}`);
+                // One line where four used to be: the name, count and publish
+                // state under the `app i/n` line the app loop printed. The
+                // individual facts moved to verbose above.
+                logger.info(
+                    appProgressLine({
+                        name: appMetadata.attributes.name,
+                        sheetCount: sheets.length,
+                        published: appIsPublished,
+                    })
+                );
 
+                if (report) {
+                    appEntry = addAppToReport(report, {
+                        id: appId,
+                        name: appMetadata.attributes.name,
+                        sheetCount: sheets.length,
+                    });
+                }
+
+                if (sheets.length > 0) {
                     const browser = await launchBrowserForApp(options, {
                         appId,
                         logPrefix: 'CLOUD APP',
@@ -206,7 +229,7 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                                 // --exclude-sheet-number <number...>
                                 // --exclude-sheet-title <title...>
                                 // --exclude-sheet-status <status...>
-                                const { excludeSheet, sheetIsHidden } =
+                                const { excludeSheet, excludeReason, sheetIsHidden } =
                                     await determineSheetExcludeStatus(
                                         app,
                                         sheet,
@@ -216,17 +239,46 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                                         logger
                                     );
 
+                                // The blur decision is applied later, in
+                                // updatesheets - computed here as well, from
+                                // the same module and the same inputs, so the
+                                // progress line and the report can say
+                                // `blurred` where the update step will use the
+                                // blurred file.
+                                const { blurSheet, blurReason } = excludeSheet
+                                    ? { blurSheet: false, blurReason: null }
+                                    : determineSheetBlurStatus(sheet, options, iSheetNum, logger);
+
+                                // The ~230-column line with the sheet id, description,
+                                // approved/published/hidden fields lives at verbose now;
+                                // the info line is the countable one-liner.
+                                logger.verbose(
+                                    `${excludeSheet === true ? 'Excluded' : 'Processing'} sheet ${iSheetNum}: '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}', approved '${sheet?.qMeta?.approved === true}', published '${sheet?.qMeta?.published === true}', hidden '${sheetIsHidden}'`
+                                );
+
                                 if (excludeSheet === true) {
+                                    if (appEntry) {
+                                        recordPlannedSheet(appEntry, {
+                                            n: iSheetNum,
+                                            title: sheet?.qMeta?.title,
+                                            excludeSheet,
+                                            excludeReason,
+                                            blurSheet,
+                                            blurReason,
+                                        });
+                                    }
                                     logger.info(
-                                        `Excluded sheet: ${iSheetNum}: '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}', approved '${sheet?.qMeta?.approved === true}', published '${sheet?.qMeta?.published === true}', hidden '${sheetIsHidden}'`
+                                        sheetProgressLine({
+                                            n: iSheetNum,
+                                            total: sheets.length,
+                                            label: 'excluded',
+                                            title: sheet?.qMeta?.title,
+                                            reason: excludeReason,
+                                        })
                                     );
 
                                     return SHEET_SKIPPED;
                                 }
-
-                                logger.info(
-                                    `Processing sheet ${iSheetNum}: '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}', approved '${sheet?.qMeta?.approved === true}', published '${sheet?.qMeta?.published === true}', hidden '${sheetIsHidden}'`
-                                );
 
                                 const createdFile = await takeSheetScreenshot(
                                     page,
@@ -245,6 +297,29 @@ export const processCloudApp = async (appId, saasInstance, options) => {
                                 // does not exist - it keeps the icon it already had.
                                 createdFiles.push(createdFile);
 
+                                // Recorded and logged only now, for the same
+                                // reason: `captured` must be a fact, not an
+                                // intention.
+                                if (appEntry) {
+                                    recordPlannedSheet(appEntry, {
+                                        n: iSheetNum,
+                                        title: sheet?.qMeta?.title,
+                                        excludeSheet,
+                                        excludeReason,
+                                        blurSheet,
+                                        blurReason,
+                                    });
+                                }
+                                logger.info(
+                                    sheetProgressLine({
+                                        n: iSheetNum,
+                                        total: sheets.length,
+                                        label: blurSheet ? 'blurred' : 'captured',
+                                        title: sheet?.qMeta?.title,
+                                        reason: blurReason,
+                                    })
+                                );
+
                                 return undefined;
                             }
                         );
@@ -262,8 +337,19 @@ export const processCloudApp = async (appId, saasInstance, options) => {
         await qscloudUploadToApp(createdFiles, appId, options);
 
         // Update sheets in app
-        await qscloudUpdateSheetThumbnails(createdFiles, appId, options);
-        logger.info(`Done processing app ${appId}`);
+        const sheetsUpdated = await qscloudUpdateSheetThumbnails(createdFiles, appId, options);
+
+        recordAppOutcome(appEntry, {
+            sheetsUpdated,
+            imagesDir: `${imgDir}/cloud/${appId}`,
+            imageFileNames: createdFiles.flatMap((file) =>
+                [file.fileNameShort, file.fileNameShortBlurred].filter(Boolean)
+            ),
+        });
+
+        // The run card's verdict now closes the run; this line stays for
+        // anyone debugging at verbose.
+        logger.verbose(`Done processing app ${appId}`);
     } catch (err) {
         logError('CLOUD APP', err);
         // Rethrow so the app loop can count this app as failed. Logging and returning

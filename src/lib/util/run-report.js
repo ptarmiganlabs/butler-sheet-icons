@@ -1,5 +1,13 @@
 import { logger, getLoggingLevel, setLoggingLevel } from '../../globals.js';
 import { runOverApps } from './run-over-apps.js';
+import {
+    RUN_FRAME,
+    renderRunPlanLines,
+    renderRunVerdictLines,
+    isRemovalReport,
+} from './run-report-render.js';
+import { toOptionValueList } from './option-values.js';
+import { measureImageFiles } from './image-dir.js';
 
 /**
  * The run report: one object holding what a run resolved and decided, read by
@@ -56,7 +64,7 @@ const withReportVisible = (emit) => {
  * Announce, before any connection is made, that this run is a dry run.
  *
  * Without this line the log of a dry run opens exactly like a real run -
- * "Starting removal of sheet icons", "About to process app ..." - and the one
+ * "Starting removal of sheet icons", "app 1/3 ..." - and the one
  * line saying nothing was changed arrives only after the last app. An operator
  * watching a destructive-looking scroll for two minutes has no reason to wait
  * for it.
@@ -67,9 +75,9 @@ const withReportVisible = (emit) => {
  */
 export const announceDryRun = (command) => {
     withReportVisible(() => {
-        logger.info('==================================================');
+        logger.info(RUN_FRAME);
         logger.info(`DRY RUN of ${command}: planning only - NOTHING WILL BE CHANGED`);
-        logger.info('==================================================');
+        logger.info(RUN_FRAME);
     });
 };
 
@@ -86,8 +94,131 @@ export const createRunReport = ({ command, dryRun }) => ({
     command,
     dryRun,
     selection: null,
+    plan: null,
     apps: [],
+    startedAt: Date.now(),
+    finishedAt: null,
+    succeeded: null,
 });
+
+/**
+ * Build the plan's `rules` section from the command's options bag.
+ *
+ * One builder for both platform twins, so the two cannot disagree about which
+ * options constitute a rule. Tag rules are included only where the platform
+ * honours them - Qlik Sense Cloud cannot tag individual sheets, and a plan
+ * listing a rule the run ignores would be the plan lying.
+ *
+ * @param {object} options - The command's options bag.
+ * @param {object} [facts] - Server-side facts, where available.
+ * @param {boolean} [facts.includeTagRules] - Whether tag rules apply on this platform.
+ * @param {number|null} [facts.excludeTagSheetCount] - Sheets matched by the
+ *     exclude tag(s) across the selected apps, or null when not counted.
+ * @param {number|null} [facts.blurTagSheetCount] - Same for the blur tag(s).
+ *
+ * @returns {{exclude: Array<object>, blur: Array<object>}} The rules, each as
+ *     `{option, values, matchedSheetCount}` - structural, never pre-rendered.
+ */
+export const buildSheetRules = (
+    options,
+    { includeTagRules = false, excludeTagSheetCount = null, blurTagSheetCount = null } = {}
+) => {
+    const rule = (option, values, matchedSheetCount = null) => ({
+        option,
+        values,
+        matchedSheetCount,
+    });
+
+    const collect = (prefix, tagOption, tagCount) => {
+        const rules = [];
+
+        if (includeTagRules) {
+            const tags = toOptionValueList(tagOption);
+            if (tags.length > 0) {
+                rules.push(rule(`${prefix}-sheet-tag`, tags, tagCount));
+            }
+        }
+        for (const kind of ['number', 'title', 'status']) {
+            const optionName = `${prefix}-sheet-${kind}`;
+            const camel = `${prefix}Sheet${kind[0].toUpperCase()}${kind.slice(1)}`;
+            const values = toOptionValueList(options[camel]).map(String);
+            if (values.length > 0) {
+                rules.push(rule(optionName, values));
+            }
+        }
+
+        return rules;
+    };
+
+    return {
+        exclude: collect('exclude', options.excludeSheetTag, excludeTagSheetCount),
+        blur: collect('blur', options.blurSheetTag, blurTagSheetCount),
+    };
+};
+
+/**
+ * The plan's `sheetPart` section, from the option value and the platform's
+ * label map. Shared by the twins so neither can render a value the other maps
+ * differently.
+ *
+ * @param {string|number} value - The `--includesheetpart` value.
+ * @param {Record<string, string>} labels - The platform's sheet-part labels.
+ *
+ * @returns {{value: string, max: string, label: string}} The section.
+ */
+export const buildSheetPartSection = (value, labels) => {
+    const keys = Object.keys(labels);
+
+    return {
+        value: String(value),
+        max: keys[keys.length - 1],
+        label: labels[String(value)],
+    };
+};
+
+/**
+ * The plan's `browser` section, identical on both platforms.
+ *
+ * The version is the *requested* one - a keyword like `recommended` or a
+ * pinned build - never a resolved build id: resolution happens at launch and
+ * may involve the network, and the plan block must stay a pure read of what
+ * was asked for. The launch still logs the build it actually uses.
+ *
+ * @param {object} options - The command's options bag.
+ *
+ * @returns {{name: string, version: string, headless: boolean|string, pageWaitSeconds: number|string}} The section.
+ */
+export const buildBrowserPlanSection = (options) => ({
+    name: options.browser,
+    version: options.browserVersion,
+    headless: options.headless,
+    pageWaitSeconds: options.pagewait,
+});
+
+/**
+ * Mark an app as failed on the report.
+ *
+ * Called by the app loop when a processor or planner threw. The entry may
+ * already exist (the app failed after opening its section) or not (it failed
+ * before `openDoc` resolved); either way the verdict must count it.
+ *
+ * Not exported: recording failures is the loop's job, and an outside caller
+ * mutating reports would bypass the one place ordering is guaranteed.
+ *
+ * @param {object} report - The report.
+ * @param {string} appId - The app that failed.
+ *
+ * @returns {void}
+ */
+const markAppFailed = (report, appId) => {
+    const entry = report.apps.find((app) => app.id === appId);
+
+    if (entry) {
+        entry.failed = true;
+    } else {
+        addAppToReport(report, { id: appId }).failed = true;
+    }
+};
 
 /**
  * Record how the app selection resolved.
@@ -126,6 +257,12 @@ export const recordSelection = (report, { namedAppIds, selectorAppIds, selector 
 /**
  * Open a per-app section in the report.
  *
+ * Real runs additionally record outcome fields directly on the entry as they
+ * happen: `sheetsUpdated`, `imagesKeptFiles`, `imagesKeptBytes`,
+ * `mediaFilesDeleted`. They stay absent on entries that never reached that
+ * step, and the verdict renderer sums only what was recorded - so a number in
+ * the verdict is always a number that happened.
+ *
  * @param {object} report - The report.
  * @param {object} app - App facts.
  * @param {string} app.id - App id.
@@ -141,6 +278,7 @@ export const addAppToReport = (report, { id, name, sheetCount }) => {
         sheetCount: sheetCount ?? null,
         sheets: [],
         mediaFilesToDelete: null,
+        failed: false,
     };
     report.apps.push(entry);
 
@@ -164,6 +302,35 @@ export const addAppToReport = (report, { id, name, sheetCount }) => {
  */
 export const recordSheetDecision = (appEntry, { n, title, action, reason = null }) => {
     appEntry.sheets.push({ n, title, action, reason });
+};
+
+/**
+ * Record a real run's per-app outcome: how many sheets were given new
+ * thumbnails, and what the kept image files on disk amount to.
+ *
+ * One recorder for both platform twins - a future outcome field added here
+ * reaches both verdicts, instead of landing in one processor's inline block
+ * and silently missing from the other's.
+ *
+ * @param {object|null} appEntry - From {@link addAppToReport}, or null when
+ *     the processor runs without a report.
+ * @param {object} outcome - The outcome.
+ * @param {number} outcome.sheetsUpdated - Sheets given a new thumbnail.
+ * @param {string} outcome.imagesDir - The per-app image directory.
+ * @param {string[]} outcome.imageFileNames - Image file names (no path) the run created.
+ *
+ * @returns {void}
+ */
+export const recordAppOutcome = (appEntry, { sheetsUpdated, imagesDir, imageFileNames }) => {
+    if (!appEntry) {
+        return;
+    }
+
+    appEntry.sheetsUpdated = sheetsUpdated;
+
+    const kept = measureImageFiles(imagesDir, imageFileNames);
+    appEntry.imagesKeptFiles = kept.files;
+    appEntry.imagesKeptBytes = kept.bytes;
 };
 
 /**
@@ -199,18 +366,6 @@ const ACTION_LABEL = Object.freeze({
 });
 
 /**
- * Whether the report describes an icon-removal command.
- *
- * Decided from `report.command`, never sniffed from the recorded rows: a
- * remove run over zero sheets must still summarise in remove vocabulary.
- *
- * @param {object} report - The report.
- *
- * @returns {boolean} True for remove-sheet-icons reports.
- */
-const isRemovalReport = (report) => (report.command ?? '').includes('remove-sheet-icons');
-
-/**
  * Render the dry-run report through the logger.
  *
  * Through winston at `info` rather than straight to stdout (issue #993 open
@@ -240,25 +395,13 @@ export const renderDryRunReport = (report, log = logger) => {
             return;
         }
 
+        // The app-selection provenance line that used to open this report now
+        // lives in the PLAN block, which renders before the app loop - stating
+        // it again here would be the "do not end up with both" mistake #1073
+        // warns about for the version line.
         log.info('');
         log.info(`DRY RUN of ${report.command} - nothing will be changed`);
         log.info('');
-
-        if (report.selection) {
-            const s = report.selection;
-            const parts = [`${s.named} named by --appid`];
-            if (s.selector) {
-                parts.push(
-                    `${s.fromSelector} matched by --${s.selector.option} "${s.selector.value}"`
-                );
-            }
-            const overlap = s.named + s.fromSelector - s.total;
-            if (overlap > 0) {
-                parts.push(`${overlap} selected twice`);
-            }
-            log.info(`App selection: ${s.total} app(s) - ${parts.join(', ')}`);
-            log.info('');
-        }
 
         const width = report.apps.reduce(
             (max, app) =>
@@ -291,6 +434,16 @@ export const renderDryRunReport = (report, log = logger) => {
                 );
             }
 
+            // A planner that failed after its rows were recorded (or before
+            // any were) must not read as a clean plan: the row count alone
+            // cannot tell "fully planned" from "failed on the step after the
+            // last sheet".
+            if (app.failed) {
+                log.info(
+                    `  PLANNING FAILED for this app - the rows above may be incomplete. See the errors above.`
+                );
+            }
+
             if (app.mediaFilesToDelete !== null && app.mediaFilesToDelete > 0) {
                 log.info(
                     `  ${app.mediaFilesToDelete} thumbnail media file(s) would also be deleted from the app media library`
@@ -301,12 +454,15 @@ export const renderDryRunReport = (report, log = logger) => {
 
         const t = reportTotals(report);
 
-        // Apps that failed before their section opened are invisible in the
-        // rows, so the count mismatch with the selection is stated explicitly.
-        const unplanned = (report.selection?.total ?? report.apps.length) - report.apps.length;
+        // Failed planners now always leave a marked entry, but the selection
+        // count is still cross-checked so an app that vanished entirely (a
+        // future recording bug) cannot pass silently.
+        const failedApps = report.apps.filter((app) => app.failed).length;
+        const unplanned =
+            (report.selection?.total ?? report.apps.length) - report.apps.length + failedApps;
         if (unplanned > 0) {
             log.info(
-                `${unplanned} app(s) could not be planned at all - see the errors above. They are not included in the summary.`
+                `${unplanned} app(s) could not be fully planned - see the errors above. Their rows are missing or incomplete.`
             );
         }
 
@@ -320,7 +476,17 @@ export const renderDryRunReport = (report, log = logger) => {
                 `Summary: ${t.apps} app(s), ${t.sheets} sheets. ${t.update + t.blur} would be updated${blurNote}, ${t.skip} skipped.`
             );
         }
-        log.info('Nothing was changed. Re-run without --dry-run to apply.');
+
+        // The invitation to apply is earned, not automatic: a dry run that
+        // could not plan everything must send the operator to the errors, not
+        // to the real run.
+        if (unplanned > 0) {
+            log.info(
+                'Nothing was changed. Fix the errors above before applying - this plan is incomplete.'
+            );
+        } else {
+            log.info('Nothing was changed. Re-run without --dry-run to apply.');
+        }
     };
 
     // Only force visibility on the real logger; an injected test logger has no
@@ -367,13 +533,23 @@ export const recordPlannedSheet = (
 
 /**
  * The report-carrying app loop every dry-run-capable worker shares: build the
- * report, record the selection, run the loop against the planner or the
- * processor, and render the report when planning.
+ * report, record the selection and the plan, render the plan block, run the
+ * loop against the planner or the processor, and render the verdict.
  *
  * One function rather than a block pasted into each worker - the three copies
  * had already been flagged by review and by the duplication gate, and a
  * report field added in one worker but not the others is exactly the drift
  * the report exists to prevent.
+ *
+ * The plan block renders here, before the loop starts, which is what makes
+ * "the plan is emitted before any write" a structural property rather than a
+ * convention: the first write any worker performs happens inside its per-app
+ * processor, and the loop has not been entered yet.
+ *
+ * Visibility differs by mode on purpose. On a dry run the plan is the
+ * command's product, so it is forced visible even at `--log-level warn`. On a
+ * real run the plan and verdict log at plain `info`: an operator who chose
+ * `warn` asked for a quiet run, and the run card respects that.
  *
  * @param {object} run - The run.
  * @param {string} run.command - The command, e.g. `qseow create-sheet-thumbnails`.
@@ -382,10 +558,12 @@ export const recordPlannedSheet = (
  * @param {string[]} run.namedAppIds - The `--appid` subset.
  * @param {string[]} run.selectorAppIds - The tag/collection subset.
  * @param {{option: string, value: string}|null} run.selector - The selector used, if any.
+ * @param {object} [run.plan] - Structural plan sections (target, auth, sheetPart,
+ *     rules, browser, output, writes), assembled by the worker.
  * @param {{plan: string, process: string}} run.logPrefix - Per-mode log prefixes.
  * @param {string} run.emptySelectionHint - Guidance when nothing was selected.
  * @param {(appId: string, report: object) => Promise<void>} run.planApp - The per-app planner.
- * @param {(appId: string) => Promise<unknown>} run.processApp - The per-app processor.
+ * @param {(appId: string, report: object) => Promise<unknown>} run.processApp - The per-app processor.
  *
  * @returns {Promise<boolean>} The verdict from the app loop.
  */
@@ -396,6 +574,7 @@ export const runOverAppsWithReport = async ({
     namedAppIds,
     selectorAppIds,
     selector,
+    plan = null,
     logPrefix,
     emptySelectionHint,
     planApp,
@@ -403,6 +582,18 @@ export const runOverAppsWithReport = async ({
 }) => {
     const report = createRunReport({ command, dryRun });
     recordSelection(report, { namedAppIds, selectorAppIds, selector });
+    report.plan = plan;
+
+    const emitPlan = () => {
+        for (const line of renderRunPlanLines(report)) {
+            logger.info(line);
+        }
+    };
+    if (dryRun) {
+        withReportVisible(emitPlan);
+    } else {
+        emitPlan();
+    }
 
     const result = await runOverApps(
         appIds,
@@ -411,14 +602,52 @@ export const runOverAppsWithReport = async ({
             action: dryRun ? 'plan' : 'process',
             emptySelectionHint,
         },
-        dryRun ? (appId) => planApp(appId, report) : processApp
+        dryRun
+            ? async (appId) => {
+                  try {
+                      return await planApp(appId, report);
+                  } catch (err) {
+                      // A planner that failed after recording its rows would
+                      // otherwise render as a clean, fully-planned app - on
+                      // the mode whose report is the entire product.
+                      markAppFailed(report, appId);
+                      throw err;
+                  }
+              }
+            : async (appId) => {
+                  try {
+                      const result = await processApp(appId, report);
+
+                      // Every attempted app must have an entry, or the
+                      // verdict's ok-count silently undercounts a processor
+                      // that recorded nothing.
+                      if (!report.apps.some((app) => app.id === appId)) {
+                          addAppToReport(report, { id: appId });
+                      }
+
+                      return result;
+                  } catch (err) {
+                      // Recorded before the loop's own catch logs it, so the
+                      // verdict's failed-app count cannot disagree with the
+                      // error lines above it.
+                      markAppFailed(report, appId);
+                      throw err;
+                  }
+              }
     );
+
+    report.finishedAt = Date.now();
+    report.succeeded = result;
 
     // Rendered even when some apps failed to plan: the decisions that were
     // reached belong next to the per-app error lines already logged, and the
     // renderer itself marks incomplete and unplanned apps.
     if (dryRun) {
         renderDryRunReport(report);
+    } else {
+        for (const line of renderRunVerdictLines(report)) {
+            logger.info(line);
+        }
     }
 
     return result;

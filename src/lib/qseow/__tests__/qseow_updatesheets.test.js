@@ -93,12 +93,13 @@ describe('qseowUpdateSheetThumbnails — --blur-sheet-tag handling (issue #840)'
         // because the identifier did not exist in the function at all.
         wireEnigmaWithOneSheet();
 
+        // Resolves to the number of sheets updated (the run card's verdict number).
         await expect(
             qseowUpdateSheetThumbnails(CREATED_FILES, 'test-app-id', {
                 ...BASE_OPTIONS,
                 blurSheetTag: 'some-tag',
             })
-        ).resolves.toBeUndefined();
+        ).resolves.toBe(1);
     });
 
     test('no longer warns that the option is unimplemented, now that the caller looks it up', async () => {

@@ -21,6 +21,7 @@ import {
     addAppToReport,
     recordSheetDecision,
 } from '../util/run-report.js';
+import { sheetProgressLine, appProgressLine } from '../util/run-report-render.js';
 import { logError } from '../util/log-error.js';
 
 /**
@@ -32,6 +33,8 @@ import { logError } from '../util/log-error.js';
  * @param {string} options.tenanturl - Host address of the Qlik Sense Cloud tenant.
  * @param {string} options.apikey - API key for the Qlik Sense Cloud tenant.
  * @param {string} options.loglevel - The level of logging to output. Valid values are 'error', 'warn', 'info', 'verbose', 'debug', 'silly'.
+ * @param {object} [report] - Run report from `createRunReport`; per-sheet
+ *     decisions and the media-file deletion count are recorded onto it.
  *
  * @returns {Promise<void>} Resolves once every sheet's icon has been removed, or the app has
  *     no sheets.
@@ -40,8 +43,9 @@ import { logError } from '../util/log-error.js';
  *     attempted first and the engine session is always released.
  * @throws {Error} Whatever the engine or media API threw, if the session itself was lost.
  */
-const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
+const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = null) => {
     let sheetRun;
+    let appEntry = null;
 
     try {
         // Configure Enigma.js
@@ -59,15 +63,18 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
             },
             async (global) => {
                 const app = await global.openDoc(appId, '', '', '', false);
-                logger.info(`Opened app ${appId}`);
+                logger.verbose(`Opened app ${appId}`);
 
                 // Get list of app sheets
                 const sheets = await getSheetList(app, SHEET_LIST_FIELDS_EXTENDED);
 
-                if (sheets.length > 0) {
-                    // sheets[] now contains array of app sheets.
-                    logger.info(`Number of sheets in app: ${sheets.length}`);
+                logger.info(`  ${sheets.length} sheet(s)`);
 
+                if (report) {
+                    appEntry = addAppToReport(report, { id: appId, sheetCount: sheets.length });
+                }
+
+                if (sheets.length > 0) {
                     // Sort sheets
                     sortSheetsByRank(sheets);
 
@@ -80,7 +87,7 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
                             ErrorClass: CloudError,
                         },
                         async (sheet, iSheetNum) => {
-                            logger.info(
+                            logger.verbose(
                                 `Removing icon for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
                             );
 
@@ -93,8 +100,22 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
                             // no-op into an error, and made the dry run predict
                             // success for exactly the input that broke the run.
                             if (!sheetProperties?.thumbnail?.qStaticContentUrlDef) {
-                                logger.verbose(
-                                    `Sheet ${iSheetNum} has no thumbnail structure - nothing to clear`
+                                if (appEntry) {
+                                    recordSheetDecision(appEntry, {
+                                        n: iSheetNum,
+                                        title: sheet?.qMeta?.title,
+                                        action: 'clear',
+                                        reason: CLEAR_REASON.NO_ICON,
+                                    });
+                                }
+                                logger.info(
+                                    sheetProgressLine({
+                                        n: iSheetNum,
+                                        total: sheets.length,
+                                        label: 'no icon',
+                                        title: sheet?.qMeta?.title,
+                                        reason: CLEAR_REASON.NO_ICON,
+                                    })
                                 );
 
                                 return SHEET_SKIPPED;
@@ -105,6 +126,24 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
 
                             const res = await sheetObj.setProperties(sheetProperties);
                             logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
+
+                            // Recorded only after the write went through, so
+                            // the row states a fact.
+                            if (appEntry) {
+                                recordSheetDecision(appEntry, {
+                                    n: iSheetNum,
+                                    title: sheet?.qMeta?.title,
+                                    action: 'clear',
+                                });
+                            }
+                            logger.info(
+                                sheetProgressLine({
+                                    n: iSheetNum,
+                                    total: sheets.length,
+                                    label: 'cleared',
+                                    title: sheet?.qMeta?.title,
+                                })
+                            );
                         }
                     );
                 }
@@ -130,6 +169,7 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
         // reference and then removing the file is the order that degrades safely.
         // Does the app have a thumbnail folder in its media library?
         const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
+        let mediaFilesDeleted = 0;
 
         if (
             mediaList.find((item) => {
@@ -154,11 +194,21 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options) => {
                             thumbnailImg.name
                         )}, result=${JSON.stringify(result)}`
                     );
+                    mediaFilesDeleted += 1;
                 }
             }
         }
 
-        logger.info(`Done processing app ${appId}`);
+        if (appEntry) {
+            appEntry.mediaFilesDeleted = mediaFilesDeleted;
+        }
+        logger.info(
+            `  deleted ${mediaFilesDeleted} thumbnail media file(s) from the app media library`
+        );
+
+        // The run card's verdict now closes the run; this line stays for
+        // anyone debugging at verbose.
+        logger.verbose(`Done processing app ${appId}`);
     } catch (err) {
         logError('CLOUD REMOVE SHEET ICONS 1', err);
         // Rethrow so the app loop can count this app as failed. Logging and returning
@@ -204,10 +254,17 @@ const planRemoveSheetIconsCloudApp = async (appId, saasInstance, options, report
         },
         async (global) => {
             const app = await global.openDoc(appId, '', '', '', false);
-            logger.info(`Opened app ${appId}`);
+            logger.verbose(`Opened app ${appId}`);
 
             const sheets = await getSheetList(app, SHEET_LIST_FIELDS_EXTENDED);
-            logger.info(`Number of sheets in app: ${sheets.length}`);
+            // Through the shared renderer, with the id as the name fallback -
+            // a missing attributes.name must not print "undefined".
+            logger.info(
+                appProgressLine({
+                    name: appMetadata?.attributes?.name ?? appId,
+                    sheetCount: sheets.length,
+                })
+            );
 
             const appEntry = addAppToReport(report, {
                 id: appId,
@@ -335,11 +392,19 @@ export const qscloudRemoveSheetIcons = async (options) => {
             command: 'qscloud remove-sheet-icons',
             dryRun,
             ...selection,
+            plan: {
+                target: { platform: 'cloud', tenantUrl: options.tenanturl },
+                // API key only: this command never drives a browser, so there
+                // is no logon identity to report.
+                auth: { apiKey: true },
+                writes: { kind: 'clear-icons' },
+            },
             logPrefix: { plan: 'CLOUD PLAN REMOVE ICONS', process: 'CLOUD REMOVE SHEET ICONS' },
             emptySelectionHint: 'Check the --appid and --collectionid options.',
             planApp: (appId, report) =>
                 planRemoveSheetIconsCloudApp(appId, saasInstance, options, report),
-            processApp: (appId) => removeSheetIconsCloudApp(appId, saasInstance, options),
+            processApp: (appId, report) =>
+                removeSheetIconsCloudApp(appId, saasInstance, options, report),
         });
     } catch (err) {
         logError('CLOUD REMOVE THUMBNAILS 3', err);

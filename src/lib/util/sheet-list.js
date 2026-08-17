@@ -357,6 +357,31 @@ export const runOverSheets = async (sheets, ctx, processSheet) => {
 };
 
 /**
+ * Logs the run card's per-app closing line for a thumbnail-update pass and
+ * returns the count of sheets changed.
+ *
+ * One helper for both platform twins - the wording and the derivation must
+ * not drift between them. Call it BEFORE `assertAllProcessed()`: the line
+ * states writes that have already been persisted, and when the app is about
+ * to be failed over one bad sheet, the operator must still learn that the
+ * other sheets were changed - those writes are irreversible whether or not
+ * the app is counted as failed.
+ *
+ * @param {{changed: number, attempted: number, skipped: number}|undefined} sheetRun -
+ *     The result from {@link runOverSheets}, or undefined when the app had no sheets.
+ *
+ * @returns {number} How many sheets were changed.
+ */
+export const logUpdatedSheetSummary = (sheetRun) => {
+    const changed = sheetRun?.changed ?? 0;
+    const total = (sheetRun?.attempted ?? 0) + (sheetRun?.skipped ?? 0);
+
+    logger.info(`  updated ${changed} of ${total} sheet(s) with new thumbnails`);
+
+    return changed;
+};
+
+/**
  * Persists an app, but only when a sheet was actually changed.
  *
  * `app.doSave()` used to be called once per sheet, from inside the loop. That wrote the app

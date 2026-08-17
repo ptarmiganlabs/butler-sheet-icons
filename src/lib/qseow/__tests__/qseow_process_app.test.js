@@ -58,6 +58,9 @@ const mockGlobals = jest.unstable_mockModule('../../../globals.js', () => ({
     // rather than an undefined.
     sendConsoleLogToStderr: () => {},
     isSea: false,
+    // run-report.js (imported for the report recorders) links these two.
+    getLoggingLevel: jest.fn().mockReturnValue('info'),
+    setLoggingLevel: jest.fn(),
 }));
 
 const mockQseowEnigma = jest.unstable_mockModule('../qseow-enigma.js', () => ({
@@ -69,7 +72,7 @@ const mockQseowUpload = jest.unstable_mockModule('../qseow-upload.js', () => ({
 }));
 
 const mockQseowUpdateSheets = jest.unstable_mockModule('../qseow-updatesheets.js', () => ({
-    qseowUpdateSheetThumbnails: jest.fn().mockResolvedValue(true),
+    qseowUpdateSheetThumbnails: jest.fn().mockResolvedValue(1),
 }));
 
 const mockQseowLogout = jest.unstable_mockModule('../qseow-logout.js', () => ({
@@ -495,7 +498,7 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             qrsInteract.mockImplementation(() => ({ Get: mockGet }));
             wireEnigmaSession();
             puppeteer.launch.mockResolvedValue(buildMockBrowser());
-            qseowUpdateSheetThumbnails.mockResolvedValue(true);
+            qseowUpdateSheetThumbnails.mockResolvedValue(1);
 
             await qseowProcessApp('test-app-id', {
                 ...defaultOptions,
@@ -795,7 +798,7 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             });
             browserInstall.mockReset();
             qseowUploadToContentLibrary.mockResolvedValue(true);
-            qseowUpdateSheetThumbnails.mockResolvedValue(true);
+            qseowUpdateSheetThumbnails.mockResolvedValue(1);
         });
 
         /**
@@ -931,7 +934,7 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
             sheetIsHidden: false,
         });
         qseowUploadToContentLibrary.mockResolvedValue(true);
-        qseowUpdateSheetThumbnails.mockResolvedValue(true);
+        qseowUpdateSheetThumbnails.mockResolvedValue(1);
 
         const mockGet = jest.fn().mockImplementation((encodedPath) => {
             // Match on the decoded filter, i.e. what QRS parses, rather than on the wire
@@ -1063,7 +1066,7 @@ describe('qseow-process-app.js — a blurred thumbnail that cannot be created', 
             sheetIsHidden: false,
         });
         qseowUploadToContentLibrary.mockResolvedValue(true);
-        qseowUpdateSheetThumbnails.mockResolvedValue(true);
+        qseowUpdateSheetThumbnails.mockResolvedValue(1);
 
         const mockGet = jest.fn().mockImplementation((encodedPath) => {
             // Match on the decoded filter, i.e. what QRS parses, rather than on the wire
@@ -1216,7 +1219,7 @@ describe('qseow-process-app.js — a QRS reply that is not a list', () => {
             buildId: 'system-installed',
         });
         qseowUploadToContentLibrary.mockResolvedValue(true);
-        qseowUpdateSheetThumbnails.mockResolvedValue(true);
+        qseowUpdateSheetThumbnails.mockResolvedValue(1);
 
         const mockGet = jest.fn().mockImplementation((encodedPath) => {
             const path = decodeURIComponent(encodedPath);

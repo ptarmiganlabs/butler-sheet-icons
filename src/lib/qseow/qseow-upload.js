@@ -53,8 +53,8 @@ export const qseowUploadToContentLibrary = async (filesToUpload, appId, options)
 
         const { contentlibrary } = options;
 
-        logger.info(`Uploading images in folder: ${iconFolderAbsolute}`);
-        logger.info(`Uploading images to Qlik Sense content library: ${contentlibrary}`);
+        logger.verbose(`Uploading images in folder: ${iconFolderAbsolute}`);
+        logger.verbose(`Uploading images to Qlik Sense content library: ${contentlibrary}`);
 
         logger.debug(`Files to be uploaded to QSEoW`);
         filesToUpload.forEach((file) => logger.debug(JSON.stringify(file)));
@@ -116,4 +116,10 @@ export const qseowUploadToContentLibrary = async (filesToUpload, appId, options)
             `Failed to upload ${failedCount} of ${failedCount + uploadedCount} thumbnail image(s) to content library ${options.contentlibrary}`
         );
     }
+
+    // The countable line the two verbose lines above used to approximate:
+    // what went where, once, with a number.
+    logger.info(
+        `  uploaded ${uploadedCount} image file(s) to content library "${options.contentlibrary}"`
+    );
 };

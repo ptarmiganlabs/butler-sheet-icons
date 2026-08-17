@@ -218,9 +218,10 @@ describe('qscloudUpdateSheetThumbnails', () => {
     test('handles an app with no sheets', async () => {
         const { session } = wireEnigma([]);
 
+        // Resolves to the number of sheets updated - zero here, there are none.
         await expect(
             qscloudUpdateSheetThumbnails(CREATED_FILES, APP_ID, BASE_OPTIONS)
-        ).resolves.toBeUndefined();
+        ).resolves.toBe(0);
 
         expect(session.close).toHaveBeenCalledTimes(1);
     });

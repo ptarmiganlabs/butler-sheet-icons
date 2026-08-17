@@ -25,6 +25,19 @@ export const CLOUD_SHEET_PART_SELECTORS = Object.freeze({
 });
 
 /**
+ * Human-readable descriptions of the Cloud sheet parts, keyed like the
+ * selector map above so the two cannot list different values. Shown in the
+ * run card's PLAN block, where a bare `2` would send the operator to the docs.
+ *
+ * @type {Readonly<Record<string, string>>}
+ */
+export const CLOUD_SHEET_PART_LABELS = Object.freeze({
+    1: 'sheet objects only',
+    2: 'objects + sheet title',
+    4: 'entire sheet',
+});
+
+/**
  * Values `--includesheetpart` accepts on Qlik Sense Cloud, in ascending order. Frozen.
  *
  * Passed to Commander's `.choices()`, which both validates and makes the values discoverable in

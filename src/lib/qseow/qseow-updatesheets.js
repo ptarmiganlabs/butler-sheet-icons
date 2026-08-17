@@ -9,6 +9,7 @@ import {
     sortSheetsByRank,
     saveIfChanged,
     getSheetList,
+    logUpdatedSheetSummary,
 } from '../util/sheet-list.js';
 import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
 
@@ -24,8 +25,8 @@ import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
  * the exclude-tag one: passing the latter would blur every sheet the operator asked to skip.
  * Defaults to empty so the tag rule matches nothing when the caller has not looked it up.
  *
- * @returns {Promise<void>} Resolves when every sheet that had a generated thumbnail was
- *     updated.
+ * @returns {Promise<number>} How many sheets were given a new thumbnail - the number the
+ *     run card's verdict reports.
  *
  * @throws {QseowError} When any sheet could not be updated, or when thumbnails were created
  *     but no sheet matched one. Other sheets are still attempted first and the engine
@@ -62,7 +63,7 @@ export const qseowUpdateSheetThumbnails = async (
 
                 if (sheets.length > 0) {
                     // dimObj.qAppObjectList.qItems[] now contains array of app sheets.
-                    logger.info(`Number of sheets: ${sheets.length}`);
+                    logger.verbose(`Number of sheets: ${sheets.length}`);
 
                     // Sort sheets
                     sortSheetsByRank(sheets);
@@ -86,8 +87,8 @@ export const qseowUpdateSheetThumbnails = async (
                                 // No thumbnail for this sheet, skip. Guarded: this line is inside
                                 // the counted region, so an unguarded dereference here would fail
                                 // the app over a sheet nobody was going to touch.
-                                logger.info(
-                                    `Skipping update of sheet sheet ${iSheetNum}: Name '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}'`
+                                logger.verbose(
+                                    `Skipping update of sheet ${iSheetNum}: Name '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}'`
                                 );
 
                                 return SHEET_SKIPPED;
@@ -108,14 +109,14 @@ export const qseowUpdateSheetThumbnails = async (
                                 const sheetProperties = await sheetObj.getProperties();
 
                                 if (blurSheet === true) {
-                                    logger.info(
+                                    logger.verbose(
                                         `Using blurred thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
                                     );
 
                                     // Set new sheet thumbnail
                                     sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/content/${options.contentlibrary}/thumbnail-${appId}-${iSheetNum}-blurred.png`;
                                 } else {
-                                    logger.info(
+                                    logger.verbose(
                                         `Using regular thumbnail for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
                                     );
 
@@ -152,5 +153,12 @@ export const qseowUpdateSheetThumbnails = async (
         throw new QseowError(`Failed to update sheet thumbnails in app ${appId}`, { cause: err });
     }
 
+    // Summary BEFORE the assert: when one sheet failed, the others' writes
+    // were already persisted by saveIfChanged, and the operator must learn
+    // about them even as the app is counted failed.
+    const changed = logUpdatedSheetSummary(sheetRun);
+
     sheetRun?.assertAllProcessed();
+
+    return changed;
 };
