@@ -1,4 +1,5 @@
 import { Command, Option } from 'commander';
+import { addDryRunOption } from '../dry-run-option.js';
 import { logger, appVersion } from '../../../globals.js';
 import { qscloudRemoveSheetIcons } from '../../cloud/cloud-remove-sheet-icons.js';
 import { runCommand } from '../run-command.js';
@@ -80,6 +81,8 @@ const buildCloudRemoveSheetIconsCommand = () => {
                 .default('')
                 .env('BSI_QSCLOUD_RSI_COLLECTIONID')
         );
+
+    addDryRunOption(command);
 
     return command;
 };

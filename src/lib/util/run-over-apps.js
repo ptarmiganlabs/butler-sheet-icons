@@ -26,6 +26,8 @@ import { logger } from '../../globals.js';
  *     by both `--appid` and a collection is processed once.
  * @param {object} ctx - Logging context.
  * @param {string} ctx.logPrefix - Prefix for the per-app failure lines, e.g. `'CLOUD PROCESS APP'`.
+ * @param {string} [ctx.action] - Verb for the per-app banner line, e.g. `plan` for a dry
+ *     run. Defaults to `process`, so a dry run's log never claims to be processing.
  * @param {string} [ctx.emptySelectionHint] - Extra guidance logged when the list is empty,
  *     e.g. which options to check. An empty list is reported as an error, because it means
  *     the operator asked for work that did not happen.
@@ -34,7 +36,11 @@ import { logger } from '../../globals.js';
  * @returns {Promise<boolean>} `true` only when at least one app was selected and every one
  *     of them was processed without error. An empty selection is a failure, not a no-op.
  */
-export const runOverApps = async (appIds, { logPrefix, emptySelectionHint }, processApp) => {
+export const runOverApps = async (
+    appIds,
+    { logPrefix, emptySelectionHint, action = 'process' },
+    processApp
+) => {
     // An app named by both --appid and a collection must still be processed once.
     const uniqueAppIds = [...new Set(appIds)];
 
@@ -55,7 +61,7 @@ export const runOverApps = async (appIds, { logPrefix, emptySelectionHint }, pro
     for (const appId of uniqueAppIds) {
         try {
             logger.info(`--------------------------------------------------`);
-            logger.info(`About to process app ${appId}`);
+            logger.info(`About to ${action} app ${appId}`);
 
             await processApp(appId);
 

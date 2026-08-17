@@ -3,9 +3,16 @@ import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { processCloudApp } from './process-cloud-app.js';
+import { cloudPlanApp } from './cloud-plan-app.js';
 import { runOverApps } from '../util/run-over-apps.js';
 import { listAppsByCollection } from './cloud-apps.js';
 import { toAppIdList } from '../util/app-ids.js';
+import {
+    createRunReport,
+    recordSelection,
+    renderDryRunReport,
+    announceDryRun,
+} from '../util/run-report.js';
 import { CLOUD_SHEET_PARTS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
 
@@ -37,6 +44,12 @@ import { logError } from '../util/log-error.js';
 export const qscloudCreateThumbnails = async (options) => {
     try {
         setLoggingLevel(options.loglevel);
+
+        const dryRun = Boolean(options.dryRun);
+        if (dryRun) {
+            // Before anything connects - mirrors the QSEoW twin.
+            announceDryRun('qscloud create-sheet-thumbnails');
+        }
 
         logger.info('Starting creation of thumbnails for Qlik Sense Cloud');
         logger.verbose(`Running as standalone app: ${isSea}`);
@@ -104,25 +117,53 @@ export const qscloudCreateThumbnails = async (options) => {
         }
 
         // Apps named directly. --appid is variadic, so this is a list.
-        appIdsToProcess.push(...toAppIdList(options.appid));
+        const namedAppIds = toAppIdList(options.appid);
+        appIdsToProcess.push(...namedAppIds);
 
         // --appid and --collectionid are additive, not alternatives: apps named either
         // way are all processed. runOverApps() dedupes, so an app that is both named by
         // --appid and in the collection is still processed once.
-        if (options.collectionid && options.collectionid.length > 0) {
+        let collectionAppIds = [];
+        const useCollection = Boolean(options.collectionid && options.collectionid.length > 0);
+        if (useCollection) {
             const apps = await listAppsByCollection(saasInstance, options.collectionid);
             logger.verbose(`Collection '${options.collectionid}' exists`);
-            appIdsToProcess.push(...apps.map((app) => app.id));
+            collectionAppIds = apps.map((app) => app.id);
+            appIdsToProcess.push(...collectionAppIds);
         }
 
-        return await runOverApps(
+        // The report is built for both modes; only a dry run renders it today.
+        // Selection provenance is recorded up front because "the collection
+        // matched 40 apps, not 4" is a silent surprise the report exists to
+        // catch (#993). Mirrors the QSEoW twin in qseow-create-thumbnails.js.
+        const report = createRunReport({ command: 'qscloud create-sheet-thumbnails', dryRun });
+        recordSelection(report, {
+            namedAppIds,
+            selectorAppIds: collectionAppIds,
+            selector: useCollection
+                ? { option: 'collectionid', value: options.collectionid }
+                : null,
+        });
+
+        const result = await runOverApps(
             appIdsToProcess,
             {
-                logPrefix: 'CLOUD PROCESS APP',
+                logPrefix: dryRun ? 'CLOUD PLAN APP' : 'CLOUD PROCESS APP',
+                action: dryRun ? 'plan' : 'process',
                 emptySelectionHint: 'Check the --appid and --collectionid options.',
             },
-            (appId) => processCloudApp(appId, saasInstance, options)
+            dryRun
+                ? (appId) => cloudPlanApp(appId, saasInstance, options, report)
+                : (appId) => processCloudApp(appId, saasInstance, options)
         );
+
+        // Rendered even when some apps failed to plan: the decisions that were
+        // reached belong next to the per-app error lines already logged.
+        if (dryRun) {
+            renderDryRunReport(report);
+        }
+
+        return result;
     } catch (err) {
         logError('CLOUD CREATE THUMBNAILS 2', err);
 

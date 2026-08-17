@@ -36,6 +36,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
         warn: jest.fn(),
     },
     setLoggingLevel: jest.fn(),
+    getLoggingLevel: jest.fn(() => 'info'),
     bsiExecutablePath: '/opt/bsi',
     isSea: false,
 }));
@@ -721,6 +722,107 @@ describe('qscloudRemoveSheetIcons', () => {
             });
 
             await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS })).resolves.toBe(false);
+        });
+    });
+
+    describe('--dry-run (#993): the writes-nothing proof', () => {
+        // These are the assertions that actually guard the feature: the real
+        // worker with dryRun set must reach the planner and never touch a
+        // write. Everything below drives the REAL qscloudRemoveSheetIcons -
+        // no planner mock, no runOverApps mock - so a routing regression that
+        // swapped the ternary would fail here with icons "cleared".
+        const withAppAndThumbnails = () => {
+            Get.mockImplementation(async (path) => {
+                if (path === 'apps/test-app-id') {
+                    return { attributes: { name: 'Finance operations' } };
+                }
+                if (path.endsWith('/media/list')) {
+                    return [{ type: 'directory', name: 'thumbnails' }];
+                }
+                if (path.endsWith('/media/list/thumbnails')) {
+                    return [
+                        { type: 'image', name: 'thumb-1.png' },
+                        { type: 'image', name: 'thumb-2.png' },
+                        { type: 'directory', name: 'nested' },
+                    ];
+                }
+                return [];
+            });
+        };
+
+        test('a dry run performs every read and no write', async () => {
+            withAppAndThumbnails();
+            const sheets = [makeSheet('s1', 1), makeSheet('s2', 2)];
+            const { app } = wireEnigma(sheets);
+
+            await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true })).resolves.toBe(
+                true
+            );
+
+            // Reads happened: the engine session was opened and properties read.
+            expect(enigmaCreate).toHaveBeenCalled();
+
+            // Writes did not - this is the feature's core promise.
+            for (const sheet of sheets) {
+                expect(sheet.obj.setProperties).not.toHaveBeenCalled();
+            }
+            expect(app.doSave).not.toHaveBeenCalled();
+            expect(Delete).not.toHaveBeenCalled();
+        });
+
+        test('the report names the app, the icons, and the media files', async () => {
+            withAppAndThumbnails();
+            wireEnigma([makeSheet('s1', 1), makeSheet('s2', 2)]);
+
+            await qscloudRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true });
+
+            const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(info).toContain('DRY RUN of qscloud remove-sheet-icons');
+            expect(info).toContain('"Finance operations"');
+            expect(info).toContain('clear icon');
+            expect(info).toContain(
+                '2 thumbnail media file(s) would also be deleted from the app media library'
+            );
+            expect(info).toContain('2 icon(s) would be cleared, 0 skipped.');
+            expect(info).toContain('Nothing was changed. Re-run without --dry-run to apply.');
+        });
+
+        test('a sheet without an icon is reported, not skipped', async () => {
+            withAppAndThumbnails();
+            const bare = makeSheet('s1', 1);
+            bare.props.thumbnail.qStaticContentUrlDef.qUrl = '';
+            wireEnigma([bare]);
+
+            await qscloudRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true });
+
+            const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(info).toContain('(no icon currently set)');
+        });
+
+        test('the real run still writes when dryRun is absent - the control case', async () => {
+            withAppAndThumbnails();
+            const sheets = [makeSheet('s1', 1)];
+            wireEnigma(sheets);
+
+            await qscloudRemoveSheetIcons({ ...BASE_OPTIONS });
+
+            expect(sheets[0].obj.setProperties).toHaveBeenCalled();
+        });
+
+        test('the real run skips, not fails, a sheet without a thumbnail structure', async () => {
+            // The guard added with the dry-run work: clearing a sheet that has
+            // no thumbnail object used to throw and fail the whole app.
+            withAppAndThumbnails();
+            const broken = makeSheet('s1', 1);
+            broken.obj.getProperties.mockResolvedValue({});
+            const fine = makeSheet('s2', 2);
+            const { app } = wireEnigma([broken, fine]);
+
+            await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS })).resolves.toBe(true);
+
+            expect(broken.obj.setProperties).not.toHaveBeenCalled();
+            expect(fine.obj.setProperties).toHaveBeenCalled();
+            expect(app.doSave).toHaveBeenCalled();
         });
     });
 });

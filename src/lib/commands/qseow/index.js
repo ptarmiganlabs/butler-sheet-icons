@@ -17,6 +17,7 @@ import {
 } from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
+import { addDryRunOption } from '../dry-run-option.js';
 import { runCommand } from '../run-command.js';
 
 /**
@@ -377,6 +378,7 @@ const buildQseowCommand = () => {
         .addOption(buildBrowserExecutablePathOption());
 
     addInteractiveOption(qseow.commands[0]);
+    addDryRunOption(qseow.commands[0]);
 
     return qseow;
 };

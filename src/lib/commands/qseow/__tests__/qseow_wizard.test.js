@@ -988,3 +988,35 @@ describe('both platforms label an app the same way', () => {
         );
     });
 });
+
+describe('--dry-run combined with -i (#993)', () => {
+    // The regression this pins: --dry-run has no wizard question, and the
+    // final options bag is rebuilt from the question specs - which is how the
+    // flag used to evaporate between the CLI parse and wizard.run, turning
+    // the safety flag into a real, writing run.
+    test('the dry-run flag survives the wizard into the run options', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ _review: 'run' }));
+
+        await runInteractive({
+            path: PATH,
+            runtime,
+            presetOptions: { dryRun: true },
+        });
+
+        expect(qseowCreateThumbnails).toHaveBeenCalledTimes(1);
+        expect(qseowCreateThumbnails).toHaveBeenCalledWith(
+            expect.objectContaining({ dryRun: true })
+        );
+        expect(runtime.output()).toContain('DRY RUN: --dry-run is in effect');
+    });
+
+    test('without the flag, the run options carry no dryRun key', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ _review: 'run' }));
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(qseowCreateThumbnails).toHaveBeenCalledTimes(1);
+        expect(qseowCreateThumbnails.mock.calls[0][0].dryRun).toBeUndefined();
+        expect(runtime.output()).not.toContain('DRY RUN');
+    });
+});
