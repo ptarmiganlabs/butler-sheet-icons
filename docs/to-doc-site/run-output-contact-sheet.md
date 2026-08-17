@@ -9,7 +9,8 @@
 > sample board below is generated from the real renderer — do not re-align it by hand.
 
 ::: warning Requires BSI X.Y.Z or later
-Earlier versions always print the plain run card.
+Earlier versions print flat log lines only — the plain run card (the `PLAN` and
+`RESULT` blocks) and the contact sheet both arrive in this version.
 :::
 
 When you run one of the three commands that change Qlik Sense apps —
@@ -21,8 +22,9 @@ and picks the richest presentation that will actually display correctly there:
   you get the **contact sheet**: a colour board with the run plan, one summary row per
   app as it finishes, and a final verdict.
 - **Everywhere else** — Windows Task Scheduler, cron, Docker, CI, output redirected to a
-  file, a very narrow or colour-less console — you get the **plain run card** that
-  earlier versions always printed. Nothing about scheduled or captured logs changes.
+  file, a very narrow or colour-less console — you get the **plain run card**: the same
+  `PLAN` and `RESULT` blocks, as plain ASCII log lines. Captured and scheduled logs never
+  contain the board.
 
 You do not need to configure anything. The selection is automatic, decided once at the
 start of each run, and there is an environment variable to override it if the automatic
@@ -55,9 +57,9 @@ choice is ever wrong for your setup.
 
   ────────────────────────────────────────────────────────────────
 
-  ✓ 1/3  Sales Discovery           ██▓█░██████         10/11 up    52s
-  ✓ 2/3  Operations Monitor        ████████            8/8 up      41s
-  ✓ 3/3  Executive KPIs            ███░██████          9/10 up     48s
+  ✓ 1/3  Sales Discovery       ██▓█░██████   10/11 up      52s
+  ✓ 2/3  Operations Monitor    ████████      8/8 up        41s
+  ✓ 3/3  Executive KPIs        ███░██████    9/10 up       48s
 
   ────────────────────────────────────────────────────────────────
 
@@ -99,8 +101,10 @@ per sheet, so nothing shifts.
 The rules, in the order they are applied:
 
 1. **`BSI_OUTPUT` is set** — see the next section. It wins.
-2. **Log level `verbose`, `debug` or `silly`** — plain run card. At those levels you are
-   debugging, and the debug stream is what you asked for.
+2. **Log level anything other than `info` (the default)** — plain run card. At `verbose`
+   and below you are debugging, and the debug stream is what you asked for; at `warn` or
+   `error` you asked for a quiet run, and the plain run card is the presentation that
+   respects the log level.
 3. **Colour terminal, at least 72 columns wide** — the contact sheet.
 4. **Anything else** — the plain run card.
 
@@ -123,7 +127,8 @@ it describes your console, not one invocation, so it is not a per-command flag.
 
 Values are case-insensitive. An unrecognised value logs a warning and falls back to
 automatic selection — it never stops the run, so a typo in a scheduler's environment
-block cannot break a working nightly job.
+block cannot break a working nightly job. On a `--dry-run`, the plan block always
+prints regardless of `off`: it is part of what a dry run exists to show.
 
 Setting it for a single run:
 
@@ -134,7 +139,7 @@ $env:BSI_OUTPUT = "plain"
 .\butler-sheet-icons.exe qseow create-sheet-thumbnails ...
 ```
 
-```bash [bash]
+```bash [Bash]
 BSI_OUTPUT=plain ./butler-sheet-icons qseow create-sheet-thumbnails ...
 ```
 
@@ -149,7 +154,7 @@ chokes on the framed blocks:
 $env:BSI_OUTPUT = "off"
 ```
 
-```bash [bash]
+```bash [Bash]
 export BSI_OUTPUT=off
 ```
 
@@ -159,7 +164,7 @@ export BSI_OUTPUT=off
 
 The contact sheet is only ever what an interactive terminal *sees*. Redirected output is
 not a terminal, so a redirected or scheduled run selects the plain run card
-automatically — what lands in a file, a Task Scheduler transcript or a captured CI log
-is the same plain output as in earlier versions. And when the contact sheet is shown,
-the plan and verdict are not printed twice: the terminal shows the board instead of the
-card.
+automatically — a file, a Task Scheduler transcript or a captured CI log gets the plain
+run card (itself new in this version), never the board. And when the contact sheet is
+shown, the plan and verdict are not printed twice: the terminal shows the board instead
+of the card.
