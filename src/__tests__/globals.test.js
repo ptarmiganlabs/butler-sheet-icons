@@ -53,6 +53,34 @@ describe('logger redaction', () => {
     });
 });
 
+describe('console line format (BSI_LOG_TIMESTAMPS default)', () => {
+    // The default (stamped) shape is asserted in-process against the real transport rather
+    // than by spawning the CLI - a child process costs ~3.5 s on the Windows runner. The
+    // disabled branch cannot be tested this way (`consoleTimestamps` is fixed at module
+    // load), so that one lives as a spawn test in butler-sheet-icons.test.js.
+    test('console lines carry the ISO timestamp prefix by default', async () => {
+        const { logger: realLogger } = await import('../globals.js');
+        const transport = realLogger.transports.find((t) => t.name === 'console');
+
+        // Mirror winston's real pipeline: the logger-level format runs first
+        // (Logger._transform), then the transport's own format over the result
+        // (winston-transport modern.js). The transport chain deliberately has no
+        // timestamp() of its own - it relies on the logger-level stamp, which is
+        // exactly what this test pins.
+        const afterLogger = realLogger.format.transform(
+            { level: 'info', message: 'App version: 0.0.0-test' },
+            realLogger.format.options
+        );
+        const line = transport.format.transform({ ...afterLogger }, transport.format.options)[
+            Symbol.for('message')
+        ];
+
+        expect(line).toMatch(
+            /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z info: App version: 0\.0\.0-test$/
+        );
+    });
+});
+
 describe('sendConsoleLogToStderr', () => {
     // Winston's Console transport writes *every* level to stdout unless given `stderrLevels`,
     // `error` included. That is easy to assume otherwise - the assumption is why a winston error

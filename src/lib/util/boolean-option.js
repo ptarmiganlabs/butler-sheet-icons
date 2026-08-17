@@ -2,8 +2,13 @@ import { InvalidArgumentError } from 'commander';
 
 /**
  * Words administrators actually write for "off" in a unit file or a `.env`.
+ *
+ * Exported because it is the vocabulary, not just this parser's detail:
+ * `isTimestampEnabled` in `log-timestamps.js` judges its environment variable
+ * against the same word set, so an administrator who writes `off` is understood
+ * the same way everywhere.
  */
-const FALSE_WORDS = new Set(['false', '0', 'no', 'off']);
+export const FALSE_WORDS = new Set(['false', '0', 'no', 'off']);
 
 /** The matching set for "on", so an unrecognised value can be told from a deliberate one. */
 const TRUE_WORDS = new Set(['true', '1', 'yes', 'on']);

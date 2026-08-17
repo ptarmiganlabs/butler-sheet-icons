@@ -12,6 +12,7 @@ import path from 'node:path';
 // The CLI entry point loads it instead; integration tests load it themselves.
 import { redactSensitivePatterns, redactValue } from './lib/util/redact-secrets.js';
 import { isColourEnabled } from './lib/util/colour.js';
+import { isTimestampEnabled } from './lib/util/log-timestamps.js';
 
 const require = createRequire(import.meta.url);
 const LEVEL = Symbol.for('level');
@@ -134,6 +135,18 @@ const sanitizeFormat = winston.format((info) => {
 // process - the stream cannot become a terminal later.
 const colourConsole = isColourEnabled();
 
+// Timestamps on console lines, decided once at load time for the same reason as
+// colour above. Console only, deliberately: the logger-level format below keeps
+// its own timestamp, so a future file transport inheriting it stays stamped.
+//
+// This chain deliberately has no `timestamp()` or `simple()` of its own. The
+// logger-level format runs first and has already set `info.timestamp`, and a
+// plain transport-level `timestamp()` is a no-op on an already-stamped record
+// (logform sets the field only when absent - though `timestamp({ format })`
+// WOULD override, so don't add one casually). `simple()` only wrote
+// Symbol(message), which the printf below overwrites unconditionally.
+const consoleTimestamps = isTimestampEnabled();
+
 logTransports.push(
     new winston.transports.Console({
         name: 'console',
@@ -141,10 +154,12 @@ logTransports.push(
         format: winston.format.combine(
             winston.format.errors({ stack: true }),
             sanitizeFormat(),
-            winston.format.timestamp(),
             ...(colourConsole ? [winston.format.colorize()] : []),
-            winston.format.simple(),
-            winston.format.printf((info) => `${info.timestamp} ${info.level}: ${info.message}`)
+            winston.format.printf((info) =>
+                consoleTimestamps
+                    ? `${info.timestamp} ${info.level}: ${info.message}`
+                    : `${info.level}: ${info.message}`
+            )
         ),
     })
 );

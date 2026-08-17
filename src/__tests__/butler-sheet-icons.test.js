@@ -103,6 +103,41 @@ describe('butler-sheet-icons CLI', () => {
         expect(result.stdout).toContain('Commands:');
     });
 
+    describe('BSI_LOG_TIMESTAMPS (issue #1002)', () => {
+        // One pattern, composed everywhere it is asserted, so the three copies
+        // cannot drift: the prefix winston emits is an ISO-8601 timestamp.
+        const STAMP = String.raw`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z`;
+
+        // Ambient colour settings rewrite `info.level` in the child and break
+        // any regex anchored on a bare `info:` - jest-worker itself injects
+        // FORCE_COLOR=1 into worker children, so this bites anyone running
+        // this file outside the --runInBand npm scripts. Same scrub as
+        // NON_TTY_ENV below.
+        const scrubbedEnv = { ...process.env };
+        delete scrubbedEnv.NO_COLOR;
+        delete scrubbedEnv.FORCE_COLOR;
+
+        // The default (stamped) case is asserted in-process against the real
+        // transport in globals.test.js - spawning a child for it would cost
+        // ~3.5 s on the Windows runner. Only the disabled branch needs a real
+        // process, because `consoleTimestamps` is fixed at module load.
+        //
+        // `browser list-installed` is the cheapest command that routes a real
+        // line through the logger: no network, no config, read-only. No
+        // assertion on exit status - a corrupt entry in the host's browser
+        // cache fails the command for reasons unrelated to timestamps, and
+        // the App version line is emitted before any cache work happens.
+        test('BSI_LOG_TIMESTAMPS=false drops the prefix but keeps level and message', () => {
+            const result = execCLI(['browser', 'list-installed'], {
+                env: { ...scrubbedEnv, BSI_LOG_TIMESTAMPS: 'false' },
+                timeout: 20000,
+            });
+            expect(result.stdout).toMatch(/^info: App version:/m);
+            // No line anywhere in the output may still carry the stamp.
+            expect(result.stdout).not.toMatch(new RegExp(`^${STAMP}`, 'm'));
+        });
+    });
+
     test('should handle qseow create-sheet-thumbnails command', () => {
         // Since we don't want to actually run the command and we've mocked all the dependencies,
         // we'll test that the command is registered correctly

@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { getBorderCharacters } from 'table';
 import { isSea } from '../../globals.js';
 import { isColourEnabled, createPalette } from '../util/colour.js';
+import { isTimestampEnabled, LOG_TIMESTAMPS_ENV } from '../util/log-timestamps.js';
 import {
     ASCII_ONLY_ENV,
     ASCII_SYMBOLS,
@@ -123,6 +124,12 @@ export const collectCapabilities = ({
         ['Interactive mode', 'available', yesNo(blocker === null)],
         ['Interactive mode', 'blocked by', blocker ? blocker.reason : '(nothing)'],
         ['Interactive mode', INTERACTIVE_OPT_OUT_ENV, orUnset(env[INTERACTIVE_OPT_OUT_ENV])],
+
+        // Raw value and verdict, like colour and Unicode above: the raw value is
+        // what shows an operator that their `False\r` or `off ` was received -
+        // orUnset JSON-quotes it, so invisible whitespace becomes visible.
+        ['Logging', 'timestamps on log lines', yesNo(isTimestampEnabled(env))],
+        ['Logging', LOG_TIMESTAMPS_ENV, orUnset(env[LOG_TIMESTAMPS_ENV])],
     ];
 
     return rows.map(([section, label, value]) => ({ section, label, value: String(value) }));
