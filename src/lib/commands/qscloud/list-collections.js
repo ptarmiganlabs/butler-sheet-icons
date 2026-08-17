@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
+import { logRunHeader } from '../../util/run-report-render.js';
 import { qscloudListCollections } from '../../cloud/cloud-collections.js';
 import { runCommand } from '../run-command.js';
 
@@ -12,7 +13,7 @@ import { runCommand } from '../run-command.js';
  * @returns {Promise<void>} Resolves after the worker completes or errors are logged.
  */
 const handleCloudListCollections = async (options = {}, cmd) => {
-    logger.info(`App version: ${appVersion}`);
+    logRunHeader(logger, appVersion, 'Qlik Sense Cloud collections');
 
     return runCommand('CLOUD MAIN 4', () => qscloudListCollections(options, cmd));
 };

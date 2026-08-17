@@ -248,7 +248,10 @@ describe('qseowCreateThumbnails app loop', () => {
 
             const infoLog = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
             expect(infoLog).toContain('DRY RUN of qseow create-sheet-thumbnails');
-            expect(infoLog).toContain('Re-run without --dry-run to apply.');
+            // The mocked planner records nothing onto the report, so the
+            // renderer honestly reports an incomplete plan and withholds the
+            // apply invite; "Nothing was changed." is the constant closing.
+            expect(infoLog).toContain('Nothing was changed.');
         });
 
         test('a real run hands runOverApps the processor, never the planner', async () => {
@@ -259,7 +262,11 @@ describe('qseowCreateThumbnails app loop', () => {
             const processor = runOverApps.mock.calls[0][2];
             await processor('app-under-test');
 
-            expect(qseowProcessApp).toHaveBeenCalledWith('app-under-test', expect.any(Object));
+            expect(qseowProcessApp).toHaveBeenCalledWith(
+                'app-under-test',
+                expect.any(Object),
+                expect.objectContaining({ dryRun: false })
+            );
             expect(qseowPlanApp).not.toHaveBeenCalled();
         });
     });

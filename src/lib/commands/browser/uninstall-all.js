@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
+import { logRunHeader } from '../../util/run-report-render.js';
 import { browserUninstallAll } from '../../browser/browser-uninstall.js';
 import { runCommand } from '../run-command.js';
 import { buildBrowserCacheDirOption } from '../helpers.js';
@@ -13,7 +14,7 @@ import { buildBrowserCacheDirOption } from '../helpers.js';
  * @returns {Promise<void>} Resolves after the uninstall-all worker finishes or errors are logged.
  */
 const handleBrowserUninstallAll = async (options = {}, cmd) => {
-    logger.info(`App version: ${appVersion}`);
+    logRunHeader(logger, appVersion, 'browser uninstall-all');
 
     return runCommand('BROWSER MAIN 8', () => browserUninstallAll(options, cmd));
 };

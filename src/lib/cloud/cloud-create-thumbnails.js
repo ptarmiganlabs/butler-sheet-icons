@@ -5,8 +5,14 @@ import { qscloudTestConnection } from './cloud-test-connection.js';
 import { processCloudApp } from './process-cloud-app.js';
 import { cloudPlanApp } from './cloud-plan-app.js';
 import { resolveCloudAppSelection } from './cloud-app-selection.js';
-import { runOverAppsWithReport, announceDryRun } from '../util/run-report.js';
-import { CLOUD_SHEET_PARTS } from './sheet-parts.js';
+import {
+    runOverAppsWithReport,
+    announceDryRun,
+    buildSheetRules,
+    buildSheetPartSection,
+    buildBrowserPlanSection,
+} from '../util/run-report.js';
+import { CLOUD_SHEET_PARTS, CLOUD_SHEET_PART_LABELS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
 
 /**
@@ -115,10 +121,25 @@ export const qscloudCreateThumbnails = async (options) => {
             command: 'qscloud create-sheet-thumbnails',
             dryRun,
             ...selection,
+            plan: {
+                target: { platform: 'cloud', tenantUrl: options.tenanturl },
+                auth: {
+                    apiKey: true,
+                    logonUserId: options.logonuserid ?? null,
+                    skipLogin: options.skipLogin === true,
+                },
+                sheetPart: buildSheetPartSection(options.includesheetpart, CLOUD_SHEET_PART_LABELS),
+                // No tag rules: Cloud cannot tag individual sheets, and the
+                // warning above already covers a tag option that was supplied.
+                rules: buildSheetRules(options),
+                browser: buildBrowserPlanSection(options),
+                output: { imageDir: options.imagedir, platformDir: 'cloud' },
+                writes: { kind: 'thumbnails', contentLibrary: null, publishedAppCount: null },
+            },
             logPrefix: { plan: 'CLOUD PLAN APP', process: 'CLOUD PROCESS APP' },
             emptySelectionHint: 'Check the --appid and --collectionid options.',
             planApp: (appId, report) => cloudPlanApp(appId, saasInstance, options, report),
-            processApp: (appId) => processCloudApp(appId, saasInstance, options),
+            processApp: (appId, report) => processCloudApp(appId, saasInstance, options, report),
         });
     } catch (err) {
         logError('CLOUD CREATE THUMBNAILS 2', err);

@@ -27,7 +27,8 @@ selected app, and which of your options is responsible for each decision.
 
 A dry run announces itself immediately — the log opens with a
 `DRY RUN of <command>: planning only - NOTHING WILL BE CHANGED` banner before anything
-connects, and each app line reads `About to plan app …` rather than `About to process app …`.
+connects, the run-card `PLAN` block reads `WOULD OVERWRITE …` rather than
+`WILL OVERWRITE …`, and each app line reads `plan app 1/2 …` rather than `app 1/2 …`.
 
 ## Why you would use it
 
@@ -90,13 +91,31 @@ product of a dry run, so its visibility does not depend on the log level.
 
 ## Reading the report
 
-The report lists every app, every sheet, and the decision with the option responsible. This
-is the exact output the command above produces (timestamps trimmed):
+Once the app selection is resolved — and before anything could be written — the dry run
+prints the run card's `PLAN` block, with the resolved selection, every rule and its match
+count, and the overwrite warning in the conditional:
+
+```
+PLAN
+  server        sense.company.com   https, no virtual proxy
+                engine 4747, qrs 4242, schema 12.612.0
+  api user      INTERNAL\sa_api via ./cert/client.pem
+  logon user    COMPANY\svc_bsi
+  apps          1   1 named by --appid, 1 matched by --qliksensetag "sheet-thumbnails", 1 selected twice
+  sheet part    1 of 4 -- sheet objects only
+  exclude       title "Internal notes", status private
+  blur          tag "confidential" (1 sheets)
+  browser       chrome (version: recommended), headless, 5s per sheet
+  images        ./img/qseow/<app-id>
+  uploads to    content library "Butler sheet thumbnails"
+  WOULD OVERWRITE existing sheet thumbnails in 1 app(s), 1 of them published
+```
+
+The report then lists every app, every sheet, and the decision with the option responsible.
+This is the exact output the command above produces (timestamps trimmed):
 
 ```
 DRY RUN of qseow create-sheet-thumbnails - nothing will be changed
-
-App selection: 1 app(s) - 1 named by --appid, 1 matched by --qliksensetag "sheet-thumbnails", 1 selected twice
 
 App 1/1: "Finance operations" (a1b2c3d4-0000-4a1b-9c8d-000000000001)
   7 sheets
@@ -119,9 +138,9 @@ Things to check before running for real:
 - **The `Would do` column.** If you passed a blur option and no row says `blurred`, the rule
   matched nothing — check the tag or title spelling. This situation is exactly what the dry
   run exists to catch.
-- **The `App selection` line.** If the tag or collection matched more apps than you expected,
-  the real run would update more apps than you expected. `selected twice` counts apps that
-  were both named and matched — they are processed once.
+- **The `apps` line in the `PLAN` block.** If the tag or collection matched more apps than
+  you expected, the real run would update more apps than you expected. `selected twice`
+  counts apps that were both named and matched — they are processed once.
 - **`PLAN INCOMPLETE` or `could not be planned` lines.** If an app or sheet could not be
   read, the report says so explicitly rather than presenting a partial plan as complete.
   The exit code is 1 in that case.

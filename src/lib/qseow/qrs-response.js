@@ -48,3 +48,43 @@ export const qrsGetList = async (qrsInteractInstance, apiUrl) => {
 
     return result.body;
 };
+
+/**
+ * Reads a QRS `count` endpoint (`.../count?filter=...`) and returns the number.
+ *
+ * The count endpoints answer `{ "value": N }` - constant-size, however many
+ * entities match - which is what makes them the right tool when only a number
+ * is wanted: asking `app/object/full` for hundreds of full repository
+ * entities in order to take `.length` moves kilobytes per counted sheet.
+ *
+ * Same interpretation discipline as {@link qrsGetList}: a non-success status
+ * or a body without a numeric `value` throws rather than reading as zero -
+ * "nothing matched" and "the answer is unusable" are different answers.
+ *
+ * @param {object} qrsInteractInstance - A configured `qrs-interact` instance.
+ * @param {string} apiUrl - QRS count path, e.g. `app/object/count?filter=...`.
+ *
+ * @returns {Promise<number>} The count.
+ *
+ * @throws {QseowError} When the status is not a success, or the body carries
+ *   no numeric `value`.
+ */
+export const qrsGetCount = async (qrsInteractInstance, apiUrl) => {
+    const result = await qrsInteractInstance.Get(apiUrl);
+
+    const status = result?.statusCode;
+    if (status !== undefined && (status < 200 || status > 299)) {
+        throw new QseowError(`QRS returned status ${status} for "${apiUrl}"`);
+    }
+
+    const value = result?.body?.value;
+    if (typeof value !== 'number') {
+        const shape = result?.body === null ? 'null' : typeof result?.body;
+
+        throw new QseowError(
+            `QRS returned an unusable response for "${apiUrl}": expected a count, got ${shape}`
+        );
+    }
+
+    return value;
+};

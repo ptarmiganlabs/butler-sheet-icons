@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander';
-import { logger, appVersion } from '../../../globals.js';
+import { logger, appVersion, setLoggingLevel } from '../../../globals.js';
+import { logRunHeader } from '../../util/run-report-render.js';
 import { qscloudCreateThumbnails } from '../../cloud/cloud-create-thumbnails.js';
 import { CLOUD_SHEET_PARTS } from '../../cloud/sheet-parts.js';
 import {
@@ -28,7 +29,14 @@ import { runCommand } from '../run-command.js';
  * @returns {Promise<void>} Resolves after delegating to qscloudCreateThumbnails and logging any errors.
  */
 const handleCloudCreateSheetThumbnails = async (options = {}, cmd) => {
-    logger.info(`App version: ${appVersion}`);
+    // Level set before the header, not only in the worker: a run at
+    // --log-level warn asked for a quiet log, and the run card - header
+    // included - respects that. Guarded for programmatic callers without the
+    // option; the worker sets the level again, which is idempotent.
+    if (options.loglevel) {
+        setLoggingLevel(options.loglevel);
+    }
+    logRunHeader(logger, appVersion, 'Qlik Sense Cloud sheet thumbnails');
 
     // Joined explicitly: --appid is variadic, and letting a template literal coerce the
     // array reads as one strange id rather than as several.

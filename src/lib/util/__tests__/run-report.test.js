@@ -7,6 +7,7 @@ import {
     reportTotals,
     renderDryRunReport,
 } from '../run-report.js';
+import { renderRunPlanLines } from '../run-report-render.js';
 import { EXCLUDE_REASON, BLUR_REASON } from '../sheet-decision-reasons.js';
 
 const fakeLogger = () => {
@@ -97,24 +98,47 @@ describe('renderDryRunReport', () => {
         expect(text).toMatch(/Overview\s+update\n/);
     });
 
-    test('reports the app selection provenance', () => {
-        const log = fakeLogger();
-        renderDryRunReport(sampleReport(), log);
+    test('the selection provenance lives in the plan block, not the dry-run report', () => {
+        // Moved with #1073: the PLAN block renders the provenance before the
+        // app loop, and the dry-run report must not state it a second time.
+        const report = sampleReport();
+        report.plan = {};
 
-        expect(log.text()).toContain(
-            'App selection: 7 app(s) - 2 named by --appid, 6 matched by --qliksensetag "sheet-thumbnails", 1 selected twice'
+        expect(renderRunPlanLines(report).join('\n')).toContain(
+            'apps          7   2 named by --appid, 6 matched by --qliksensetag "sheet-thumbnails", 1 selected twice'
         );
+
+        const log = fakeLogger();
+        renderDryRunReport(report, log);
+        expect(log.text()).not.toContain('App selection:');
     });
 
-    test('summarises and says how to apply', () => {
+    test('summarises and says how to apply when every selected app was planned', () => {
+        // The invite to apply is only earned by a complete plan, so this
+        // report's selection matches its planned apps exactly.
+        const report = sampleReport();
+        recordSelection(report, { namedAppIds: ['app-1'], selectorAppIds: [], selector: null });
+
         const log = fakeLogger();
-        renderDryRunReport(sampleReport(), log);
+        renderDryRunReport(report, log);
 
         const text = log.text();
         expect(text).toContain(
             'Summary: 1 app(s), 4 sheets. 2 would be updated (1 blurred), 2 skipped.'
         );
         expect(text).toContain('Nothing was changed. Re-run without --dry-run to apply.');
+    });
+
+    test('an incomplete plan withholds the apply invite', () => {
+        // sampleReport's selection names 7 apps but only one was planned -
+        // the report must say so and must not invite applying it.
+        const log = fakeLogger();
+        renderDryRunReport(sampleReport(), log);
+
+        const text = log.text();
+        expect(text).toContain('6 app(s) could not be fully planned');
+        expect(text).toContain('Fix the errors above before applying');
+        expect(text).not.toContain('Re-run without --dry-run to apply.');
     });
 
     test('clear-mode reports cleared icons instead of updates', () => {

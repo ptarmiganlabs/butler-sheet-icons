@@ -5,6 +5,7 @@ import { logger, sleep } from '../../globals.js';
 import { qseowUploadToContentLibrary } from './qseow-upload.js';
 import { qseowUpdateSheetThumbnails } from './qseow-updatesheets.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
+import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
 import { readQseowAppContext } from './qseow-tagged-sheets.js';
 import { QseowError } from '../util/errors.js';
 import { launchBrowserForApp, closeBrowserQuietly } from '../browser/browser-launch.js';
@@ -15,6 +16,8 @@ import {
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
 import { createAppImageDir } from '../util/image-dir.js';
+import { addAppToReport, recordPlannedSheet, recordAppOutcome } from '../util/run-report.js';
+import { appProgressLine, sheetProgressLine } from '../util/run-report-render.js';
 import { QSEOW_SHEET_PART_SELECTORS } from './sheet-parts.js';
 import { qseowLogout } from './qseow-logout.js';
 import { getQseowHubSelectors } from './qseow-selectors.js';
@@ -50,10 +53,13 @@ const selectorLoginPageLoginButton = '#loginbtn';
  * @param {string} options.prefix - URL prefix for accessing Qlik services.
  * @param {boolean|string} options.headless - Whether to run the browser in headless mode.
  * @param {number} options.blurFactor - Factor by which to blur images.
+ * @param {object} [report] - Run report from `createRunReport`; per-sheet
+ *     decisions and outcome counts are recorded onto it as they happen. The
+ *     progress lines and the run verdict render from these records.
  *
  * @returns {Promise<void>} Resolves when thumbnail generation, upload, and sheet-property updates for the app are complete.
  */
-export const qseowProcessApp = async (appId, options) => {
+export const qseowProcessApp = async (appId, options, report = null) => {
     // Get page timeout from options
     let pageTimeout = 90000; // 90 seconds
     if (options.browserPageTimeout && options.browserPageTimeout > 0) {
@@ -92,6 +98,7 @@ export const qseowProcessApp = async (appId, options) => {
         const configEnigma = setupEnigmaConnection(appId, options);
         const imgDir = options.imagedir;
         const createdFiles = [];
+        let appEntry = null;
 
         await withEngineSession(
             configEnigma,
@@ -105,17 +112,33 @@ export const qseowProcessApp = async (appId, options) => {
             },
             async (global) => {
                 const app = await global.openDoc(appId, '', '', '', false);
-                logger.info(`Opened app ${appId}`);
-                logger.info(`App name: "${appMetadata[0].name}"`);
-                logger.info(`App is published: ${appMetadata[0].published}`);
+                logger.verbose(`Opened app ${appId}`);
+                logger.verbose(`App name: "${appMetadata[0].name}"`);
+                logger.verbose(`App is published: ${appMetadata[0].published}`);
 
                 // Get list of app sheets
                 const sheets = await getSheetList(app, SHEET_LIST_FIELDS_WITH_SHOW_CONDITION);
 
-                if (sheets.length > 0) {
-                    // sheets[] now contains array of app sheets.
-                    logger.info(`Number of sheets in app: ${sheets.length}`);
+                // One line where four used to be: the name, count and publish
+                // state under the `app i/n` line the app loop printed. The
+                // individual facts moved to verbose above.
+                logger.info(
+                    appProgressLine({
+                        name: appMetadata[0].name,
+                        sheetCount: sheets.length,
+                        published: appMetadata[0].published,
+                    })
+                );
 
+                if (report) {
+                    appEntry = addAppToReport(report, {
+                        id: appId,
+                        name: appMetadata[0].name,
+                        sheetCount: sheets.length,
+                    });
+                }
+
+                if (sheets.length > 0) {
                     let iSheetNum = 1;
 
                     const browser = await launchBrowserForApp(options, {
@@ -232,26 +255,63 @@ export const qseowProcessApp = async (appId, options) => {
                             // --exclude-sheet-title <title...>
                             // --exclude-sheet-status <status...>
 
-                            let { excludeSheet, sheetIsHidden } = await determineSheetExcludeStatus(
-                                app,
-                                sheet,
-                                options,
-                                tagSheetAppMetadata,
-                                iSheetNum,
-                                repoDbSheetId,
-                                engineSheetId,
-                                logger
+                            const { excludeSheet, excludeReason, sheetIsHidden } =
+                                await determineSheetExcludeStatus(
+                                    app,
+                                    sheet,
+                                    options,
+                                    tagSheetAppMetadata,
+                                    iSheetNum,
+                                    repoDbSheetId,
+                                    engineSheetId,
+                                    logger
+                                );
+
+                            // The blur decision is applied later, in
+                            // updatesheets - computed here as well, from the
+                            // same module and the same inputs, so the progress
+                            // line and the report can say `blurred` where the
+                            // update step will use the blurred file.
+                            const { blurSheet, blurReason } = excludeSheet
+                                ? { blurSheet: false, blurReason: null }
+                                : determineSheetBlurStatus(
+                                      sheet,
+                                      options,
+                                      blurTagSheetAppMetadata,
+                                      iSheetNum,
+                                      logger
+                                  );
+
+                            // The ~230-column line with the sheet ids, description,
+                            // approved/published/hidden fields lives at verbose now;
+                            // the info line is the countable one-liner.
+                            logger.verbose(
+                                `${excludeSheet === true ? 'Excluded' : 'Processing'} sheet ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
                             );
 
                             if (excludeSheet === true) {
+                                // Recorded and logged immediately - the exclusion
+                                // is already a fact.
+                                if (appEntry) {
+                                    recordPlannedSheet(appEntry, {
+                                        n: iSheetNum,
+                                        title: sheet.qMeta.title,
+                                        excludeSheet,
+                                        excludeReason,
+                                        blurSheet,
+                                        blurReason,
+                                    });
+                                }
                                 logger.info(
-                                    `Excluded sheet: ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                                    sheetProgressLine({
+                                        n: iSheetNum,
+                                        total: sheets.length,
+                                        label: 'excluded',
+                                        title: sheet.qMeta.title,
+                                        reason: excludeReason,
+                                    })
                                 );
                             } else {
-                                logger.info(
-                                    `Processing sheet ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                                );
-
                                 // Build URL to current sheet
                                 const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
                                 logger.debug(`Sheet URL: ${sheetUrl}`);
@@ -315,6 +375,31 @@ export const qseowProcessApp = async (appId, options) => {
                                         fileNameShort: fileNameShortBlurred,
                                     });
                                     logger.verbose(`Created blurred image: ${fileNameBlurred}`);
+
+                                    // Recorded and logged only now: both files
+                                    // exist, so `captured` (or `blurred`) is a
+                                    // fact rather than an intention. A sheet
+                                    // whose capture or blur failed leaves no
+                                    // row - the error lines tell that story.
+                                    if (appEntry) {
+                                        recordPlannedSheet(appEntry, {
+                                            n: iSheetNum,
+                                            title: sheet.qMeta.title,
+                                            excludeSheet,
+                                            excludeReason,
+                                            blurSheet,
+                                            blurReason,
+                                        });
+                                    }
+                                    logger.info(
+                                        sheetProgressLine({
+                                            n: iSheetNum,
+                                            total: sheets.length,
+                                            label: blurSheet ? 'blurred' : 'captured',
+                                            title: sheet.qMeta.title,
+                                            reason: blurReason,
+                                        })
+                                    );
                                 } catch (err) {
                                     logError(
                                         'QSEOW CREATE BLURRED IMAGE: Failed to create blurred image',
@@ -380,9 +465,22 @@ export const qseowProcessApp = async (appId, options) => {
         // The blur-tag metadata is passed, never the exclude-tag metadata: they are queried on
         // different options, and handing the exclude set to the blur rule would blur sheets
         // carrying the *exclude* tag. See issue #840.
-        await qseowUpdateSheetThumbnails(createdFiles, appId, options, blurTagSheetAppMetadata);
+        const sheetsUpdated = await qseowUpdateSheetThumbnails(
+            createdFiles,
+            appId,
+            options,
+            blurTagSheetAppMetadata
+        );
 
-        logger.info(`Done processing app ${appId}`);
+        recordAppOutcome(appEntry, {
+            sheetsUpdated,
+            imagesDir: `${imgDir}/qseow/${appId}`,
+            imageFileNames: createdFiles.map((file) => file.fileNameShort),
+        });
+
+        // The run card's verdict now closes the run; this line stays for
+        // anyone debugging at verbose.
+        logger.verbose(`Done processing app ${appId}`);
     } catch (err) {
         logError('QSEOW: qseowProcessApp', err);
         // Rethrow so the app loop can count this app as failed. Logging and returning

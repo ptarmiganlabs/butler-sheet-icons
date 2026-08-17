@@ -10,6 +10,7 @@ import {
     SHEET_LIST_FIELDS_WITH_SHOW_CONDITION,
 } from '../util/sheet-list.js';
 import { addAppToReport, recordPlannedSheet } from '../util/run-report.js';
+import { appProgressLine } from '../util/run-report-render.js';
 
 /**
  * Plans one QSEoW app without changing anything: the dry-run twin of
@@ -61,12 +62,21 @@ export const qseowPlanApp = async (appId, options, report) => {
         },
         async (global) => {
             const app = await global.openDoc(appId, '', '', '', false);
-            logger.info(`Opened app ${appId}`);
-            logger.info(`App name: "${appMetadata[0].name}"`);
-            logger.info(`App is published: ${appMetadata[0].published}`);
+            logger.verbose(`Opened app ${appId}`);
+            logger.verbose(`App name: "${appMetadata[0].name}"`);
+            logger.verbose(`App is published: ${appMetadata[0].published}`);
 
             const sheets = await getSheetList(app, SHEET_LIST_FIELDS_WITH_SHOW_CONDITION);
-            logger.info(`Number of sheets in app: ${sheets.length}`);
+
+            // Same fold as the real processor: one countable line, the
+            // individual facts at verbose.
+            logger.info(
+                appProgressLine({
+                    name: appMetadata[0].name,
+                    sheetCount: sheets.length,
+                    published: appMetadata[0].published,
+                })
+            );
 
             const appEntry = addAppToReport(report, {
                 id: appId,

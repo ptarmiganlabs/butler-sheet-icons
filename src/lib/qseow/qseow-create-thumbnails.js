@@ -5,10 +5,17 @@ import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { qseowProcessApp } from './qseow-process-app.js';
 import { qseowPlanApp } from './qseow-plan-app.js';
 import { listAppsByTag } from './qseow-app-lookup.js';
+import { readQseowPlanFacts } from './qseow-tagged-sheets.js';
 import { toAppIdList } from '../util/app-ids.js';
-import { QSEOW_SHEET_PARTS } from './sheet-parts.js';
+import { QSEOW_SHEET_PARTS, QSEOW_SHEET_PART_LABELS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
-import { runOverAppsWithReport, announceDryRun } from '../util/run-report.js';
+import {
+    runOverAppsWithReport,
+    announceDryRun,
+    buildSheetRules,
+    buildSheetPartSection,
+    buildBrowserPlanSection,
+} from '../util/run-report.js';
 
 /**
  * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW).
@@ -99,6 +106,11 @@ export const qseowCreateThumbnails = async (options) => {
             appIdsToProcess.push(...taggedAppIds);
         }
 
+        // Plan-time facts for the run card: published-app count and the tag
+        // rules' match counts across the selected apps. Read-only, and
+        // degrades to nulls rather than failing the run.
+        const planFacts = await readQseowPlanFacts(options, appIdsToProcess);
+
         return await runOverAppsWithReport({
             command: 'qseow create-sheet-thumbnails',
             dryRun,
@@ -106,10 +118,40 @@ export const qseowCreateThumbnails = async (options) => {
             namedAppIds,
             selectorAppIds: taggedAppIds,
             selector: useTag ? { option: 'qliksensetag', value: options.qliksensetag } : null,
+            plan: {
+                target: {
+                    platform: 'qseow',
+                    host: options.host,
+                    port: options.port ?? null,
+                    secure: options.secure,
+                    prefix: options.prefix ?? '',
+                    enginePort: options.engineport,
+                    qrsPort: options.qrsport,
+                    schemaVersion: options.schemaversion,
+                },
+                auth: {
+                    apiUser: { directory: options.apiuserdir, userId: options.apiuserid },
+                    certFile: options.certfile,
+                    logonUser: { directory: options.logonuserdir, userId: options.logonuserid },
+                },
+                sheetPart: buildSheetPartSection(options.includesheetpart, QSEOW_SHEET_PART_LABELS),
+                rules: buildSheetRules(options, {
+                    includeTagRules: true,
+                    excludeTagSheetCount: planFacts.excludeTagSheetCount,
+                    blurTagSheetCount: planFacts.blurTagSheetCount,
+                }),
+                browser: buildBrowserPlanSection(options),
+                output: { imageDir: options.imagedir, platformDir: 'qseow' },
+                writes: {
+                    kind: 'thumbnails',
+                    contentLibrary: options.contentlibrary,
+                    publishedAppCount: planFacts.publishedAppCount,
+                },
+            },
             logPrefix: { plan: 'QSEOW PLAN APP', process: 'QSEOW PROCESS APP' },
             emptySelectionHint: 'Check the --appid and --qliksensetag options.',
             planApp: (appId, report) => qseowPlanApp(appId, options, report),
-            processApp: (appId) => qseowProcessApp(appId, options),
+            processApp: (appId, report) => qseowProcessApp(appId, options, report),
         });
     } catch (err) {
         logError('QSEOW CREATE THUMBNAILS 2', err);

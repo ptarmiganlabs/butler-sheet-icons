@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
+import { logRunHeader } from '../../util/run-report-render.js';
 import { browserUninstall } from '../../browser/browser-uninstall.js';
 import { runCommand } from '../run-command.js';
 import { buildBrowserCacheDirOption } from '../helpers.js';
@@ -14,7 +15,7 @@ import { addInteractiveOption } from '../../interactive/interactive-option.js';
  * @returns {Promise<void>} Resolves after attempting the uninstall and logging any failures.
  */
 const handleBrowserUninstall = async (options = {}, cmd) => {
-    logger.info(`App version: ${appVersion}`);
+    logRunHeader(logger, appVersion, 'browser uninstall');
 
     // Optional chaining, not `options.interactive`: the default parameter only
     // covers `undefined`, and a null options bag has to keep reaching

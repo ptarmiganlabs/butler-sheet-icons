@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
+import { logRunHeader } from '../../util/run-report-render.js';
 import { browserInstalled } from '../../browser/browser-installed.js';
 import { runCommand } from '../run-command.js';
 import { buildBrowserCacheDirOption } from '../helpers.js';
@@ -13,7 +14,7 @@ import { buildBrowserCacheDirOption } from '../helpers.js';
  * @returns {Promise<void>} Resolves when browserInstalled completes or errors are logged.
  */
 const handleBrowserListInstalled = async (options = {}, cmd) => {
-    logger.info(`App version: ${appVersion}`);
+    logRunHeader(logger, appVersion, 'browser list-installed');
 
     return runCommand('BROWSER MAIN 6', () => browserInstalled(options, cmd));
 };

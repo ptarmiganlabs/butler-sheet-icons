@@ -54,6 +54,9 @@ const mockGlobals = jest.unstable_mockModule('../../../globals.js', () => ({
     // rather than an undefined.
     sendConsoleLogToStderr: () => {},
     isSea: false,
+    // run-report.js (imported for the report recorders) links these two.
+    getLoggingLevel: jest.fn().mockReturnValue('info'),
+    setLoggingLevel: jest.fn(),
 }));
 
 const mockCloudEnigma = jest.unstable_mockModule('../cloud-enigma.js', () => ({
@@ -65,7 +68,7 @@ const mockCloudUpload = jest.unstable_mockModule('../cloud-upload.js', () => ({
 }));
 
 const mockCloudUpdateSheets = jest.unstable_mockModule('../cloud-updatesheets.js', () => ({
-    qscloudUpdateSheetThumbnails: jest.fn().mockResolvedValue(true),
+    qscloudUpdateSheetThumbnails: jest.fn().mockResolvedValue(1),
 }));
 
 const mockBrowserInstall = jest.unstable_mockModule('../../browser/browser-install.js', () => ({
@@ -514,7 +517,7 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
             });
             browserInstall.mockReset();
             qscloudUploadToApp.mockResolvedValue(true);
-            qscloudUpdateSheetThumbnails.mockResolvedValue(true);
+            qscloudUpdateSheetThumbnails.mockResolvedValue(1);
         });
 
         test('releases the session when the browser cannot be installed', async () => {
@@ -656,7 +659,7 @@ describe('process-cloud-app.js — a sheet with no metadata does not abort the a
         });
         takeSheetScreenshot.mockResolvedValue(true);
         qscloudUploadToApp.mockResolvedValue(true);
-        qscloudUpdateSheetThumbnails.mockResolvedValue(true);
+        qscloudUpdateSheetThumbnails.mockResolvedValue(1);
 
         const mockApp = {
             createSessionObject: jest.fn().mockResolvedValue({
@@ -756,7 +759,7 @@ describe('process-cloud-app.js — a failed upload must not update the sheets', 
             buildId: 'system-installed',
         });
         takeSheetScreenshot.mockResolvedValue(true);
-        qscloudUpdateSheetThumbnails.mockResolvedValue(true);
+        qscloudUpdateSheetThumbnails.mockResolvedValue(1);
 
         const mockApp = {
             createSessionObject: jest.fn().mockResolvedValue({
@@ -864,7 +867,7 @@ describe('process-cloud-app.js — a sheet whose thumbnail cannot be produced', 
             buildId: 'system-installed',
         });
         qscloudUploadToApp.mockResolvedValue(true);
-        qscloudUpdateSheetThumbnails.mockResolvedValue(true);
+        qscloudUpdateSheetThumbnails.mockResolvedValue(1);
 
         const mockApp = {
             createSessionObject: jest.fn().mockResolvedValue({

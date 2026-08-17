@@ -48,6 +48,38 @@ export const createAppImageDir = ({ imagedir, platform, appId, logPrefix, ErrorC
 };
 
 /**
+ * Measures the image files a run left on disk: how many exist, and their
+ * total size. Feeds the run card's `images kept` verdict line.
+ *
+ * Best-effort by design - a file that cannot be statted is simply not
+ * counted. The images were already written and uploaded by the time this
+ * runs, so a filesystem hiccup here must not fail the app.
+ *
+ * @param {string} dir - The per-app image directory.
+ * @param {string[]} fileNames - File names (without path) to measure.
+ *
+ * @returns {{files: number, bytes: number}} Count and total size of the files found.
+ */
+export const measureImageFiles = (dir, fileNames) => {
+    let files = 0;
+    let bytes = 0;
+
+    for (const name of fileNames) {
+        try {
+            const stat = fs.statSync(`${dir}/${name}`);
+            if (stat.isFile()) {
+                files += 1;
+                bytes += stat.size;
+            }
+        } catch {
+            // Not counted; see above.
+        }
+    }
+
+    return { files, bytes };
+};
+
+/**
  * Explains why the image directory could not be created, and what to do about it.
  *
  * Message shape follows `logUnusableBrowser` in `browser-launch.js`: what failed, then the thing to

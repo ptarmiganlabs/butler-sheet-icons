@@ -57,11 +57,19 @@ export const runOverApps = async (
     }
 
     let failed = 0;
+    let appNumber = 0;
 
     for (const appId of uniqueAppIds) {
+        appNumber += 1;
         try {
-            logger.info(`--------------------------------------------------`);
-            logger.info(`About to ${action} app ${appId}`);
+            // Countable, and printed before the worker runs, so a run that
+            // hangs hangs somewhere nameable: `app 3/7 <id>` with no line
+            // after it says exactly where. A dry run keeps its verb - `plan
+            // app 3/7` - so its log stays distinguishable from a real run.
+            logger.info('');
+            logger.info(
+                `${action === 'process' ? 'app' : `${action} app`} ${appNumber}/${uniqueAppIds.length}  ${appId}`
+            );
 
             await processApp(appId);
 

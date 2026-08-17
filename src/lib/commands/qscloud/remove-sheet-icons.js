@@ -1,6 +1,7 @@
 import { Command, Option } from 'commander';
 import { addDryRunOption } from '../dry-run-option.js';
-import { logger, appVersion } from '../../../globals.js';
+import { logger, appVersion, setLoggingLevel } from '../../../globals.js';
+import { logRunHeader } from '../../util/run-report-render.js';
 import { qscloudRemoveSheetIcons } from '../../cloud/cloud-remove-sheet-icons.js';
 import { runCommand } from '../run-command.js';
 import { collectAppIds } from '../helpers.js';
@@ -14,7 +15,11 @@ import { collectAppIds } from '../helpers.js';
  * @returns {Promise<void>} Resolves once the worker reports success or the error is logged.
  */
 const handleCloudRemoveSheetIcons = async (options = {}, cmd) => {
-    logger.info(`App version: ${appVersion}`);
+    // Level set before the header - see create-sheet-thumbnails.js for why.
+    if (options.loglevel) {
+        setLoggingLevel(options.loglevel);
+    }
+    logRunHeader(logger, appVersion, 'Qlik Sense Cloud sheet icon removal');
 
     return runCommand('CLOUD MAIN 5', () => qscloudRemoveSheetIcons(options, cmd));
 };

@@ -11,6 +11,7 @@ import {
 } from '../util/sheet-list.js';
 import { CloudError } from '../util/errors.js';
 import { addAppToReport, recordPlannedSheet } from '../util/run-report.js';
+import { appProgressLine } from '../util/run-report-render.js';
 
 /**
  * Plans one Qlik Sense Cloud app without changing anything: the dry-run twin
@@ -55,12 +56,21 @@ export const cloudPlanApp = async (appId, saasInstance, options, report) => {
         },
         async (global) => {
             const app = await global.openDoc(appId, '', '', '', false);
-            logger.info(`Opened app ${appId}`);
-            logger.info(`App name: "${appMetadata.attributes.name}"`);
-            logger.info(`App is published: ${appIsPublished}`);
+            logger.verbose(`Opened app ${appId}`);
+            logger.verbose(`App name: "${appMetadata.attributes.name}"`);
+            logger.verbose(`App is published: ${appIsPublished}`);
 
             const sheets = await getSheetList(app, SHEET_LIST_FIELDS_WITH_SHOW_CONDITION);
-            logger.info(`Number of sheets in app: ${sheets.length}`);
+
+            // Same fold as the real processor: one countable line, the
+            // individual facts at verbose.
+            logger.info(
+                appProgressLine({
+                    name: appMetadata.attributes.name,
+                    sheetCount: sheets.length,
+                    published: appIsPublished,
+                })
+            );
 
             const appEntry = addAppToReport(report, {
                 id: appId,

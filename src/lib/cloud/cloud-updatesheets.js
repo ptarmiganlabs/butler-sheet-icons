@@ -9,6 +9,7 @@ import {
     sortSheetsByRank,
     saveIfChanged,
     getSheetList,
+    logUpdatedSheetSummary,
 } from '../util/sheet-list.js';
 import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
 
@@ -28,8 +29,8 @@ import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
  * @param {Array<string>} [options.blurSheetNumber] - Array of sheet numbers to be blurred.
  * @param {Array<string>} [options.blurSheetTitle] - Array of sheet titles to be blurred.
  *
- * @returns {Promise<void>} Resolves when every sheet that had a generated thumbnail was
- *     updated.
+ * @returns {Promise<number>} How many sheets were given a new thumbnail - the number the
+ *     run card's verdict reports.
  *
  * @throws {CloudError} When any sheet could not be updated, or when thumbnails were created
  *     but no sheet matched one. Other sheets are still attempted first and the engine
@@ -61,7 +62,7 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
 
                 if (sheets.length > 0) {
                     // dimObj.qAppObjectList.qItems[] now contains array of app sheets.
-                    logger.info(`Number of sheets: ${sheets.length}`);
+                    logger.verbose(`Number of sheets: ${sheets.length}`);
 
                     // Sort sheets
                     sortSheetsByRank(sheets);
@@ -83,7 +84,7 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
                                 // Guarded: this line is inside the counted region, so an unguarded
                                 // dereference here would fail the app over a sheet nobody was
                                 // going to touch.
-                                logger.info(
+                                logger.verbose(
                                     `Skipping update of sheet ${iSheetNum}: Name '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}'`
                                 );
 
@@ -104,13 +105,13 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
                                 const sheetProperties = await sheetObj.getProperties();
 
                                 if (blurSheet === true && createdFile.fileNameShortBlurred) {
-                                    logger.info(
+                                    logger.verbose(
                                         `Using blurred thumbnail for sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
                                     );
 
                                     sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = `/api/v1/apps/${appId}/media/files/thumbnails/${createdFile.fileNameShortBlurred}`;
                                 } else {
-                                    logger.info(
+                                    logger.verbose(
                                         `Using regular thumbnail for sheet ${iSheetNum}: '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}'`
                                     );
 
@@ -146,5 +147,12 @@ export const qscloudUpdateSheetThumbnails = async (createdFiles, appId, options)
         throw new CloudError(`Failed to update sheet thumbnails in app ${appId}`, { cause: err });
     }
 
+    // Summary BEFORE the assert: when one sheet failed, the others' writes
+    // were already persisted by saveIfChanged, and the operator must learn
+    // about them even as the app is counted failed.
+    const changed = logUpdatedSheetSummary(sheetRun);
+
     sheetRun?.assertAllProcessed();
+
+    return changed;
 };

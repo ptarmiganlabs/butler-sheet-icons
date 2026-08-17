@@ -3,7 +3,7 @@ import { logger } from '../../globals.js';
 import { setupQseowQrsConnection } from './qseow-qrs.js';
 import { QseowError } from '../util/errors.js';
 import { qrsFilterAnyOf, qrsPathWithFilter, toFilterValueList } from './qrs-filter.js';
-import { qrsGetList } from './qrs-response.js';
+import { qrsGetList, qrsGetCount } from './qrs-response.js';
 
 /**
  * Looks up the sheets in an app that carry any of the supplied tags.
@@ -67,6 +67,130 @@ export const getSheetsTaggedWith = async (
     );
 
     return taggedSheets;
+};
+
+/**
+ * How many app ids go into one QRS filter or-group.
+ *
+ * Each id contributes ~55-60 percent-encoded characters to the query string,
+ * and QRS sits behind http.sys, whose default request limits reject URLs
+ * around 16 KB - roughly 250-300 ids in one group. Chunking at 50 keeps every
+ * request comfortably small while still counting a large tag selection in a
+ * handful of constant-size responses.
+ */
+const PLAN_FACT_ID_CHUNK = 50;
+
+/**
+ * Splits a list into chunks of at most {@link PLAN_FACT_ID_CHUNK} entries.
+ *
+ * @param {string[]} values - The list.
+ *
+ * @returns {string[][]} The chunks, in order.
+ */
+const chunked = (values) => {
+    const chunks = [];
+    for (let i = 0; i < values.length; i += PLAN_FACT_ID_CHUNK) {
+        chunks.push(values.slice(i, i + PLAN_FACT_ID_CHUNK));
+    }
+
+    return chunks;
+};
+
+/**
+ * A parenthesised or-group over app ids for a QRS filter.
+ *
+ * App ids are interpolated unquoted, matching every other GUID filter in this
+ * file (`app.id eq ${appId}` below) - QRS parses bare GUIDs.
+ *
+ * @param {string} field - The QRS field, e.g. `id` or `app.id`.
+ * @param {string[]} ids - The app ids.
+ *
+ * @returns {string} A parenthesised filter term.
+ */
+const idGroup = (field, ids) => `(${ids.map((id) => `${field} eq ${id}`).join(' or ')})`;
+
+/**
+ * The plan-time facts the run card's PLAN block shows for a QSEoW run: how
+ * many of the selected apps are published, and how many sheets each tag rule
+ * matches across all of them.
+ *
+ * The tag counts are the anti-#840 line: `tag "no-thumbnail" (0 sheets)`
+ * printed before the first write is the cheapest possible fix for a mistyped
+ * tag silently matching nothing. The per-app lookups still happen inside each
+ * app's processing, through {@link getSheetsTaggedWith}, and remain the
+ * counts the decisions are actually made from.
+ *
+ * Everything goes through the QRS `count` endpoints in id chunks: only
+ * numbers are wanted, so fetching full repository entities to take `.length`
+ * would move kilobytes per counted sheet, and one giant or-group over every
+ * selected app would exceed the server's URL limits on exactly the mass tag
+ * runs these counts exist for. The three fact groups are independent and run
+ * in parallel.
+ *
+ * Failures degrade to nulls rather than failing the run: these numbers
+ * decorate the plan, and a filter QRS rejects must not stop work the operator
+ * asked for. The QRS being unreachable is not masked - every caller has
+ * already talked to QRS to resolve its selection before calling this.
+ *
+ * @param {object} options - The run's options bag.
+ * @param {string[]} appIds - The selected app ids, deduplicated or not.
+ *
+ * @returns {Promise<{publishedAppCount: number|null, excludeTagSheetCount: number|null, blurTagSheetCount: number|null}>}
+ *     The counts; tag counts are null when the corresponding option was not used.
+ */
+export const readQseowPlanFacts = async (options, appIds) => {
+    const facts = {
+        publishedAppCount: null,
+        excludeTagSheetCount: null,
+        blurTagSheetCount: null,
+    };
+
+    const uniqueAppIds = [...new Set(appIds)];
+    if (uniqueAppIds.length === 0) {
+        return facts;
+    }
+
+    try {
+        const qrsInteractInstance = new qrsInteract(setupQseowQrsConnection(options));
+
+        const sumCounts = async (endpoint, filterForChunk) => {
+            let sum = 0;
+            for (const chunk of chunked(uniqueAppIds)) {
+                sum += await qrsGetCount(
+                    qrsInteractInstance,
+                    qrsPathWithFilter(endpoint, filterForChunk(chunk))
+                );
+            }
+
+            return sum;
+        };
+
+        const countTagged = (tagOption) => {
+            const tags = toFilterValueList(tagOption);
+            if (tags.length === 0) {
+                return null;
+            }
+
+            return sumCounts(
+                'app/object/count',
+                (chunk) =>
+                    `objectType eq 'sheet' and ${idGroup('app.id', chunk)} and ${qrsFilterAnyOf('tags.name', tags)}`
+            );
+        };
+
+        [facts.publishedAppCount, facts.excludeTagSheetCount, facts.blurTagSheetCount] =
+            await Promise.all([
+                sumCounts('app/count', (chunk) => `${idGroup('id', chunk)} and published eq true`),
+                countTagged(options.excludeSheetTag),
+                countTagged(options.blurSheetTag),
+            ]);
+    } catch (err) {
+        logger.verbose(
+            `Could not read plan facts from QRS - the plan block will omit them: ${err?.message ?? err}`
+        );
+    }
+
+    return facts;
 };
 
 /**
