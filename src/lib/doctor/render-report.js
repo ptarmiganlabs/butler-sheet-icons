@@ -1,6 +1,6 @@
 import { logger } from '../../globals.js';
 import { CONFIDENCE, SEVERITY, isHealthy, normalizeFinding, worstFirst } from './findings.js';
-import { allFindings, RUNNER_ERROR_ID } from './run-checks.js';
+import { allFindings, RUNNER_ERROR_ID, SKIP_NETWORK } from './run-checks.js';
 
 /**
  * The shared renderer for every diagnostic command.
@@ -120,8 +120,24 @@ const renderSections = (results) => {
     let currentSection;
 
     for (const result of results) {
-        // A skipped check has nothing to say. Saying "skipped" for each one would put the
-        // machinery in front of the diagnosis.
+        // A check its own `appliesTo` ruled out has nothing to say - it declined the question,
+        // and saying "skipped" for each one would put the machinery in front of the diagnosis.
+        // A check skipped for want of `--allow-network` is different: the question was real and
+        // went unanswered, and a report that stays silent about it is indistinguishable from one
+        // where the check ran and passed. An administrator on an air-gapped server has to be able
+        // to see which parts of the report are absent by *their* choice of flag.
+        if (result.skipped === SKIP_NETWORK) {
+            if (result.check.section !== currentSection) {
+                currentSection = result.check.section;
+                logger.info(currentSection);
+            }
+
+            logger.info(
+                `    ${'Skipped'.padEnd(LABEL_WIDTH)}: ${result.check.title} - needs network access. Re-run with --allow-network to include it.`
+            );
+            continue;
+        }
+
         if (result.skipped || result.findings.length === 0) {
             continue;
         }
