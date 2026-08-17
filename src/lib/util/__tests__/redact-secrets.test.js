@@ -90,6 +90,33 @@ describe('redactValue / redactOptions', () => {
         expect(out.self).toBe('***redacted***');
     });
 
+    test('clones a repeated reference instead of mistaking it for a cycle', () => {
+        // A visit-once map treated any object seen twice as a cycle, so the second reference to
+        // a shared value came back as the literal string "***redacted***" - a silent type
+        // violation, seen as a `facts` array shared by two findings turning into a string in the
+        // `doctor check` JSON document. Only a genuine ancestor is a cycle.
+        const shared = { host: 'qs.example.com', values: ['a', 'b'] };
+        const out = redactValue({ first: shared, second: shared });
+
+        expect(out.first).toEqual({ host: 'qs.example.com', values: ['a', 'b'] });
+        expect(out.second).toEqual({ host: 'qs.example.com', values: ['a', 'b'] });
+    });
+
+    test('a repeated reference inside a cycle still resolves', () => {
+        // Both properties at once: `shared` is referenced twice (not a cycle, cloned both times)
+        // while `loop` genuinely re-enters an ancestor (a cycle, replaced).
+        const shared = { name: 'twice' };
+        const a = { shared };
+        a.loop = a;
+        a.also = shared;
+
+        const out = redactValue(a);
+
+        expect(out.shared).toEqual({ name: 'twice' });
+        expect(out.also).toEqual({ name: 'twice' });
+        expect(out.loop).toBe('***redacted***');
+    });
+
     test('treats class instances as opaque (returns redacted placeholder)', () => {
         /**
          *

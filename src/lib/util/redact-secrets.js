@@ -127,41 +127,56 @@ function isProseWord(value) {
  * are returned unchanged. Plain objects, arrays, and nested combinations
  * are walked recursively.
  *
- * Cycles are broken by reusing the parent placeholder when an object would
- * otherwise be visited twice.
+ * Cycles are broken by replacing the re-entered object with the placeholder.
+ *
+ * The tracking is scoped to the **current path**, not to everything ever
+ * visited: an object is marked on the way in and unmarked on the way out, so
+ * only a genuine ancestor - a real cycle - trips it. A visit-once map looked
+ * equivalent and was not: a value merely *referenced twice*, such as one
+ * `facts` array shared by two findings, is no cycle at all, yet the second
+ * reference came back as the literal string `"***redacted***"` - a silent type
+ * violation in whatever consumed the clone, and in the `doctor check` JSON
+ * document a `string[]` field that is suddenly a string.
  *
  * @param {unknown} value - The value to clone.
- * @param {object} [seen] - Internal cycle-tracking map. Not for external use.
+ * @param {object} [seen] - Internal cycle-tracking set. Not for external use.
  *
  * @returns {unknown} A safe deep-clone of `value` with secrets redacted.
  */
-export function redactValue(value, seen = new WeakMap()) {
+export function redactValue(value, seen = new WeakSet()) {
     if (value === null || value === undefined) return value;
     const t = typeof value;
     if (t !== 'object') return value;
     if (seen.has(value)) return REDACTED;
-    seen.set(value, REDACTED);
+    seen.add(value);
 
-    if (Array.isArray(value)) {
-        return value.map((v) => redactValue(v, seen));
-    }
-
-    // Plain object path. Treat class instances and exotic objects as opaque
-    // (best-effort: we do not introspect them to avoid pulling live data).
-    const proto = Object.getPrototypeOf(value);
-    if (proto !== null && proto !== Object.prototype) {
-        return REDACTED;
-    }
-
-    const out = {};
-    for (const [k, v] of Object.entries(value)) {
-        if (isSecretKey(k)) {
-            out[k] = REDACTED;
-        } else {
-            out[k] = redactValue(v, seen);
+    try {
+        if (Array.isArray(value)) {
+            return value.map((v) => redactValue(v, seen));
         }
+
+        // Plain object path. Treat class instances and exotic objects as opaque
+        // (best-effort: we do not introspect them to avoid pulling live data).
+        const proto = Object.getPrototypeOf(value);
+        if (proto !== null && proto !== Object.prototype) {
+            return REDACTED;
+        }
+
+        const out = {};
+        for (const [k, v] of Object.entries(value)) {
+            if (isSecretKey(k)) {
+                out[k] = REDACTED;
+            } else {
+                out[k] = redactValue(v, seen);
+            }
+        }
+        return out;
+    } finally {
+        // The unmark that turns "visited once ever" into "currently above us". In a `finally` so
+        // an exotic value throwing mid-walk cannot leave a stale entry that redacts an unrelated
+        // later reference to the same object.
+        seen.delete(value);
     }
-    return out;
 }
 
 /**

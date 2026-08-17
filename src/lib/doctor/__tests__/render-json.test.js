@@ -270,6 +270,36 @@ describe('redaction', () => {
         expect(JSON.stringify(doc)).toContain(PLANTED.inDetail);
     });
 
+    test('two findings sharing one facts array both keep it', () => {
+        // The checks' house style is to build `facts` once and hand it to whichever branch
+        // returns, so one check returning two findings can legitimately share the array. The
+        // redaction walk used to treat the second reference as a cycle and replace it with the
+        // string "***redacted***" - a `string[]` field in a published document silently becoming
+        // a string, for a consumer that had done nothing unusual.
+        const sharedFacts = [{ label: 'Build', value: '138.0.7204.94', sublines: ['a', 'b'] }];
+        const doc = report(
+            resultsWith([
+                finding({
+                    id: 'BSI-ENV-001',
+                    severity: SEVERITY.INFO,
+                    title: 'First',
+                    detail: 'First.',
+                    facts: sharedFacts,
+                }),
+                finding({
+                    id: 'BSI-ENV-001',
+                    severity: SEVERITY.INFO,
+                    title: 'Second',
+                    detail: 'Second.',
+                    facts: sharedFacts,
+                }),
+            ])
+        );
+
+        expect(doc.findings[0].facts[0].sublines).toEqual(['a', 'b']);
+        expect(doc.findings[1].facts[0].sublines).toEqual(['a', 'b']);
+    });
+
     test('an evidence value that is not a plain object cannot leak through untouched', () => {
         // A check is free to put whatever it has into `evidence`, and an Error carries a stack
         // that has been through nothing at all.
