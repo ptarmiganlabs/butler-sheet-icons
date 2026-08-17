@@ -85,7 +85,27 @@ describe('collectCapabilities', () => {
             'Colour',
             'Unicode',
             'Interactive mode',
+            'Logging',
         ]);
+    });
+
+    test('reports the timestamp switch: raw value and verdict', () => {
+        const withoutVar = Object.fromEntries(
+            selfTest.collectCapabilities(capableDeps()).map((r) => [r.label, r.value])
+        );
+        expect(withoutVar['timestamps on log lines']).toBe('yes');
+        expect(withoutVar.BSI_LOG_TIMESTAMPS).toBe('(not set)');
+
+        // The raw value is JSON-quoted so an operator can see a trailing \r
+        // arriving from a CRLF .env - the verdict row shows it still disables,
+        // and the quoted value makes the invisible byte visible.
+        const withVar = Object.fromEntries(
+            selfTest
+                .collectCapabilities(pipedDeps({ BSI_LOG_TIMESTAMPS: 'false\r' }))
+                .map((r) => [r.label, r.value])
+        );
+        expect(withVar['timestamps on log lines']).toBe('no');
+        expect(withVar.BSI_LOG_TIMESTAMPS).toBe('"false\\r"');
     });
 
     test('records that hasColors is absent on a piped stream, not merely false', () => {
