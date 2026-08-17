@@ -67,10 +67,19 @@ const config = {
         'src/lib/util/import-meta-url\\.js$',
     ],
     coverageProvider: 'v8',
-    // Restores `process.exitCode` around every test. Command handlers set it to 1 on failure and
-    // do not rethrow, so a test covering a failure path would otherwise leave the runner's own
-    // exit status at 1 with every suite reported green. See the file for the full account.
-    setupFilesAfterEnv: ['<rootDir>/src/lib/test-helpers/preserve-exit-code.js'],
+    // preserve-exit-code: restores `process.exitCode` around every test. Command handlers set it
+    // to 1 on failure and do not rethrow, so a test covering a failure path would otherwise leave
+    // the runner's own exit status at 1 with every suite reported green.
+    //
+    // restore-plain-console: integration suites swap Jest's buffered console for a real one so
+    // Winston log lines print plainly instead of each being wrapped in a `console.log` frame
+    // blaming winston's transport. Unit suites are left untouched.
+    //
+    // See each file for the full account.
+    setupFilesAfterEnv: [
+        '<rootDir>/src/lib/test-helpers/preserve-exit-code.js',
+        '<rootDir>/src/lib/test-helpers/restore-plain-console.js',
+    ],
     testEnvironment: 'node',
     roots: ['<rootDir>/src'],
     transform: {},
