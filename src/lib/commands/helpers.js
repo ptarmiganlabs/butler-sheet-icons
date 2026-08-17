@@ -115,6 +115,50 @@ const collectAppIds = (value, previous = []) => [
 ];
 
 /**
+ * Builds a Commander `argParser` for a **variadic** option limited to a fixed set of values.
+ *
+ * `.choices()` would do the validation on its own, and for a scalar option it should be used
+ * instead. It is not enough here for two reasons, both of which this repo has already paid for:
+ *
+ * - **Commas.** Commander wraps an environment variable's value in a one-element array without
+ *   splitting it, so `BSI_DOCTOR_C_AREA=browser,environment` would be one value named
+ *   `browser,environment`, matching no choice and failing the command outright. `collectAppIds`
+ *   solves the same problem for `--appid`.
+ * - **Set-but-empty.** Commander runs `parseArg` on environment values too, so a bare
+ *   `BSI_DOCTOR_C_AREA=` line in a unit file reaches this as `''`. Everywhere else in the CLI that
+ *   means "unset"; under `.choices()` alone it is a hard error before any handler runs.
+ *
+ * Declare the option `.choices(values)` first - which is what puts the list in `--help` and turns
+ * the wizard's question into a checkbox - and then `.argParser(collectChoices(values))` to replace
+ * the parser it installed.
+ *
+ * @param {string[]} values - The permitted values.
+ *
+ * @returns {(value: string, previous?: string[]) => string[]} Parser for `Option.argParser()`.
+ *
+ * @throws {InvalidArgumentError} When any single value is not one of `values`.
+ *
+ * @example
+ * new Option('--area <area...>', '...').choices(CHECK_AREAS).argParser(collectChoices(CHECK_AREAS))
+ */
+const collectChoices =
+    (values) =>
+    (value, previous = []) => {
+        const entries = `${value}`
+            .split(',')
+            .map((entry) => entry.trim())
+            .filter((entry) => entry.length > 0);
+
+        for (const entry of entries) {
+            if (!values.includes(entry)) {
+                throw new InvalidArgumentError(`Allowed choices are ${values.join(', ')}.`);
+            }
+        }
+
+        return [...previous, ...entries];
+    };
+
+/**
  * The `--browser-cache-dir` option, for the commands that read or write the browser cache.
  *
  * A factory rather than a shared instance, because Commander stores parsed values on the
@@ -171,6 +215,7 @@ export {
     parsePositiveInteger,
     collectPositiveIntegers,
     collectAppIds,
+    collectChoices,
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
 };

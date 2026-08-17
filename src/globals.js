@@ -283,6 +283,34 @@ const setLoggingLevel = (newLevel) => {
 };
 
 /**
+ * Routes every console log line to stderr instead of stdout, for the rest of the process.
+ *
+ * Winston's Console transport writes **everything** to stdout by default - `error` included,
+ * because `stderrLevels` is empty unless it is given. That is right for Butler Sheet Icons as a
+ * whole: its output is one narrative log, the documentation tells operators to capture it with
+ * `> bsi.log`, and splitting it across two streams would drop errors out of every captured log and
+ * scramble the interleaving of what is left.
+ *
+ * It is wrong for exactly one case: a command whose stdout is a *payload* rather than a log.
+ * `doctor check --outputformat json` emits a JSON document that scripts pipe into `jq`, and a
+ * single winston line landing in the middle of it makes the document unparseable - on precisely
+ * the broken machine the document exists to describe, with stderr empty so nothing says why.
+ *
+ * Hence a call rather than a constructor option: the payload commands opt in, and every other
+ * command keeps the stream behaviour its users already depend on. Silencing the console instead
+ * would be worse than either - the error is the thing that explains the empty document.
+ *
+ * @returns {void}
+ */
+const sendConsoleLogToStderr = () => {
+    // Winston indexes this map by level name at log time, so every level set to `true` sends the
+    // whole log to stderr. Built from the logger's own level set rather than a hand-written list,
+    // which would silently miss a level if the logger's levels ever change.
+    logTransports.find((transport) => transport.name === 'console').stderrLevels =
+        Object.fromEntries(Object.keys(winston.config.npm.levels).map((level) => [level, true]));
+};
+
+/**
  * Boolean to indicate if we are running as a standalone app or not
  */
 const isSea = sea.isSea();
@@ -305,6 +333,7 @@ export {
     appVersion,
     getLoggingLevel,
     setLoggingLevel,
+    sendConsoleLogToStderr,
     isSea,
     bsiExecutablePath,
     getChromiumRevision,

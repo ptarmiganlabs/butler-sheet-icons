@@ -23,6 +23,31 @@
  * Both layers are best-effort: a determined attacker could craft values
  * that evade either, but normal Qlik Sense / Qlik Cloud / Qlik config
  * shapes are covered.
+ *
+ * ## What the free-text layer deliberately does not do
+ *
+ * It does not redact the **unquoted** command-line form, `--logonpwd hunter2`.
+ * That is a deliberate limit, not an oversight, and it was arrived at by
+ * shipping the opposite and measuring it:
+ *
+ * - There is no textual signal separating `--logonpwd correcthorsebattery`
+ *   from `Provide --apikey instead.` They are the same shape. Any rule that
+ *   redacts the first mangles the second, and a rule that spares the second
+ *   leaks the first. An attempt keyed on `isProseWord()` did both at once: it
+ *   let every all-lowercase password through *and* ate the capitalised word in
+ *   `see --auth Options for details`, which is issue #949 exactly.
+ * - Nothing in Butler Sheet Icons feeds a raw command line into this function.
+ *   `process.argv` is never logged (it reaches Commander and nowhere else), and
+ *   the one place a command line is rendered for a user - the interactive
+ *   wizard's `formatCommandLine()` - redacts by *option key*, which is reliable
+ *   because it knows which option is a secret rather than guessing from shape.
+ *
+ * So the unquoted form has no live source here, while a rule for it would run
+ * over every log line the product emits. If a future feature accepts pasted
+ * text or a user-supplied log file - `doctor analyze` is the one on the map -
+ * that input is untrusted in a way BSI's own prose is not, and over-redacting
+ * it is cheap. The aggressive rule belongs there, applied to that input only,
+ * and not in the formatter every `logger.info` passes through.
  */
 
 /**
@@ -102,41 +127,56 @@ function isProseWord(value) {
  * are returned unchanged. Plain objects, arrays, and nested combinations
  * are walked recursively.
  *
- * Cycles are broken by reusing the parent placeholder when an object would
- * otherwise be visited twice.
+ * Cycles are broken by replacing the re-entered object with the placeholder.
+ *
+ * The tracking is scoped to the **current path**, not to everything ever
+ * visited: an object is marked on the way in and unmarked on the way out, so
+ * only a genuine ancestor - a real cycle - trips it. A visit-once map looked
+ * equivalent and was not: a value merely *referenced twice*, such as one
+ * `facts` array shared by two findings, is no cycle at all, yet the second
+ * reference came back as the literal string `"***redacted***"` - a silent type
+ * violation in whatever consumed the clone, and in the `doctor check` JSON
+ * document a `string[]` field that is suddenly a string.
  *
  * @param {unknown} value - The value to clone.
- * @param {object} [seen] - Internal cycle-tracking map. Not for external use.
+ * @param {object} [seen] - Internal cycle-tracking set. Not for external use.
  *
  * @returns {unknown} A safe deep-clone of `value` with secrets redacted.
  */
-export function redactValue(value, seen = new WeakMap()) {
+export function redactValue(value, seen = new WeakSet()) {
     if (value === null || value === undefined) return value;
     const t = typeof value;
     if (t !== 'object') return value;
     if (seen.has(value)) return REDACTED;
-    seen.set(value, REDACTED);
+    seen.add(value);
 
-    if (Array.isArray(value)) {
-        return value.map((v) => redactValue(v, seen));
-    }
-
-    // Plain object path. Treat class instances and exotic objects as opaque
-    // (best-effort: we do not introspect them to avoid pulling live data).
-    const proto = Object.getPrototypeOf(value);
-    if (proto !== null && proto !== Object.prototype) {
-        return REDACTED;
-    }
-
-    const out = {};
-    for (const [k, v] of Object.entries(value)) {
-        if (isSecretKey(k)) {
-            out[k] = REDACTED;
-        } else {
-            out[k] = redactValue(v, seen);
+    try {
+        if (Array.isArray(value)) {
+            return value.map((v) => redactValue(v, seen));
         }
+
+        // Plain object path. Treat class instances and exotic objects as opaque
+        // (best-effort: we do not introspect them to avoid pulling live data).
+        const proto = Object.getPrototypeOf(value);
+        if (proto !== null && proto !== Object.prototype) {
+            return REDACTED;
+        }
+
+        const out = {};
+        for (const [k, v] of Object.entries(value)) {
+            if (isSecretKey(k)) {
+                out[k] = REDACTED;
+            } else {
+                out[k] = redactValue(v, seen);
+            }
+        }
+        return out;
+    } finally {
+        // The unmark that turns "visited once ever" into "currently above us". In a `finally` so
+        // an exotic value throwing mid-walk cannot leave a stale entry that redacts an unrelated
+        // later reference to the same object.
+        seen.delete(value);
     }
-    return out;
 }
 
 /**
@@ -200,6 +240,21 @@ export function redactSensitivePatterns(text) {
     result = result.replace(
         /\b(logonpwd|password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)\s*[=:]\s*[^\s&,;"'[\]{}()]+/gi,
         '$1=[REDACTED]'
+    );
+
+    // 3b. A secret whose value is *quoted*, in either the `--flag "value"` or the
+    //     `key="value"` form. Rule 3 stops at the opening quote, because its value class
+    //     excludes quote characters - so a password containing spaces, which is the only
+    //     reason anyone quotes one, survived every rule in this function untouched.
+    //
+    //     The quote is what makes this safe to do, and it is the whole reason this rule is
+    //     limited to the quoted form. A quoted token immediately after a secret-named flag is
+    //     that flag's argument; prose does not quote the word after a flag. The unquoted
+    //     `--logonpwd hunter2` form is deliberately NOT matched here - see the note below on
+    //     why it cannot be done in this function without re-creating issue #949.
+    result = result.replace(
+        /(\b(?:--)?(?:logonpwd|password|passwd|pwd|secret|token|api[_-]?key|api[_-]?token|access[_-]?key|auth|passphrase|client[_-]?secret)\s*(?:=|\s)\s*)("[^"]+"|'[^']+')/gi,
+        (_match, lead, value) => `${lead}${value[0]}[REDACTED]${value[0]}`
     );
 
     // 4. JSON-style quoted key/value pairs for the same patterns

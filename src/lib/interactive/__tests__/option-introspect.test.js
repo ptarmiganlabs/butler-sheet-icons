@@ -54,7 +54,7 @@ describe('true/false options, in both the forms Commander accepts', () => {
 });
 
 describe('command-tree', () => {
-    test('finds every leaf command, across all three namespaces', () => {
+    test('finds every leaf command, across all four namespaces', () => {
         expect(LEAVES.map((leaf) => leaf.path).sort()).toEqual([
             'browser check',
             'browser install',
@@ -62,6 +62,10 @@ describe('command-tree', () => {
             'browser list-installed',
             'browser uninstall',
             'browser uninstall-all',
+            // Reached through `doctor`'s default subcommand, so bare `doctor` runs it. The walk
+            // does not treat that as a special case and neither should anything downstream: the
+            // path a user types to reach it directly is still `doctor check`.
+            'doctor check',
             'qscloud create-sheet-thumbnails',
             'qscloud list-collections',
             'qscloud remove-sheet-icons',

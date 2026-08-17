@@ -30,6 +30,8 @@ export const NOT_INTERACTIVE = Object.freeze({
     'browser uninstall-all': 'Takes nothing but a log level, and asks for confirmation itself.',
     'browser check':
         'A diagnostic: every option describes the machine it is run on, and each already defaults to what a real run would use. Asking would only invite an answer that makes the check less honest.',
+    'doctor check':
+        'A diagnostic, for the same reason `browser check` is not interactive: every option describes the machine it is run on and already defaults to what a real run would use. It is also the command someone reaches for when nothing else works, so it has to run from a bare word.',
     'qscloud list-collections': 'Phase 2 - needs tenant credentials.',
     'qscloud remove-sheet-icons': 'Phase 2 - needs tenant credentials.',
 });

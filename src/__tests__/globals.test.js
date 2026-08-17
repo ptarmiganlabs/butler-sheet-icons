@@ -53,6 +53,46 @@ describe('logger redaction', () => {
     });
 });
 
+describe('sendConsoleLogToStderr', () => {
+    // Winston's Console transport writes *every* level to stdout unless given `stderrLevels`,
+    // `error` included. That is easy to assume otherwise - the assumption is why a winston error
+    // line could land in the middle of `doctor check --outputformat json` and make the document
+    // unparseable, on the one machine the document exists to describe.
+    //
+    // Both halves are asserted against the real transport rather than a mock: that stdout is the
+    // default, and that the call moves everything off it.
+    test('the console writes errors to stdout by default', async () => {
+        const { logger: realLogger } = await import('../globals.js');
+        const transport = realLogger.transports.find((t) => t.name === 'console');
+
+        expect(transport.stderrLevels.error).toBeFalsy();
+    });
+
+    test('routes every level to stderr once called, so a payload can own stdout', async () => {
+        const { logger: realLogger, sendConsoleLogToStderr } = await import('../globals.js');
+        const transport = realLogger.transports.find((t) => t.name === 'console');
+        const before = transport.stderrLevels;
+
+        try {
+            sendConsoleLogToStderr();
+
+            // Every level, not just error: in JSON mode the document is the whole of stdout, so
+            // an `info` line would corrupt it exactly as an `error` line would.
+            for (const level of ['error', 'warn', 'info', 'verbose', 'debug']) {
+                expect({ level, toStderr: Boolean(transport.stderrLevels[level]) }).toEqual({
+                    level,
+                    toStderr: true,
+                });
+            }
+        } finally {
+            // Restored explicitly: the transport is module state shared by every suite in this
+            // --runInBand process, and leaving it switched would silently change where later
+            // suites' output goes.
+            transport.stderrLevels = before;
+        }
+    });
+});
+
 describe('library code does not read .env off disk (issue #1014)', () => {
     // globals.js used to `import 'dotenv/config'`, so importing it — which almost every unit
     // test does transitively — loaded whatever `.env` the developer had. Option declarations

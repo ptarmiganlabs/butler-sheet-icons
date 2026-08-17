@@ -1,6 +1,6 @@
 import { logger } from '../../globals.js';
-import { SEVERITY, isHealthy, normalizeFinding, worstFirst } from './findings.js';
-import { allFindings, RUNNER_ERROR_ID } from './run-checks.js';
+import { CONFIDENCE, SEVERITY, isHealthy, normalizeFinding, worstFirst } from './findings.js';
+import { allFindings, RUNNER_ERROR_ID, SKIP_NETWORK } from './run-checks.js';
 
 /**
  * The shared renderer for every diagnostic command.
@@ -58,14 +58,29 @@ const LOG_AT = Object.freeze({
  * A verdict that carries weight states what was observed; one that does not simply names the
  * question that was answered.
  *
+ * A finding that was inferred rather than observed says so, in its own line. §15.9 is explicit
+ * that the blanket best-effort disclaimer is not a licence to present a guess as a diagnosis, and
+ * a suffix on the line itself is the only place an administrator reading one paragraph of a long
+ * report will see it. Nothing emits `possible` yet - every finding a check produces is observed on
+ * this machine - so today this branch is unreachable from the registry and is held by a test
+ * instead, ready for `doctor analyze`.
+ *
  * @param {import('./findings.js').Finding} entry - The finding.
  *
  * @returns {string} The line to print.
  */
-const verdictLine = (entry) =>
-    entry.severity === SEVERITY.ERROR || entry.severity === SEVERITY.WARNING
-        ? `    ${entry.detail}`
-        : `    ${entry.title}`;
+const verdictLine = (entry) => {
+    const text =
+        entry.severity === SEVERITY.ERROR || entry.severity === SEVERITY.WARNING
+            ? entry.detail
+            : entry.title;
+    const qualifier =
+        entry.confidence === CONFIDENCE.POSSIBLE
+            ? ' (possible cause, not confirmed on this machine)'
+            : '';
+
+    return `    ${text}${qualifier}`;
+};
 
 /**
  * One `    Label               : value` row.
@@ -105,8 +120,24 @@ const renderSections = (results) => {
     let currentSection;
 
     for (const result of results) {
-        // A skipped check has nothing to say. Saying "skipped" for each one would put the
-        // machinery in front of the diagnosis.
+        // A check its own `appliesTo` ruled out has nothing to say - it declined the question,
+        // and saying "skipped" for each one would put the machinery in front of the diagnosis.
+        // A check skipped for want of `--allow-network` is different: the question was real and
+        // went unanswered, and a report that stays silent about it is indistinguishable from one
+        // where the check ran and passed. An administrator on an air-gapped server has to be able
+        // to see which parts of the report are absent by *their* choice of flag.
+        if (result.skipped === SKIP_NETWORK) {
+            if (result.check.section !== currentSection) {
+                currentSection = result.check.section;
+                logger.info(currentSection);
+            }
+
+            logger.info(
+                `    ${'Skipped'.padEnd(LABEL_WIDTH)}: ${result.check.title} - needs network access. Re-run with --allow-network to include it.`
+            );
+            continue;
+        }
+
         if (result.skipped || result.findings.length === 0) {
             continue;
         }

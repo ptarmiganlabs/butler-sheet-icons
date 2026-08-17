@@ -32,6 +32,25 @@ export const SEVERITY = Object.freeze({
 });
 
 /**
+ * How much weight a finding's claim carries.
+ *
+ * A separate axis from severity, and §15.9 requires it: an administrator who follows a confident
+ * but incorrect remediation on a production Sense server loses trust permanently, and the blanket
+ * best-effort disclaimer sets expectations without licensing a guess to be printed as a fact.
+ *
+ * `confirmed` means a check looked and this is what it saw on this machine. Everything a check
+ * produces is confirmed by construction, which is why it is the default and why nothing in the
+ * current release emits anything else. `possible` is for a cause inferred from a symptom match
+ * rather than observed - `doctor analyze`, which is the later slice of #1063. The value is carried
+ * now so that adding it is not a change to the JSON schema, and so the renderer already knows how
+ * to mark one.
+ */
+export const CONFIDENCE = Object.freeze({
+    CONFIRMED: 'confirmed',
+    POSSIBLE: 'possible',
+});
+
+/**
  * Ordering for "worst first". Lower sorts earlier.
  */
 export const SEVERITY_RANK = Object.freeze({
@@ -144,6 +163,8 @@ export const normalizeFinding = (entry) => {
  * @property {Remediation[]} remediation - Ordered, concrete steps.
  * @property {string[]} supersededBy - Finding ids that, if present as errors in the same report,
  * explain this one. See {@link supersede}.
+ * @property {string} [confidence] - One of {@link CONFIDENCE}. Absent means `confirmed`, which is
+ * what everything a check produces is.
  * @property {string} [docs] - Relative doc-site path, resolved to a URL by the renderer and
  * printed as a bare path offline.
  */
@@ -163,6 +184,7 @@ export const normalizeFinding = (entry) => {
  * @param {object} [spec.evidence] - Structured evidence.
  * @param {Remediation[]} [spec.remediation] - Ordered remediation steps.
  * @param {string[]} [spec.supersededBy] - Finding ids that explain this one.
+ * @param {string} [spec.confidence] - One of {@link CONFIDENCE}. Defaults to `confirmed`.
  * @param {string} [spec.docs] - Relative doc-site path.
  *
  * @returns {Finding} The finding.
@@ -176,6 +198,7 @@ export const finding = ({
     evidence,
     remediation = [],
     supersededBy = [],
+    confidence = CONFIDENCE.CONFIRMED,
     docs,
 }) => ({
     id,
@@ -186,6 +209,7 @@ export const finding = ({
     evidence,
     remediation,
     supersededBy,
+    confidence,
     docs,
 });
 

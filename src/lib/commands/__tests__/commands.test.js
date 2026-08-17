@@ -19,6 +19,7 @@ const loggerMock = {
 const mockGlobalsPromise = jest.unstable_mockModule('../../../globals.js', () => ({
     logger: loggerMock,
     appVersion: 'test-version',
+    sendConsoleLogToStderr: jest.fn(),
 }));
 
 const mockQseowPromise = jest.unstable_mockModule('../../qseow/qseow-create-thumbnails.js', () => ({
@@ -81,6 +82,15 @@ const mockBrowserCheckPromise = jest.unstable_mockModule('../../browser/browser-
     browserCheck: jest.fn().mockResolvedValue({ ok: true, findings: [] }),
 }));
 
+// Mocked for the same reason its browser sibling is: this file tests how commands are wired, and
+// the real worker reaches through the check context into browser-paths.js, which reads `isSea` off
+// the globals mock above. That mock carries only what the command layer needs, so importing the
+// worker for real fails at link time - a suite-load error, with every test in the file reported as
+// failing for a reason that has nothing to do with any of them.
+const mockDoctorCheckPromise = jest.unstable_mockModule('../../doctor/doctor-check.js', () => ({
+    doctorCheck: jest.fn().mockResolvedValue({ ok: true, findings: [] }),
+}));
+
 let logger;
 let qseowCreateThumbnails;
 let qscloudCreateThumbnails;
@@ -102,6 +112,7 @@ let handleCloudListCollections;
 let handleCloudRemoveSheetIcons;
 let buildQscloudCommand;
 let buildBrowserCommand;
+let buildDoctorCommand;
 let handleBrowserListInstalled;
 let handleBrowserUninstall;
 let handleBrowserUninstallAll;
@@ -125,6 +136,7 @@ beforeAll(async () => {
         mockBrowserUninstallPromise,
         mockBrowserListAvailablePromise,
         mockBrowserCheckPromise,
+        mockDoctorCheckPromise,
     ]);
     ({ logger } = await import('../../../globals.js'));
     ({ qseowCreateThumbnails } = await import('../../qseow/qseow-create-thumbnails.js'));
@@ -144,6 +156,7 @@ beforeAll(async () => {
     ({ handleCloudRemoveSheetIcons } = await import('../qscloud/remove-sheet-icons.js'));
     ({ buildQscloudCommand } = await import('../qscloud/index.js'));
     ({ buildBrowserCommand } = await import('../browser/index.js'));
+    ({ buildDoctorCommand } = await import('../doctor/index.js'));
     ({ handleBrowserListInstalled } = await import('../browser/list-installed.js'));
     ({ handleBrowserUninstall, buildBrowserUninstallCommand } =
         await import('../browser/uninstall.js'));
@@ -1393,9 +1406,9 @@ describe('option keys match the property names the code reads (issue #890)', () 
         // test: a hand-built options object in a unit test carries whichever spelling its author
         // chose, so it agrees with the reader and the mismatch never surfaces.
         //
-        // Scoped to src/lib/{cloud,qseow,browser} because those consume CLI options directly.
-        // Deliberately no allowlist - it currently passes with none, and an allowlist is where a
-        // rule like this rots.
+        // Scoped to src/lib/{cloud,qseow,browser,doctor} because those consume CLI options
+        // directly. Deliberately no allowlist - it currently passes with none, and an allowlist is
+        // where a rule like this rots.
         const optionReads = () => {
             const files = [];
             const walkDir = (dir) => {
@@ -1408,7 +1421,9 @@ describe('option keys match the property names the code reads (issue #890)', () 
                     }
                 }
             };
-            ['cloud', 'qseow', 'browser'].forEach((area) => walkDir(join(PLATFORM_ROOT, area)));
+            ['cloud', 'qseow', 'browser', 'doctor'].forEach((area) =>
+                walkDir(join(PLATFORM_ROOT, area))
+            );
 
             const found = new Map();
             for (const file of files) {
@@ -1435,7 +1450,12 @@ describe('option keys match the property names the code reads (issue #890)', () 
                 command.options.forEach((opt) => names.add(opt.attributeName()));
                 command.commands.forEach(collect);
             };
-            [buildQseowCommand(), buildQscloudCommand(), buildBrowserCommand()].forEach(collect);
+            [
+                buildQseowCommand(),
+                buildQscloudCommand(),
+                buildBrowserCommand(),
+                buildDoctorCommand(),
+            ].forEach(collect);
             return names;
         };
 
@@ -1552,6 +1572,7 @@ describe('--browser-executable-path (issue #929)', () => {
             'browser check',
             () => buildBrowserCommand().commands.find((cmd) => cmd.name() === 'check'),
         ],
+        ['doctor check', () => buildDoctorCommand().commands.find((cmd) => cmd.name() === 'check')],
     ];
 
     test.each(carriers)('%s carries the option', (_name, build) => {
@@ -1608,4 +1629,76 @@ describe('--browser-executable-path (issue #929)', () => {
 
         expect(option).toBeUndefined();
     });
+});
+
+describe('doctor --help', () => {
+    test('says where the options are, because isDefault hides them', () => {
+        // Commander answers `doctor --help` with the namespace's help - one subcommand, no
+        // options - so every option of the command that bare `doctor` actually runs was
+        // invisible at exactly the keystroke an administrator tries first. The namespace cannot
+        // adopt the subcommand's help wholesale (more subcommands are coming), so it must point
+        // at it. `helpInformation()` does not include addHelpText hooks, which is why this
+        // captures `outputHelp()` instead.
+        const doctor = buildDoctorCommand();
+        let out = '';
+        doctor.configureOutput({ writeOut: (chunk) => (out += chunk) });
+        doctor.outputHelp();
+
+        expect(out).toContain('doctor check --help');
+        expect(out).toContain('Bare "doctor" runs "doctor check"');
+    });
+
+    test('the namespace describes itself in the top-level command list', () => {
+        // With no description, the `doctor` row in `butler-sheet-icons --help` was blank - the
+        // one line most users would ever read about the command.
+        expect(buildDoctorCommand().description()).toContain('diagnostic checks');
+    });
+});
+
+describe('the diagnostic option factory splits its environment variables deliberately', () => {
+    // The factory takes an envPrefix and applies it to four of its six options. The other two -
+    // the cache directory and the executable path - keep the unprefixed machine-scoped names on
+    // every command, because where the browser lives is a property of the machine and a doctor
+    // pointed at a different cache than the real run reads is the failure the whole file exists
+    // to prevent. This holds both halves of that split, per command, so neither can drift: a
+    // prefixed variable quietly going machine-scoped would let two commands fight over one value,
+    // and a machine variable quietly gaining a prefix would split the cache location between the
+    // diagnostic and the run it predicts.
+    const checkCommands = [
+        [
+            'browser check',
+            'BSI_BROWSER_C',
+            () => buildBrowserCommand().commands.find((cmd) => cmd.name() === 'check'),
+        ],
+        [
+            'doctor check',
+            'BSI_DOCTOR_C',
+            () => buildDoctorCommand().commands.find((cmd) => cmd.name() === 'check'),
+        ],
+    ];
+
+    test.each(checkCommands)('%s prefixes its per-run options with %s', (_name, prefix, build) => {
+        const command = build();
+        const envOf = (long) => command.options.find((opt) => opt.long === long).envVar;
+
+        expect(envOf('--browser')).toBe(`${prefix}_BROWSER`);
+        expect(envOf('--browser-version')).toBe(`${prefix}_BROWSER_VERSION`);
+        expect(envOf('--headless')).toBe(`${prefix}_HEADLESS`);
+        expect(envOf('--skip-launch')).toBe(`${prefix}_SKIP_LAUNCH`);
+    });
+
+    test.each(checkCommands)(
+        '%s keeps the machine-scoped variables unprefixed',
+        (_n, _p, build) => {
+            const command = build();
+            const envOf = (long) => command.options.find((opt) => opt.long === long).envVar;
+
+            // In particular: BSI_DOCTOR_C_BROWSER_CACHE_DIR does not exist and must not start
+            // existing by accident. An administrator who sets it gets nothing, which is why the
+            // factory's JSDoc and the doc site's generated option table both spell out the real
+            // variable names.
+            expect(envOf('--browser-cache-dir')).toBe('BSI_BROWSER_CACHE_DIR');
+            expect(envOf('--browser-executable-path')).toBe('BSI_BROWSER_EXECUTABLE_PATH');
+        }
+    );
 });

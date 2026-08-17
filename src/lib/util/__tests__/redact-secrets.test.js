@@ -90,6 +90,33 @@ describe('redactValue / redactOptions', () => {
         expect(out.self).toBe('***redacted***');
     });
 
+    test('clones a repeated reference instead of mistaking it for a cycle', () => {
+        // A visit-once map treated any object seen twice as a cycle, so the second reference to
+        // a shared value came back as the literal string "***redacted***" - a silent type
+        // violation, seen as a `facts` array shared by two findings turning into a string in the
+        // `doctor check` JSON document. Only a genuine ancestor is a cycle.
+        const shared = { host: 'qs.example.com', values: ['a', 'b'] };
+        const out = redactValue({ first: shared, second: shared });
+
+        expect(out.first).toEqual({ host: 'qs.example.com', values: ['a', 'b'] });
+        expect(out.second).toEqual({ host: 'qs.example.com', values: ['a', 'b'] });
+    });
+
+    test('a repeated reference inside a cycle still resolves', () => {
+        // Both properties at once: `shared` is referenced twice (not a cycle, cloned both times)
+        // while `loop` genuinely re-enters an ancestor (a cycle, replaced).
+        const shared = { name: 'twice' };
+        const a = { shared };
+        a.loop = a;
+        a.also = shared;
+
+        const out = redactValue(a);
+
+        expect(out.shared).toEqual({ name: 'twice' });
+        expect(out.also).toEqual({ name: 'twice' });
+        expect(out.loop).toBe('***redacted***');
+    });
+
     test('treats class instances as opaque (returns redacted placeholder)', () => {
         /**
          *
@@ -190,6 +217,59 @@ describe('redactSensitivePatterns', () => {
         expect(redactSensitivePatterns('token:abc123def')).toBe('token=[REDACTED]');
         expect(redactSensitivePatterns('access-key=ak_12345')).toBe('access-key=[REDACTED]');
         expect(redactSensitivePatterns('logonpwd=hunter2')).toBe('logonpwd=[REDACTED]');
+    });
+
+    test('redacts a quoted secret value, spaces and all', () => {
+        // Rule 3's value class excludes quote characters, so it stops at the opening quote -
+        // and a password containing spaces, which is the only reason anyone quotes one,
+        // survived every rule in the function. Half-redacting it was worse than not trying:
+        // `--logonpwd [REDACTED] secret pass"` reads as handled to anyone scanning for the
+        // placeholder, while two thirds of the password is still on the line.
+        expect(redactSensitivePatterns('--logonpwd "my secret pass"')).toBe(
+            '--logonpwd "[REDACTED]"'
+        );
+        expect(redactSensitivePatterns("--logonpwd 'my secret pass'")).toBe(
+            "--logonpwd '[REDACTED]'"
+        );
+        expect(redactSensitivePatterns('logonpwd="my secret pass"')).toBe('logonpwd="[REDACTED]"');
+        expect(
+            redactSensitivePatterns('bsi qseow --host h --logonpwd "correct horse" --userid g')
+        ).toBe('bsi qseow --host h --logonpwd "[REDACTED]" --userid g');
+    });
+
+    test('the quoted rule leaves prose mentioning a secret flag alone', () => {
+        // Issue #949's lesson, and the reason this rule is limited to the *quoted* form. An
+        // earlier attempt matched the bare `--flag word` form behind an isProseWord() guard and
+        // managed to fail in both directions at once: it let every all-lowercase password
+        // through, and it ate the capitalised word in the fourth line below. Prose does not
+        // quote the word after a flag, which is what makes the quoted form safe to act on.
+        for (const text of [
+            'Set --apikey to your Qlik Cloud key',
+            'point at it with --apikey or BSI_CLOUD_API_KEY',
+            'Provide --apikey instead.',
+            'see --auth Options for details',
+            "error: required option '--logonpwd <password>' not specified",
+            '--apikey --loglevel debug',
+            'butler-sheet-icons browser install --browser chrome --browser-version recommended',
+        ]) {
+            expect(redactSensitivePatterns(text)).toBe(text);
+        }
+    });
+
+    test('the unquoted command-line form is knowingly not covered', () => {
+        // Asserted as an absence so the trade-off is visible rather than forgotten.
+        // `--logonpwd correcthorsebattery` and `Provide --apikey instead.` are the same shape,
+        // so no rule can redact one and spare the other. Nothing in Butler Sheet Icons feeds a
+        // raw command line through this function - process.argv is never logged, and the wizard
+        // renders command lines redacted by option *key* - so the unquoted form has no live
+        // source, while a rule for it would run over every log line the product emits.
+        //
+        // If a feature ever accepts pasted text or a user-supplied log file (doctor analyze is
+        // the one on the map), the aggressive rule belongs there, on that input only. Change
+        // this test only alongside that decision.
+        expect(redactSensitivePatterns('--logonpwd correcthorsebattery')).toBe(
+            '--logonpwd correcthorsebattery'
+        );
     });
 
     test('redacts JSON-style quoted secrets', () => {

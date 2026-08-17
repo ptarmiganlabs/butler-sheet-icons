@@ -16,8 +16,8 @@ import { formatCommandLine } from '../render-command-line.js';
  *
  * Delivered as a deterministic matrix rather than a property test. Randomised
  * generation would mean a new devDependency under .npmrc's min-release-age=7
- * and CI failures that do not reproduce; three answer sets across nine commands
- * gives 27 cases that always run the same way.
+ * and CI failures that do not reproduce; three answer sets across eleven
+ * commands gives 33 cases that always run the same way.
  */
 
 const ENV_SNAPSHOT = { ...process.env };
@@ -141,11 +141,11 @@ const CASES = everyLeafCommand().flatMap(({ path, command }) =>
 );
 
 describe('the wizard produces what the command line it prints produces', () => {
-    test('there are ten commands to check, across three answer sets', () => {
+    test('there are eleven commands to check, across three answer sets', () => {
         // Guards against the walk silently finding nothing, which would make
         // every assertion below pass vacuously.
-        expect(everyLeafCommand()).toHaveLength(10);
-        expect(CASES).toHaveLength(30);
+        expect(everyLeafCommand()).toHaveLength(11);
+        expect(CASES).toHaveLength(33);
     });
 
     test.each(CASES)('%s', (_label, command, strategy) => {

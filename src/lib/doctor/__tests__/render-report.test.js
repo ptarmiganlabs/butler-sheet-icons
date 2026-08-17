@@ -13,7 +13,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 }));
 
 const { renderReport, BEST_EFFORT_DISCLAIMER } = await import('../render-report.js');
-const { SEVERITY } = await import('../findings.js');
+const { CONFIDENCE, SEVERITY } = await import('../findings.js');
 
 /**
  * The shared renderer.
@@ -540,6 +540,140 @@ describe('the FAILED headline names the machine problem, not the diagnostic', ()
 
         expect(text).toContain('Stage a browser.');
         expect(text).toContain('File a Butler Sheet Icons issue.');
+    });
+});
+
+describe('a skipped check', () => {
+    // Two kinds of skip, deliberately rendered differently. `appliesTo` declining the question
+    // is the check saying it has nothing to add, and printing "skipped" for each would put the
+    // machinery in front of the diagnosis. A network skip is a real question left unanswered by
+    // the caller's own flag, and the doc site promises the report says so - silence there is
+    // indistinguishable from "ran and passed", on exactly the air-gapped servers the default
+    // exists to protect.
+    const SKIP_NETWORK = 'network';
+    const SKIP_NOT_APPLICABLE = 'not-applicable';
+
+    test('for want of --allow-network is named, under its section heading', () => {
+        renderReport({
+            heading: 'h',
+            results: [
+                {
+                    check: {
+                        id: 'reaches-out',
+                        title: 'The Sense host answers',
+                        section: 'Connectivity',
+                    },
+                    findings: [],
+                    skipped: SKIP_NETWORK,
+                },
+            ],
+            okMessage: 'fine',
+        });
+
+        expect(infoLines()).toContain('Connectivity');
+        expect(infoLines()).toContain(
+            '    Skipped             : The Sense host answers - needs network access. Re-run with --allow-network to include it.'
+        );
+    });
+
+    test('by its own appliesTo stays silent', () => {
+        renderReport({
+            heading: 'h',
+            results: [
+                {
+                    check: { id: 'n-a', title: 'Not relevant here', section: 'Launch test' },
+                    findings: [],
+                    skipped: SKIP_NOT_APPLICABLE,
+                },
+            ],
+            okMessage: 'fine',
+        });
+
+        expect(infoLines().join('\n')).not.toContain('Launch test');
+        expect(infoLines().join('\n')).not.toContain('Skipped');
+    });
+
+    test('a network skip does not repeat a section heading already printed', () => {
+        renderReport({
+            heading: 'h',
+            results: [
+                result('Connectivity', [
+                    {
+                        id: 'X',
+                        severity: SEVERITY.OK,
+                        title: 'ok',
+                        detail: 'ok',
+                        facts: [{ label: 'Host', value: 'sense.example.com' }],
+                        remediation: [],
+                        supersededBy: [],
+                    },
+                ]),
+                {
+                    check: { id: 'deeper', title: 'A deeper probe', section: 'Connectivity' },
+                    findings: [],
+                    skipped: SKIP_NETWORK,
+                },
+            ],
+            okMessage: 'fine',
+        });
+
+        expect(infoLines().filter((line) => line === 'Connectivity')).toHaveLength(1);
+    });
+});
+
+describe('a finding that was inferred rather than observed', () => {
+    // §15.9's third layer, and the one the disclaimer cannot do on its own: an administrator
+    // reading one paragraph of a long report has to be able to tell "I looked, and this is what
+    // is on your machine" from "this matches a known failure". Nothing emits `possible` yet -
+    // every finding a check produces is observed - so this holds the branch until `doctor
+    // analyze` needs it.
+    test('says so on its own line', () => {
+        renderReport({
+            heading: 'h',
+            results: [
+                result('A', [
+                    {
+                        id: 'X',
+                        severity: SEVERITY.ERROR,
+                        title: 't',
+                        detail: 'A proxy is intercepting HTTPS.',
+                        facts: [],
+                        remediation: [],
+                        supersededBy: [],
+                        confidence: CONFIDENCE.POSSIBLE,
+                    },
+                ]),
+            ],
+            okMessage: 'fine',
+        });
+
+        expect(errorLines()).toContain(
+            '    A proxy is intercepting HTTPS. (possible cause, not confirmed on this machine)'
+        );
+    });
+
+    test('a finding with no confidence stated is treated as observed, and reads unchanged', () => {
+        // Every existing check writes finding literals without the field, and `browser check`'s
+        // output is held line for line elsewhere. Absent has to mean confirmed.
+        renderReport({
+            heading: 'h',
+            results: [
+                result('A', [
+                    {
+                        id: 'X',
+                        severity: SEVERITY.ERROR,
+                        title: 't',
+                        detail: 'A proxy is intercepting HTTPS.',
+                        facts: [],
+                        remediation: [],
+                        supersededBy: [],
+                    },
+                ]),
+            ],
+            okMessage: 'fine',
+        });
+
+        expect(errorLines()).toContain('    A proxy is intercepting HTTPS.');
     });
 });
 
