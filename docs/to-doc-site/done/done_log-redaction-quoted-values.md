@@ -1,3 +1,8 @@
+> **Archived 2026-08-17.** Published into `/reference/log-redaction` (butler-sheet-icons-docs
+> PR #101, `next` branch): the quoted-value pattern joined the recognised-patterns list, the
+> "one shape is not redacted" subsection follows it, and the `doctor check` JSON report was added
+> to the list of places redaction runs. Published essentially as drafted.
+
 # Log redaction now covers quoted passwords
 
 **Target page:** the existing `Log redaction` reference page, which lists the patterns Butler Sheet
