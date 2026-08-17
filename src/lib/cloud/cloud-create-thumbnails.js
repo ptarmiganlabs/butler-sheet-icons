@@ -4,8 +4,7 @@ import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { processCloudApp } from './process-cloud-app.js';
 import { cloudPlanApp } from './cloud-plan-app.js';
-import { listAppsByCollection } from './cloud-apps.js';
-import { toAppIdList } from '../util/app-ids.js';
+import { resolveCloudAppSelection } from './cloud-app-selection.js';
 import { runOverAppsWithReport, announceDryRun } from '../util/run-report.js';
 import { CLOUD_SHEET_PARTS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
@@ -69,8 +68,6 @@ export const qscloudCreateThumbnails = async (options) => {
             }
         }
 
-        const appIdsToProcess = [];
-
         // Commander always yields a string here (.default('1'), .env() and the .choices()
         // wrapper all produce strings), but programmatic and test callers may pass a number.
         // Normalise once so the check below - and the string-only sheet-part comparisons
@@ -110,31 +107,14 @@ export const qscloudCreateThumbnails = async (options) => {
             return false;
         }
 
-        // Apps named directly. --appid is variadic, so this is a list.
-        const namedAppIds = toAppIdList(options.appid);
-        appIdsToProcess.push(...namedAppIds);
-
-        // --appid and --collectionid are additive, not alternatives: apps named either
-        // way are all processed. runOverApps() dedupes, so an app that is both named by
-        // --appid and in the collection is still processed once.
-        let collectionAppIds = [];
-        const useCollection = Boolean(options.collectionid && options.collectionid.length > 0);
-        if (useCollection) {
-            const apps = await listAppsByCollection(saasInstance, options.collectionid);
-            logger.verbose(`Collection '${options.collectionid}' exists`);
-            collectionAppIds = apps.map((app) => app.id);
-            appIdsToProcess.push(...collectionAppIds);
-        }
+        // Selection resolution is shared with the other Cloud command; the
+        // provenance it returns feeds the run report directly.
+        const selection = await resolveCloudAppSelection(saasInstance, options);
 
         return await runOverAppsWithReport({
             command: 'qscloud create-sheet-thumbnails',
             dryRun,
-            appIds: appIdsToProcess,
-            namedAppIds,
-            selectorAppIds: collectionAppIds,
-            selector: useCollection
-                ? { option: 'collectionid', value: options.collectionid }
-                : null,
+            ...selection,
             logPrefix: { plan: 'CLOUD PLAN APP', process: 'CLOUD PROCESS APP' },
             emptySelectionHint: 'Check the --appid and --collectionid options.',
             planApp: (appId, report) => cloudPlanApp(appId, saasInstance, options, report),
