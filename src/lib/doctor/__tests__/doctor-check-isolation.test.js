@@ -31,6 +31,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
     appVersion: 'test-version',
     getLoggingLevel: jest.fn(() => 'info'),
     setLoggingLevel: jest.fn(),
+    sendConsoleLogToStderr: jest.fn(),
     isSea: false,
     bsiExecutablePath: '/opt/bsi',
     getChromiumRevision: jest.fn(),

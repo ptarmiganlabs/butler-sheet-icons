@@ -1,4 +1,4 @@
-import { logger, setLoggingLevel } from '../../globals.js';
+import { logger, sendConsoleLogToStderr, setLoggingLevel } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import { buildCheckContext } from './context.js';
 import { checksForAreas } from './checks/index.js';
@@ -292,14 +292,31 @@ export const doctorCheck = async (options = {}) => {
     const outputFormat = options.outputformat ?? 'text';
 
     // In JSON mode the document is the whole of stdout, and a winston line carrying a timestamp
-    // and a level in the middle of it would make the output unparseable. Held at `error` rather
-    // than silenced outright so that a genuine failure is still visible to whoever ran it.
+    // and a level in the middle of it would make the output unparseable.
+    //
+    // Two moves are needed, and holding the level was only the first. Winston's Console transport
+    // writes *every* level to stdout unless told otherwise - `error` included - so quieting the
+    // console to `error` still left an error line landing inside the document. Measured: a failing
+    // run put 30 lines on stdout and none on stderr, and `detectAvailableBrowser` logs at `error`
+    // and then returns null, so the run continues and the document is appended after it. A gate
+    // doing `doctor check --outputformat json | jq` then fails to parse on exactly the broken
+    // machine the document exists to describe, with stderr empty so nothing says why.
+    //
+    // So the whole console goes to stderr here, rather than being silenced: the error is the thing
+    // that explains an empty or partial document, and a human running this in a terminal still
+    // sees it. Scoped to this command rather than fixed in the transport, because Butler Sheet
+    // Icons' output elsewhere is one narrative log that the documentation tells operators to
+    // capture with `> bsi.log` - splitting it globally would drop errors out of every captured log.
     //
     // Deliberately not `withQuietLogging`: importing `getLoggingLevel` here would break every
     // suite whose `globals.js` mock does not enumerate that export, as a suite-load failure with
     // no failing test to point at it. There is nothing to restore either way - the process is
     // about to end.
     setLoggingLevel(outputFormat === 'json' ? 'error' : options.loglevel);
+
+    if (outputFormat === 'json') {
+        sendConsoleLogToStderr();
+    }
 
     const areas = areasToRun(options.area);
     const named = areasWereNamed(options.area);

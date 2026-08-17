@@ -338,6 +338,19 @@ so it can be piped straight into another program:
 butler-sheet-icons doctor check --outputformat json | jq .ok
 ```
 
+Log lines go to **standard error** in this mode, so they cannot land in the middle of the document
+and stop it parsing. That is worth knowing if something goes wrong: a run that produces an empty or
+unexpected document usually has the reason waiting on standard error, which a pipe like the one
+above discards. Capture both when investigating:
+
+```
+butler-sheet-icons doctor check --outputformat json > report.json 2> report.log
+```
+
+This applies to `--outputformat json` only. Every other Butler Sheet Icons command, including
+`doctor check` without the flag, writes its whole log to standard output as it always has, so
+existing scripts that capture output with `> bsi.log` are unaffected.
+
 ## Checks that need the network
 
 `--allow-network` permits checks that reach out over the network to run. It is off by default, and

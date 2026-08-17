@@ -1,4 +1,4 @@
-import { jest, test, expect, describe, beforeEach } from '@jest/globals';
+import { jest, test, expect, describe, beforeEach, afterEach } from '@jest/globals';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -30,6 +30,7 @@ const loggerMock = {
 jest.unstable_mockModule('../../../globals.js', () => ({
     logger: loggerMock,
     setLoggingLevel: jest.fn(),
+    sendConsoleLogToStderr: jest.fn(),
     isSea: false,
     bsiExecutablePath: '/opt/bsi',
     appVersion: 'test-version',
@@ -72,6 +73,7 @@ const { CHECKS, checksForAreas } = await import('../checks/index.js');
 const { CHECK_AREAS } = await import('../run-checks.js');
 const { BEST_EFFORT_DISCLAIMER } = await import('../render-report.js');
 const { SEVERITY } = await import('../findings.js');
+const { sendConsoleLogToStderr } = await import('../../../globals.js');
 
 const CACHE_DIR = path.join(os.tmpdir(), 'bsi-doctor-check-test');
 
@@ -249,6 +251,60 @@ describe('an area with no registered checks', () => {
         await doctorCheck(options());
 
         expect(loggedText()).toMatch(/Result: OK[^\n]*Not examined/);
+    });
+});
+
+describe('--outputformat json', () => {
+    let writeSpy;
+    let written;
+
+    beforeEach(() => {
+        written = [];
+        writeSpy = jest.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+            written.push(String(chunk));
+            return true;
+        });
+    });
+
+    afterEach(() => {
+        writeSpy.mockRestore();
+    });
+
+    test('sends the whole console log to stderr, so the document owns stdout', async () => {
+        // Quieting the console to `error` was not enough: winston's Console transport writes
+        // every level to stdout unless told otherwise, so an error line landed inside the
+        // document and `doctor check --outputformat json | jq` failed to parse - on exactly the
+        // broken machine the document exists to describe, with stderr empty so nothing said why.
+        await doctorCheck(options({ area: ['environment'], outputformat: 'json' }));
+
+        expect(sendConsoleLogToStderr).toHaveBeenCalled();
+    });
+
+    test('leaves the streams alone in text mode', async () => {
+        // Scoped deliberately. Butler Sheet Icons' output elsewhere is one narrative log that the
+        // documentation tells operators to capture with `> bsi.log`; moving errors to stderr for
+        // every command would drop them out of every captured log.
+        await doctorCheck(options({ area: ['environment'] }));
+
+        expect(sendConsoleLogToStderr).not.toHaveBeenCalled();
+    });
+
+    test('writes one parseable document and nothing else to stdout', async () => {
+        const report = await doctorCheck(options({ area: ['environment'], outputformat: 'json' }));
+
+        const doc = JSON.parse(written.join(''));
+
+        expect(doc.ok).toBe(report.ok);
+        expect(doc.examined).toEqual(['environment']);
+    });
+
+    test('the verdict is the same one the text path would reach', async () => {
+        // Two code paths compute `ok`, and a deployment gate reads whichever it happens to run.
+        const asJson = await doctorCheck(options({ area: ['qseow'], outputformat: 'json' }));
+        const asText = await doctorCheck(options({ area: ['qseow'] }));
+
+        expect(asJson.ok).toBe(asText.ok);
+        expect(asJson.ok).toBe(false);
     });
 });
 

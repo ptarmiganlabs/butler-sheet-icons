@@ -26,6 +26,7 @@ jest.unstable_mockModule('../../../../globals.js', () => ({
     // logger by withQuietLogging's restore.
     getLoggingLevel: () => 'info',
     setLoggingLevel: () => {},
+    sendConsoleLogToStderr: () => {},
     isSea: false,
     bsiExecutablePath: '/test',
     getChromiumRevision: () => 'test-revision',

@@ -41,6 +41,7 @@ const loggerMock = {
 jest.unstable_mockModule('../../../globals.js', () => ({
     logger: loggerMock,
     setLoggingLevel: jest.fn(),
+    sendConsoleLogToStderr: jest.fn(),
     isSea: false,
     bsiExecutablePath: '/opt/bsi',
     appVersion: 'test-version',

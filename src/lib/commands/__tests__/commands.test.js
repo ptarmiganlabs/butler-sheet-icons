@@ -19,6 +19,7 @@ const loggerMock = {
 const mockGlobalsPromise = jest.unstable_mockModule('../../../globals.js', () => ({
     logger: loggerMock,
     appVersion: 'test-version',
+    sendConsoleLogToStderr: jest.fn(),
 }));
 
 const mockQseowPromise = jest.unstable_mockModule('../../qseow/qseow-create-thumbnails.js', () => ({
