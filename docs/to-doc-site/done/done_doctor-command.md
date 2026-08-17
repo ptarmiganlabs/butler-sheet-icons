@@ -1,3 +1,12 @@
+> **Archived 2026-08-17.** Published to the doc site as `/reference/doctor` (butler-sheet-icons-docs
+> PR #101, `next` branch), with the cross-link applied to the browser check section of
+> `/reference/browser`. Not published from below: the sample transcripts' `info: App version: 4.1.0`
+> lines (this folder's rule against version numbers in pasted output), the JSON sample's literal
+> `"toolVersion": "4.1.0"` (replaced with a placeholder), and the draft's relative `.md` cross-link
+> (replaced with the absolute extensionless form the site build requires). The proposed target path
+> `guide/troubleshooting/doctor.md` did not match the site - troubleshooting is a single page - so
+> the page lives under Reference beside the other command pages.
+
 # `doctor`: ask Butler Sheet Icons what is wrong with this server
 
 **Target page:** a new page under the same part of the site as `browser check`, for example
