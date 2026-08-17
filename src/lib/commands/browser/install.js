@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
+import { logRunHeader } from '../../util/run-report-render.js';
 import { browserInstall } from '../../browser/browser-install.js';
 import {
     VERSION_RECOMMENDED,
@@ -19,7 +20,7 @@ import { addInteractiveOption } from '../../interactive/interactive-option.js';
  * @returns {Promise<void>} Resolves after attempting the install and logging any failures.
  */
 const handleBrowserInstall = async (options = {}, cmd) => {
-    logger.info(`App version: ${appVersion}`);
+    logRunHeader(logger, appVersion, 'browser install');
 
     // Optional chaining, not `options.interactive`: the default parameter only
     // covers `undefined`, and a null options bag has to keep reaching

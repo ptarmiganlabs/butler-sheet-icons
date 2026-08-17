@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../globals.js';
+import { logRunHeader } from '../util/run-report-render.js';
 import { runCommand } from '../commands/run-command.js';
 import { assertInteractiveCapable } from './tty.js';
 import { isPromptCancellation } from './prompt-runtime.js';
@@ -72,7 +73,7 @@ const runWizardUnlessCancelled = async () => {
  * @returns {Promise<boolean>} `true` on success, `false` on failure.
  */
 const handleInteractive = async (options = {}, _cmd) => {
-    logger.info(`App version: ${appVersion}`);
+    logRunHeader(logger, appVersion, 'interactive wizard');
 
     return runCommand(
         'INTERACTIVE MAIN 11',

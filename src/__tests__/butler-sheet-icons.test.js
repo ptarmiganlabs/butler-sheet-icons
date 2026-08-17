@@ -126,13 +126,13 @@ describe('butler-sheet-icons CLI', () => {
         // line through the logger: no network, no config, read-only. No
         // assertion on exit status - a corrupt entry in the host's browser
         // cache fails the command for reasons unrelated to timestamps, and
-        // the App version line is emitted before any cache work happens.
+        // the run header is emitted before any cache work happens.
         test('BSI_LOG_TIMESTAMPS=false drops the prefix but keeps level and message', () => {
             const result = execCLI(['browser', 'list-installed'], {
                 env: { ...scrubbedEnv, BSI_LOG_TIMESTAMPS: 'false' },
                 timeout: 20000,
             });
-            expect(result.stdout).toMatch(/^info: App version:/m);
+            expect(result.stdout).toMatch(/^info: +BUTLER SHEET ICONS /m);
             // No line anywhere in the output may still carry the stamp.
             expect(result.stdout).not.toMatch(new RegExp(`^${STAMP}`, 'm'));
         });

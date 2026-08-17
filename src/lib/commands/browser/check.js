@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
+import { logRunHeader } from '../../util/run-report-render.js';
 import { browserCheck } from '../../browser/browser-check.js';
 import { runCommand } from '../run-command.js';
 import { buildBrowserDiagnosticOptions } from '../browser-diagnostic-options.js';
@@ -30,7 +31,7 @@ import { buildBrowserDiagnosticOptions } from '../browser-diagnostic-options.js'
  * @returns {Promise<boolean>} Whether the machine passed.
  */
 const handleBrowserCheck = async (options = {}) => {
-    logger.info(`App version: ${appVersion}`);
+    logRunHeader(logger, appVersion, 'browser check');
 
     return runCommand('BROWSER MAIN 11', async () => {
         const report = await browserCheck(options);

@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
+import { logRunHeader } from '../../util/run-report-render.js';
 import { browserListAvailable } from '../../browser/browser-list-available.js';
 import { runCommand } from '../run-command.js';
 
@@ -12,7 +13,7 @@ import { runCommand } from '../run-command.js';
  * @returns {Promise<void>} Resolves when the worker returns or errors are logged.
  */
 const handleBrowserListAvailable = async (options = {}, cmd) => {
-    logger.info(`App version: ${appVersion}`);
+    logRunHeader(logger, appVersion, 'browser list-available');
 
     return runCommand(
         'BROWSER MAIN 10',

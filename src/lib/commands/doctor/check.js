@@ -1,5 +1,6 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../../globals.js';
+import { logRunHeader } from '../../util/run-report-render.js';
 import { doctorCheck } from '../../doctor/doctor-check.js';
 import { CHECK_AREAS } from '../../doctor/run-checks.js';
 import { runCommand } from '../run-command.js';
@@ -18,7 +19,7 @@ import { booleanOptionParser } from '../../util/boolean-option.js';
  * as a failure rather than letting it escape to the top-level handler and be written out as a
  * crash dump. A machine with a problem is an operational finding, not a crash.
  *
- * The `App version:` line is skipped in JSON mode. The document has to be the whole of stdout for
+ * The run header is skipped in JSON mode. The document has to be the whole of stdout for
  * anything to parse it, and the version is a field inside it instead.
  *
  * @param {object} [options] - CLI options. Defaults to `{}`. Commander passes its own `Command` as
@@ -28,7 +29,7 @@ import { booleanOptionParser } from '../../util/boolean-option.js';
  */
 const handleDoctorCheck = async (options = {}) => {
     if (options.outputformat !== 'json') {
-        logger.info(`App version: ${appVersion}`);
+        logRunHeader(logger, appVersion, 'doctor check');
     }
 
     return runCommand('DOCTOR MAIN 1', async () => {
