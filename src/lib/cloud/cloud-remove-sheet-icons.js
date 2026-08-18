@@ -5,24 +5,21 @@ import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { CloudError } from '../util/errors.js';
 import {
-    runOverSheets,
     sortSheetsByRank,
     saveIfChanged,
     getSheetList,
     SHEET_LIST_FIELDS_EXTENDED,
-    SHEET_SKIPPED,
 } from '../util/sheet-list.js';
+import { clearSheetIcons, planSheetIconRemoval } from '../util/sheet-icon-removal.js';
 import { withEngineSession } from '../util/engine-session.js';
 import { resolveCloudAppSelection } from './cloud-app-selection.js';
-import { CLEAR_REASON } from '../util/sheet-decision-reasons.js';
 import {
     runOverAppsWithReport,
     announceDryRun,
     emitRunHeader,
     addAppToReport,
-    recordSheetDecision,
 } from '../util/run-report.js';
-import { sheetProgressLine, appProgressLine } from '../util/run-report-render.js';
+import { appProgressLine } from '../util/run-report-render.js';
 import { logError } from '../util/log-error.js';
 
 /**
@@ -117,78 +114,12 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = n
                     // Sort sheets
                     sortSheetsByRank(sheets);
 
-                    sheetRun = await runOverSheets(
-                        sheets,
-                        {
-                            logPrefix: 'CLOUD REMOVE SHEET ICONS',
-                            appId,
-                            action: 'remove icons for',
-                            ErrorClass: CloudError,
-                        },
-                        async (sheet, iSheetNum) => {
-                            // Optional-chained like the planner's own read of
-                            // the same fields: a sheet the engine returns
-                            // without qMeta must not fail here, on a log line,
-                            // when the dry run planned it as a clean clear.
-                            logger.verbose(
-                                `Removing icon for sheet ${iSheetNum}: Name '${sheet?.qMeta?.title}', ID ${sheet?.qInfo?.qId}, description '${sheet?.qMeta?.description}'`
-                            );
-
-                            // Get properties of current sheet
-                            const sheetObj = await app.getObject(sheet.qInfo.qId);
-                            const sheetProperties = await sheetObj.getProperties();
-
-                            // A sheet without the thumbnail structure has no icon
-                            // to clear - failing the whole app over it turned a
-                            // no-op into an error, and made the dry run predict
-                            // success for exactly the input that broke the run.
-                            if (!sheetProperties?.thumbnail?.qStaticContentUrlDef) {
-                                if (appEntry) {
-                                    recordSheetDecision(appEntry, {
-                                        n: iSheetNum,
-                                        title: sheet?.qMeta?.title,
-                                        action: 'clear',
-                                        reason: CLEAR_REASON.NO_ICON,
-                                    });
-                                }
-                                logger.info(
-                                    sheetProgressLine({
-                                        n: iSheetNum,
-                                        total: sheets.length,
-                                        label: 'no icon',
-                                        title: sheet?.qMeta?.title,
-                                        reason: CLEAR_REASON.NO_ICON,
-                                    })
-                                );
-
-                                return SHEET_SKIPPED;
-                            }
-
-                            // Clear sheet icon
-                            sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = '';
-
-                            const res = await sheetObj.setProperties(sheetProperties);
-                            logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
-
-                            // Recorded only after the write went through, so
-                            // the row states a fact.
-                            if (appEntry) {
-                                recordSheetDecision(appEntry, {
-                                    n: iSheetNum,
-                                    title: sheet?.qMeta?.title,
-                                    action: 'clear',
-                                });
-                            }
-                            logger.info(
-                                sheetProgressLine({
-                                    n: iSheetNum,
-                                    total: sheets.length,
-                                    label: 'cleared',
-                                    title: sheet?.qMeta?.title,
-                                })
-                            );
-                        }
-                    );
+                    sheetRun = await clearSheetIcons(app, sheets, {
+                        logPrefix: 'CLOUD REMOVE SHEET ICONS',
+                        appId,
+                        ErrorClass: CloudError,
+                        appEntry,
+                    });
                 }
 
                 // Saved inside the session callback: withEngineSession closes the session once
@@ -319,40 +250,14 @@ const planRemoveSheetIconsCloudApp = async (appId, saasInstance, options, report
 
             sortSheetsByRank(sheets);
 
-            // Through runOverSheets, like the real run: one unreadable sheet
+            // Through the shared loop, like the real run: one unreadable sheet
             // fails alone rather than aborting the remaining rows.
-            const sheetRun = await runOverSheets(
-                sheets,
-                {
-                    logPrefix: 'CLOUD PLAN REMOVE ICONS',
-                    appId,
-                    action: 'plan icon removal for',
-                    ErrorClass: CloudError,
-                },
-                async (sheet, iSheetNum) => {
-                    // The same two engine calls the real run makes, on the same
-                    // sheet, in the same order - not the cheaper read of the
-                    // projected qData.thumbnail. The projection would answer the
-                    // icon question correctly and still plan a clean `clear` for
-                    // a sheet the real run cannot open at all (a sheet deleted
-                    // since the list was taken), which is the one prediction a
-                    // dry run must never get wrong: the run would clear and save
-                    // the sheets around it before failing the app.
-                    const sheetObj = await app.getObject(sheet.qInfo.qId);
-                    const sheetProperties = await sheetObj.getProperties();
-                    const iconUrl = sheetProperties?.thumbnail?.qStaticContentUrlDef?.qUrl;
-
-                    // The real run clears every sheet unconditionally, so the
-                    // action is always `clear`; the reason column reports the
-                    // sheets where that clear is already a no-op.
-                    recordSheetDecision(appEntry, {
-                        n: iSheetNum,
-                        title: sheet?.qMeta?.title,
-                        action: 'clear',
-                        reason: iconUrl ? null : CLEAR_REASON.NO_ICON,
-                    });
-                }
-            );
+            const sheetRun = await planSheetIconRemoval(app, sheets, {
+                logPrefix: 'CLOUD PLAN REMOVE ICONS',
+                appId,
+                ErrorClass: CloudError,
+                appEntry,
+            });
 
             sheetRun.assertAllProcessed();
 
