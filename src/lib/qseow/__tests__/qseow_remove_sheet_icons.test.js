@@ -578,6 +578,50 @@ describe('qseowRemoveSheetIcons', () => {
         });
     });
 
+    describe('a second removal over an already-cleared app (issue #1113)', () => {
+        test('skips every sheet and does not save the app', async () => {
+            // The state this command itself leaves behind: the thumbnail
+            // structure is present with an empty URL. The real run used to ask
+            // whether the structure existed, so it wrote and saved every sheet
+            // again - a visible change on a published app, made by a command
+            // whose dry run had just reported there was nothing to do.
+            const sheets = [makeSheet('s1', 1, ''), makeSheet('s2', 2, '')];
+            const { app } = wireEnigma(sheets);
+
+            await expect(qseowRemoveSheetIcons(BASE_OPTIONS)).resolves.toBe(true);
+
+            for (const sheet of sheets) {
+                expect(sheet.obj.setProperties).not.toHaveBeenCalled();
+            }
+            expect(app.doSave).not.toHaveBeenCalled();
+        });
+
+        test('reports them as no icon, exactly as the dry run predicts', async () => {
+            const sheets = [makeSheet('s1', 1, ''), makeSheet('s2', 2, '')];
+            wireEnigma(sheets);
+
+            await qseowRemoveSheetIcons(BASE_OPTIONS);
+
+            const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(info).toContain('no icon');
+            expect(info).toContain('0 icon(s) cleared');
+            expect(info).toContain('2 had no icon');
+        });
+
+        test('a sheet that still has an icon is cleared alongside them', async () => {
+            // The mixed case: skipping must not become "skip everything".
+            const cleared = makeSheet('s1', 1, '');
+            const stillSet = makeSheet('s2', 2, '/content/library/old.png');
+            const { app } = wireEnigma([cleared, stillSet]);
+
+            await qseowRemoveSheetIcons(BASE_OPTIONS);
+
+            expect(cleared.obj.setProperties).not.toHaveBeenCalled();
+            expect(stillSet.obj.setProperties).toHaveBeenCalledTimes(1);
+            expect(app.doSave).toHaveBeenCalledTimes(1);
+        });
+    });
+
     describe('sheets without a thumbnail structure', () => {
         test('the real run skips, not fails, a sheet without a thumbnail structure', async () => {
             // The guard the Cloud twin got with the dry-run work: clearing a

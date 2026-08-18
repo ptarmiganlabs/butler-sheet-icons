@@ -868,6 +868,27 @@ describe('qscloudRemoveSheetIcons', () => {
             expect(info).toContain('this plan is incomplete');
         });
 
+        test('a second removal over an already-cleared app writes nothing (issue #1113)', async () => {
+            // The state this command itself leaves behind: the thumbnail
+            // structure present with an empty URL. The real run used to ask
+            // whether the structure existed, so it rewrote and saved every
+            // sheet that a previous run had already cleared - and on Cloud it
+            // went on to delete the media files a second time.
+            withAppAndThumbnails();
+            const sheets = [makeSheet('s1', 1), makeSheet('s2', 2)];
+            for (const sheet of sheets) {
+                sheet.props.thumbnail.qStaticContentUrlDef.qUrl = '';
+            }
+            const { app } = wireEnigma(sheets);
+
+            await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS })).resolves.toBe(true);
+
+            for (const sheet of sheets) {
+                expect(sheet.obj.setProperties).not.toHaveBeenCalled();
+            }
+            expect(app.doSave).not.toHaveBeenCalled();
+        });
+
         test('a sheet with no qMeta is still cleared - the log line must not fail it', async () => {
             // The real run named sheet.qMeta.title unguarded in its progress
             // log while the planner read it optionally, so a sheet the engine

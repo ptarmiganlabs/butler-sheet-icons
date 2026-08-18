@@ -15,19 +15,23 @@ import { CLEAR_REASON } from './sheet-decision-reasons.js';
  * duplicated: two copies of the same loop, which is the twin asymmetry this
  * repo keeps paying for and which the quality gate counts as duplicated lines.
  *
- * One copy also means the dry run and the real run can only disagree in one
- * place rather than four, which matters because they currently do disagree
- * (issue #1113): the real run treats a missing thumbnail *structure* as "no
- * icon" while the planner treats an empty *URL* that way, so a sheet a
- * previous removal already cleared is planned as a no-op and then written and
- * saved. Fixing that is now a change to `hasSheetIcon` below, applied to both
- * platforms at once.
+ * One copy also means the dry run and the real run cannot disagree, which they
+ * used to (issue #1113). The real run asked whether the thumbnail *structure*
+ * existed while the planner asked whether the *URL* was set, and a sheet a
+ * previous removal had already cleared has the structure with an empty URL. So
+ * a re-run was planned as "no icon currently set" on every sheet and then went
+ * on to write every one of them and save the app - a visible, audited change
+ * on a published app, made by a command whose own dry run had just said it
+ * would do nothing.
+ *
+ * Both paths now call this, so the question is asked once. An empty URL and a
+ * missing structure both mean the same thing: there is no icon here to clear.
  *
  * @param {object} properties - A sheet's properties, as `getProperties` returns them.
  *
- * @returns {boolean} Whether the sheet carries a thumbnail this run would clear.
+ * @returns {boolean} Whether the sheet carries an icon this run would clear.
  */
-const hasSheetIcon = (properties) => Boolean(properties?.thumbnail?.qStaticContentUrlDef);
+const hasSheetIcon = (properties) => Boolean(properties?.thumbnail?.qStaticContentUrlDef?.qUrl);
 
 /**
  * Clears the icon on every sheet of an already-open app.
@@ -143,16 +147,17 @@ export const planSheetIconRemoval = async (app, sheets, ctx) => {
         async (sheet, iSheetNum) => {
             const sheetObj = await app.getObject(sheet.qInfo.qId);
             const sheetProperties = await sheetObj.getProperties();
-            const iconUrl = sheetProperties?.thumbnail?.qStaticContentUrlDef?.qUrl;
 
-            // The real run clears every sheet unconditionally, so the action is
-            // always `clear`; the reason column reports the sheets where that
-            // clear is already a no-op.
+            // Through the same predicate the real run uses, so the plan cannot
+            // describe a sheet differently from the way the run will treat it.
+            // The action is always `clear`; the reason column reports the
+            // sheets where that clear would be a no-op, and those are exactly
+            // the sheets the real run now skips.
             recordSheetDecision(appEntry, {
                 n: iSheetNum,
                 title: sheet?.qMeta?.title,
                 action: 'clear',
-                reason: iconUrl ? null : CLEAR_REASON.NO_ICON,
+                reason: hasSheetIcon(sheetProperties) ? null : CLEAR_REASON.NO_ICON,
             });
         }
     );
