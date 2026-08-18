@@ -763,6 +763,25 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
             expect(warnings).toContain('Could not capture the app overview after the update');
         });
 
+        test('announces a skipped login once per app, not once per session', async () => {
+            setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                excludeSheetStatus: [],
+                skipLogin: true,
+                captureOverviewAfter: true,
+            });
+
+            // The session helper opens both the main session and the after-capture, so a
+            // notice logged inside it is printed twice for every app in a collection.
+            const notices = logger.info.mock.calls
+                .map((call) => String(call[0]))
+                .filter((line) => line.includes('Skipping login'));
+
+            expect(notices).toHaveLength(1);
+        });
+
         test('warns but does not fail the run when the second session cannot start', async () => {
             const browser = setupHappyPath();
             puppeteer.launch.mockResolvedValueOnce(browser);

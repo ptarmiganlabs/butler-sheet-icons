@@ -171,6 +171,9 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
                             'signed in',
                             loginSkipped ? 'skipped (--skip-login)' : (options.logonuserid ?? '')
                         );
+                        if (loginSkipped) {
+                            logger.info('Skipping login as --skip-login is set to true');
+                        }
                         activeLiveView()?.appPhase('sheets');
                         // Take screenshot of app overview page
                         await page.screenshot({

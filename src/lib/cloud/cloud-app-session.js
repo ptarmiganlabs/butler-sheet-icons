@@ -75,8 +75,9 @@ export const openCloudAppOverviewPage = async (
     // flag, so `--skip-login` lands on `options.skipLogin`. Reading the
     // run-together spelling gave `undefined`, so this branch was unreachable
     // and login was always attempted - see issue #890.
+    // Reported by the caller, not here: this helper opens both the main session and the
+    // after-capture session, so logging it here announced a skipped login twice per app.
     if (options.skipLogin === true) {
-        logger.info('Skipping login as --skip-login is set to true');
         return { page, appUrl, loginSkipped: true };
     }
 
