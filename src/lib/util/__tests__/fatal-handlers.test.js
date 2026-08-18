@@ -140,6 +140,60 @@ describe('happy path', () => {
         expect(logger.error).toHaveBeenCalledTimes(1);
         expect(logger.error).toHaveBeenCalledWith('FATAL: Unhandled promise rejection: the reason');
     });
+
+    test('restores the terminal before the FATAL line is logged (issue #1075)', async () => {
+        // Order matters: while the live view is active the console transport
+        // is silenced, so a FATAL line logged before the restore would be
+        // invisible - on exactly the run whose crash the operator most needs
+        // to see.
+        const restoreTerminal = jest.fn();
+        install({ writeCrashDump: jest.fn().mockResolvedValue(undefined), restoreTerminal });
+
+        target.emit('uncaughtException', new Error('boom'));
+        await flush();
+
+        expect(restoreTerminal).toHaveBeenCalledTimes(1);
+        expect(restoreTerminal.mock.invocationCallOrder[0]).toBeLessThan(
+            logger.error.mock.invocationCallOrder[0]
+        );
+    });
+
+    test('the exit watchdog is armed before the terminal restore runs', async () => {
+        // The restore writes to the TTY and could stall; the #946 rule is
+        // that the watchdog is armed before anything else on the fatal path,
+        // so an async stall in the restore is still bounded.
+        const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+        let timersWhenRestoreRan = null;
+        install({
+            writeCrashDump: jest.fn().mockResolvedValue(undefined),
+            restoreTerminal: jest.fn(() => {
+                timersWhenRestoreRan = setTimeoutSpy.mock.calls.length;
+            }),
+        });
+        setTimeoutSpy.mockClear();
+
+        target.emit('uncaughtException', new Error('boom'));
+        await flush();
+
+        expect(timersWhenRestoreRan).toBeGreaterThanOrEqual(1);
+        setTimeoutSpy.mockRestore();
+    });
+
+    test('a throwing terminal restore does not stop the crash dump', async () => {
+        const writeCrashDump = jest.fn().mockResolvedValue(undefined);
+        install({
+            writeCrashDump,
+            restoreTerminal: jest.fn(() => {
+                throw new Error('restore failed');
+            }),
+        });
+
+        target.emit('uncaughtException', new Error('boom'));
+        await flush();
+
+        expect(writeCrashDump).toHaveBeenCalledTimes(1);
+        expect(exit).toHaveBeenCalledWith(1);
+    });
 });
 
 describe('a failing crash dump cannot re-enter the handler (issue #946)', () => {
@@ -468,6 +522,23 @@ describe('output pipe closing is not a crash (issue #1019)', () => {
 
             expect(writeCrashDump).not.toHaveBeenCalled();
             expect(exit).toHaveBeenCalledTimes(1);
+            expect(exit).toHaveBeenCalledWith(BROKEN_PIPE_EXIT_CODE);
+        });
+
+        test('the terminal is restored before a broken-pipe exit (issue #1075)', async () => {
+            // stderr's reader going away must not strand a hidden cursor on
+            // a stdout that is still a live TTY - the broken-pipe path is an
+            // exit path like any other for the terminal-restore hook.
+            const restoreTerminal = jest.fn();
+            install({ writeCrashDump: jest.fn().mockResolvedValue(undefined), restoreTerminal });
+
+            stderr.emit('error', brokenPipeError());
+            await flush();
+
+            expect(restoreTerminal).toHaveBeenCalledTimes(1);
+            expect(restoreTerminal.mock.invocationCallOrder[0]).toBeLessThan(
+                exit.mock.invocationCallOrder[0]
+            );
             expect(exit).toHaveBeenCalledWith(BROKEN_PIPE_EXIT_CODE);
         });
 
