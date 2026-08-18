@@ -28,6 +28,13 @@ const mockQseowPromise = jest.unstable_mockModule('../../qseow/qseow-create-thum
     qseowCreateThumbnails: jest.fn().mockResolvedValue(true),
 }));
 
+const mockQseowRemovePromise = jest.unstable_mockModule(
+    '../../qseow/qseow-remove-sheet-icons.js',
+    () => ({
+        qseowRemoveSheetIcons: jest.fn().mockResolvedValue(true),
+    })
+);
+
 const mockQscloudCreatePromise = jest.unstable_mockModule(
     '../../cloud/cloud-create-thumbnails.js',
     () => ({
@@ -95,6 +102,7 @@ const mockDoctorCheckPromise = jest.unstable_mockModule('../../doctor/doctor-che
 
 let logger;
 let qseowCreateThumbnails;
+let qseowRemoveSheetIcons;
 let qscloudCreateThumbnails;
 let qscloudListCollections;
 let qscloudRemoveSheetIcons;
@@ -112,6 +120,7 @@ let handleQseowCreateSheetThumbnails;
 let handleCloudCreateSheetThumbnails;
 let handleCloudListCollections;
 let handleCloudRemoveSheetIcons;
+let handleQseowRemoveSheetIcons;
 let buildQscloudCommand;
 let buildBrowserCommand;
 let buildDoctorCommand;
@@ -130,6 +139,7 @@ beforeAll(async () => {
     await Promise.all([
         mockGlobalsPromise,
         mockQseowPromise,
+        mockQseowRemovePromise,
         mockQscloudCreatePromise,
         mockQscloudCollectionsPromise,
         mockQscloudRemovePromise,
@@ -142,6 +152,7 @@ beforeAll(async () => {
     ]);
     ({ logger } = await import('../../../globals.js'));
     ({ qseowCreateThumbnails } = await import('../../qseow/qseow-create-thumbnails.js'));
+    ({ qseowRemoveSheetIcons } = await import('../../qseow/qseow-remove-sheet-icons.js'));
     ({ qscloudCreateThumbnails } = await import('../../cloud/cloud-create-thumbnails.js'));
     ({ qscloudListCollections } = await import('../../cloud/cloud-collections.js'));
     ({ qscloudRemoveSheetIcons } = await import('../../cloud/cloud-remove-sheet-icons.js'));
@@ -153,6 +164,7 @@ beforeAll(async () => {
     ({ parsePositiveInteger, collectPositiveIntegers, collectAppIds } =
         await import('../helpers.js'));
     ({ buildQseowCommand, handleQseowCreateSheetThumbnails } = await import('../qseow/index.js'));
+    ({ handleQseowRemoveSheetIcons } = await import('../qseow/remove-sheet-icons.js'));
     ({ handleCloudCreateSheetThumbnails } = await import('../qscloud/create-sheet-thumbnails.js'));
     ({ handleCloudListCollections } = await import('../qscloud/list-collections.js'));
     ({ handleCloudRemoveSheetIcons } = await import('../qscloud/remove-sheet-icons.js'));
@@ -701,6 +713,7 @@ describe('--appid accepts several apps (issue #895)', () => {
             'BSI_QSCLOUD_CST_APP_ID',
         ],
         ['qscloud', () => buildQscloudCommand(), 'remove-sheet-icons', 'BSI_QSCLOUD_RSI_APPID'],
+        ['qseow', () => buildQseowCommand(), 'remove-sheet-icons', 'BSI_QSEOW_RSI_APP_ID'],
     ];
 
     describe.each(cases)('%s %s', (platform, build, leaf, envVar) => {
@@ -818,12 +831,85 @@ describe('qseow command', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         qseowCreateThumbnails.mockResolvedValue(true);
+        // clearAllMocks() drops the resolved value the module mock was created with, so a
+        // handler awaiting this would otherwise see undefined and report failure.
+        qseowRemoveSheetIcons.mockResolvedValue(true);
     });
 
     test('registers create-sheet-thumbnails subcommand', () => {
         const qseow = buildQseowCommand();
         expect(qseow.name()).toBe('qseow');
         expect(qseow.commands.map((cmd) => cmd.name())).toContain('create-sheet-thumbnails');
+    });
+
+    test('registers remove-sheet-icons subcommand, matching the cloud twin', () => {
+        // The worker has existed and been unit-tested all along; nothing reached it from the
+        // CLI, so QSEoW administrators had no supported way to undo a thumbnail run while
+        // Cloud administrators did (#894, #911).
+        const qseow = buildQseowCommand();
+        expect(qseow.commands.map((cmd) => cmd.name())).toContain('remove-sheet-icons');
+    });
+
+    test('remove-sheet-icons carries the remove-sheet-thumbnails alias, like the cloud twin', () => {
+        const remove = buildQseowCommand().commands.find(
+            (cmd) => cmd.name() === 'remove-sheet-icons'
+        );
+
+        expect(remove.aliases()).toContain('remove-sheet-thumbnails');
+    });
+
+    test('remove-sheet-icons declares no browser or web-UI logon options', () => {
+        // Removing an icon clears a property over the engine session, so nothing on this path
+        // drives a browser. Declaring the rendering and logon options anyway would invite an
+        // operator to set credentials that are never read.
+        const remove = buildQseowCommand().commands.find(
+            (cmd) => cmd.name() === 'remove-sheet-icons'
+        );
+        const declared = remove.options.map((opt) => opt.long);
+
+        expect(declared).toEqual(
+            expect.not.arrayContaining([
+                '--logonuserid',
+                '--logonpwd',
+                '--logonuserdir',
+                '--headless',
+                '--pagewait',
+                '--imagedir',
+                '--contentlibrary',
+                '--includesheetpart',
+                '--browser',
+                '--sense-version',
+            ])
+        );
+    });
+
+    test('remove-sheet-icons declares --dry-run, like the cloud twin', () => {
+        // The reset step of the demo pipeline (#1000) and the most destructive
+        // command on this platform: it must be able to say what it would do.
+        const remove = buildQseowCommand().commands.find(
+            (cmd) => cmd.name() === 'remove-sheet-icons'
+        );
+
+        expect(remove.options.map((opt) => opt.long)).toContain('--dry-run');
+    });
+
+    test('invokes qseowRemoveSheetIcons with the options as given', async () => {
+        const options = { host: 'sense.example.com', appid: ['abc'] };
+
+        await handleQseowRemoveSheetIcons(options, {});
+
+        expect(qseowRemoveSheetIcons).toHaveBeenCalledWith(
+            expect.objectContaining({ host: 'sense.example.com', appid: ['abc'] }),
+            {}
+        );
+    });
+
+    test('logs errors from qseowRemoveSheetIcons under its own prefix', async () => {
+        qseowRemoveSheetIcons.mockRejectedValueOnce(new Error('boom'));
+
+        await handleQseowRemoveSheetIcons({}, {});
+
+        expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('QSEOW MAIN 2'));
     });
 
     test('invokes qseowCreateThumbnails with the options as given', async () => {
@@ -1284,6 +1370,14 @@ describe('exit code reflects whether the command succeeded', () => {
 
         expect(process.exitCode).toBe(1);
     });
+
+    test('applies to the qseow remove-sheet-icons command too', async () => {
+        qseowRemoveSheetIcons.mockResolvedValue(false);
+
+        await handleQseowRemoveSheetIcons({}, {});
+
+        expect(process.exitCode).toBe(1);
+    });
 });
 
 describe('option keys match the property names the code reads (issue #890)', () => {
@@ -1315,6 +1409,7 @@ describe('option keys match the property names the code reads (issue #890)', () 
         ],
         ['qscloud list-collections', () => sub(buildQscloudCommand(), 'list-collections')],
         ['qscloud remove-sheet-icons', () => sub(buildQscloudCommand(), 'remove-sheet-icons')],
+        ['qseow remove-sheet-icons', () => sub(buildQseowCommand(), 'remove-sheet-icons')],
         ['browser install', () => sub(buildBrowserCommand(), 'install')],
         ['browser list-available', () => sub(buildBrowserCommand(), 'list-available')],
         ['browser list-installed', () => sub(buildBrowserCommand(), 'list-installed')],

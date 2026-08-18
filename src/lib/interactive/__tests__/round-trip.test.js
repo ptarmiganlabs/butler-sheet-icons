@@ -141,11 +141,11 @@ const CASES = everyLeafCommand().flatMap(({ path, command }) =>
 );
 
 describe('the wizard produces what the command line it prints produces', () => {
-    test('there are eleven commands to check, across three answer sets', () => {
+    test('there are twelve commands to check, across three answer sets', () => {
         // Guards against the walk silently finding nothing, which would make
         // every assertion below pass vacuously.
-        expect(everyLeafCommand()).toHaveLength(11);
-        expect(CASES).toHaveLength(33);
+        expect(everyLeafCommand()).toHaveLength(12);
+        expect(CASES).toHaveLength(36);
     });
 
     test.each(CASES)('%s', (_label, command, strategy) => {

@@ -71,6 +71,7 @@ describe('command-tree', () => {
             'qscloud list-collections',
             'qscloud remove-sheet-icons',
             'qseow create-sheet-thumbnails',
+            'qseow remove-sheet-icons',
         ]);
     });
 

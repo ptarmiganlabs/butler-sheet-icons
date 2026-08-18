@@ -38,6 +38,8 @@ jest.unstable_mockModule('../../../globals.js', () => ({
         warn: jest.fn(),
     },
     setLoggingLevel: jest.fn(),
+    appVersion: '9.9.9-test',
+    getLoggingLevel: jest.fn(() => 'info'),
     bsiExecutablePath: '/opt/bsi',
     isSea: false,
 }));
@@ -77,7 +79,12 @@ const makeSheet = (qId, rank, existingUrl = '/content/library/old.png') => {
         item: {
             qInfo: { qId },
             qMeta: { title: `Sheet ${qId}`, description: '', approved: false, published: false },
-            qData: { rank },
+            // qData carries `thumbnail` because SHEET_LIST_FIELDS_EXTENDED
+            // projects /thumbnail and a real engine answers it. A fixture that
+            // omitted it made every planner test take a fallback branch that
+            // production never reaches, so the tests passed for a reason that
+            // did not hold against a real server.
+            qData: { rank, thumbnail: { qStaticContentUrlDef: { qUrl: existingUrl } } },
         },
         obj,
         props,
@@ -100,6 +107,9 @@ const wireEnigma = (sheets) => {
                 qAppObjectList: { qItems: sheets.map((sheet) => sheet.item) },
             }),
         }),
+        // The report's best-effort app-name source; the engine layout, so a
+        // run that names its apps with --appid still makes no QRS calls.
+        getAppLayout: jest.fn().mockResolvedValue({ qTitle: 'Finance operations' }),
         getObject: jest.fn(async (qId) => byId.get(qId)),
         doSave: jest.fn().mockResolvedValue(true),
     };
@@ -342,12 +352,19 @@ describe('qseowRemoveSheetIcons', () => {
             expect(session.close).toHaveBeenCalledTimes(1);
         });
 
-        test('does not query QRS when no tag is given', async () => {
+        test('does not look apps up by tag when no tag is given', async () => {
+            // This asserted "no QRS call at all" while the published-app count
+            // did not exist. That count is now read on every run - it is the
+            // fact a removal most needs stated before it writes - so the
+            // invariant worth pinning is the narrower one: the tag lookup
+            // must not fire for a run that named its apps directly.
             wireEnigma([makeSheet('sheet-1', 1)]);
 
             await qseowRemoveSheetIcons(BASE_OPTIONS);
 
-            expect(Get).not.toHaveBeenCalled();
+            const paths = Get.mock.calls.map((call) => String(call[0]));
+            expect(paths.some((path) => path.startsWith('app/full'))).toBe(false);
+            expect(paths.every((path) => path.startsWith('app/count'))).toBe(true);
         });
     });
 
@@ -440,7 +457,10 @@ describe('qseowRemoveSheetIcons', () => {
 
             await qseowRemoveSheetIcons({ ...BASE_OPTIONS, qliksensetag: '' });
 
-            expect(Get).not.toHaveBeenCalled();
+            // As above: the plan's published-app count may be read, but an
+            // empty tag must never reach the app/full tag lookup.
+            const paths = Get.mock.calls.map((call) => String(call[0]));
+            expect(paths.some((path) => path.startsWith('app/full'))).toBe(false);
             expect(enigmaCreate).toHaveBeenCalledTimes(1);
         });
     });
@@ -525,6 +545,205 @@ describe('qseowRemoveSheetIcons', () => {
             await qseowRemoveSheetIcons(BASE_OPTIONS);
 
             expect(session.close).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('malformed sheets', () => {
+        test('a sheet with no qMeta is still cleared - the log line must not fail it', async () => {
+            // The real run named sheet.qMeta.title unguarded in its progress
+            // log while the planner read it optionally, so a sheet the engine
+            // returned without qMeta was planned as a clean clear and then
+            // threw in the real run - failing that sheet, and the app with it,
+            // after the sheets around it had already been cleared and saved.
+            const bare = makeSheet('s1', 1);
+            delete bare.item.qMeta;
+            const fine = makeSheet('s2', 2);
+            const { app } = wireEnigma([bare, fine]);
+
+            await expect(qseowRemoveSheetIcons(BASE_OPTIONS)).resolves.toBe(true);
+
+            expect(bare.obj.setProperties).toHaveBeenCalledTimes(1);
+            expect(fine.obj.setProperties).toHaveBeenCalledTimes(1);
+            expect(app.doSave).toHaveBeenCalledTimes(1);
+        });
+
+        test('a sheet with no qMeta is planned without failing the dry run either', async () => {
+            const bare = makeSheet('s1', 1);
+            delete bare.item.qMeta;
+            wireEnigma([bare]);
+
+            await expect(qseowRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true })).resolves.toBe(
+                true
+            );
+        });
+    });
+
+    describe('sheets without a thumbnail structure', () => {
+        test('the real run skips, not fails, a sheet without a thumbnail structure', async () => {
+            // The guard the Cloud twin got with the dry-run work: clearing a
+            // sheet that has no thumbnail object used to throw and fail the
+            // whole app.
+            const broken = makeSheet('s1', 1);
+            broken.obj.getProperties.mockResolvedValue({});
+            const fine = makeSheet('s2', 2);
+            const { app } = wireEnigma([broken, fine]);
+
+            await expect(qseowRemoveSheetIcons(BASE_OPTIONS)).resolves.toBe(true);
+
+            expect(broken.obj.setProperties).not.toHaveBeenCalled();
+            expect(fine.obj.setProperties).toHaveBeenCalled();
+            expect(app.doSave).toHaveBeenCalled();
+        });
+    });
+
+    describe('--dry-run plans without writing', () => {
+        test('writes nothing: no setProperties, no save', async () => {
+            const sheets = [makeSheet('s1', 1), makeSheet('s2', 2)];
+            const { app } = wireEnigma(sheets);
+
+            await expect(qseowRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true })).resolves.toBe(
+                true
+            );
+
+            for (const sheet of sheets) {
+                expect(sheet.obj.setProperties).not.toHaveBeenCalled();
+            }
+            expect(app.doSave).not.toHaveBeenCalled();
+        });
+
+        test('reads each sheet through the same engine calls the real run uses', async () => {
+            // Not from the projected qData.thumbnail: that read answers the
+            // icon question correctly and still plans a clean clear for a
+            // sheet the real run cannot open at all.
+            const sheets = [makeSheet('s1', 1), makeSheet('s2', 2)];
+            const { app } = wireEnigma(sheets);
+
+            await qseowRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true });
+
+            expect(app.getObject.mock.calls.map((call) => call[0])).toEqual(['s1', 's2']);
+            for (const sheet of sheets) {
+                expect(sheet.obj.getProperties).toHaveBeenCalledTimes(1);
+            }
+        });
+
+        test('a sheet the engine cannot open fails the plan, as it would fail the run', async () => {
+            // The real run on this input clears s1, saves the app, then fails
+            // on s2. A plan that reported "2 icon(s) would be cleared" would
+            // promise a clean sweep for a run that half-writes and fails.
+            const good = makeSheet('s1', 1);
+            const unreadable = makeSheet('s2', 2);
+            const { app } = wireEnigma([good, unreadable]);
+            app.getObject.mockImplementation(async (qId) => {
+                if (qId === 's2') {
+                    throw new Error('Object not found');
+                }
+
+                return good.obj;
+            });
+
+            await expect(qseowRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true })).resolves.toBe(
+                false
+            );
+
+            const errors = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(errors).toContain('QSEOW PLAN REMOVE ICONS');
+
+            const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(info).toContain('this plan is incomplete');
+        });
+
+        test('the report names the app and the icons, and claims no media files', async () => {
+            wireEnigma([makeSheet('s1', 1), makeSheet('s2', 2)]);
+
+            await qseowRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true });
+
+            const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(info).toContain('DRY RUN of qseow remove-sheet-icons');
+            expect(info).toContain('"Finance operations"');
+            expect(info).toContain('clear icon');
+            expect(info).toContain('WOULD REMOVE sheet icons from 1 app(s)');
+            // Unlike the Cloud twin, this platform leaves the content library
+            // alone - the warning must not promise a deletion that never
+            // happens.
+            expect(info).not.toContain('thumbnail media files');
+            expect(info).toContain('2 icon(s) would be cleared, 0 skipped.');
+            expect(info).toContain('Nothing was changed. Re-run without --dry-run to apply.');
+        });
+
+        test('a sheet without an icon is reported, not skipped', async () => {
+            const bare = makeSheet('s1', 1, '');
+            wireEnigma([bare]);
+
+            await qseowRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true });
+
+            const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(info).toContain('(no icon currently set)');
+        });
+
+        test('the plan names how many selected apps are published', async () => {
+            // The count comes from QRS app/count, the same read the thumbnail
+            // command makes. A published app is the one whose save a removal
+            // is refused by, so the plan has to state it before the work.
+            wireEnigma([makeSheet('s1', 1)]);
+            Get.mockImplementation(async (path) =>
+                String(path).startsWith('app/count')
+                    ? { statusCode: 200, body: { value: 1 } }
+                    : { statusCode: 200, body: [] }
+            );
+
+            await qseowRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true });
+
+            const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(info).toContain('WOULD REMOVE sheet icons from 1 app(s), 1 of them published');
+        });
+
+        test('a QRS that will not answer the published count still plans the run', async () => {
+            // readQseowPlanFacts degrades to nulls: the count decorates the
+            // plan, and a filter QRS rejects must not stop work the operator
+            // asked for.
+            wireEnigma([makeSheet('s1', 1)]);
+            Get.mockRejectedValue(new Error('QRS unavailable'));
+
+            await expect(qseowRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true })).resolves.toBe(
+                true
+            );
+
+            const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(info).toContain('WOULD REMOVE sheet icons from 1 app(s)');
+            expect(info).not.toContain('of them published');
+        });
+
+        test('the plan shows the api user but no logon user - nothing here drives a browser', async () => {
+            wireEnigma([makeSheet('s1', 1)]);
+
+            await qseowRemoveSheetIcons({
+                ...BASE_OPTIONS,
+                dryRun: true,
+                apiuserdir: 'Internal',
+                apiuserid: 'sa_api',
+            });
+
+            const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(info).toContain('Internal\\sa_api');
+            expect(info).not.toContain('logon user');
+        });
+
+        test('a failing app-name read never fails the app - the name is decorative', async () => {
+            const { app } = wireEnigma([makeSheet('s1', 1)]);
+            app.getAppLayout.mockRejectedValue(new Error('layout unavailable'));
+
+            await expect(qseowRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true })).resolves.toBe(
+                true
+            );
+        });
+
+        test('the real run still writes when dryRun is absent - the control case', async () => {
+            const sheets = [makeSheet('s1', 1)];
+            wireEnigma(sheets);
+
+            await qseowRemoveSheetIcons({ ...BASE_OPTIONS });
+
+            expect(sheets[0].obj.setProperties).toHaveBeenCalled();
         });
     });
 });

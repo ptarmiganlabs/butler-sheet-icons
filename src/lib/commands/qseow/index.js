@@ -19,6 +19,8 @@ import { toAppIdList } from '../../util/app-ids.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
 import { addDryRunOption } from '../dry-run-option.js';
 import { runCommand } from '../run-command.js';
+import { buildQseowConnectionOptions } from '../qseow-connection-options.js';
+import { buildQseowRemoveSheetIconsCommand } from './remove-sheet-icons.js';
 
 /**
  * Commander action that triggers QSEoW thumbnail creation with error logging.
@@ -55,14 +57,16 @@ const handleQseowCreateSheetThumbnails = async (options = {}, command) => {
 };
 
 /**
- * Builds the root "qseow" command with its create-sheet-thumbnails sub-command.
+ * Builds the root "qseow" command with its create-sheet-thumbnails and remove-sheet-icons
+ * sub-commands.
  *
  * @returns {import('commander').Command} Configured qseow command tree ready for registration.
  */
 const buildQseowCommand = () => {
     const qseow = new Command('qseow');
+    const connection = buildQseowConnectionOptions('BSI_QSEOW_CST');
 
-    qseow
+    const createSheetThumbnails = qseow
         .command('create-sheet-thumbnails')
         .alias('create-sheet-icons')
         .description(
@@ -75,34 +79,12 @@ const buildQseowCommand = () => {
                 .default('info')
                 .env('BSI_LOG_LEVEL')
         )
+        .addOption(connection.host)
+        .addOption(connection.engineport)
+        .addOption(connection.qrsport)
         .addOption(
-            new Option('--host <host>', 'Qlik Sense server IP/FQDN')
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_HOST')
-        )
-        .addOption(
-            new Option('--engineport <port>', 'Qlik Sense server engine port')
-                .argParser((value) =>
-                    parsePositiveInteger(value, {
-                        errorMessage: 'Engine port must be a non-negative integer.',
-                    })
-                )
-                .default('4747')
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_ENGINE_PORT')
-        )
-        .addOption(
-            new Option('--qrsport <port>', 'Qlik Sense server repository service (QRS) port')
-                .argParser((value) =>
-                    parsePositiveInteger(value, {
-                        errorMessage: 'QRS port must be a non-negative integer.',
-                    })
-                )
-                .default('4242')
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_QRS_PORT')
-        )
-        .addOption(
+            // Only this command opens the web UI, so only this command needs
+            // the hub's http/https port.
             new Option(
                 '--port <port>',
                 'Qlik Sense http/https port. 443 is default for https, 80 for http'
@@ -114,67 +96,13 @@ const buildQseowCommand = () => {
                 )
                 .env('BSI_QSEOW_CST_PORT')
         )
-        .addOption(
-            new Option('--schemaversion <version>', 'Qlik Sense engine schema version')
-                .choices([
-                    '12.170.2',
-                    '12.612.0',
-                    '12.936.0',
-                    '12.1306.0',
-                    '12.1477.0',
-                    '12.1657.0',
-                    '12.1823.0',
-                    '12.2015.0',
-                ])
-                .default('12.612.0')
-                .env('BSI_QSEOW_CST_SCHEMA_VERSION')
-        )
-        .addOption(
-            new Option('--certfile <file>', 'Qlik Sense certificate file (exported from QMC)')
-                .default('./cert/client.pem')
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_CERT_FILE')
-        )
-        .addOption(
-            new Option(
-                '--certkeyfile <file>',
-                'Qlik Sense certificate key file (exported from QMC)'
-            )
-                .default('./cert/client_key.pem')
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_CERTKEY_FILE')
-        )
-        .addOption(
-            new Option(
-                '--rejectUnauthorized <true|false>',
-                'Ignore warnings when Sense certificate does not match the --host paramater'
-            )
-                .default(false)
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_REJECT_UNAUTHORIZED')
-        )
-        .addOption(
-            new Option('--secure <true|false>', 'Connection to Qlik Sense engine is via https')
-                .default(true)
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_SECURE')
-        )
-        .addOption(
-            new Option(
-                '--apiuserdir <directory>',
-                'User directory for user to connect with when using Sense APIs'
-            )
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_API_USER_DIR')
-        )
-        .addOption(
-            new Option(
-                '--apiuserid <userid>',
-                'User ID for user to connect with when using Sense APIs'
-            )
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_API_USER_ID')
-        )
+        .addOption(connection.schemaversion)
+        .addOption(connection.certfile)
+        .addOption(connection.certkeyfile)
+        .addOption(connection.rejectUnauthorized)
+        .addOption(connection.secure)
+        .addOption(connection.apiuserdir)
+        .addOption(connection.apiuserid)
         .addOption(
             new Option(
                 '--logonuserdir <directory>',
@@ -212,12 +140,7 @@ const buildQseowCommand = () => {
                 .default('')
                 .env('BSI_QSEOW_CST_QLIKSENSE_TAG')
         )
-        .addOption(
-            new Option('--prefix <prefix>', 'Qlik Sense virtual proxy prefix')
-                .default('')
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_PREFIX')
-        )
+        .addOption(connection.prefix)
         .addOption(
             new Option('--headless <true|false>', 'Headless (=not visible) browser (true, false)')
                 .default(true)
@@ -385,8 +308,12 @@ const buildQseowCommand = () => {
         .addOption(buildBrowserCacheDirOption())
         .addOption(buildBrowserExecutablePathOption());
 
-    addInteractiveOption(qseow.commands[0]);
-    addDryRunOption(qseow.commands[0]);
+    // Bound to the command itself rather than to qseow.commands[0]: the positional index
+    // silently tracks registration order, which now has a second sub-command in it.
+    addInteractiveOption(createSheetThumbnails);
+    addDryRunOption(createSheetThumbnails);
+
+    qseow.addCommand(buildQseowRemoveSheetIconsCommand());
 
     return qseow;
 };
