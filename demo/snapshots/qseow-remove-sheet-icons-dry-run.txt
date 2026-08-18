@@ -1,0 +1,45 @@
+$ butler-sheet-icons qseow remove-sheet-icons --dry-run
+
+  ┌─ 410 × 270 ──────────────────────────────────────┐
+  │                                                  │
+  │   BUTLER SHEET ICONS                     <VERSION>   │
+  │   QSEoW sheet icon removal                       │
+  │                                                  │
+  └──────────────────────────────────────────────────┘
+
+  !  DRY RUN of qseow remove-sheet-icons: planning only - nothing will be changed
+info: Starting removal of sheet icons for Qlik Sense Enterprise on Windows (QSEoW)
+
+  PLAN  qseow remove-sheet-icons  (dry run)
+
+  ● server      sense.example.com       https · engine 4747 · qrs 4242
+  ● api user    INTERNAL\sa_api         cert ./cert/client.pem
+  ● apps        1                       1 named by --appid
+
+  !  sheet icons would be removed from 1 app(s), 1 of them published
+
+  ────────────────────────────────────────────────────────────────
+
+info:
+info: plan app 1/1  a3e0f5d2-000a-464f-998d-33d333b175d7
+info: Created session to server sense.example.com, engine version is 12.2759.8
+info:   "Sheet thumbnails demo app" -- 9 sheet(s)
+info:
+info: DRY RUN of qseow remove-sheet-icons - nothing will be changed
+info:
+info: App 1/1: "Sheet thumbnails demo app" (a3e0f5d2-000a-464f-998d-33d333b175d7)
+info:   9 sheets
+info:
+info:    #  Sheet                 Would do
+info:    1  Sheet 0 (hidden)      clear icon  (no icon currently set)
+info:    2  Sheet 1               clear icon
+info:    3  Sheet 2               clear icon
+info:    4  Sheet 3               clear icon
+info:    5  Sheet 4               clear icon
+info:    6  Sheet 5               clear icon
+info:    7  Sheet 7               clear icon
+info:    8  Sheet 1 (1)           clear icon
+info:    9  Sheet 6               clear icon
+info:
+info: Summary: 1 app(s), 9 sheets. 9 icon(s) would be cleared, 0 skipped.
+info: Nothing was changed. Re-run without --dry-run to apply.

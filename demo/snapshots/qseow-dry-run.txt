@@ -1,0 +1,52 @@
+$ butler-sheet-icons qseow create-sheet-thumbnails --dry-run
+
+  ┌─ 410 × 270 ──────────────────────────────────────┐
+  │                                                  │
+  │   BUTLER SHEET ICONS                     <VERSION>   │
+  │   QSEoW sheet thumbnails                         │
+  │                                                  │
+  └──────────────────────────────────────────────────┘
+
+  !  DRY RUN of qseow create-sheet-thumbnails: planning only - nothing will be changed
+info: Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)
+
+  PLAN  qseow create-sheet-thumbnails  (dry run)
+
+  ● server      sense.example.com       https · engine 4747 · qrs 4242
+  ● api user    INTERNAL\sa_api         cert ./cert/client.pem
+  ● logon user  LAB\goran
+  ● apps        1                       1 named by --appid
+  ● sheet part  1 of 4                  sheet objects only
+  ○ exclude     none
+  ○ blur        none
+  ● browser     chrome (recommended)    headless · 1s per sheet
+  ○ images      demo/output/img/qseow/<app-id>
+  ● uploads to  content library "Butler sheet thumbnails"
+
+  !  sheet thumbnails would be overwritten in 1 app(s), 1 of them published
+
+  ────────────────────────────────────────────────────────────────
+
+info:
+info: plan app 1/1  a3e0f5d2-000a-464f-998d-33d333b175d7
+info: Created session to server sense.example.com, engine version is 12.2759.8
+info:   "Sheet thumbnails demo app" -- 9 sheet(s), published
+info:
+info: DRY RUN of qseow create-sheet-thumbnails - nothing will be changed
+info:
+info: App 1/1: "Sheet thumbnails demo app" (a3e0f5d2-000a-464f-998d-33d333b175d7)
+info:   9 sheets
+info:
+info:    #  Sheet                 Would do
+info:    1  Sheet 0 (hidden)      skip  (hidden by show condition)
+info:    2  Sheet 1               update
+info:    3  Sheet 2               update
+info:    4  Sheet 3               update
+info:    5  Sheet 4               update
+info:    6  Sheet 5               update
+info:    7  Sheet 7               update
+info:    8  Sheet 1 (1)           update
+info:    9  Sheet 6               update
+info:
+info: Summary: 1 app(s), 9 sheets. 8 would be updated, 1 skipped.
+info: Nothing was changed. Re-run without --dry-run to apply.
