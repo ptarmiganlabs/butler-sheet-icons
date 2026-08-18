@@ -1,5 +1,6 @@
 import { logger } from '../../globals.js';
 import { logError } from '../util/log-error.js';
+import { restoreLiveTerminal } from '../util/run-live.js';
 
 /**
  * Runs a command implementation on behalf of a Commander action handler, and makes its
@@ -47,5 +48,12 @@ export const runCommand = async (logPrefix, run, onError) => {
         logError(logPrefix, err);
 
         return false;
+    } finally {
+        // The completion half of the live view's terminal-restore hook
+        // (issue #1075): whatever the command did or threw, the cursor and
+        // the console transport are back before control returns to the
+        // shell. A no-op for every command that never started a live view;
+        // the crash half lives in installFatalHandlers.
+        restoreLiveTerminal();
     }
 };

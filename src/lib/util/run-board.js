@@ -144,12 +144,15 @@ const width = (text) => {
 /**
  * Pad plain text to a target width. Never truncates.
  *
+ * Exported for the live view (issue #1075), which shares this width model so
+ * its animated rows align with the board rows they commit next to.
+ *
  * @param {string} text - Plain text, no ANSI codes.
  * @param {number} target - Target width in columns.
  *
  * @returns {string} The padded text.
  */
-const padTo = (text, target) =>
+export const padTo = (text, target) =>
     width(text) >= target ? text : text + ' '.repeat(target - width(text));
 
 /**
@@ -160,12 +163,14 @@ const padTo = (text, target) =>
  * degenerate `max <= 3` case, where a negative slice index would return the
  * wrong end of the string; callers here use 20+.
  *
+ * Exported for the live view (issue #1075) - same reasoning as {@link padTo}.
+ *
  * @param {string} text - Plain text, no ANSI codes.
  * @param {number} max - Maximum width in columns.
  *
  * @returns {string} The clipped text.
  */
-const clip = (text, max) => {
+export const clip = (text, max) => {
     if (width(text) <= max) {
         return text;
     }
@@ -552,6 +557,33 @@ const STRIP_PAINT = Object.freeze({
     excluded: (palette) => palette.dim,
     failed: (palette) => palette.red,
 });
+
+/**
+ * The coloured sheet strip for one app, unpadded.
+ *
+ * Extracted for the live view (issue #1075), whose per-app block shows the
+ * same strip while the app is still running: one glyph function, so the
+ * animated strip and the committed board row cannot colour the same sheet
+ * two different ways.
+ *
+ * `limit` exists for that in-progress rendering: `stripForApp` gap-fills
+ * every undecided position with the failed glyph, which is right at the end
+ * of an app - those sheets were not processed - and wrong in the middle of
+ * one, where the unreached tail is simply the future. The live view passes
+ * the last recorded position, so interior gaps (a mid-app failure the sheet
+ * loop survived) still show as failed while the tail stays unpainted.
+ *
+ * @param {object} appEntry - A per-app entry from the report.
+ * @param {object} ctx - From {@link boardContext}.
+ * @param {number} [limit] - Render only the first `limit` cells; all by default.
+ *
+ * @returns {string} The painted strip.
+ */
+export const renderSheetStrip = (appEntry, ctx, limit = Infinity) =>
+    stripForApp(appEntry, ctx.symbols)
+        .slice(0, limit)
+        .map(({ glyph, kind }) => STRIP_PAINT[kind](ctx.palette)(glyph))
+        .join('');
 
 /**
  * One per-app strip row, appended to the board as the app finishes.

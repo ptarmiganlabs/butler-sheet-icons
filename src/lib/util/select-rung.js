@@ -32,12 +32,13 @@ export const OUTPUT_ENV = 'BSI_OUTPUT';
 /**
  * The rungs, from highest fidelity to none.
  *
- * `LIVE` is rung C of the ladder (issue #1075, not yet implemented) - the
- * selector already reports it so that landing the live view changes only the
- * renderer, and today's consumers treat it as `BOARD`. `OFF` suppresses the
- * plan and verdict blocks entirely for anyone whose log shipper chokes on
- * framed output; the per-app and per-sheet progress lines still print, so a
- * six-minute run is not silent.
+ * `LIVE` is rung C of the ladder (issue #1075): the animated run view in
+ * `run-live.js`, engaged by the create-thumbnails workers on real runs.
+ * Everywhere a live view is not actually running - dry runs, workers that
+ * never start one - the rung renders as `BOARD` via {@link rendersAsBoard}.
+ * `OFF` suppresses the plan and verdict blocks entirely for anyone whose log
+ * shipper chokes on framed output; the per-app and per-sheet progress lines
+ * still print, so a six-minute run is not silent.
  */
 export const RUNG = Object.freeze({
     LIVE: 'live',
@@ -49,11 +50,14 @@ export const RUNG = Object.freeze({
 const RUNG_VALUES = Object.freeze(Object.values(RUNG));
 
 /**
- * Whether a rung renders through the contact-sheet board today.
+ * Whether a rung renders through the contact-sheet board.
  *
- * `LIVE` collapses to the board until rung C (issue #1075) exists. This
- * equivalence lives in exactly one place so that landing the live view means
- * changing one predicate, not hunting the sites that re-encoded it.
+ * With rung C landed this is the *fallback* equivalence: `LIVE` still renders
+ * board blocks wherever no live view is actually active - dry runs, workers
+ * that never start one, and any block emitted before the view starts or
+ * after it stops. The live path itself is selected not here but by
+ * `activeLiveView()` in `run-report.js`, so this predicate stays the single
+ * place the LIVE-means-board rule is encoded.
  *
  * @param {string} rung - A value from {@link RUNG}.
  *

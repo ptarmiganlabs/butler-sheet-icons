@@ -81,6 +81,7 @@
 
 import { logger as defaultLogger } from '../../globals.js';
 import { writeCrashDump as defaultWriteCrashDump } from './crash-dump.js';
+import { restoreLiveTerminal } from './run-live.js';
 
 // ---------------------------------------------------------------------------
 // Module-level constants and state
@@ -306,6 +307,17 @@ function handleBrokenOutputPipe(deps) {
     if (handlingFatal) return;
     handlingFatal = true;
 
+    // Restore the terminal before exiting: stdout may still be a live TTY
+    // when it was stderr's reader that went away, and this exit path must
+    // not be the one that strands a hidden cursor. The hook never throws,
+    // and a restore write to the dead stream itself is swallowed inside it -
+    // so this stays consistent with the rule above: nothing is *logged*.
+    try {
+        deps.restoreTerminal();
+    } catch {
+        // Exiting is the one thing this handler must always do.
+    }
+
     exitOnce(BROKEN_PIPE_EXIT_CODE, deps.exit);
 }
 
@@ -335,7 +347,26 @@ function handleFatal(err, source, deps) {
 
     handlingFatal = true;
 
+    // The watchdog is armed before anything else runs on this path - the
+    // #946 rule. The terminal restore below writes to the TTY and could
+    // stall; armed first, the watchdog bounds any async stall it causes.
+    // (A write that blocks the event loop synchronously - a flow-controlled
+    // terminal - is beyond any in-process timer, but that exposure is the
+    // same one every log line on this path already has.)
     armWatchdog(deps);
+
+    // Before anything is logged: if the live run view (issue #1075) owns the
+    // terminal, the console transport is silenced and the cursor hidden - the
+    // FATAL line below would be invisible and the operator's prompt mangled.
+    // A mangled terminal after a failed production run is the worst outcome
+    // available here, so this is the crash half of the terminal-restore hook;
+    // it never throws and is a no-op when no view is active.
+    try {
+        deps.restoreTerminal();
+    } catch {
+        // Restoring must never stop the crash dump from being written.
+    }
+
     logFatalLine(err, source, deps.logger);
 
     try {
@@ -406,12 +437,15 @@ function registerListener(emitter, event, listener) {
  * @param {number} [options.watchdogMs] - Watchdog delay in ms. Defaults to {@link FATAL_EXIT_WATCHDOG_MS}.
  * @param {Array<import('node:stream').Writable>} [options.outputStreams] - Streams to watch for a
  *   broken pipe. Defaults to `process.stdout` and `process.stderr`.
+ * @param {Function} [options.restoreTerminal] - Terminal restore hook, run before the fatal
+ *   line is logged. Defaults to the live run view's {@link restoreLiveTerminal}.
  *
  * @returns {void}
  */
 export function installFatalHandlers({
     logger = defaultLogger,
     writeCrashDump = defaultWriteCrashDump,
+    restoreTerminal = restoreLiveTerminal,
     /**
      * Default exit function: terminate the process with the given code.
      *
@@ -426,7 +460,7 @@ export function installFatalHandlers({
 } = {}) {
     removeInstalledListeners();
 
-    const deps = { logger, writeCrashDump, exit, watchdogMs };
+    const deps = { logger, writeCrashDump, exit, watchdogMs, restoreTerminal };
 
     /**
      * Listener for synchronous uncaught exceptions.

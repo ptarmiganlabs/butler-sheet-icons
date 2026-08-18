@@ -15,6 +15,7 @@ import {
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
 import { createAppImageDir } from '../util/image-dir.js';
+import { activeLiveView } from '../util/run-live.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
 import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
 import { addAppToReport, recordPlannedSheet, recordAppOutcome } from '../util/run-report.js';
@@ -151,6 +152,11 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
                     });
 
                     try {
+                        // The live `signed in` row (issue #1075) is bound to
+                        // the real login below - mirrors the QSEoW twin.
+                        activeLiveView()?.beginStep('signed in');
+                        activeLiveView()?.appPhase('signin');
+
                         const page = await browser.newPage();
                         // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
                         await page.setViewport({
@@ -177,6 +183,7 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
                         // run-together spelling gave `undefined`, so this branch was unreachable
                         // and login was always attempted - see issue #890.
                         if (options.skipLogin === true) {
+                            activeLiveView()?.stepDone('signed in', 'skipped (--skip-login)');
                             logger.info('Skipping login as --skip-login is set to true');
                         } else {
                             // Enter credentials
@@ -208,7 +215,12 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
                                 }),
                             ]);
                             await sleep(options.pagewait * 1000);
+
+                            // Only now is the session real: the login click
+                            // has navigated and the page has settled.
+                            activeLiveView()?.stepDone('signed in', options.logonuserid ?? '');
                         }
+                        activeLiveView()?.appPhase('sheets');
                         // Take screenshot of app overview page
                         await page.screenshot({ path: `${imgDir}/cloud/${appId}/overview-1.png` });
                         // Sort sheets

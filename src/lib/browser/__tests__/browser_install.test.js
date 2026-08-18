@@ -35,10 +35,23 @@ const { logger, sleep } = await import('../../../globals.js');
 
 // Stub the cli-progress SingleBar so the test does not write to a real TTY.
 /**
+ * Constructed FakeSingleBar count, for the live-view mutual exclusion tests:
+ * with a live view active the real code must never construct a bar at all.
+ */
+let singleBarInstances = 0;
+
+/**
  * Inert test double for the cli-progress SingleBar constructor. All methods
  * are no-ops so the install code can call start/update/stop freely.
  */
 class FakeSingleBar {
+    /**
+     * Record the construction - see {@link singleBarInstances}.
+     */
+    constructor() {
+        singleBarInstances += 1;
+    }
+
     /**
      * No-op stub for cli-progress SingleBar.start.
      *
@@ -67,6 +80,10 @@ jest.unstable_mockModule('cli-progress', () => ({
 }));
 
 const { browserInstall } = await import('../browser-install.js');
+// The real registry, not a mock: browser-install reads the active view
+// through it, and the mutual exclusion below is only proven if the very
+// same lookup path the product uses is exercised.
+const { activateLiveView, restoreLiveTerminal } = await import('../../util/run-live.js');
 
 // Ambient, and behaviour-affecting since the cache directory became configurable. Without
 // this, the retry assertion below fails on any machine whose shell happens to have
@@ -320,5 +337,53 @@ describe('browserInstall — retry logic', () => {
 
         // Cleanup runs before each retry, never after the final attempt.
         expect(uninstall).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe('browserInstall — live view mutual exclusion (issue #1075)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        singleBarInstances = 0;
+        delete process.env.BSI_BROWSER_CACHE_DIR;
+        delete process.env.PUPPETEER_CACHE_DIR;
+        detectBrowserPlatform.mockResolvedValue('mac_arm');
+        canDownload.mockResolvedValue(true);
+        resolveBuildId.mockResolvedValue('123.0.0.0');
+    });
+
+    afterEach(() => {
+        restoreLiveTerminal();
+    });
+
+    test('with a live view active, no cli-progress bar is ever constructed and progress routes into the view', async () => {
+        const view = { downloadProgress: jest.fn(), stop: jest.fn() };
+        activateLiveView(view);
+
+        install.mockImplementation((opts) => {
+            // The download reports progress mid-install, exactly where the
+            // two writers would have collided.
+            opts.downloadProgressCallback(50, 100);
+
+            return { browser: 'chrome', buildId: '123.0.0.0', executablePath: '/p/chrome' };
+        });
+
+        await browserInstall({ browser: 'chrome', browserVersion: '123.0.0.0', loglevel: 'error' });
+
+        expect(singleBarInstances).toBe(0);
+        // start (0), the 50% update, the install code's final update(100),
+        // stop (null): the whole bar lifecycle went through the view instead.
+        expect(view.downloadProgress.mock.calls).toEqual([[0], [50], [100], [null]]);
+    });
+
+    test('without a live view the cli-progress bar is used, exactly as before', async () => {
+        install.mockResolvedValue({
+            browser: 'chrome',
+            buildId: '123.0.0.0',
+            executablePath: '/p/chrome',
+        });
+
+        await browserInstall({ browser: 'chrome', browserVersion: '123.0.0.0', loglevel: 'error' });
+
+        expect(singleBarInstances).toBe(1);
     });
 });
