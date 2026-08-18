@@ -79,12 +79,12 @@ line in the block that warns about the write with no undo.
 The row of block characters after each app name is a **sheet strip**: one character per
 sheet, in sheet order.
 
-| Character | ASCII fallback | Meaning                                   |
-| --------- | -------------- | ----------------------------------------- |
-| `█`       | `#`            | Sheet captured and its thumbnail uploaded |
-| `▓`       | `:`            | Captured, then blurred                    |
-| `░`       | `.`            | Excluded by one of your exclude rules     |
-| `▒`       | `!`            | Not processed — the app failed here       |
+| Character | ASCII fallback | Meaning on a thumbnail run                | Meaning on `remove-sheet-icons`   |
+| --------- | -------------- | ----------------------------------------- | --------------------------------- |
+| `█`       | `#`            | Sheet captured and its thumbnail uploaded | Sheet icon cleared                |
+| `▓`       | `:`            | Captured, then blurred                    | —                                 |
+| `░`       | `.`            | Excluded by one of your exclude rules     | Sheet had no icon to clear        |
+| `▒`       | `!`            | Not processed — the app failed here       | Not processed — the app failed here |
 
 This makes selection mistakes visible per app, at a glance. A mistyped
 `--exclude-sheet-tag` shows up as a row of solid blocks where you expected gaps. A
@@ -101,10 +101,12 @@ per sheet, so nothing shifts.
 The rules, in the order they are applied:
 
 1. **`BSI_OUTPUT` is set** — see the next section. It wins.
-2. **Log level anything other than `info` (the default)** — plain run card. At `verbose`
-   and below you are debugging, and the debug stream is what you asked for; at `warn` or
-   `error` you asked for a quiet run, and the plain run card is the presentation that
-   respects the log level.
+2. **Log level anything other than `info` (the default)** — no contact sheet. At
+   `verbose`, `debug` or `silly` you are debugging, and you get the plain run card
+   inside the debug stream you asked for. At `warn` or `error` you asked for a quiet
+   run, and quiet is what you get: only warnings and errors print (the run card's
+   blocks are informational and stay hidden at those levels — a `--dry-run`'s plan and
+   report are the exception, since they are the whole point of a dry run).
 3. **Colour terminal, at least 72 columns wide** — the contact sheet.
 4. **Anything else** — the plain run card.
 
