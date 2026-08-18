@@ -58,6 +58,14 @@ Machine state, not repo state - anyone regenerating assets needs all of it:
    names the sacrificial demo app; never point it at a shared or production
    app. The content library it names must exist on the server.
 
+    It must pin **everything that changes what a recording shows**, not just
+    the credentials. A worktree used for live testing usually has the repo's
+    own `.env` copied into it, and `demo.env` values only win where they are
+    set — anything omitted falls through to `.env`. That is how
+    `BSI_QSEOW_CST_INCLUDE_SHEET_PART` once leaked in at `4` against
+    recordings made at `1`, producing drift that `demo:check` reported as a
+    CLI change when nothing about the CLI had changed.
+
 4. **Keep the log level at the default `info`.** The server name appears
    once at `info`; `verbose` adds session-close lines and `debug` adds full
    app and sheet URLs. A demo has no reason to widen that surface.

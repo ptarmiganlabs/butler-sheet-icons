@@ -41,5 +41,5 @@ info:    7  Sheet 7               clear icon
 info:    8  Sheet 1 (1)           clear icon
 info:    9  Sheet 6               clear icon
 info:
-info: Summary: 1 app(s), 9 sheets. 9 icon(s) would be cleared, 0 skipped.
+info: Summary: 1 app(s), 9 sheets. 8 icon(s) would be cleared, 1 with no icon, 0 skipped.
 info: Nothing was changed. Re-run without --dry-run to apply.

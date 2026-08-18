@@ -4,11 +4,10 @@ import {
     recordSelection,
     addAppToReport,
     recordSheetDecision,
-    reportTotals,
     renderDryRunReport,
 } from '../run-report.js';
-import { renderRunPlanLines } from '../run-report-render.js';
-import { EXCLUDE_REASON, BLUR_REASON } from '../sheet-decision-reasons.js';
+import { renderRunPlanLines, renderRunVerdictLines } from '../run-report-render.js';
+import { EXCLUDE_REASON, BLUR_REASON, CLEAR_REASON } from '../sheet-decision-reasons.js';
 
 const fakeLogger = () => {
     const lines = [];
@@ -57,29 +56,28 @@ const sampleReport = () => {
     return report;
 };
 
-describe('reportTotals', () => {
-    test('totals are derived from the rows, one per action kind', () => {
-        expect(reportTotals(sampleReport())).toEqual({
-            apps: 1,
-            sheets: 4,
-            update: 1,
-            blur: 1,
-            skip: 2,
-            clear: 0,
-        });
-    });
+/**
+ * A removal report over one app whose sheets carry icons, plus one that never
+ * had one - the shape that made the two counting rules disagree (issue #1115).
+ *
+ * @returns {object} The report.
+ */
+const removalReport = () => {
+    const report = createRunReport({ command: 'qseow remove-sheet-icons', dryRun: true });
+    recordSelection(report, { namedAppIds: ['app-1'], selectorAppIds: [], selector: null });
 
-    test('an empty report totals to zeroes', () => {
-        expect(reportTotals(createRunReport({ command: 'x', dryRun: true }))).toEqual({
-            apps: 0,
-            sheets: 0,
-            update: 0,
-            blur: 0,
-            skip: 0,
-            clear: 0,
-        });
+    const app = addAppToReport(report, { id: 'app-1', name: 'Finance operations', sheetCount: 3 });
+    recordSheetDecision(app, {
+        n: 1,
+        title: 'Never themed',
+        action: 'clear',
+        reason: CLEAR_REASON.NO_ICON,
     });
-});
+    recordSheetDecision(app, { n: 2, title: 'Overview', action: 'clear' });
+    recordSheetDecision(app, { n: 3, title: 'Sales detail', action: 'clear' });
+
+    return report;
+};
 
 describe('renderDryRunReport', () => {
     test('names the responsible option next to every non-default decision', () => {
@@ -149,15 +147,74 @@ describe('renderDryRunReport', () => {
             n: 2,
             title: 'Notes',
             action: 'clear',
-            reason: 'no icon currently set',
+            reason: CLEAR_REASON.NO_ICON,
         });
 
         const log = fakeLogger();
         renderDryRunReport(report, log);
 
         const text = log.text();
-        expect(text).toContain('2 icon(s) would be cleared');
+        expect(text).toContain('1 icon(s) would be cleared, 1 with no icon, 0 skipped.');
         expect(text).toContain('(no icon currently set)');
+    });
+
+    test('a no-op clear is not counted as an icon that would be cleared (issue #1115)', () => {
+        // The summary used to bucket on sheet.action alone, so this report's
+        // three rows summarised as "3 icon(s) would be cleared" - two lines
+        // below a row that said the first sheet had no icon to clear.
+        const log = fakeLogger();
+        renderDryRunReport(removalReport(), log);
+
+        const text = log.text();
+        expect(text).toMatch(/Never themed\s+clear icon {2}\(no icon currently set\)/);
+        expect(text).toContain(
+            'Summary: 1 app(s), 3 sheets. 2 icon(s) would be cleared, 1 with no icon, 0 skipped.'
+        );
+    });
+
+    test('the plan and the verdict split the same rows the same way (issue #1115)', () => {
+        // The property the fix is really about: whatever the plan promises for
+        // a set of rows, the run's verdict must report for those same rows.
+        // Both now count through verdictCounts, so a future counting rule
+        // added to one board reaches the other - and this test fails if a
+        // second loop is ever reintroduced.
+        const report = removalReport();
+
+        const log = fakeLogger();
+        renderDryRunReport(report, log);
+
+        report.succeeded = true;
+        const verdict = renderRunVerdictLines(report).join('\n');
+
+        expect(log.text()).toContain('2 icon(s) would be cleared, 1 with no icon');
+        expect(verdict).toContain('3 seen, 2 icon(s) cleared, 1 had no icon');
+    });
+
+    test('a removal with nothing left to clear says so rather than claiming a sweep', () => {
+        // The state a second removal run finds (issue #1113): every row is a
+        // no-op clear, and the summary must not promise a removal.
+        const report = createRunReport({ command: 'qseow remove-sheet-icons', dryRun: true });
+        recordSelection(report, { namedAppIds: ['app-1'], selectorAppIds: [], selector: null });
+        const app = addAppToReport(report, { id: 'app-1', sheetCount: 2 });
+        recordSheetDecision(app, {
+            n: 1,
+            title: 'Main',
+            action: 'clear',
+            reason: CLEAR_REASON.NO_ICON,
+        });
+        recordSheetDecision(app, {
+            n: 2,
+            title: 'Notes',
+            action: 'clear',
+            reason: CLEAR_REASON.NO_ICON,
+        });
+
+        const log = fakeLogger();
+        renderDryRunReport(report, log);
+
+        expect(log.text()).toContain(
+            'Summary: 1 app(s), 2 sheets. 0 icon(s) would be cleared, 2 with no icon, 0 skipped.'
+        );
     });
 
     test('output is plain ASCII so it survives any console', () => {
