@@ -329,9 +329,10 @@ const warningLine = (report, ctx) => {
     }
 
     const verb = writes.would ? 'would' : 'will';
+    const media = writes.mediaFiles ? ' and thumbnail media files' : '';
     const text =
         writes.kind === 'clear-icons'
-            ? `sheet icons and thumbnail media files ${verb} be removed from ${writes.appCount} app(s)`
+            ? `sheet icons${media} ${verb} be removed from ${writes.appCount} app(s)${writes.published}`
             : `sheet thumbnails ${verb} be overwritten in ${writes.appCount} app(s)${writes.published}`;
 
     return `  ${ctx.palette.yellow(`${ctx.symbols.warning}  ${text}`)}`;
@@ -390,12 +391,17 @@ export const renderBoardPlan = (report, ctx) => {
                     detail: `cert ${plan.auth.certFile}`,
                 })
             );
-            rows.push(
-                planRow(ctx, {
-                    label: 'logon user',
-                    value: `${plan.auth.logonUser.directory}\\${plan.auth.logonUser.userId}`,
-                })
-            );
+            // Only when the run actually logs into the web UI: qseow
+            // remove-sheet-icons works over the engine session alone, so it
+            // has no logon identity to report and must not render one.
+            if (plan.auth.logonUser) {
+                rows.push(
+                    planRow(ctx, {
+                        label: 'logon user',
+                        value: `${plan.auth.logonUser.directory}\\${plan.auth.logonUser.userId}`,
+                    })
+                );
+            }
         } else {
             let detail = '';
             if (plan.auth.skipLogin) {

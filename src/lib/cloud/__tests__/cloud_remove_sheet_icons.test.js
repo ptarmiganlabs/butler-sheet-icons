@@ -72,7 +72,12 @@ const makeSheet = (qId, rank) => {
         item: {
             qInfo: { qId },
             qMeta: { title: `Sheet ${qId}`, description: '' },
-            qData: { rank },
+            // qData carries `thumbnail` because SHEET_LIST_FIELDS_EXTENDED
+            // projects /thumbnail and a real engine answers it. A fixture that
+            // omitted it made every planner test take a fallback branch that
+            // production never reaches, so the tests passed for a reason that
+            // did not hold against a real tenant.
+            qData: { rank, thumbnail: { qStaticContentUrlDef: { qUrl: '/old/thumbnail.png' } } },
         },
         obj,
         props,
@@ -821,6 +826,65 @@ describe('qscloudRemoveSheetIcons', () => {
             }
             expect(app.doSave).not.toHaveBeenCalled();
             expect(Delete).not.toHaveBeenCalled();
+        });
+
+        test('reads each sheet through the same engine calls the real run uses', async () => {
+            // Not from the projected qData.thumbnail: that read answers the
+            // icon question correctly and still plans a clean clear for a
+            // sheet the real run cannot open at all.
+            withAppAndThumbnails();
+            const sheets = [makeSheet('s1', 1), makeSheet('s2', 2)];
+            const { app } = wireEnigma(sheets);
+
+            await qscloudRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true });
+
+            expect(app.getObject.mock.calls.map((call) => call[0])).toEqual(['s1', 's2']);
+            for (const sheet of sheets) {
+                expect(sheet.obj.getProperties).toHaveBeenCalledTimes(1);
+            }
+        });
+
+        test('a sheet the engine cannot open fails the plan, as it would fail the run', async () => {
+            // The real run on this input clears s1, saves the app, then fails
+            // on s2. A plan that reported "2 icon(s) would be cleared" would
+            // promise a clean sweep for a run that half-writes and fails.
+            withAppAndThumbnails();
+            const good = makeSheet('s1', 1);
+            const unreadable = makeSheet('s2', 2);
+            const { app } = wireEnigma([good, unreadable]);
+            app.getObject.mockImplementation(async (qId) => {
+                if (qId === 's2') {
+                    throw new Error('Object not found');
+                }
+
+                return good.obj;
+            });
+
+            await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS, dryRun: true })).resolves.toBe(
+                false
+            );
+
+            const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(info).toContain('this plan is incomplete');
+        });
+
+        test('a sheet with no qMeta is still cleared - the log line must not fail it', async () => {
+            // The real run named sheet.qMeta.title unguarded in its progress
+            // log while the planner read it optionally, so a sheet the engine
+            // returned without qMeta was planned as a clean clear and then
+            // threw in the real run - failing that sheet, and the app with it,
+            // after the sheets around it had already been cleared and saved.
+            withNoThumbnailFolder();
+            const bare = makeSheet('s1', 1);
+            delete bare.item.qMeta;
+            const fine = makeSheet('s2', 2);
+            const { app } = wireEnigma([bare, fine]);
+
+            await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS })).resolves.toBe(true);
+
+            expect(bare.obj.setProperties).toHaveBeenCalledTimes(1);
+            expect(fine.obj.setProperties).toHaveBeenCalledTimes(1);
+            expect(app.doSave).toHaveBeenCalledTimes(1);
         });
 
         test('the report names the app, the icons, and the media files', async () => {

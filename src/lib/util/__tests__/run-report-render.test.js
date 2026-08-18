@@ -238,7 +238,7 @@ describe('renderRunPlanLines - Cloud', () => {
         report.plan = {
             target: { platform: 'cloud', tenantUrl: 'tenant.eu.qlikcloud.com' },
             auth: { apiKey: true },
-            writes: { kind: 'clear-icons' },
+            writes: { kind: 'clear-icons', mediaFiles: true },
         };
 
         const text = renderRunPlanLines(report).join('\n');
@@ -246,6 +246,68 @@ describe('renderRunPlanLines - Cloud', () => {
         expect(text).not.toContain('sheet part');
         expect(text).not.toContain('browser');
         expect(text).not.toContain('uploads to');
+    });
+
+    test('a removal that leaves media files alone does not claim to delete them', () => {
+        // The QSEoW twin clears the engine property only; the warning line
+        // renders from the mediaFiles flag, not the kind, so the narrower
+        // claim is also the default.
+        const report = createRunReport({ command: 'qseow remove-sheet-icons', dryRun: true });
+        recordSelection(report, { namedAppIds: ['a'], selectorAppIds: [], selector: null });
+        report.plan = {
+            target: {
+                platform: 'qseow',
+                host: 'sense.example.com',
+                port: null,
+                secure: true,
+                prefix: '',
+                enginePort: '4747',
+                qrsPort: '4242',
+                schemaVersion: '12.612.0',
+            },
+            auth: {
+                apiUser: { directory: 'Internal', userId: 'sa_api' },
+                certFile: './cert/client.pem',
+            },
+            writes: { kind: 'clear-icons' },
+        };
+
+        const text = renderRunPlanLines(report).join('\n');
+        expect(text).toContain('WOULD REMOVE sheet icons from 1 app(s)');
+        expect(text).not.toContain('thumbnail media files');
+    });
+
+    test('a removal names how many selected apps are published', () => {
+        // On QSEoW the save is what a published app refuses, so a removal
+        // over published apps fails after doing the work in memory. The plan
+        // is the only place that can say so first.
+        const report = createRunReport({ command: 'qseow remove-sheet-icons', dryRun: false });
+        recordSelection(report, {
+            namedAppIds: ['a', 'b', 'c'],
+            selectorAppIds: [],
+            selector: null,
+        });
+        report.plan = { writes: { kind: 'clear-icons', publishedAppCount: 2 } };
+
+        const text = renderRunPlanLines(report).join('\n');
+        expect(text).toContain('WILL REMOVE sheet icons from 3 app(s), 2 of them published');
+    });
+
+    test('an api user without a logon user renders one auth line, not a crash', () => {
+        // qseow remove-sheet-icons works over the engine session alone: it
+        // has an API identity but never logs into the web UI.
+        const report = createRunReport({ command: 'qseow remove-sheet-icons', dryRun: true });
+        recordSelection(report, { namedAppIds: ['a'], selectorAppIds: [], selector: null });
+        report.plan = {
+            auth: {
+                apiUser: { directory: 'Internal', userId: 'sa_api' },
+                certFile: './cert/client.pem',
+            },
+        };
+
+        const text = renderRunPlanLines(report).join('\n');
+        expect(text).toContain('Internal\\sa_api via ./cert/client.pem');
+        expect(text).not.toContain('logon user');
     });
 });
 
