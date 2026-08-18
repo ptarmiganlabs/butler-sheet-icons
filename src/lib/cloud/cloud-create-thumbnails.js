@@ -10,6 +10,7 @@ import {
     announceDryRun,
     emitRunHeader,
     startLiveRunView,
+    selectionCounts,
     buildSheetRules,
     buildSheetPartSection,
     buildBrowserPlanSection,
@@ -141,16 +142,21 @@ export const qscloudCreateThumbnails = async (options) => {
         // provenance it returns feeds the run report directly.
         live?.beginStep('app list');
         const selection = await resolveCloudAppSelection(saasInstance, options);
-        live?.stepDone(
-            'app list',
-            [
-                `${new Set(selection.appIds).size} apps`,
-                `${selection.namedAppIds.length} named`,
-                ...(selection.selector
-                    ? [`${selection.selectorAppIds.length} from collection`]
-                    : []),
-            ].join(live.sep)
-        );
+        // Same deduplicating counts and same empty-selection-is-failure rule
+        // as the QSEoW twin (issue #1110).
+        if (live) {
+            const counts = selectionCounts(selection);
+            const detail = [
+                `${counts.total} apps`,
+                `${counts.named} named`,
+                ...(selection.selector ? [`${counts.fromSelector} from collection`] : []),
+            ].join(live.sep);
+            if (counts.total === 0) {
+                live.stepFailed('app list', detail);
+            } else {
+                live.stepDone('app list', detail);
+            }
+        }
 
         return await runOverAppsWithReport({
             command: 'qscloud create-sheet-thumbnails',

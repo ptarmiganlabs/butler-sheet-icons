@@ -185,4 +185,18 @@ describe('startLiveRunView', () => {
         expect(stdoutWrites).toHaveLength(0);
         expect(activeLiveView()).toBeNull();
     });
+
+    test('stops a stale view before deciding anything, even on a declined path', () => {
+        // A new view constructed while an old one still held the console
+        // would capture "silenced" as the state to restore - permanent
+        // silence after it stops (issue #1110). The stale view is torn down
+        // first, declined paths included.
+        const { view, writes } = activeFakeTtyView();
+
+        expect(startLiveRunView({ rung: 'board', dryRun: false })).toBeNull();
+
+        expect(activeLiveView()).toBeNull();
+        expect(writes.join('')).toContain(SHOW_CURSOR);
+        expect(view).not.toBeNull();
+    });
 });

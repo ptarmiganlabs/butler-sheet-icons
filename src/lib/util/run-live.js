@@ -1,5 +1,14 @@
 import winston from 'winston';
-import { renderSheetStrip, clip, padTo } from './run-board.js';
+import {
+    renderSheetStrip,
+    clip,
+    padTo,
+    positionOf,
+    dotSep,
+    width,
+    NAME_WIDTH,
+} from './run-board.js';
+import { isTimestampEnabled } from './log-timestamps.js';
 
 /**
  * Rung C of the run-output ladder (issue #1075): the live run view.
@@ -80,6 +89,21 @@ const PHASE_LABEL = Object.freeze({
 });
 
 /**
+ * The winston console transport on a logger, or undefined.
+ *
+ * The single answer to "which transport is the console" (issue #1110): the
+ * view silences it for its lifetime, and `withConsoleSilenced` in
+ * run-report.js silences it per block - two callers, one lookup, so the two
+ * mechanisms can never disagree about which transport they are toggling.
+ *
+ * @param {object} log - Winston-style logger.
+ *
+ * @returns {object|undefined} The console transport, when one exists.
+ */
+export const findConsoleTransport = (log) =>
+    log?.transports?.find((transport) => transport.name === 'console');
+
+/**
  * A winston transport that hands `warn` and `error` lines to the live view.
  *
  * While the view owns the cursor the console transport is silenced, but a
@@ -110,7 +134,14 @@ class LiveViewTransport extends winston.Transport {
      * @returns {void}
      */
     log(info, callback) {
-        this.view.commitLogLine(info.level, String(info.message ?? ''));
+        // The timestamp travels with the line so the routed transcript stays
+        // time-correlatable with the shipped log - same rule as the console
+        // transport, which prefixes it only when timestamps are enabled.
+        this.view.commitLogLine(
+            info.level,
+            String(info.message ?? ''),
+            isTimestampEnabled() ? info.timestamp : undefined
+        );
         callback();
     }
 }
@@ -179,7 +210,12 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
 
     const { palette, symbols } = ctx;
     const frames = symbols.spinnerFrames;
-    const sep = ` ${symbols.dot} `;
+    const sep = dotSep(ctx);
+
+    // Markers are padded to the set's widest so a row does not shift three
+    // columns when its 1-column ASCII spinner resolves into a 4-column
+    // `[ok]` (issue #1110). The Unicode set is uniformly 1 column wide.
+    const markerWidth = Math.max(width(symbols.done), width(symbols.failed), width(frames[0]));
 
     let stopped = false;
     let regionLines = 0;
@@ -188,6 +224,7 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
     const committedSteps = new Set();
     let app = null; // {n, total, id, entry, phase}
     let downloadPct = null;
+    let lastRegionBody = null;
 
     let consoleTransport = null;
     let previousSilent = false;
@@ -203,20 +240,21 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
 
     /**
      * One preflight row. Padded plain, coloured after - the same width
-     * discipline as the board renderers.
+     * discipline as the board renderers, the marker column included.
      *
-     * @param {string} marker - The already-coloured status glyph.
+     * @param {string} markerGlyph - The status glyph, plain.
+     * @param {(text: string) => string} paintMarker - Colour for the marker.
      * @param {string} label - Row label, plain.
      * @param {string} [detail] - Dim detail after the label.
      *
      * @returns {string} The row.
      */
-    const stepRow = (marker, label, detail) => {
+    const stepRow = (markerGlyph, paintMarker, label, detail) => {
         const detailPart = detail
             ? `  ${palette.dim(clip(detail, Math.max(10, columns() - STEP_LABEL_WIDTH - 10)))}`
             : '';
 
-        return `  ${marker} ${padTo(label, STEP_LABEL_WIDTH)}${detailPart}`;
+        return `  ${paintMarker(padTo(markerGlyph, markerWidth))} ${padTo(label, STEP_LABEL_WIDTH)}${detailPart}`;
     };
 
     /**
@@ -226,19 +264,22 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
      */
     const renderRegion = () => {
         const lines = [];
-        const spinner = palette.yellow(frames[spinnerIndex % frames.length]);
+        const spinnerGlyph = frames[spinnerIndex % frames.length];
+        const spinner = palette.yellow(spinnerGlyph);
 
         if (pendingStep) {
             const detail =
                 pendingStep.label === 'browser' && downloadPct !== null
                     ? `downloading ${downloadPct}%`
                     : pendingStep.detail;
-            lines.push(stepRow(spinner, pendingStep.label, detail));
+            lines.push(stepRow(spinnerGlyph, palette.yellow, pendingStep.label, detail));
         }
 
         if (app) {
             const entry = app.entry;
-            const name = clip(entry?.name ?? app.id ?? '', 32);
+            // The same clip as the committed board row, so the app appears
+            // under one name in both (issue #1110).
+            const name = clip(entry?.name ?? app.id ?? '', NAME_WIDTH);
             const sheetNote =
                 typeof entry?.sheetCount === 'number'
                     ? palette.dim(`${sep}${entry.sheetCount} sheets`)
@@ -269,11 +310,7 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
                 // board row still carries the full strip; only the animated
                 // copy is capped.
                 const reached = entry.sheets.reduce(
-                    (max, sheet, i) =>
-                        Math.max(
-                            max,
-                            typeof sheet.n === 'number' && sheet.n >= 1 ? sheet.n : i + 1
-                        ),
+                    (max, sheet, i) => Math.max(max, positionOf(sheet, i)),
                     0
                 );
                 const stripLimit = Math.min(reached, Math.max(1, columns() - 3));
@@ -299,40 +336,54 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
         regionLines > 0 ? `${cursorUp(regionLines)}\r${ERASE_DOWN}` : `\r${ERASE_DOWN}`;
 
     /**
-     * Repaint the animated region in place, in a single write.
+     * The one region-write protocol: erase the current region, write any
+     * finished block above it, repaint the region below - a single stream
+     * write, so nothing can interleave between the parts.
+     *
+     * A pure repaint whose rendered body is byte-identical to what is
+     * already on screen is skipped entirely (issue #1110): the frame timer
+     * and the per-chunk download callbacks otherwise rewrite an unchanged
+     * region hundreds of times a second, and on conhost every one of those
+     * is a blocking console write.
+     *
+     * @param {string} [block] - Finished content to commit above the region.
+     *     A trailing newline is added when missing. Empty means repaint only.
      *
      * @returns {void}
      */
-    const paint = () => {
+    const repaint = (block = '') => {
         if (stopped) {
             return;
         }
 
         const lines = renderRegion();
         const body = lines.length > 0 ? `${lines.join('\n')}\n` : '';
-        stream.write(`${eraseRegion()}${body}`);
+
+        if (block === '' && body === lastRegionBody) {
+            return;
+        }
+
+        const blockPart = block === '' || block.endsWith('\n') ? block : `${block}\n`;
+        stream.write(`${eraseRegion()}${blockPart}${body}`);
         regionLines = lines.length;
+        lastRegionBody = body;
     };
 
     /**
-     * Write finished content above the region: erase, write, repaint - one
-     * stream write, so nothing can interleave between the parts.
-     *
-     * @param {string} text - The static text. A trailing newline is added when missing.
+     * Repaint the animated region in place.
      *
      * @returns {void}
      */
-    const commit = (text) => {
-        if (stopped) {
-            return;
-        }
+    const paint = () => repaint();
 
-        const block = text.endsWith('\n') ? text : `${text}\n`;
-        const lines = renderRegion();
-        const body = lines.length > 0 ? `${lines.join('\n')}\n` : '';
-        stream.write(`${eraseRegion()}${block}${body}`);
-        regionLines = lines.length;
-    };
+    /**
+     * Write finished content above the region.
+     *
+     * @param {string} text - The static text.
+     *
+     * @returns {void}
+     */
+    const commit = (text) => repaint(text);
 
     /**
      * Commit one resolved preflight row. Each label commits once per run -
@@ -353,8 +404,9 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
         if (pendingStep?.label === label) {
             pendingStep = null;
         }
-        const marker = ok ? palette.green(symbols.done) : palette.red(symbols.failed);
-        commit(stepRow(marker, label, detail));
+        const glyph = ok ? symbols.done : symbols.failed;
+        const paintMarker = ok ? palette.green : palette.red;
+        commit(stepRow(glyph, paintMarker, label, detail));
     };
 
     const view = {
@@ -486,9 +538,13 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
         /**
          * Close the app block, committing its final board row.
          *
-         * A preflight row still pending when a failed app closes is committed
-         * as failed: its `await` threw, and leaving it spinning would show a
-         * run stuck on a step that has already been abandoned.
+         * A preflight row still pending when the app closes is dropped, not
+         * committed as failed: the app's own board row and the routed error
+         * lines already carry the failure, while a committed red row would
+         * latch run-wide and misattribute one app's timeout to the step
+         * itself even after every later app performs it fine (issue #1110).
+         * Because the label never commits, a later app's beginStep/stepDone
+         * for the same step can still resolve the row honestly.
          *
          * @param {object} entry - The per-app report entry.
          * @param {string} rowText - The rendered board app row.
@@ -498,9 +554,6 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
         appFinished(entry, rowText) {
             if (stopped) {
                 return;
-            }
-            if (pendingStep && entry?.failed) {
-                commitStep(pendingStep.label, undefined, false);
             }
             pendingStep = null;
             app = null;
@@ -520,26 +573,48 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
             if (stopped) {
                 return;
             }
-            downloadPct = pct === null ? null : Math.max(0, Math.min(100, Math.round(pct)));
+            // Number.isFinite, not a null check: a download response without
+            // a Content-Length yields NaN, which survives round/min/max and
+            // would render as "downloading browser NaN%" (issue #1110). A
+            // non-finite value means the progress is unknowable - show the
+            // plain phase label instead.
+            downloadPct = Number.isFinite(pct) ? Math.max(0, Math.min(100, Math.round(pct))) : null;
             paint();
         },
 
         /**
          * Commit a routed log line above the region.
          *
+         * One commit per message, not per line (issue #1110): a stack trace
+         * used to tear the region down once per line, and a message ending
+         * in a newline committed a stray bare `error:` line. The timestamp
+         * prefixes the first line only, matching how the console transport
+         * renders a multi-line message under one stamp.
+         *
          * @param {string} level - Winston level, decides the paint.
          * @param {string} message - The message; may span lines.
+         * @param {string} [timestamp] - Timestamp prefix, when enabled.
          *
          * @returns {void}
          */
-        commitLogLine(level, message) {
+        commitLogLine(level, message, timestamp) {
             if (stopped) {
                 return;
             }
             const paintLine = level === 'error' ? palette.red : palette.yellow;
-            for (const line of message.split('\n')) {
-                commit(`  ${paintLine(`${level}: ${line}`)}`);
+            const messageLines = message.split('\n');
+            while (messageLines.length > 1 && messageLines.at(-1) === '') {
+                messageLines.pop();
             }
+            const prefix = timestamp ? `${timestamp} ` : '';
+            const block = messageLines
+                .map((line, i) =>
+                    i === 0
+                        ? `  ${paintLine(`${prefix}${level}: ${line}`)}`
+                        : `  ${paintLine(line)}`
+                )
+                .join('\n');
+            commit(block);
         },
 
         /**
@@ -592,7 +667,7 @@ export const createRunLiveView = ({ stream, ctx, log = null, timer = makeFrameTi
     stream.write(HIDE_CURSOR);
 
     if (log) {
-        consoleTransport = log.transports?.find((transport) => transport.name === 'console');
+        consoleTransport = findConsoleTransport(log);
         if (consoleTransport) {
             // Normalised to a boolean: winston leaves `silent` undefined on a
             // transport that was never silenced, and the restore must hand
