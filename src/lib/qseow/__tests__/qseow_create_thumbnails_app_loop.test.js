@@ -14,6 +14,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
         warn: jest.fn(),
     },
     setLoggingLevel: jest.fn(),
+    appVersion: '9.9.9-test',
     getLoggingLevel: jest.fn(() => 'info'),
     bsiExecutablePath: '/test/path',
     isSea: false,

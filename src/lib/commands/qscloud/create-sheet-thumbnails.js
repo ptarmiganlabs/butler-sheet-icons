@@ -1,6 +1,5 @@
 import { Command, Option } from 'commander';
-import { logger, appVersion, setLoggingLevel } from '../../../globals.js';
-import { logRunHeader } from '../../util/run-report-render.js';
+import { logger, setLoggingLevel } from '../../../globals.js';
 import { qscloudCreateThumbnails } from '../../cloud/cloud-create-thumbnails.js';
 import { CLOUD_SHEET_PARTS } from '../../cloud/sheet-parts.js';
 import {
@@ -29,14 +28,15 @@ import { runCommand } from '../run-command.js';
  * @returns {Promise<void>} Resolves after delegating to qscloudCreateThumbnails and logging any errors.
  */
 const handleCloudCreateSheetThumbnails = async (options = {}, cmd) => {
-    // Level set before the header, not only in the worker: a run at
-    // --log-level warn asked for a quiet log, and the run card - header
-    // included - respects that. Guarded for programmatic callers without the
-    // option; the worker sets the level again, which is idempotent.
+    // Level set before any handler-level logging: a run at --log-level warn
+    // asked for a quiet log. Guarded for programmatic callers without the
+    // option; the worker sets the level again, which is idempotent. The run
+    // header is emitted by the worker, not here - the wizard invokes workers
+    // directly, and the header must come from the same place on both paths,
+    // decided from the options the run actually uses.
     if (options.loglevel) {
         setLoggingLevel(options.loglevel);
     }
-    logRunHeader(logger, appVersion, 'Qlik Sense Cloud sheet thumbnails');
 
     // Joined explicitly: --appid is variadic, and letting a template literal coerce the
     // array reads as one strange id rather than as several.

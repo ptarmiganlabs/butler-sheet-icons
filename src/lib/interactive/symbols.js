@@ -32,6 +32,26 @@ export const UNICODE_SYMBOLS = Object.freeze({
     rule: '─',
     checked: '◉',
     unchecked: '◯',
+    // The contact-sheet strip (issue #1074): one character per sheet. All four
+    // are Block Elements - none is Extended_Pictographic - and all four ASCII
+    // fallbacks are one column, so the strip keeps its width when the set
+    // switches. U+2592 MEDIUM SHADE marks failure rather than the mockup's
+    // U+259A quadrant: quadrant coverage in older monospace fonts is worse
+    // than the shade characters', and a legacy console is on the ASCII set
+    // anyway.
+    stripCaptured: '█',
+    stripBlurred: '▓',
+    stripExcluded: '░',
+    stripFailed: '▒',
+    // Contact-sheet furniture. `warning` is ASCII in both sets on purpose:
+    // U+26A0 is emoji-presentation-prone, exactly the class this file bans.
+    // `dot` and `times` exist because U+00B7 and U+00D7 read as ASCII but are
+    // not - they leaked into an ASCII rendering once already (issue #1074).
+    bulletOn: '●',
+    bulletOff: '○',
+    warning: '!',
+    dot: '·',
+    times: '×',
     spinnerFrames: Object.freeze(['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']),
 });
 
@@ -49,6 +69,15 @@ export const ASCII_SYMBOLS = Object.freeze({
     rule: '-',
     checked: '[x]',
     unchecked: '[ ]',
+    stripCaptured: '#',
+    stripBlurred: ':',
+    stripExcluded: '.',
+    stripFailed: '!',
+    bulletOn: '*',
+    bulletOff: 'o',
+    warning: '!',
+    dot: '-',
+    times: 'x',
     spinnerFrames: Object.freeze(['-', '\\', '|', '/']),
 });
 

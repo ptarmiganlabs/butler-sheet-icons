@@ -1,7 +1,6 @@
 import { Command, Option } from 'commander';
 import { addDryRunOption } from '../dry-run-option.js';
-import { logger, appVersion, setLoggingLevel } from '../../../globals.js';
-import { logRunHeader } from '../../util/run-report-render.js';
+import { setLoggingLevel } from '../../../globals.js';
 import { qscloudRemoveSheetIcons } from '../../cloud/cloud-remove-sheet-icons.js';
 import { runCommand } from '../run-command.js';
 import { collectAppIds } from '../helpers.js';
@@ -9,17 +8,21 @@ import { collectAppIds } from '../helpers.js';
 /**
  * Commander action that removes sheet icons from specified Qlik Sense Cloud apps.
  *
+ * The run header is emitted by the worker, not here: the wizard invokes
+ * workers directly, and the header must come from the same place on both
+ * paths - decided from the options the run actually uses.
+ *
  * @param {object} [options] - Options describing tenant, authentication and app selection. Defaults to `{}`.
  * @param {import('commander').Command} cmd - Commander command reference for worker logging.
  *
  * @returns {Promise<void>} Resolves once the worker reports success or the error is logged.
  */
 const handleCloudRemoveSheetIcons = async (options = {}, cmd) => {
-    // Level set before the header - see create-sheet-thumbnails.js for why.
+    // Level set here as well as in the worker: any handler-level logging
+    // before the worker runs must already respect a quiet run.
     if (options.loglevel) {
         setLoggingLevel(options.loglevel);
     }
-    logRunHeader(logger, appVersion, 'Qlik Sense Cloud sheet icon removal');
 
     return runCommand('CLOUD MAIN 5', () => qscloudRemoveSheetIcons(options, cmd));
 };
