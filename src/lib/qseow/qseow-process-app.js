@@ -22,12 +22,9 @@ import { appProgressLine, sheetProgressLine } from '../util/run-report-render.js
 import { QSEOW_SHEET_PART_SELECTORS } from './sheet-parts.js';
 import { qseowLogout } from './qseow-logout.js';
 import { getQseowHubSelectors } from './qseow-selectors.js';
-import { logError } from '../util/log-error.js';
-import { normalizeVirtualProxyPrefix } from './qseow-prefix.js';
-
-const selectorLoginPageUserName = '#username-input';
-const selectorLoginPageUserPwd = '#password-input';
-const selectorLoginPageLoginButton = '#loginbtn';
+import { logError, describeWithCauses } from '../util/log-error.js';
+import { openQseowAppOverviewPage, captureQseowOverviewAfter } from './qseow-app-session.js';
+import { parseTrueFalseOption } from '../util/true-false-option.js';
 
 /**
  * Processes a Qlik Sense Enterprise on Windows (QSEoW) application to generate
@@ -156,92 +153,16 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                         activeLiveView()?.beginStep('signed in');
                         activeLiveView()?.appPhase('signin');
 
-                        const page = await browser.newPage();
-
-                        // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
-                        await page.setViewport({
-                            width: 1230,
-                            height: 810,
-                            deviceScaleFactor: 1,
-                        });
-
-                        // Set default timeout for all page operations to 90 seconds
-                        // https://stackoverflow.com/questions/52163547/node-js-puppeteer-how-to-set-navigation-timeout
-                        await page.setDefaultTimeout(pageTimeout);
-
-                        // Assigned unconditionally just below; the empty initialiser was dead. It only passed
-                        // lint before because no-useless-assignment skips code inside a try block, and the
-                        // enclosing try is now the session callback.
-                        let appUrl;
-                        let hubUrl;
-
-                        const scheme =
-                            options.secure === 'true' || options.secure === true
-                                ? 'https://'
-                                : 'http://';
-
-                        // --port is the web port, distinct from --engineport (4747) and --qrsport
-                        // (4242). It was declared and parsed but never reached the URL, so a
-                        // server on a non-standard web port could not be reached at all. Built
-                        // once here rather than in each branch below, so the app and hub URLs
-                        // cannot disagree about which host they are talking to.
-                        const origin = options.port
-                            ? `${scheme}${options.host}:${options.port}`
-                            : `${scheme}${options.host}`;
-
-                        // Normalised, not used raw: a prefix written as it appears in the browser
-                        // address bar ("/form") produced "https://host//form/sense/app/<id>",
-                        // which authenticates fine and then never renders, failing 90 seconds
-                        // later on a selector that says nothing about the prefix.
-                        const prefix = normalizeVirtualProxyPrefix(options.prefix);
-
-                        if (prefix.length > 0) {
-                            appUrl = `${origin}/${prefix}/sense/app/${appId}`;
-                            hubUrl = `${origin}/${prefix}/hub`;
-                        } else {
-                            appUrl = `${origin}/sense/app/${appId}`;
-                            hubUrl = `${origin}/hub`;
-                        }
-
-                        logger.debug(`App URL: ${appUrl}`);
-                        logger.debug(`Hub URL: ${hubUrl}`);
-
-                        await Promise.all([
-                            page.goto(appUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
-                        ]);
-
-                        await sleep(options.pagewait * 1000);
-                        await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-1.png` });
-
-                        // Enter credentials
-                        // User
-                        await page.click(selectorLoginPageUserName, {
-                            button: 'left',
-                            delay: 10,
-                        });
-
-                        const user = `${options.logonuserdir}\\${options.logonuserid}`;
-                        await page.keyboard.type(user);
-
-                        // Pwd
-                        await page.click(selectorLoginPageUserPwd, {
-                            button: 'left',
-                            delay: 10,
-                        });
-                        await page.keyboard.type(options.logonpwd);
-
-                        await page.screenshot({ path: `${imgDir}/qseow/${appId}/loginpage-2.png` });
-
-                        // Click login button and wait for page to load
-                        await Promise.all([
-                            page.click(selectorLoginPageLoginButton, {
-                                button: 'left',
-                                delay: 10,
-                            }),
-                            page.waitForNavigation({ waitUntil: 'networkidle2' }),
-                        ]);
-
-                        await sleep(options.pagewait * 1000);
+                        // The same helper opens the after-capture session further down, so
+                        // the two logins cannot drift apart. `loginpage` is this session's
+                        // screenshot stem; the after-capture uses `loginpage-after` so it
+                        // cannot overwrite the evidence from this one.
+                        const { page, appUrl, hubUrl } = await openQseowAppOverviewPage(
+                            browser,
+                            options,
+                            appId,
+                            { imgDir, pageTimeout, loginPagePrefix: 'loginpage' }
+                        );
 
                         // Only now is the session real: the login click has
                         // navigated and the page has settled.
@@ -252,7 +173,9 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                         activeLiveView()?.appPhase('sheets');
 
                         // Take screenshot of app overview page
-                        await page.screenshot({ path: `${imgDir}/qseow/${appId}/overview-1.png` });
+                        await page.screenshot({
+                            path: `${imgDir}/qseow/${appId}/overview-before.png`,
+                        });
 
                         // Sort sheets
                         sortSheetsByRank(sheets);
@@ -486,6 +409,35 @@ export const qseowProcessApp = async (appId, options, report = null) => {
             options,
             blurTagSheetAppMetadata
         );
+
+        // The sheets now point at their new thumbnails, which is the first moment an
+        // overview screenshot can show the result rather than the starting state. The
+        // main session logged out and closed long before this point - uploading and
+        // assigning both happen after the browser is gone - so showing the result costs
+        // a second sign-in. Opt out with --capture-overview-after false when running
+        // over many apps, where that login is paid once per app.
+        //
+        // Never allowed to fail the run: the thumbnails are already created, uploaded and
+        // assigned by now. Losing the evidence screenshot is worth a warning, not the
+        // failure of work that has already succeeded.
+        if (parseTrueFalseOption(options.captureOverviewAfter) && createdFiles.length > 0) {
+            try {
+                logger.info(
+                    `QSEOW APP: Signing in again to capture the app overview after thumbnails were applied`
+                );
+                const afterImagePath = await captureQseowOverviewAfter(options, appId, {
+                    imgDir,
+                    pageTimeout,
+                    userMenuButton: xpathHubUserPageButton,
+                    legacyLogoutButton,
+                });
+                logger.verbose(`QSEOW APP: Wrote after-overview screenshot ${afterImagePath}`);
+            } catch (err) {
+                logger.warn(
+                    `QSEOW APP: Could not capture the app overview after the update. The thumbnails themselves were applied successfully. ${describeWithCauses(err)}`
+                );
+            }
+        }
 
         recordAppOutcome(appEntry, {
             sheetsUpdated,

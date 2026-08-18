@@ -172,6 +172,18 @@ const buildQseowCommand = () => {
         )
         .addOption(
             new Option(
+                '--capture-overview-after <true|false>',
+                'Capture a second screenshot of the app overview after the thumbnails have been applied, showing the result rather than the starting state. Costs one extra browser login per app'
+            )
+                // Not mandatory, matching --blur-factor and --browser-page-timeout: a tuning
+                // flag with a working default. specsFromCommand() reads option.mandatory to
+                // decide what the interactive wizard asks about, and this is not a question a
+                // guided run should have to answer.
+                .default(true)
+                .env('BSI_QSEOW_CST_CAPTURE_OVERVIEW_AFTER')
+        )
+        .addOption(
+            new Option(
                 '--contentlibrary <library-name>',
                 'Qlik Sense content library to which thumbnails will be uploaded'
             )

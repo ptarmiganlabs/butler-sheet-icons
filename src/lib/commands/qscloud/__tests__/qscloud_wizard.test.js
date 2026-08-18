@@ -695,6 +695,7 @@ describe('progressive disclosure', () => {
                 schemaversion: '12.612.0',
                 pagewait: '5',
                 imagedir: './img',
+                captureOverviewAfter: true,
                 browser: 'chrome',
                 browserVersion: 'recommended',
                 browserPageTimeout: '90',

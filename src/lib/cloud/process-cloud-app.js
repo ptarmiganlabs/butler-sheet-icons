@@ -1,5 +1,5 @@
 import { setupEnigmaConnection } from './cloud-enigma.js';
-import { logger, sleep } from '../../globals.js';
+import { logger } from '../../globals.js';
 import { qscloudUploadToApp } from './cloud-upload.js';
 import { qscloudUpdateSheetThumbnails } from './cloud-updatesheets.js';
 import { deleteCloudAppThumbnail } from './cloud-delete-thumbnails.js';
@@ -20,12 +20,9 @@ import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js
 import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
 import { addAppToReport, recordPlannedSheet, recordAppOutcome } from '../util/run-report.js';
 import { appProgressLine, sheetProgressLine } from '../util/run-report-render.js';
-import { logError } from '../util/log-error.js';
-
-// Selector paths to elements on login page
-const selectorLoginPageUserName = '[id="\u0031-email"]';
-const selectorLoginPageUserPwd = '[id="\u0031-password"]';
-const selectorLoginPageLoginButton = '[id="\u0031-submit"]';
+import { logError, describeWithCauses } from '../util/log-error.js';
+import { openCloudAppOverviewPage, captureCloudOverviewAfter } from './cloud-app-session.js';
+import { parseTrueFalseOption } from '../util/true-false-option.js';
 
 /**
  * Process a single Qlik Sense Cloud app.
@@ -157,72 +154,28 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
                         activeLiveView()?.beginStep('signed in');
                         activeLiveView()?.appPhase('signin');
 
-                        const page = await browser.newPage();
-                        // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
-                        await page.setViewport({
-                            width: 1230,
-                            height: 810,
-                            deviceScaleFactor: 1,
-                        });
-                        // Set default timeout for all page operations to 90 seconds
-                        await page.setDefaultTimeout(pageTimeout);
+                        // The same helper opens the after-capture session further down, so
+                        // the two logins cannot drift apart. `loginpage` is this session's
+                        // screenshot stem; the after-capture uses `loginpage-after` so it
+                        // cannot overwrite the evidence from this one.
+                        const { page, appUrl, loginSkipped } = await openCloudAppOverviewPage(
+                            browser,
+                            options,
+                            appId,
+                            { imgDir, pageTimeout, loginPagePrefix: 'loginpage' }
+                        );
 
-                        // Qlik Sense cloud URL format:
-                        // https://<tenant FQDN>/sense/app/<app ID>>
-                        const appUrl = `https://${options.tenanturl}/sense/app/${appId}`;
-                        logger.debug(`App URL: ${appUrl}`);
-                        await Promise.all([
-                            page.goto(appUrl, { waitUntil: 'networkidle2', timeout: pageTimeout }),
-                        ]);
-                        await sleep(options.pagewait * 1000);
-                        await page.screenshot({ path: `${imgDir}/cloud/${appId}/loginpage-1.png` });
-                        // Should login be skipped?
-                        //
-                        // `skipLogin`, not `skiplogin`: Commander camel-cases a hyphenated long
-                        // flag, so `--skip-login` lands on `options.skipLogin`. Reading the
-                        // run-together spelling gave `undefined`, so this branch was unreachable
-                        // and login was always attempted - see issue #890.
-                        if (options.skipLogin === true) {
-                            activeLiveView()?.stepDone('signed in', 'skipped (--skip-login)');
-                            logger.info('Skipping login as --skip-login is set to true');
-                        } else {
-                            // Enter credentials
-                            // User
-                            await page.click(selectorLoginPageUserName, {
-                                button: 'left',
-                                delay: 10,
-                            });
-                            const user = `${options.logonuserid}`;
-                            await page.keyboard.type(user);
-                            // Pwd
-                            await page.click(selectorLoginPageUserPwd, {
-                                button: 'left',
-                                delay: 10,
-                            });
-                            await page.keyboard.type(options.logonpwd);
-                            await page.screenshot({
-                                path: `${imgDir}/cloud/${appId}/loginpage-2.png`,
-                            });
-                            // Click login button and wait for page to load
-                            await Promise.all([
-                                page.click(selectorLoginPageLoginButton, {
-                                    button: 'left',
-                                    delay: 10,
-                                }),
-                                page.waitForNavigation({
-                                    waitUntil: 'networkidle2',
-                                    timeout: pageTimeout,
-                                }),
-                            ]);
-                            await sleep(options.pagewait * 1000);
-
-                            // Only now is the session real: the login click
-                            // has navigated and the page has settled.
-                            activeLiveView()?.stepDone('signed in', options.logonuserid ?? '');
-                        }
+                        // Only now is the session real: the login click has
+                        // navigated and the page has settled.
+                        activeLiveView()?.stepDone(
+                            'signed in',
+                            loginSkipped ? 'skipped (--skip-login)' : (options.logonuserid ?? '')
+                        );
                         activeLiveView()?.appPhase('sheets');
                         // Take screenshot of app overview page
-                        await page.screenshot({ path: `${imgDir}/cloud/${appId}/overview-1.png` });
+                        await page.screenshot({
+                            path: `${imgDir}/cloud/${appId}/overview-before.png`,
+                        });
                         // Sort sheets
                         sortSheetsByRank(sheets);
 
@@ -350,6 +303,33 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
 
         // Update sheets in app
         const sheetsUpdated = await qscloudUpdateSheetThumbnails(createdFiles, appId, options);
+
+        // The sheets now point at their new thumbnails, which is the first moment an
+        // overview screenshot can show the result rather than the starting state. The
+        // main session closed long before this point - uploading and assigning both
+        // happen after the browser is gone - so showing the result costs a second
+        // sign-in. Opt out with --capture-overview-after false when running over many
+        // apps, where that login is paid once per app.
+        //
+        // Never allowed to fail the run: the thumbnails are already created, uploaded and
+        // assigned by now. Losing the evidence screenshot is worth a warning, not the
+        // failure of work that has already succeeded.
+        if (parseTrueFalseOption(options.captureOverviewAfter) && createdFiles.length > 0) {
+            try {
+                logger.info(
+                    `CLOUD APP: Signing in again to capture the app overview after thumbnails were applied`
+                );
+                const afterImagePath = await captureCloudOverviewAfter(options, appId, {
+                    imgDir,
+                    pageTimeout,
+                });
+                logger.verbose(`CLOUD APP: Wrote after-overview screenshot ${afterImagePath}`);
+            } catch (err) {
+                logger.warn(
+                    `CLOUD APP: Could not capture the app overview after the update. The thumbnails themselves were applied successfully. ${describeWithCauses(err)}`
+                );
+            }
+        }
 
         recordAppOutcome(appEntry, {
             sheetsUpdated,

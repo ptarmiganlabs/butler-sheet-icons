@@ -64,6 +64,7 @@ const ADVANCED_KEYS = [
     'headless',
     'pagewait',
     'imagedir',
+    'captureOverviewAfter',
     'senseVersion',
     'browser',
     'browserVersion',

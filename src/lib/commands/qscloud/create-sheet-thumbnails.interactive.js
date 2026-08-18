@@ -41,6 +41,7 @@ const ADVANCED_KEYS = [
     'schemaversion',
     'pagewait',
     'imagedir',
+    'captureOverviewAfter',
     'browser',
     'browserVersion',
     'browserPageTimeout',
