@@ -205,13 +205,20 @@ const renderTarget = (target) => {
  */
 const renderAuth = (auth) => {
     if (auth.apiUser) {
-        return [
+        const lines = [
             row(
                 'api user',
                 `${auth.apiUser.directory}\\${auth.apiUser.userId} via ${auth.certFile}`
             ),
-            row('logon user', `${auth.logonUser.directory}\\${auth.logonUser.userId}`),
         ];
+        // Only when the run actually logs into the web UI: qseow
+        // remove-sheet-icons works over the engine session alone, so it has
+        // no logon identity to report and must not render one.
+        if (auth.logonUser) {
+            lines.push(row('logon user', `${auth.logonUser.directory}\\${auth.logonUser.userId}`));
+        }
+
+        return lines;
     }
 
     const lines = [row('auth', 'API key')];
@@ -253,7 +260,18 @@ export const describeWrites = (report) => {
             ? ''
             : `, ${writes.publishedAppCount} of them published`;
 
-    return { kind: writes.kind, appCount, would: Boolean(report.dryRun), published };
+    return {
+        kind: writes.kind,
+        appCount,
+        would: Boolean(report.dryRun),
+        published,
+        // Whether the removal also deletes thumbnail files from app media
+        // libraries. Cloud does; QSEoW clears the engine property only and
+        // leaves the content library alone. The default is the narrower
+        // claim, so a caller that forgets the flag understates rather than
+        // promises a deletion that never happens.
+        mediaFiles: Boolean(writes.mediaFiles),
+    };
 };
 
 /**
@@ -278,8 +296,12 @@ const renderWrites = (report) => {
 
     if (writes.kind === 'clear-icons') {
         const verb = writes.would ? 'WOULD REMOVE' : 'WILL REMOVE';
+        const media = writes.mediaFiles ? ' and thumbnail media files' : '';
 
-        return `  ${verb} sheet icons and thumbnail media files from ${writes.appCount} app(s)`;
+        // The published suffix belongs here as much as on the thumbnail
+        // branch, and on QSEoW more so: a published app is the one whose save
+        // the removal will be refused by.
+        return `  ${verb} sheet icons${media} from ${writes.appCount} app(s)${writes.published}`;
     }
 
     const verb = writes.would ? 'WOULD OVERWRITE' : 'WILL OVERWRITE';

@@ -11,6 +11,7 @@ import { isDryRunOption, DRY_RUN_OPTION_ATTRIBUTE } from '../dry-run-option.js';
 /** Commands that change something and therefore declare --dry-run. */
 const DRY_RUN_COMMANDS = [
     'qseow create-sheet-thumbnails',
+    'qseow remove-sheet-icons',
     'qscloud create-sheet-thumbnails',
     'qscloud remove-sheet-icons',
 ];
@@ -59,6 +60,38 @@ describe('every leaf command has decided about --dry-run', () => {
         const leaf = leaves.find((entry) => entry.path === path);
 
         expect(leaf.command.options.some((option) => isDryRunOption(option))).toBe(false);
+    });
+
+    test('the description only promises rules the command actually declares', () => {
+        // The text is generated from the command's own option set, so a
+        // command without --exclude-sheet-*/--blur-sheet-* must not advertise
+        // them. The single fixed string this replaced was published verbatim
+        // into the doc site's generated option table, on a page whose prose
+        // said the command has no such rules.
+        for (const path of DRY_RUN_COMMANDS) {
+            const leaf = leaves.find((entry) => entry.path === path);
+            const option = leaf.command.options.find((entry) => isDryRunOption(entry));
+            const hasRules = leaf.command.options.some(
+                (entry) =>
+                    entry.long?.startsWith('--exclude-sheet-') ||
+                    entry.long?.startsWith('--blur-sheet-')
+            );
+
+            expect(option.description.includes('exclude and blur rule')).toBe(hasRules);
+        }
+    });
+
+    test('both removal commands describe a dry run without exclude or blur rules', () => {
+        // Named explicitly rather than only derived above, so the pair that
+        // shipped the wrong text stays pinned by name.
+        for (const path of ['qseow remove-sheet-icons', 'qscloud remove-sheet-icons']) {
+            const leaf = leaves.find((entry) => entry.path === path);
+            const option = leaf.command.options.find((entry) => isDryRunOption(entry));
+
+            expect(option.description).toContain('connect, resolve apps, list sheets - but');
+            expect(option.description).not.toContain('exclude');
+            expect(option.description).not.toContain('blur');
+        }
     });
 
     test('Commander stores the flag under the attribute the handlers read', () => {

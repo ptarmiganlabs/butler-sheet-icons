@@ -5,24 +5,21 @@ import QlikSaas from './cloud-repo.js';
 import { qscloudTestConnection } from './cloud-test-connection.js';
 import { CloudError } from '../util/errors.js';
 import {
-    runOverSheets,
     sortSheetsByRank,
     saveIfChanged,
     getSheetList,
     SHEET_LIST_FIELDS_EXTENDED,
-    SHEET_SKIPPED,
 } from '../util/sheet-list.js';
+import { clearSheetIcons, planSheetIconRemoval } from '../util/sheet-icon-removal.js';
 import { withEngineSession } from '../util/engine-session.js';
 import { resolveCloudAppSelection } from './cloud-app-selection.js';
-import { CLEAR_REASON } from '../util/sheet-decision-reasons.js';
 import {
     runOverAppsWithReport,
     announceDryRun,
     emitRunHeader,
     addAppToReport,
-    recordSheetDecision,
 } from '../util/run-report.js';
-import { sheetProgressLine, appProgressLine } from '../util/run-report-render.js';
+import { appProgressLine } from '../util/run-report-render.js';
 import { logError } from '../util/log-error.js';
 
 /**
@@ -117,74 +114,12 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = n
                     // Sort sheets
                     sortSheetsByRank(sheets);
 
-                    sheetRun = await runOverSheets(
-                        sheets,
-                        {
-                            logPrefix: 'CLOUD REMOVE SHEET ICONS',
-                            appId,
-                            action: 'remove icons for',
-                            ErrorClass: CloudError,
-                        },
-                        async (sheet, iSheetNum) => {
-                            logger.verbose(
-                                `Removing icon for sheet ${iSheetNum}: Name '${sheet.qMeta.title}', ID ${sheet.qInfo.qId}, description '${sheet.qMeta.description}'`
-                            );
-
-                            // Get properties of current sheet
-                            const sheetObj = await app.getObject(sheet.qInfo.qId);
-                            const sheetProperties = await sheetObj.getProperties();
-
-                            // A sheet without the thumbnail structure has no icon
-                            // to clear - failing the whole app over it turned a
-                            // no-op into an error, and made the dry run predict
-                            // success for exactly the input that broke the run.
-                            if (!sheetProperties?.thumbnail?.qStaticContentUrlDef) {
-                                if (appEntry) {
-                                    recordSheetDecision(appEntry, {
-                                        n: iSheetNum,
-                                        title: sheet?.qMeta?.title,
-                                        action: 'clear',
-                                        reason: CLEAR_REASON.NO_ICON,
-                                    });
-                                }
-                                logger.info(
-                                    sheetProgressLine({
-                                        n: iSheetNum,
-                                        total: sheets.length,
-                                        label: 'no icon',
-                                        title: sheet?.qMeta?.title,
-                                        reason: CLEAR_REASON.NO_ICON,
-                                    })
-                                );
-
-                                return SHEET_SKIPPED;
-                            }
-
-                            // Clear sheet icon
-                            sheetProperties.thumbnail.qStaticContentUrlDef.qUrl = '';
-
-                            const res = await sheetObj.setProperties(sheetProperties);
-                            logger.debug(`Set thumbnail result: ${JSON.stringify(res, null, 2)}`);
-
-                            // Recorded only after the write went through, so
-                            // the row states a fact.
-                            if (appEntry) {
-                                recordSheetDecision(appEntry, {
-                                    n: iSheetNum,
-                                    title: sheet?.qMeta?.title,
-                                    action: 'clear',
-                                });
-                            }
-                            logger.info(
-                                sheetProgressLine({
-                                    n: iSheetNum,
-                                    total: sheets.length,
-                                    label: 'cleared',
-                                    title: sheet?.qMeta?.title,
-                                })
-                            );
-                        }
-                    );
+                    sheetRun = await clearSheetIcons(app, sheets, {
+                        logPrefix: 'CLOUD REMOVE SHEET ICONS',
+                        appId,
+                        ErrorClass: CloudError,
+                        appEntry,
+                    });
                 }
 
                 // Saved inside the session callback: withEngineSession closes the session once
@@ -262,10 +197,11 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = n
  * Plans icon removal for one Cloud app without changing anything: the dry-run
  * twin of `removeSheetIconsCloudApp`.
  *
- * Reads the same sheet list in the same order, plus each sheet's current
- * thumbnail property so the report can say which sheets actually carry an icon
- * - a read the real run skips because it clears unconditionally. Also counts
- * the thumbnail media files the real run would delete afterwards. Writes
+ * Reads the same sheet list in the same order and makes the same per-sheet
+ * engine reads the real run makes - `getObject` then `getProperties` - so the
+ * plan fails on exactly the sheets the run would fail on, and reports which
+ * sheets actually carry an icon from the same property the run reads. Also
+ * counts the thumbnail media files the real run would delete afterwards. Writes
  * nothing: no `setProperties`, no save, no media `Delete`.
  *
  * @param {string} appId - The Cloud app to plan.
@@ -314,38 +250,14 @@ const planRemoveSheetIconsCloudApp = async (appId, saasInstance, options, report
 
             sortSheetsByRank(sheets);
 
-            // Through runOverSheets, like the real run: one unreadable sheet
+            // Through the shared loop, like the real run: one unreadable sheet
             // fails alone rather than aborting the remaining rows.
-            const sheetRun = await runOverSheets(
-                sheets,
-                {
-                    logPrefix: 'CLOUD PLAN REMOVE ICONS',
-                    appId,
-                    action: 'plan icon removal for',
-                    ErrorClass: CloudError,
-                },
-                async (sheet, iSheetNum) => {
-                    // The real run clears every sheet unconditionally, so the
-                    // action is always `clear`; the reason column reports the
-                    // sheets where that clear is already a no-op. The sheet
-                    // list projection already carries /thumbnail, so prefer it
-                    // and only fall back to a per-sheet engine read when the
-                    // engine omitted the field from the projection.
-                    let iconUrl = sheet?.qData?.thumbnail?.qStaticContentUrlDef?.qUrl;
-                    if (sheet?.qData?.thumbnail === undefined) {
-                        const sheetObj = await app.getObject(sheet.qInfo.qId);
-                        const sheetProperties = await sheetObj.getProperties();
-                        iconUrl = sheetProperties?.thumbnail?.qStaticContentUrlDef?.qUrl;
-                    }
-
-                    recordSheetDecision(appEntry, {
-                        n: iSheetNum,
-                        title: sheet?.qMeta?.title,
-                        action: 'clear',
-                        reason: iconUrl ? null : CLEAR_REASON.NO_ICON,
-                    });
-                }
-            );
+            const sheetRun = await planSheetIconRemoval(app, sheets, {
+                logPrefix: 'CLOUD PLAN REMOVE ICONS',
+                appId,
+                ErrorClass: CloudError,
+                appEntry,
+            });
 
             sheetRun.assertAllProcessed();
 
@@ -447,7 +359,10 @@ export const qscloudRemoveSheetIcons = async (options) => {
                 // API key only: this command never drives a browser, so there
                 // is no logon identity to report.
                 auth: { apiKey: true },
-                writes: { kind: 'clear-icons' },
+                // mediaFiles: this platform also deletes the thumbnail files
+                // from the app's media library; the QSEoW twin does not, so
+                // the warning line renders from this flag, not the kind.
+                writes: { kind: 'clear-icons', mediaFiles: true },
             },
             logPrefix: { plan: 'CLOUD PLAN REMOVE ICONS', process: 'CLOUD REMOVE SHEET ICONS' },
             emptySelectionHint: 'Check the --appid and --collectionid options.',

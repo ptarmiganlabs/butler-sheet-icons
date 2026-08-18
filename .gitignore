@@ -98,5 +98,11 @@ build.cjs
 sea-prep.blob
 butler-sheet-icons
 
+# Demo recording pipeline (demo/README.md): real credentials and rendered
+# multi-megabyte outputs stay local; cast masters and snapshots are
+# committed.
+demo/demo.env
+demo/output/
+
 # Added by ggshield
 .cache_ggshield

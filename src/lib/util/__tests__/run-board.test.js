@@ -408,6 +408,55 @@ describe('the plan block', () => {
         expect(dryPlan).toContain('would be overwritten');
     });
 
+    test('a removal without media files renders an api user alone and the narrower warning', () => {
+        // The qseow remove-sheet-icons shape: an API identity but no web UI
+        // logon, and a removal that leaves the content library alone.
+        const report = {
+            command: 'qseow remove-sheet-icons',
+            dryRun: false,
+            selection: { named: 1, fromSelector: 0, selector: null, total: 1 },
+            plan: {
+                target: {
+                    platform: 'qseow',
+                    host: 'sense.example.com',
+                    port: null,
+                    secure: true,
+                    prefix: '',
+                    enginePort: '4747',
+                    qrsPort: '4242',
+                    schemaVersion: '12.612.0',
+                },
+                auth: {
+                    apiUser: { directory: 'Internal', userId: 'sa_api' },
+                    certFile: './cert/client.pem',
+                },
+                writes: { kind: 'clear-icons' },
+            },
+            apps: [],
+        };
+
+        const plan = stripAnsi(renderBoardPlan(report, uniCtx()));
+
+        expect(plan).toContain('Internal\\sa_api');
+        expect(plan).not.toContain('logon user');
+        expect(plan).toContain('sheet icons will be removed from 1 app(s)');
+        expect(plan).not.toContain('thumbnail media files');
+    });
+
+    test('a removal warning names how many selected apps are published', () => {
+        const report = {
+            command: 'qseow remove-sheet-icons',
+            dryRun: true,
+            selection: { named: 3, fromSelector: 0, selector: null, total: 3 },
+            plan: { writes: { kind: 'clear-icons', publishedAppCount: 2 } },
+            apps: [],
+        };
+
+        const plan = stripAnsi(renderBoardPlan(report, uniCtx()));
+
+        expect(plan).toContain('sheet icons would be removed from 3 app(s), 2 of them published');
+    });
+
     test('suppresses the writes warning for an empty selection', () => {
         const report = makeReport();
         report.selection = { named: 0, fromSelector: 0, selector: null, total: 0 };
