@@ -201,6 +201,9 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
      */
     function buildMockPage() {
         return {
+            // Sheet-loading detection (#1119). Defaults to "not loading" so every
+            // existing test describes a sheet that had finished rendering.
+            evaluate: jest.fn().mockResolvedValue(false),
             setViewport: jest.fn().mockResolvedValue(true),
             setDefaultTimeout: jest.fn().mockResolvedValue(true),
             goto: jest.fn().mockResolvedValue(true),
@@ -876,6 +879,45 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             await qseowProcessApp('test-app-id', defaultOptions);
 
             expect(enigma.create).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    // Issue #1119. A short --pagewait can have the shutter fall while Qlik Sense is still
+    // opening the sheet, and the loading screen is then uploaded as the thumbnail. The run
+    // reported that as a success, which is the part this makes impossible.
+    describe('a thumbnail captured while the sheet was still loading (#1119)', () => {
+        test('says so, naming the sheet and the option that fixes it', async () => {
+            const browser = setupHappyPath();
+            browser._page.evaluate.mockResolvedValue(true);
+
+            await qseowProcessApp('test-app-id', { ...defaultOptions, pagewait: 1 });
+
+            const warnings = logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(warnings).toContain('was still opening when its thumbnail was captured');
+            expect(warnings).toContain('--pagewait (currently 1)');
+        });
+
+        test('still captures and uploads it, rather than quietly dropping the sheet', async () => {
+            const browser = setupHappyPath();
+            browser._page.evaluate.mockResolvedValue(true);
+
+            await qseowProcessApp('test-app-id', defaultOptions);
+
+            // Detection reports; it does not change what a run does. Silently skipping the
+            // sheet would trade one invisible outcome for another.
+            expect(browser._page.screenshot).toHaveBeenCalled();
+            expect(qseowUploadToContentLibrary).toHaveBeenCalled();
+            expect(qseowUpdateSheetThumbnails).toHaveBeenCalled();
+        });
+
+        test('stays quiet when the sheet had finished rendering', async () => {
+            const browser = setupHappyPath();
+            browser._page.evaluate.mockResolvedValue(false);
+
+            await qseowProcessApp('test-app-id', defaultOptions);
+
+            const warnings = logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(warnings).not.toContain('still opening');
         });
     });
 
