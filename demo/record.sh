@@ -313,23 +313,18 @@ render_one() {
     # capped. Both get a long final frame: the last screen is the answer the
     # viewer came for, and a loop that snaps back before it can be read is the
     # same failure as playing too fast.
-    # The short casts are also rendered into a taller window than they were
-    # recorded in. A dry run emits about 53 lines, so in the recorded 36 rows
-    # the top third - the run header and the first half of the PLAN block,
-    # which is where the server, the identities and the rules are - has
-    # scrolled away before the run ends, and the frame a looping viewer stares
-    # at is missing the part that says what the tool was about to do. agg
-    # replays the recorded byte stream into a virtual terminal of whatever
-    # height it is given, so this costs nothing and needs no re-recording.
-    # Generous rather than exact: a few blank rows are harmless, a rule or two
-    # more in the plan is not worth another silent truncation.
-    #
-    # The real run keeps its recorded height: it renders the live view, which
-    # repaints inside a fixed region and would only gain empty space.
+    # Everything renders at its recorded height, which keeps the frame
+    # landscape and web-shaped. agg can replay the byte stream into a taller
+    # virtual terminal, and doing so would fit a whole dry run on one screen -
+    # about 53 lines against the recorded 36 - so the final frame would hold
+    # the run header and the full PLAN block instead of letting the top third
+    # scroll away. That was tried and rejected: it makes the two short assets
+    # portrait (1175x1366), which is the wrong shape for a doc-site page. The
+    # slow reveal below is what lets a viewer read the part that scrolls.
     local pacing
     case "$name" in
         qseow-real-run) pacing="--idle-time-limit 1.5 --speed 1 --last-frame-duration 6" ;;
-        *) pacing="--idle-time-limit 1.5 --speed 0.15 --last-frame-duration 8 --rows 60" ;;
+        *) pacing="--idle-time-limit 1.5 --speed 0.15 --last-frame-duration 8" ;;
     esac
 
     # Word splitting on $pacing is intended - it is a fixed literal above.
