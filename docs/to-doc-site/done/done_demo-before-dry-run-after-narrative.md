@@ -1,3 +1,26 @@
+<!--
+PUBLISHED to `next` on 2026-08-18, butler-sheet-icons-docs PR #110.
+
+Parts 1 and 2 published: the front page now reads before -> plan -> after with the dry-run
+recording as the middle panel, and the 3.5 MB `demo-animated.gif` is replaced by an 83 KB WebM
+with a 109 KB MP4 fallback. The overview screenshots were regenerated from the same pipeline run.
+
+Part 3 (vendoring an asciinema player component) was NOT done. It remains low priority, as the
+parent issue rates it.
+
+CORRECTION. This draft states the published overview screenshots are "hand-made retina grabs
+(roughly 2314x1266)" and warns the regenerated pair must not be visibly worse, citing #735. The
+published images were in fact 1352x611; the regenerated pair is 1230x810 and shows more of the
+sheet list. The premise was wrong, so the concern it raised did not apply and #735 was not a
+blocker for this change.
+
+DECIDED while publishing. The draft does not say what shape the video should be. Rendering the
+short casts into a taller virtual terminal fits a whole dry run in one frame - so the final frame
+holds the full plan block - but makes the asset portrait (1175x1366). That was tried and rejected
+as the wrong shape for a doc-site page; all three renders are landscape 1175x829, and the slow
+reveal plus the held final frame are what let a viewer read the part that scrolls past.
+-->
+
 # Front page: the before / dry-run / after narrative, and retiring the GIF
 
 This draft covers the doc site's front page (`docs/index.md` in the doc site repo) and is the publishing half of issues #1000/#1001/#1003. Unlike most drafts here, the work lands almost entirely in the **doc site repository** — this file describes precisely what changes and where the assets come from, so the change is reproducible.
