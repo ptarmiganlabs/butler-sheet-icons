@@ -16,6 +16,12 @@ for the thumbnail structure while the planner tested the URL, so a re-run rewrot
 already-cleared sheet (#1113). The sentence was therefore left OUT of the published page. #1113
 was then fixed in the same pull request that merged this draft (#1114), so the claim is now TRUE.
 The live page still omits it; adding it back is a small, safe follow-up.
+
+OUTDATED TRANSCRIPT (#1115). The sample dry-run output below ends in "Summary: 1 app(s), 9
+sheets. 9 icon(s) would be cleared, 0 skipped." That summary was wrong - it counted the one
+sheet with no icon among the nine that would be cleared - and the line now reads "8 icon(s)
+would be cleared, 1 with no icon, 0 skipped." Do not reuse this transcript; see the
+remove-sheet-icons-dry-run-summary-counts.md draft.
 -->
 
 # Removing sheet icons on Qlik Sense Enterprise on Windows
