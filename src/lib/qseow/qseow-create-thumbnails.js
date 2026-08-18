@@ -17,6 +17,7 @@ import {
     announceDryRun,
     emitRunHeader,
     startLiveRunView,
+    selectionCounts,
     buildSheetRules,
     buildSheetPartSection,
     buildBrowserPlanSection,
@@ -144,16 +145,25 @@ export const qseowCreateThumbnails = async (options) => {
         // degrades to nulls rather than failing the run.
         const planFacts = await readQseowPlanFacts(options, appIdsToProcess);
 
-        // Resolved only now, after every pre-run read: the row states what the
-        // loop will actually iterate, not an intermediate list.
-        live?.stepDone(
-            'app list',
-            [
-                `${new Set(appIdsToProcess).size} apps`,
-                `${namedAppIds.length} named`,
-                ...(useTag ? [`${taggedAppIds.length} tagged`] : []),
-            ].join(live.sep)
-        );
+        // Resolved only now, after every pre-run read: the row states what
+        // the loop will actually iterate. Counts come from the same
+        // deduplicating rule the report's plan block uses, so the two rows
+        // cannot disagree about a repeated --appid - and an empty selection
+        // resolves the row as FAILED, because the very next thing the run
+        // does is abort with "No apps to process" (issue #1110).
+        if (live) {
+            const counts = selectionCounts({ namedAppIds, selectorAppIds: taggedAppIds });
+            const detail = [
+                `${counts.total} apps`,
+                `${counts.named} named`,
+                ...(useTag ? [`${counts.fromSelector} tagged`] : []),
+            ].join(live.sep);
+            if (counts.total === 0) {
+                live.stepFailed('app list', detail);
+            } else {
+                live.stepDone('app list', detail);
+            }
+        }
 
         return await runOverAppsWithReport({
             command: 'qseow create-sheet-thumbnails',

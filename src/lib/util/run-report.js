@@ -15,7 +15,13 @@ import {
     renderBoardAppRow,
     renderBoardVerdict,
 } from './run-board.js';
-import { createRunLiveView, activateLiveView, activeLiveView } from './run-live.js';
+import {
+    createRunLiveView,
+    activateLiveView,
+    activeLiveView,
+    restoreLiveTerminal,
+    findConsoleTransport,
+} from './run-live.js';
 import { toOptionValueList } from './option-values.js';
 import { measureImageFiles } from './image-dir.js';
 
@@ -117,9 +123,11 @@ const decideRung = (headless) =>
  * @returns {void}
  */
 const withConsoleSilenced = (emit) => {
-    // Optional chaining: injected test loggers have no transports array, and
-    // a missing console transport must mean "nothing to silence", not a crash.
-    const consoleTransport = logger.transports?.find((transport) => transport.name === 'console');
+    // The shared lookup from run-live.js, so this per-block silencing and
+    // the live view's run-long silencing can never disagree about which
+    // transport is the console. A missing transport (injected test loggers)
+    // means "nothing to silence", not a crash.
+    const consoleTransport = findConsoleTransport(logger);
 
     if (!consoleTransport) {
         emit();
@@ -260,6 +268,14 @@ export const emitRunHeader = ({ version, jobLabel, options = {} }) => {
  * @returns {object|null} The active live view, or null.
  */
 export const startLiveRunView = ({ rung, dryRun = false }) => {
+    // Any stale view is stopped before this run decides anything - even on
+    // the declined paths. Creating a new view while an old one still held
+    // the console would make the new one capture "silenced" as the state to
+    // restore, permanently silencing the transport when it stops (issue
+    // #1110). No production flow leaves a view active here; this makes that
+    // a guarantee instead of an observation.
+    restoreLiveTerminal();
+
     if (rung !== RUNG.LIVE || dryRun) {
         return null;
     }
@@ -494,13 +510,33 @@ const markAppFailed = (report, appId) => {
  * @returns {void}
  */
 export const recordSelection = (report, { namedAppIds, selectorAppIds, selector }) => {
+    report.selection = {
+        ...selectionCounts({ namedAppIds, selectorAppIds }),
+        selector,
+    };
+};
+
+/**
+ * Deduplicated selection counts from the raw id lists.
+ *
+ * The one counting rule (issue #1110): `recordSelection` uses it for the
+ * report, and the workers use it for the live `app list` row - previously
+ * the workers counted raw list lengths, so a repeated `--appid` made the
+ * live row and the plan block state different named-counts on one screen.
+ *
+ * @param {object} lists - The raw id lists.
+ * @param {string[]} lists.namedAppIds - Apps named directly by `--appid`.
+ * @param {string[]} lists.selectorAppIds - Apps contributed by the selector.
+ *
+ * @returns {{named: number, fromSelector: number, total: number}} The counts.
+ */
+export const selectionCounts = ({ namedAppIds, selectorAppIds }) => {
     const named = new Set(namedAppIds);
     const fromSelector = new Set(selectorAppIds);
 
-    report.selection = {
+    return {
         named: named.size,
         fromSelector: fromSelector.size,
-        selector,
         total: new Set([...named, ...fromSelector]).size,
     };
 };
@@ -882,13 +918,7 @@ export const runOverAppsWithReport = async ({
         suppressOnOff: !dryRun,
     });
 
-    const totalApps = new Set(appIds).size;
     const removal = isRemovalReport(report);
-
-    // Counted here rather than taken from the report: a failed app may or may
-    // not have an entry yet when its block opens, and the live app number
-    // must match the `app i/n` line the loop logs.
-    let liveAppNumber = 0;
 
     const result = await runOverApps(
         appIds,
@@ -909,10 +939,12 @@ export const runOverAppsWithReport = async ({
                       throw err;
                   }
               }
-            : async (appId) => {
+            : async (appId, position) => {
                   const appStartedAt = Date.now();
-                  liveAppNumber += 1;
-                  activeLiveView()?.appStarted({ n: liveAppNumber, total: totalApps, id: appId });
+                  // The loop's own position, not a re-count: one owner for
+                  // the number the log line, the live block and the committed
+                  // row all state (issue #1110).
+                  activeLiveView()?.appStarted({ n: position.n, total: position.total, id: appId });
                   try {
                       const result = await processApp(appId, report);
 
@@ -944,7 +976,7 @@ export const runOverAppsWithReport = async ({
                               // appended raw - one renderer, two carriers.
                               const row = renderBoardAppRow(
                                   entry,
-                                  { n: report.apps.length, total: totalApps, removal },
+                                  { n: position.n, total: position.total, removal },
                                   ctx
                               );
                               const live = activeLiveView();

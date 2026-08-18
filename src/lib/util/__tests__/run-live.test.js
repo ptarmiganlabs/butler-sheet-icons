@@ -313,18 +313,27 @@ describe('the per-app block', () => {
         expect(last.endsWith('BOARD APP ROW\n')).toBe(true);
     });
 
-    test('a failed app commits the still-pending step as failed instead of leaving it spinning', () => {
+    test('a failed app drops its pending step so a later app can still resolve the row', () => {
+        // Committing the row as failed would latch it run-wide and
+        // misattribute one app's timeout to the step itself (issue #1110);
+        // the app's own red board row already carries the failure.
         const { stream, writes } = fakeTty();
         const view = createRunLiveView({ stream, ctx: uniCtx(), timer: manualTimer() });
         const entry = appEntry({ failed: true });
 
-        view.appStarted({ n: 1, total: 1, id: 'app-1' });
+        view.appStarted({ n: 1, total: 2, id: 'app-1' });
         view.beginStep('signed in');
         view.appFinished(entry, 'FAILED ROW\n');
 
-        const joined = writes.join('');
-        expect(joined).toContain(`${UNICODE_SYMBOLS.failed} signed in`);
-        expect(joined).toContain('FAILED ROW');
+        expect(writes.join('')).not.toContain(`${UNICODE_SYMBOLS.failed} signed in`);
+        expect(writes.join('')).toContain('FAILED ROW');
+
+        // App 2 signs in fine and the row resolves honestly.
+        view.appStarted({ n: 2, total: 2, id: 'app-2' });
+        view.beginStep('signed in');
+        view.stepDone('signed in', 'LAB\\user');
+
+        expect(writes.join('')).toContain(`${UNICODE_SYMBOLS.done} signed in`);
     });
 });
 
@@ -350,6 +359,51 @@ describe('download progress (the two-writers hazard)', () => {
         view.downloadProgress(97.4);
 
         expect(stripAnsi(writes.at(-1))).toContain('downloading 97%');
+    });
+
+    test('a non-finite percentage falls back to the plain phase label, never NaN%', () => {
+        // A download response without a Content-Length yields NaN, which the
+        // suppressed cli-progress bar guards against - the view must too
+        // (issue #1110).
+        const { stream, writes } = fakeTty();
+        const view = createRunLiveView({ stream, ctx: uniCtx(), timer: manualTimer() });
+
+        view.appStarted({ n: 1, total: 1, id: 'app-1' });
+        view.appPhase('browser');
+        view.downloadProgress(NaN);
+
+        const frame = stripAnsi(writes.at(-1));
+        expect(frame).not.toContain('NaN');
+        expect(frame).toContain('launching browser');
+    });
+
+    test('a repaint whose rendered frame is unchanged writes nothing', () => {
+        // The per-chunk download callbacks and the frame timer otherwise
+        // rewrite an identical region hundreds of times a second - on
+        // conhost each one a blocking console write (issue #1110).
+        const { stream, writes } = fakeTty();
+        const timer = manualTimer();
+        const view = createRunLiveView({ stream, ctx: uniCtx(), timer });
+        const entry = appEntry();
+
+        view.appStarted({ n: 1, total: 1, id: 'app-1' });
+        view.appOpened(entry);
+        view.appPhase('sheets');
+        entry.sheets.push({ n: 1, title: 'One', action: 'update', reason: null });
+        view.sheetRecorded(entry);
+
+        // The sheets-phase frame has no spinner, so ticks change nothing.
+        const frameCount = writes.length;
+        timer.tick();
+        timer.tick();
+        expect(writes).toHaveLength(frameCount);
+
+        // Same rounded percentage: one write, not one per chunk.
+        view.appPhase('browser');
+        view.downloadProgress(42.2);
+        const afterFirstPct = writes.length;
+        view.downloadProgress(42.4);
+        expect(writes).toHaveLength(afterFirstPct);
     });
 
     test('liveDownloadBar adapts the cli-progress surface onto the view', () => {
@@ -449,6 +503,33 @@ describe('terminal restore', () => {
     });
 });
 
+describe('committed log lines', () => {
+    test('a multi-line message commits in one write, with the timestamp on the first line only', () => {
+        const { stream, writes } = fakeTty();
+        const view = createRunLiveView({ stream, ctx: uniCtx(), timer: manualTimer() });
+
+        const frameCount = writes.length;
+        view.commitLogLine('error', 'boom\n  at somewhere\n  at elsewhere', '2026-08-18T09:00:00Z');
+
+        expect(writes).toHaveLength(frameCount + 1);
+        const text = stripAnsi(writes.at(-1));
+        expect(text).toContain('2026-08-18T09:00:00Z error: boom');
+        expect(text).toContain('at somewhere');
+        // The stamp appears once, not once per line.
+        expect(text.match(/2026-08-18T09:00:00Z/g)).toHaveLength(1);
+    });
+
+    test('a newline-terminated message commits no stray bare level line', () => {
+        const { stream, writes } = fakeTty();
+        const view = createRunLiveView({ stream, ctx: uniCtx(), timer: manualTimer() });
+
+        view.commitLogLine('error', 'boom\n');
+
+        const lines = stripAnsi(writes.at(-1)).split('\n');
+        expect(lines.filter((line) => line.trim() === 'error:')).toHaveLength(0);
+    });
+});
+
 describe('console routing through a real winston logger', () => {
     test('silences the console transport, commits warn and error lines, drops info, restores on stop', () => {
         const consoleTransport = new winston.transports.Console({ level: 'info' });
@@ -481,6 +562,22 @@ describe('console routing through a real winston logger', () => {
 });
 
 describe('the ASCII symbol set', () => {
+    test('pending and committed step rows share a label column despite marker widths', () => {
+        // ASCII spinner frames are 1 column while [ok]/[!!] are 4; without
+        // marker padding a row jumped three columns when it resolved
+        // (issue #1110).
+        const { stream, writes } = fakeTty();
+        const view = createRunLiveView({ stream, ctx: asciiCtx(), timer: manualTimer() });
+
+        view.beginStep('certificates');
+        const pendingCol = stripAnsi(writes.at(-1)).indexOf('certificates');
+        view.stepDone('certificates', 'client.pem');
+        const committedCol = stripAnsi(writes.at(-1)).indexOf('certificates');
+
+        expect(pendingCol).toBeGreaterThan(0);
+        expect(committedCol).toBe(pendingCol);
+    });
+
     test('a full flow emits only ASCII outside the control sequences', () => {
         const { stream, writes } = fakeTty();
         const view = createRunLiveView({ stream, ctx: asciiCtx(), timer: manualTimer() });
