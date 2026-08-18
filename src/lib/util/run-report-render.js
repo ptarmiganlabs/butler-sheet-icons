@@ -267,6 +267,15 @@ export const describeWrites = (report) => {
 const renderWrites = (report) => {
     const writes = describeWrites(report);
 
+    // Null-safe by contract, not by the caller's guard: renderRunPlanLines
+    // happens to pre-filter with the same predicate, but this function must
+    // not crash the plan block if the two ever drift or a new caller skips
+    // the guard - the board's warningLine already honours the null the same
+    // way.
+    if (!writes) {
+        return '';
+    }
+
     if (writes.kind === 'clear-icons') {
         const verb = writes.would ? 'WOULD REMOVE' : 'WILL REMOVE';
 

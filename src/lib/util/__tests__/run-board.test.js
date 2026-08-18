@@ -216,6 +216,46 @@ describe('the sheet strip', () => {
         ]);
     });
 
+    test('a decomposed (NFD) Korean name measures like its NFC form', () => {
+        // Hangul Jamo medial vowels and trailing consonants are zero-width:
+        // they combine with the wide leading consonant. If they counted as
+        // one column each, an NFD name would under-pad and shift its row's
+        // strip band relative to the visually identical NFC name.
+        const base = {
+            id: 'k',
+            sheetCount: 1,
+            sheets: [{ n: 1, title: 'x', action: 'update', reason: null }],
+            failed: false,
+        };
+        const nfc = { ...base, name: '한글'.normalize('NFC') };
+        const nfd = { ...base, name: '한글'.normalize('NFD') };
+
+        const ctx = uniCtx();
+        const padRun = (app) =>
+            renderBoardAppRow(app, { n: 1, total: 1, removal: false }, ctx).match(/ +(?=█)/)[0]
+                .length;
+
+        expect(padRun(nfd)).toBe(padRun(nfc));
+    });
+
+    test('a row with a non-positive or missing sheet number cannot corrupt the strip', () => {
+        // n: 0 must not write off the left edge (and then read as a
+        // fabricated failed cell); a missing n falls back to array position.
+        expect(
+            stripForApp(
+                { id: 'z', sheetCount: 1, sheets: [{ n: 0, action: 'update' }], failed: false },
+                UNICODE_SYMBOLS
+            ).map((cell) => cell.kind)
+        ).toEqual(['captured']);
+
+        expect(
+            stripForApp(
+                { id: 'z2', sheetCount: 2, sheets: [{ action: 'update' }, { action: 'blur' }] },
+                UNICODE_SYMBOLS
+            ).map((cell) => cell.kind)
+        ).toEqual(['captured', 'blurred']);
+    });
+
     test('a clear with no icon renders as excluded, matching the legend vocabulary', () => {
         const app = {
             id: 'app-r',
@@ -446,6 +486,22 @@ describe('the verdict block', () => {
         // the failed glyph, and the legend must say two, not one.
         expect(verdict).toContain('2 not processed');
         expect(verdict).not.toContain('app(s) failed');
+    });
+
+    test('an app that failed before sheet enumeration still appears in the legend', () => {
+        // A markAppFailed-shaped entry (no sheetCount, no sheets) contributes
+        // zero cells; the legend must fall back to the app count rather than
+        // showing no failed entry at all.
+        const report = makeReport();
+        report.apps = [
+            report.apps[0],
+            { id: 'app-dead', name: null, sheetCount: null, sheets: [], failed: true },
+        ];
+
+        const verdict = stripAnsi(renderBoardVerdict(report, uniCtx()));
+
+        expect(verdict).toContain('1 app(s) failed');
+        expect(verdict).not.toContain('not processed');
     });
 
     test('counts from the recorded sheets and names the failure', () => {

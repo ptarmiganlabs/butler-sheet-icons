@@ -100,6 +100,7 @@ const isWideCodePoint = (cp) =>
     cp >= 0x1100 &&
     (cp <= 0x115f ||
         (cp >= 0x2e80 && cp <= 0xa4cf && cp !== 0x303f) ||
+        (cp >= 0xa960 && cp <= 0xa97f) ||
         (cp >= 0xac00 && cp <= 0xd7a3) ||
         (cp >= 0xf900 && cp <= 0xfaff) ||
         (cp >= 0xfe30 && cp <= 0xfe4f) ||
@@ -107,7 +108,12 @@ const isWideCodePoint = (cp) =>
         (cp >= 0xffe0 && cp <= 0xffe6) ||
         (cp >= 0x20000 && cp <= 0x3fffd));
 
-const ZERO_WIDTH = /\p{Mn}|\p{Me}|\u200d/u;
+// Zero-width: combining marks, the zero-width space/joiner family and BOM,
+// and - easy to miss - Hangul Jamo medial vowels and trailing consonants
+// (U+1160-U+11FF): wcwidth renders them zero because they combine with the
+// wide leading consonant, so a decomposed (NFD) Korean name must measure the
+// same as its NFC form or its row's strip band drifts.
+const ZERO_WIDTH = /\p{Mn}|\p{Me}|[\u1160-\u11ff\u200b-\u200f\ufeff]/u;
 
 /**
  * Display width of a string in terminal columns.
@@ -470,16 +476,20 @@ export const renderBoardPlan = (report, ctx) => {
 };
 
 /**
- * The sheet strip for one app: one glyph per recorded sheet, in sheet order.
+ * The sheet strip for one app: one glyph per sheet *position*, placed by the
+ * recorded 1-based sheet number.
  *
  * A mistyped `--exclude-sheet-tag` shows as a row of solid blocks where the
  * operator expected gaps, and a mistyped `--blur-sheet-tag` as a row with no
  * blur glyph in it - per app, so a tag that matched in two apps and not the
  * other five is obvious at a glance.
  *
- * When the app failed with sheets unrecorded, the missing tail is filled with
- * the failed glyph: those sheets were not captured, and a shortened strip
- * would read as a smaller app rather than a broken run.
+ * Every position no decision was recorded for renders as the failed glyph -
+ * unconditionally, not only on failed apps: those sheets were not processed,
+ * and a shortened or compacted strip would read as a smaller app rather than
+ * a broken run. This covers a failed app's missing tail and, because the
+ * sheet loop survives a mid-app failure and keeps recording later sheets,
+ * gaps in the middle of the strip.
  *
  * Exported for the equal-width property test - the strip must be the same
  * width in both symbol sets, which is what `symbols.js` guarantees per glyph
@@ -493,40 +503,44 @@ export const renderBoardPlan = (report, ctx) => {
  */
 export const stripForApp = (appEntry, symbols) => {
     const failedCell = { glyph: symbols.stripFailed, kind: 'failed' };
-    const cellFor = (sheet) => {
-        // A clear with nothing to clear is the removal run's "excluded":
-        // rendering it as a solid block would show a wall of cleared icons
-        // for an app that was mostly empty, and would contradict the
-        // verdict's cleared count for the same run.
-        if (sheet.action === 'clear') {
-            return sheet.reason === CLEAR_REASON.NO_ICON
-                ? { glyph: symbols.stripExcluded, kind: 'excluded' }
-                : { glyph: symbols.stripCaptured, kind: 'captured' };
-        }
-
-        const glyphFor = {
-            update: { glyph: symbols.stripCaptured, kind: 'captured' },
-            blur: { glyph: symbols.stripBlurred, kind: 'blurred' },
-            skip: { glyph: symbols.stripExcluded, kind: 'excluded' },
-        };
-
-        return glyphFor[sheet.action] ?? failedCell;
+    const capturedCell = { glyph: symbols.stripCaptured, kind: 'captured' };
+    const excludedCell = { glyph: symbols.stripExcluded, kind: 'excluded' };
+    const glyphFor = {
+        update: capturedCell,
+        blur: { glyph: symbols.stripBlurred, kind: 'blurred' },
+        skip: excludedCell,
     };
+
+    // A clear with nothing to clear is the removal run's "excluded":
+    // rendering it as a solid block would show a wall of cleared icons for
+    // an app that was mostly empty, and would contradict the verdict's
+    // cleared count for the same run.
+    const cellFor = (sheet) =>
+        sheet.action === 'clear'
+            ? sheet.reason === CLEAR_REASON.NO_ICON
+                ? excludedCell
+                : capturedCell
+            : (glyphFor[sheet.action] ?? failedCell);
 
     // Placed by the recorded 1-based sheet position, never by array order:
     // the sheet loop survives a mid-app failure and keeps recording the
-    // later sheets, so row i of the array is not sheet i of the app. Every
-    // position nothing was recorded for renders as failed - "not processed"
-    // - which also covers the failed app's missing tail.
+    // later sheets, so row i of the array is not sheet i of the app. A row
+    // without a valid 1-based `n` (every in-repo recorder sets one) falls
+    // back to its array position - the same fallback in the count and the
+    // placement, so a synthetic `n: 0` can neither write off the left edge
+    // nor undercount the strip.
+    const positionOf = (sheet, i) =>
+        typeof sheet.n === 'number' && sheet.n >= 1 ? sheet.n : i + 1;
+
     const count = Math.max(
         typeof appEntry.sheetCount === 'number' ? appEntry.sheetCount : 0,
         appEntry.sheets.length,
-        ...appEntry.sheets.map((sheet) => sheet.n ?? 0)
+        ...appEntry.sheets.map(positionOf)
     );
 
     const cells = Array.from({ length: count }, () => failedCell);
     appEntry.sheets.forEach((sheet, i) => {
-        cells[(sheet.n ?? i + 1) - 1] = cellFor(sheet);
+        cells[positionOf(sheet, i) - 1] = cellFor(sheet);
     });
 
     return cells;
@@ -669,6 +683,12 @@ export const renderBoardVerdict = (report, ctx) => {
     );
     if (failedCells > 0) {
         legendParts.push(legendEntry('failed', failedCells, 'not processed'));
+    } else if (facts.failedApps > 0) {
+        // An app that failed before its sheets were even enumerated has an
+        // empty strip - zero failed cells to count - but the failure must
+        // not vanish from the legend, so this one shape falls back to the
+        // app count.
+        legendParts.push(legendEntry('failed', facts.failedApps, 'app(s) failed'));
     }
 
     const lines = [
