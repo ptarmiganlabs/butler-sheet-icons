@@ -8,6 +8,7 @@ import {
 } from './browser-paths.js';
 import { getBrowserInventory, hasUsableExecutable } from './browser-inventory.js';
 import cliProgress from 'cli-progress';
+import { activeLiveView, liveDownloadBar } from '../util/run-live.js';
 
 import { logger, setLoggingLevel, bsiExecutablePath, isSea, sleep } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
@@ -167,13 +168,22 @@ export const browserInstall = async (options, _command, resolvedBuildId) => {
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
         logger.debug(`Options: ${JSON.stringify(redactOptions(options), null, 2)}`);
 
-        // Create a new progress bar instance using cli-progress
-        const progressBar = new cliProgress.SingleBar(
-            {
-                format: ' {bar} {percentage}% | ETA: {eta_formatted}',
-            },
-            cliProgress.Presets.shades_classic
-        );
+        // The download progress bar. Two writers repainting one cursor is
+        // mojibake, so while the live run view (issue #1075) is active the
+        // cli-progress bar is never constructed - the download reports into
+        // the live view's phase label instead, and the two can never be
+        // active at once. `activeLiveView()` is read once here: the view
+        // starts before the app loop and stops after it, so it cannot appear
+        // or vanish while this install runs.
+        const live = activeLiveView();
+        const progressBar = live
+            ? liveDownloadBar(live)
+            : new cliProgress.SingleBar(
+                  {
+                      format: ' {bar} {percentage}% | ETA: {eta_formatted}',
+                  },
+                  cliProgress.Presets.shades_classic
+              );
 
         // Install browser. The writing resolver, so a standalone build reading from the
         // previous default location still installs beside its own executable.
