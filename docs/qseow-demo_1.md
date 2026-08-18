@@ -49,7 +49,7 @@ Finally, looking in the ./img directory (as specified by the `--imagedir` option
 | `loginpage-after-2.png` | the same, with credentials filled in                      |
 | `overview-after.png`    | the app overview once the new sheet icons are in place    |
 
-The second sign-in and `overview-after.png` are what `--capture-overview-after` controls; set it to `false` and only the first four files are written. Note that the screenshots below were taken with an earlier version, which wrote a single `overview-1.png` instead of the before/after pair:
+The second sign-in and `overview-after.png` are what `--capture-overview-after` controls; set it to `false` and only the first three files are written. Note that the screenshots below were taken with an earlier version, which wrote a single `overview-1.png` instead of the before/after pair:
 
 ![Image files created by Butler Sheet Icons](./img/create-qseow-created-images_1.png 'Image files created by Butler Sheet Icons')
 
