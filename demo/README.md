@@ -22,15 +22,17 @@ first. So the pipeline is:
 ```
 reset (qseow remove-sheet-icons, recorded)
   -> dry run (recorded)
-  -> real run (recorded; its overview screenshot = "before")
-  -> second real run (its overview screenshot = "after")
+  -> real run (recorded; yields both "before" and "after")
 ```
 
-BSI captures the app overview at the **start** of every real run, before any
-sheet is touched, so run N's screenshot shows the state run N-1 left behind.
-The second real run is an idempotent rewrite of the same thumbnails; it
-exists to harvest the "after" image, and it leaves the app in the "after"
-state, ready for the next `reset` to prove the loop closes.
+Since #735 a real run captures the app overview twice - `overview-before.png`
+before any sheet is touched, `overview-after.png` once the thumbnails are
+applied - so both panels come out of one run. The run leaves the app in the
+"after" state, ready for the next `reset` to prove the loop closes.
+
+Before #735 the "after" panel needed a second real run: the only overview a
+run captured was the one it took at the start, which showed whatever the
+previous run had left behind.
 
 ## Prerequisites
 
@@ -79,7 +81,7 @@ npm run demo:check         # text-only drift check against demo/snapshots/
 ```
 
 Individual steps (each idempotent, so the pipeline is restartable):
-`demo/record.sh reset|dryrun|before|after|render|check|check-update`.
+`demo/record.sh reset|dryrun|run|render|check|check-update`.
 
 | Where             | What                                                          | Committed?      |
 | ----------------- | ------------------------------------------------------------- | --------------- |
