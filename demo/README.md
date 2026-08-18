@@ -84,6 +84,27 @@ capping (`agg --idle-time-limit 1.5`) happens at render time, so it stays
 retunable without touching a server. The pinned palette the render step feeds
 to `agg` is the `AGG_THEME` constant at the top of `record.sh`.
 
+## Branding
+
+Three places carry Ptarmigan Labs, none of them added by hand:
+
+- **The demo app's name.** It is the app's real name on the server, so it
+  appears in the terminal output _and_ as the page title in both
+  before/after screenshots from a single change. The run card clips app
+  names to 20 characters, so keep the brand at the front of the name.
+- **The prompt**, printed by `session.sh`. Pinned rather than inherited so
+  no operator hostname is ever recorded; override with `DEMO_PROMPT` if you
+  want a different one.
+- **The mark**, `demo/assets/ptarmiganlabs.png`, composited top right by the
+  render step, in the band beside the run header box that every recording
+  leaves empty. It is committed so a checkout can render without anyone's
+  brand folder being mounted.
+
+Nothing here edits what the CLI printed. The point of #1000's ban on manual
+post-processing was that hand-editing is what made the old assets
+unregenerable — a step the script performs on every render is the opposite
+of that, and re-running `npm run demo:record` reproduces all of it.
+
 > **Why not VHS?** Issue #1001 planned VHS tapes for the short scripted
 > tier. On vhs 0.11.0 + ttyd 1.7.7 the terminal feed deterministically
 > stalls once a command emits more than a few KB in a burst — a tape running

@@ -65,6 +65,14 @@ PUBLISHABLE_HOST="sense.example.com"
 # to this prefix - see the check in load_env.
 IMAGE_DIR_PREFIX="demo/output/"
 
+# The mark composited into every rendered frame, and where it sits. Committed
+# rather than read from a brand folder, so a checkout can render the assets
+# without anyone's shared drive being mounted.
+LOGO_FILE="$DEMO_DIR/assets/ptarmiganlabs.png"
+LOGO_HEIGHT=118
+LOGO_MARGIN_X=34
+LOGO_MARGIN_Y=26
+
 # The pinned palette, in the form `agg --theme` takes: background, foreground,
 # then the 16 ANSI colours, as bare hex.
 #
@@ -329,6 +337,26 @@ render_one() {
     agg $pacing --theme "$AGG_THEME" "$cast" "$OUT_DIR/$name.gif"
 
     if command -v ffmpeg > /dev/null 2>&1; then
+        # The Ptarmigan Labs mark, top right, in the band beside the run
+        # header box that every recording leaves empty - so it covers no
+        # output and needs no space made for it.
+        #
+        # Composited by the script on every render, which is the distinction
+        # #1000 drew: it rejected manual post-processing because hand-editing
+        # is what made the old assets unregenerable, not because pixels may
+        # never be added. Nothing here alters what the CLI printed.
+        #
+        # The GIF is rebuilt through palettegen/paletteuse so the mark does
+        # not dither against the terminal background, and it is branded
+        # before the MP4 and WebM are encoded from it, so all three carry it
+        # from one operation.
+        if [ -f "$LOGO_FILE" ]; then
+            ffmpeg -y -loglevel error -i "$OUT_DIR/$name.gif" -i "$LOGO_FILE" \
+                -filter_complex "[1]scale=-1:${LOGO_HEIGHT}[lg];[0][lg]overlay=W-w-${LOGO_MARGIN_X}:${LOGO_MARGIN_Y},split[a][b];[a]palettegen=reserve_transparent=0[p];[b][p]paletteuse" \
+                "$OUT_DIR/$name.branded.gif"
+            mv "$OUT_DIR/$name.branded.gif" "$OUT_DIR/$name.gif"
+        fi
+
         ffmpeg -y -loglevel error -i "$OUT_DIR/$name.gif" \
             -movflags faststart -pix_fmt yuv420p \
             -vf 'scale=trunc(iw/2)*2:trunc(ih/2)*2' \
