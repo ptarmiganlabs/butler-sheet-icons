@@ -16,6 +16,7 @@ import {
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
 import { createAppImageDir } from '../util/image-dir.js';
+import { activeLiveView } from '../util/run-live.js';
 import { addAppToReport, recordPlannedSheet, recordAppOutcome } from '../util/run-report.js';
 import { appProgressLine, sheetProgressLine } from '../util/run-report-render.js';
 import { QSEOW_SHEET_PART_SELECTORS } from './sheet-parts.js';
@@ -149,6 +150,12 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                     });
 
                     try {
+                        // The live `signed in` row (issue #1075) is bound to
+                        // the real login below: it begins here and resolves
+                        // only once the post-login navigation has settled.
+                        activeLiveView()?.beginStep('signed in');
+                        activeLiveView()?.appPhase('signin');
+
                         const page = await browser.newPage();
 
                         // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
@@ -235,6 +242,14 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                         ]);
 
                         await sleep(options.pagewait * 1000);
+
+                        // Only now is the session real: the login click has
+                        // navigated and the page has settled.
+                        activeLiveView()?.stepDone(
+                            'signed in',
+                            `${options.logonuserdir}\\${options.logonuserid}`
+                        );
+                        activeLiveView()?.appPhase('sheets');
 
                         // Take screenshot of app overview page
                         await page.screenshot({ path: `${imgDir}/qseow/${appId}/overview-1.png` });

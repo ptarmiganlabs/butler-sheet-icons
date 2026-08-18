@@ -15,6 +15,7 @@ import {
     renderBoardAppRow,
     renderBoardVerdict,
 } from './run-board.js';
+import { createRunLiveView, activateLiveView, activeLiveView } from './run-live.js';
 import { toOptionValueList } from './option-values.js';
 import { measureImageFiles } from './image-dir.js';
 
@@ -164,6 +165,18 @@ const emitBlockOnRung = ({
     forceVisible = false,
     suppressOnOff = true,
 }) => {
+    // The live view owns the cursor, so a block written straight to stdout
+    // would tear through the animated region - it is committed above the
+    // region instead. The console transport is already silenced for the
+    // life of the view; the nested silence below is a harmless no-op.
+    const live = activeLiveView();
+    if (live) {
+        withConsoleSilenced(plainEmit);
+        live.commitBlock(renderBoardBlock());
+
+        return;
+    }
+
     if (rendersAsBoard(rung)) {
         withConsoleSilenced(plainEmit);
         process.stdout.write(renderBoardBlock());
@@ -222,6 +235,46 @@ export const emitRunHeader = ({ version, jobLabel, options = {} }) => {
     });
 
     return rung;
+};
+
+/**
+ * Start the live run view (rung C, issue #1075) when this run qualifies.
+ *
+ * The second composition seam next to {@link decideRung}: the only place the
+ * live view meets the real `process.stdout`, the real board context and the
+ * real logger. Called by the run workers straight after `emitRunHeader`, so
+ * the static header has already been written before the view takes the
+ * cursor.
+ *
+ * Only real runs on the `live` rung get a view. A dry run finishes in
+ * seconds, has no browser and its product is the report text - animating it
+ * would add risk for nothing - so dry runs on the live rung keep the board
+ * rendering via the `rendersAsBoard` fallback, as does any worker that never
+ * calls this. Returns null in every declined case, and callers treat null as
+ * "not live" throughout.
+ *
+ * @param {object} run - The run.
+ * @param {string} run.rung - The rung returned by {@link emitRunHeader}.
+ * @param {boolean} [run.dryRun] - Whether this run stops before the writes.
+ *
+ * @returns {object|null} The active live view, or null.
+ */
+export const startLiveRunView = ({ rung, dryRun = false }) => {
+    if (rung !== RUNG.LIVE || dryRun) {
+        return null;
+    }
+
+    const view = createRunLiveView({
+        stream: process.stdout,
+        ctx: boardContext(),
+        log: logger,
+    });
+
+    if (view) {
+        activateLiveView(view);
+    }
+
+    return view;
 };
 
 /**
@@ -480,6 +533,11 @@ export const addAppToReport = (report, { id, name, sheetCount }) => {
     };
     report.apps.push(entry);
 
+    // The live view (issue #1075) renders its per-app block from this same
+    // entry, so handing it over here is what makes the bar structurally
+    // unable to disagree with the verdict. No-op on every other rung.
+    activeLiveView()?.appOpened(entry);
+
     return entry;
 };
 
@@ -500,6 +558,10 @@ export const addAppToReport = (report, { id, name, sheetCount }) => {
  */
 export const recordSheetDecision = (appEntry, { n, title, action, reason = null }) => {
     appEntry.sheets.push({ n, title, action, reason });
+
+    // Repaint the live per-app block. The row was recorded first, so the
+    // display can only ever show what the report already holds.
+    activeLiveView()?.sheetRecorded(appEntry);
 };
 
 /**
@@ -823,6 +885,11 @@ export const runOverAppsWithReport = async ({
     const totalApps = new Set(appIds).size;
     const removal = isRemovalReport(report);
 
+    // Counted here rather than taken from the report: a failed app may or may
+    // not have an entry yet when its block opens, and the live app number
+    // must match the `app i/n` line the loop logs.
+    let liveAppNumber = 0;
+
     const result = await runOverApps(
         appIds,
         {
@@ -844,6 +911,8 @@ export const runOverAppsWithReport = async ({
               }
             : async (appId) => {
                   const appStartedAt = Date.now();
+                  liveAppNumber += 1;
+                  activeLiveView()?.appStarted({ n: liveAppNumber, total: totalApps, id: appId });
                   try {
                       const result = await processApp(appId, report);
 
@@ -869,15 +938,21 @@ export const runOverAppsWithReport = async ({
                       if (entry) {
                           entry.durationMs = Date.now() - appStartedAt;
                           if (board) {
-                              // Appended as each app finishes - still no
-                              // cursor addressing, nothing repainted.
-                              process.stdout.write(
-                                  renderBoardAppRow(
-                                      entry,
-                                      { n: report.apps.length, total: totalApps, removal },
-                                      ctx
-                                  )
+                              // Appended as each app finishes. With a live
+                              // view active the identical row is committed
+                              // above the animated region instead of being
+                              // appended raw - one renderer, two carriers.
+                              const row = renderBoardAppRow(
+                                  entry,
+                                  { n: report.apps.length, total: totalApps, removal },
+                                  ctx
                               );
+                              const live = activeLiveView();
+                              if (live) {
+                                  live.appFinished(entry, row);
+                              } else {
+                                  process.stdout.write(row);
+                              }
                           }
                       }
                   }
@@ -886,6 +961,12 @@ export const runOverAppsWithReport = async ({
 
     report.finishedAt = Date.now();
     report.succeeded = result;
+
+    // The collapse (issue #1075): the animated region is erased and the
+    // cursor restored *before* the verdict renders, so the verdict below
+    // goes to a quiet terminal through the ordinary board path - the
+    // active-view check in emitBlockOnRung finds nothing and falls through.
+    activeLiveView()?.stop();
 
     // Rendered even when some apps failed to plan: the decisions that were
     // reached belong next to the per-app error lines already logged, and the

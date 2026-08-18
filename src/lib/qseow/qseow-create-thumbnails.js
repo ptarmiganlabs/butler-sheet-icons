@@ -1,5 +1,8 @@
+import path from 'node:path';
+
 import { logger, appVersion, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
+import { restoreLiveTerminal } from '../util/run-live.js';
 import { qseowVerifyContentLibraryExists } from './qseow-contentlibrary.js';
 import { qseowVerifyCertificatesExist } from './qseow-certificates.js';
 import { qseowProcessApp } from './qseow-process-app.js';
@@ -13,6 +16,7 @@ import {
     runOverAppsWithReport,
     announceDryRun,
     emitRunHeader,
+    startLiveRunView,
     buildSheetRules,
     buildSheetPartSection,
     buildBrowserPlanSection,
@@ -60,6 +64,11 @@ export const qseowCreateThumbnails = async (options) => {
             announceDryRun('qseow create-sheet-thumbnails', rung);
         }
 
+        // The live view (rung C, issue #1075). Null on every other rung and
+        // on dry runs; every use below is optional-chained so this worker
+        // reads identically with and without it.
+        const live = startLiveRunView({ rung, dryRun });
+
         logger.info('Starting creation of thumbnails for Qlik Sense Enterprise on Windows (QSEoW)');
         logger.verbose(`Running as standalone app: ${isSea}`);
         logger.debug(`BSI executable path: ${bsiExecutablePath}`);
@@ -83,21 +92,32 @@ export const qseowCreateThumbnails = async (options) => {
             throw Error('Invalid --includesheetpart paramater');
         }
 
-        // Verify QSEoW certificates exist
+        // Verify QSEoW certificates exist. The live rows here and below are
+        // bound to these awaits - each resolves only when its real call has
+        // returned, so a hang shows as the row that never resolves.
+        live?.beginStep('certificates');
         const certsExist = await qseowVerifyCertificatesExist(options);
         if (certsExist === false) {
+            live?.stepFailed('certificates');
             logger.error('Missing certificate file(s). Aborting');
             throw Error('Missing certificate file(s)');
         } else {
+            live?.stepDone(
+                'certificates',
+                [path.basename(options.certfile), path.basename(options.certkeyfile)].join(live.sep)
+            );
             logger.verbose(`Certificate files found`);
         }
 
         // Verify content library exists
+        live?.beginStep('content library');
         const contentLibraryExists = await qseowVerifyContentLibraryExists(options);
         if (contentLibraryExists === false) {
+            live?.stepFailed('content library', `"${options.contentlibrary}"`);
             logger.error(`Content library '${options.contentlibrary}' does not exist - aborting`);
             throw Error('Content library does not exist');
         } else {
+            live?.stepDone('content library', `"${options.contentlibrary}" exists`);
             logger.verbose(`Content library '${options.contentlibrary}' exists`);
         }
 
@@ -108,6 +128,7 @@ export const qseowCreateThumbnails = async (options) => {
         // --appid and --qliksensetag are additive, not alternatives: apps named either
         // way are all processed. runOverApps() dedupes, so an app that is both named by
         // --appid and carries the tag is still processed once.
+        live?.beginStep('app list');
         let taggedAppIds = [];
         const useTag = Boolean(options.qliksensetag && options.qliksensetag.length > 0);
         if (useTag) {
@@ -122,6 +143,17 @@ export const qseowCreateThumbnails = async (options) => {
         // rules' match counts across the selected apps. Read-only, and
         // degrades to nulls rather than failing the run.
         const planFacts = await readQseowPlanFacts(options, appIdsToProcess);
+
+        // Resolved only now, after every pre-run read: the row states what the
+        // loop will actually iterate, not an intermediate list.
+        live?.stepDone(
+            'app list',
+            [
+                `${new Set(appIdsToProcess).size} apps`,
+                `${namedAppIds.length} named`,
+                ...(useTag ? [`${taggedAppIds.length} tagged`] : []),
+            ].join(live.sep)
+        );
 
         return await runOverAppsWithReport({
             command: 'qseow create-sheet-thumbnails',
@@ -167,6 +199,11 @@ export const qseowCreateThumbnails = async (options) => {
             processApp: (appId, report) => qseowProcessApp(appId, options, report),
         });
     } catch (err) {
+        // First, unconditionally: a throw mid-animation must hand the cursor
+        // and the console transport back before anything else is logged.
+        // No-op when no live view is active.
+        restoreLiveTerminal();
+
         logError('QSEOW CREATE THUMBNAILS 2', err);
 
         return false;

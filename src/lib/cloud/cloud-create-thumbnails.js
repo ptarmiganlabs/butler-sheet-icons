@@ -9,10 +9,12 @@ import {
     runOverAppsWithReport,
     announceDryRun,
     emitRunHeader,
+    startLiveRunView,
     buildSheetRules,
     buildSheetPartSection,
     buildBrowserPlanSection,
 } from '../util/run-report.js';
+import { restoreLiveTerminal } from '../util/run-live.js';
 import { CLOUD_SHEET_PARTS, CLOUD_SHEET_PART_LABELS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
 
@@ -59,6 +61,10 @@ export const qscloudCreateThumbnails = async (options) => {
             // Before anything connects - mirrors the QSEoW twin.
             announceDryRun('qscloud create-sheet-thumbnails', rung);
         }
+
+        // The live view (rung C, issue #1075) - wired at the same time as the
+        // QSEoW twin, with the platform's own preflight sequence.
+        const live = startLiveRunView({ rung, dryRun });
 
         logger.info('Starting creation of thumbnails for Qlik Sense Cloud');
         logger.verbose(`Running as standalone app: ${isSea}`);
@@ -108,13 +114,21 @@ export const qscloudCreateThumbnails = async (options) => {
         };
         const saasInstance = new QlikSaas(cloudConfig);
 
-        // Test connection to QS Cloud by getting info about the user associated with the API key
+        // Test connection to QS Cloud by getting info about the user associated with the API key.
+        // The live row is bound to this await - the Cloud twin of the QSEoW
+        // certificate/library rows.
+        live?.beginStep('tenant', options.tenanturl);
         try {
             const res = await qscloudTestConnection(options, saasInstance);
+            live?.stepDone('tenant', options.tenanturl);
             logger.verbose(
                 `Connection to tenant ${options.tenanturl} successful: ${JSON.stringify(res)}`
             );
         } catch (err) {
+            // Restore before the error lines so they land on a sane terminal;
+            // this branch returns without reaching the outer catch.
+            live?.stepFailed('tenant', options.tenanturl);
+            restoreLiveTerminal();
             logError('TEST CONNECTIVITY 1', err);
             if (err?.status && err?.statusText) {
                 logger.error(`TEST CONNECTIVITY 1 (error code): ${err.status}="${err.statusText}"`);
@@ -125,7 +139,18 @@ export const qscloudCreateThumbnails = async (options) => {
 
         // Selection resolution is shared with the other Cloud command; the
         // provenance it returns feeds the run report directly.
+        live?.beginStep('app list');
         const selection = await resolveCloudAppSelection(saasInstance, options);
+        live?.stepDone(
+            'app list',
+            [
+                `${new Set(selection.appIds).size} apps`,
+                `${selection.namedAppIds.length} named`,
+                ...(selection.selector
+                    ? [`${selection.selectorAppIds.length} from collection`]
+                    : []),
+            ].join(live.sep)
+        );
 
         return await runOverAppsWithReport({
             command: 'qscloud create-sheet-thumbnails',
@@ -153,6 +178,10 @@ export const qscloudCreateThumbnails = async (options) => {
             processApp: (appId, report) => processCloudApp(appId, saasInstance, options, report),
         });
     } catch (err) {
+        // First, unconditionally: a throw mid-animation must hand the cursor
+        // and the console transport back before anything else is logged.
+        restoreLiveTerminal();
+
         logError('CLOUD CREATE THUMBNAILS 2', err);
 
         return false;

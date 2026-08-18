@@ -16,6 +16,7 @@ import {
     VERSION_RECOMMENDED,
 } from './browser-version.js';
 import { parseHeadlessOption } from '../util/headless-option.js';
+import { activeLiveView } from '../util/run-live.js';
 import { markReported } from '../util/reported-error.js';
 import { logError } from '../util/log-error.js';
 
@@ -391,6 +392,12 @@ const reportSlowLaunch = (elapsedMs, logPrefix, { timedOut = false } = {}) => {
  * launched, with the original error attached as `cause`.
  */
 export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel, ErrorClass }) => {
+    // The live `browser` row (issue #1075) is bound to this resolve-and-launch
+    // sequence. Living here rather than in the processors keeps the two
+    // platform twins wired identically by construction. No-op off rung C.
+    activeLiveView()?.beginStep('browser');
+    activeLiveView()?.appPhase('browser');
+
     let browserInfo;
     try {
         browserInfo = await resolveBrowserExecutablePath(options);
@@ -480,6 +487,16 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
     try {
         const version = await browser.version();
         logger.verbose(`Browser responded to version query: ${version}`);
+
+        // Resolved only now: the browser is not just found and started but
+        // has answered a protocol call - the same bar the launch itself sets.
+        const live = activeLiveView();
+        live?.stepDone(
+            'browser',
+            [`${browserInfo.browser} ${browserInfo.buildId}`, `from ${browserInfo.source}`].join(
+                live.sep
+            )
+        );
     } catch (err) {
         logUnusableBrowser(buildId, logPrefix, err);
 
