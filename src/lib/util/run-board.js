@@ -66,8 +66,12 @@ const VALUE_WIDTH = 22;
  * row - truncating the strip would hide the exact per-sheet signal it
  * exists to show - and a run of 100+ apps widens the counter; both are
  * accepted, budgeted overflows rather than silent wraps on every row.
+ *
+ * Exported for the live view (issue #1075): its animated app header clips
+ * the same name this row will commit, and two widths meant the same app
+ * appeared under two names one frame apart (issue #1110).
  */
-const NAME_WIDTH = 20;
+export const NAME_WIDTH = 20;
 
 const STRIP_WIDTH = 12;
 
@@ -124,11 +128,14 @@ const ZERO_WIDTH = /\p{Mn}|\p{Me}|[\u1160-\u11ff\u200b-\u200f\ufeff]/u;
  * sheet strip after it: a miscounted name shifts that row's entire strip
  * band, which is exactly the per-app comparison the board exists for.
  *
+ * Exported for the live view (issue #1075), which pads its status markers
+ * with the same width model so ASCII and Unicode symbol sets align alike.
+ *
  * @param {string} text - The text to measure.
  *
  * @returns {number} The width in columns.
  */
-const width = (text) => {
+export const width = (text) => {
     let columns = 0;
 
     for (const ch of text) {
@@ -283,11 +290,15 @@ const planRow = (ctx, { label, value, detail = '', passive = false }) => {
  * The separator the strip glyphs and rules join with: ` · ` on Unicode
  * terminals, ` - ` on ASCII ones.
  *
+ * Exported for the live view (issue #1075), so the board rung and the live
+ * rung separate details with one expression rather than two copies that
+ * drift (issue #1110).
+ *
  * @param {object} ctx - From {@link boardContext}.
  *
  * @returns {string} The separator.
  */
-const dotSep = (ctx) => ` ${ctx.symbols.dot} `;
+export const dotSep = (ctx) => ` ${ctx.symbols.dot} `;
 
 /**
  * A dim horizontal rule separating the board's sections.
@@ -481,6 +492,29 @@ export const renderBoardPlan = (report, ctx) => {
 };
 
 /**
+ * The 1-based strip position of a recorded sheet row.
+ *
+ * Placed by the recorded 1-based sheet position, never by array order: the
+ * sheet loop survives a mid-app failure and keeps recording the later
+ * sheets, so row i of the array is not sheet i of the app. A row without a
+ * valid 1-based `n` (every in-repo recorder sets one) falls back to its
+ * array position - the same fallback in the count and the placement, so a
+ * synthetic `n: 0` can neither write off the left edge nor undercount the
+ * strip.
+ *
+ * Exported for the live view (issue #1075), whose in-progress strip clips
+ * at the last recorded position - one placement rule, not two copies that
+ * can disagree about the same sheet (issue #1110).
+ *
+ * @param {object} sheet - A recorded sheet row.
+ * @param {number} i - The row's array index.
+ *
+ * @returns {number} The 1-based strip position.
+ */
+export const positionOf = (sheet, i) =>
+    typeof sheet.n === 'number' && sheet.n >= 1 ? sheet.n : i + 1;
+
+/**
  * The sheet strip for one app: one glyph per sheet *position*, placed by the
  * recorded 1-based sheet number.
  *
@@ -527,16 +561,6 @@ export const stripForApp = (appEntry, symbols) => {
                 : capturedCell
             : (glyphFor[sheet.action] ?? failedCell);
 
-    // Placed by the recorded 1-based sheet position, never by array order:
-    // the sheet loop survives a mid-app failure and keeps recording the
-    // later sheets, so row i of the array is not sheet i of the app. A row
-    // without a valid 1-based `n` (every in-repo recorder sets one) falls
-    // back to its array position - the same fallback in the count and the
-    // placement, so a synthetic `n: 0` can neither write off the left edge
-    // nor undercount the strip.
-    const positionOf = (sheet, i) =>
-        typeof sheet.n === 'number' && sheet.n >= 1 ? sheet.n : i + 1;
-
     const count = Math.max(
         typeof appEntry.sheetCount === 'number' ? appEntry.sheetCount : 0,
         appEntry.sheets.length,
@@ -557,6 +581,19 @@ const STRIP_PAINT = Object.freeze({
     excluded: (palette) => palette.dim,
     failed: (palette) => palette.red,
 });
+
+/**
+ * Paint strip cells into one coloured string. The single place a cell's
+ * `kind` meets its colour - both the committed board row and the live
+ * view's animated strip go through here (issue #1110).
+ *
+ * @param {Array<{glyph: string, kind: string}>} cells - From {@link stripForApp}.
+ * @param {object} palette - The palette in use.
+ *
+ * @returns {string} The painted strip.
+ */
+const paintCells = (cells, palette) =>
+    cells.map(({ glyph, kind }) => STRIP_PAINT[kind](palette)(glyph)).join('');
 
 /**
  * The coloured sheet strip for one app, unpadded.
@@ -580,10 +617,7 @@ const STRIP_PAINT = Object.freeze({
  * @returns {string} The painted strip.
  */
 export const renderSheetStrip = (appEntry, ctx, limit = Infinity) =>
-    stripForApp(appEntry, ctx.symbols)
-        .slice(0, limit)
-        .map(({ glyph, kind }) => STRIP_PAINT[kind](ctx.palette)(glyph))
-        .join('');
+    paintCells(stripForApp(appEntry, ctx.symbols).slice(0, limit), ctx.palette);
 
 /**
  * One per-app strip row, appended to the board as the app finishes.
@@ -610,9 +644,7 @@ export const renderBoardAppRow = (appEntry, { n, total, removal }, ctx) => {
     const name = padTo(clip(appEntry.name ?? appEntry.id ?? '', NAME_WIDTH), NAME_WIDTH);
 
     const cells = stripForApp(appEntry, symbols);
-    const strip =
-        cells.map(({ glyph, kind }) => STRIP_PAINT[kind](palette)(glyph)).join('') +
-        ' '.repeat(Math.max(0, STRIP_WIDTH - cells.length));
+    const strip = paintCells(cells, palette) + ' '.repeat(Math.max(0, STRIP_WIDTH - cells.length));
 
     const counts = verdictCounts({ apps: [appEntry] });
     const sheetCount = appEntry.sheetCount ?? counts.seen;

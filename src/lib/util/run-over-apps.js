@@ -31,7 +31,12 @@ import { logger } from '../../globals.js';
  * @param {string} [ctx.emptySelectionHint] - Extra guidance logged when the list is empty,
  *     e.g. which options to check. An empty list is reported as an error, because it means
  *     the operator asked for work that did not happen.
- * @param {(appId: string) => Promise<unknown>} processApp - Worker invoked once per app.
+ * @param {(appId: string, position: {n: number, total: number}) => Promise<unknown>} processApp -
+ *     Worker invoked once per app. The position is the same 1-based `n` and
+ *     total this loop prints in its `app n/total` line - handed to the worker
+ *     so the log line, the live view's block and the committed board row all
+ *     read one number from one owner (issue #1110), instead of each keeping
+ *     a counter that agrees by convention.
  *
  * @returns {Promise<boolean>} `true` only when at least one app was selected and every one
  *     of them was processed without error. An empty selection is a failure, not a no-op.
@@ -71,7 +76,7 @@ export const runOverApps = async (
                 `${action === 'process' ? 'app' : `${action} app`} ${appNumber}/${uniqueAppIds.length}  ${appId}`
             );
 
-            await processApp(appId);
+            await processApp(appId, { n: appNumber, total: uniqueAppIds.length });
 
             logger.verbose(`Done processing app ${appId}`);
         } catch (err) {

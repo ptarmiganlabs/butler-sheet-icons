@@ -35,6 +35,21 @@ describe('runOverApps', () => {
         expect(worker.mock.calls.map((call) => call[0])).toEqual(['a', 'b', 'c']);
     });
 
+    test('hands the worker the same position the app n/total log line states', async () => {
+        // One owner for the number (issue #1110): the live view and the
+        // committed board row read this instead of keeping their own
+        // counters that agree by convention. Deduplication applies before
+        // numbering, so the duplicate 'a' does not inflate the total.
+        const worker = jest.fn().mockResolvedValue(true);
+
+        await runOverApps(['a', 'b', 'a'], CTX, worker);
+
+        expect(worker.mock.calls.map((call) => call[1])).toEqual([
+            { n: 1, total: 2 },
+            { n: 2, total: 2 },
+        ]);
+    });
+
     test('reports success when every app was processed', async () => {
         const result = await runOverApps(['a', 'b'], CTX, jest.fn().mockResolvedValue(true));
 
