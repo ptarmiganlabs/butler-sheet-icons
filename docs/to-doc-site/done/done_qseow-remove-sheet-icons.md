@@ -1,3 +1,23 @@
+<!--
+PUBLISHED to `next` on 2026-08-18, butler-sheet-icons-docs PR #109. Version gate 5.0.0,
+read from release-please PR #974 at publish time. Publishing this closed #1082.
+
+NOT published as a new page. `docs/reference/qseow.md` already carried a `## remove-sheet-icons`
+section - written before the command existed, which is what #1082 was filed for - so that section
+was replaced rather than a second one added. Its claim that the command "uses the same connection
+and authentication options as create-sheet-thumbnails" was wrong in the other direction and is
+gone: the option set is deliberately narrower. `/guide/concepts/dry-run` was updated in the same
+PR, since it said three commands accept the flag and described the `clear icon` column as
+Cloud-only.
+
+CORRECTION, and it changed twice. This draft says of no-icon sheets: "the real run reports them
+the same way rather than failing over them". That was FALSE when published - the real run tested
+for the thumbnail structure while the planner tested the URL, so a re-run rewrote and saved every
+already-cleared sheet (#1113). The sentence was therefore left OUT of the published page. #1113
+was then fixed in the same pull request that merged this draft (#1114), so the claim is now TRUE.
+The live page still omits it; adding it back is a small, safe follow-up.
+-->
+
 # Removing sheet icons on Qlik Sense Enterprise on Windows
 
 Butler Sheet Icons can now remove sheet icons from Qlik Sense Enterprise on Windows (QSEoW) apps, using the new `qseow remove-sheet-icons` command.
