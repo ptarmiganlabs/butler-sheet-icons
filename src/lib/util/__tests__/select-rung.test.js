@@ -1,5 +1,5 @@
 import { describe, test, expect, jest } from '@jest/globals';
-import { selectRung, RUNG, OUTPUT_ENV } from '../select-rung.js';
+import { selectRung, rendersAsBoard, RUNG, OUTPUT_ENV } from '../select-rung.js';
 
 /**
  * The gate matrix for rung selection (issue #1076).
@@ -104,6 +104,15 @@ describe('selectRung - automatic selection', () => {
                 ).toBe(RUNG.PLAIN);
             }
         }
+    });
+});
+
+describe('rendersAsBoard', () => {
+    test('live collapses to the board until rung C exists; plain and off do not', () => {
+        expect(rendersAsBoard(RUNG.BOARD)).toBe(true);
+        expect(rendersAsBoard(RUNG.LIVE)).toBe(true);
+        expect(rendersAsBoard(RUNG.PLAIN)).toBe(false);
+        expect(rendersAsBoard(RUNG.OFF)).toBe(false);
     });
 });
 

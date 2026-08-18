@@ -49,6 +49,19 @@ export const RUNG = Object.freeze({
 const RUNG_VALUES = Object.freeze(Object.values(RUNG));
 
 /**
+ * Whether a rung renders through the contact-sheet board today.
+ *
+ * `LIVE` collapses to the board until rung C (issue #1075) exists. This
+ * equivalence lives in exactly one place so that landing the live view means
+ * changing one predicate, not hunting the sites that re-encoded it.
+ *
+ * @param {string} rung - A value from {@link RUNG}.
+ *
+ * @returns {boolean} True when the rung renders board blocks.
+ */
+export const rendersAsBoard = (rung) => rung === RUNG.BOARD || rung === RUNG.LIVE;
+
+/**
  * Parse the `BSI_OUTPUT` override.
  *
  * An enum, so it does not reuse the "anything other than empty/`0`/`false`"

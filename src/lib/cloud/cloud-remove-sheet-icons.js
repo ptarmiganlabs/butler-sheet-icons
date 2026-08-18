@@ -44,6 +44,34 @@ import { logError } from '../util/log-error.js';
  *     attempted first and the engine session is always released.
  * @throws {Error} Whatever the engine or media API threw, if the session itself was lost.
  */
+/**
+ * Best-effort app-name lookup for the run report.
+ *
+ * The name is decorative - the board row and the plan fall back to the app
+ * id - so a failed lookup must never fail the app: a transient 429/5xx on
+ * this read while the engine is healthy would otherwise mark an app failed
+ * with nothing attempted, on the one command with no undo. One helper for
+ * the planner and the real remover, so the two cannot drift on how the name
+ * is fetched or how its absence is handled.
+ *
+ * @param {import('./cloud-test-connection.js').QlikSaasInstance} saasInstance - QlikSaas object.
+ * @param {string} appId - The app to name.
+ *
+ * @returns {Promise<string|null>} The app name, or null when the lookup
+ *     failed or the metadata carries no name.
+ */
+const fetchCloudAppName = async (saasInstance, appId) => {
+    try {
+        const appMetadata = await saasInstance.Get(`apps/${appId}`);
+
+        return appMetadata?.attributes?.name ?? null;
+    } catch (err) {
+        logger.verbose(`Could not read app name for ${appId}: ${err?.message ?? err}`);
+
+        return null;
+    }
+};
+
 const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = null) => {
     let sheetRun;
     let appEntry = null;
@@ -52,8 +80,8 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = n
         // App name for the report - the board's per-app rows (issue #1074)
         // render on real runs too, and a row naming only a clipped GUID
         // cannot be recognised by the operator it exists for, least of all
-        // on the one command with no undo. This read used to be planner-only.
-        const appMetadata = report ? await saasInstance.Get(`apps/${appId}`) : null;
+        // on the one command with no undo.
+        const appName = report ? await fetchCloudAppName(saasInstance, appId) : null;
 
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
@@ -80,7 +108,7 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = n
                 if (report) {
                     appEntry = addAppToReport(report, {
                         id: appId,
-                        name: appMetadata?.attributes?.name,
+                        name: appName ?? undefined,
                         sheetCount: sheets.length,
                     });
                 }
@@ -249,9 +277,10 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = n
  */
 const planRemoveSheetIconsCloudApp = async (appId, saasInstance, options, report) => {
     // Get app name - the report is the product here, and a plan listing bare
-    // GUIDs cannot be recognised by the operator it exists for. This is one
-    // read the real remover does not make; that is the right trade.
-    const appMetadata = await saasInstance.Get(`apps/${appId}`);
+    // GUIDs cannot be recognised by the operator it exists for. Best-effort
+    // via the same helper the real remover uses: a failed name lookup
+    // degrades the plan to the app id rather than failing the app's plan.
+    const appName = await fetchCloudAppName(saasInstance, appId);
 
     const configEnigma = setupEnigmaConnection(appId, options);
 
@@ -269,17 +298,17 @@ const planRemoveSheetIconsCloudApp = async (appId, saasInstance, options, report
 
             const sheets = await getSheetList(app, SHEET_LIST_FIELDS_EXTENDED);
             // Through the shared renderer, with the id as the name fallback -
-            // a missing attributes.name must not print "undefined".
+            // a missing name must not print "undefined".
             logger.info(
                 appProgressLine({
-                    name: appMetadata?.attributes?.name ?? appId,
+                    name: appName ?? appId,
                     sheetCount: sheets.length,
                 })
             );
 
             const appEntry = addAppToReport(report, {
                 id: appId,
-                name: appMetadata?.attributes?.name,
+                name: appName ?? undefined,
                 sheetCount: sheets.length,
             });
 

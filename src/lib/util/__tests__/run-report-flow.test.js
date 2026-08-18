@@ -42,6 +42,9 @@ const runArgs = (overrides = {}) => ({
     namedAppIds: ['app-1', 'app-2'],
     selectorAppIds: [],
     selector: null,
+    // The rung is a required argument (workers pass the one emitRunHeader
+    // decided); these tests exercise plain-rung behavior explicitly.
+    rung: 'plain',
     plan: {
         writes: { kind: 'thumbnails', contentLibrary: 'lib', publishedAppCount: 1 },
     },

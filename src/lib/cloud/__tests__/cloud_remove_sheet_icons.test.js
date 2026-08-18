@@ -317,6 +317,58 @@ describe('qscloudRemoveSheetIcons', () => {
         });
     });
 
+    describe('the app-name lookup for the report', () => {
+        test('a failing apps/{id} read never fails the app - the name is decorative', async () => {
+            wireEnigma([makeSheet('sheet-1', 1)]);
+            const mediaOnly = Get.getMockImplementation();
+            Get.mockImplementation(async (path) => {
+                // Only the metadata endpoint itself - the media-list reads
+                // under apps/{id}/media/... must keep working, or this test
+                // would fail the app through the media path instead.
+                if (path === 'apps/test-app-id') {
+                    throw new Error('429 Too Many Requests');
+                }
+
+                return mediaOnly(path);
+            });
+
+            await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS })).resolves.toBe(true);
+        });
+
+        test('the fetched app name reaches the board row', async () => {
+            wireEnigma([makeSheet('sheet-1', 1)]);
+            const mediaOnly = Get.getMockImplementation();
+            Get.mockImplementation(async (path) => {
+                if (path === 'apps/test-app-id') {
+                    return { attributes: { name: 'My Cloud App' } };
+                }
+
+                return mediaOnly(path);
+            });
+
+            const writes = [];
+            const spy = jest.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+                writes.push(String(chunk));
+
+                return true;
+            });
+            const savedOutput = process.env.BSI_OUTPUT;
+            process.env.BSI_OUTPUT = 'board';
+            try {
+                await expect(qscloudRemoveSheetIcons({ ...BASE_OPTIONS })).resolves.toBe(true);
+            } finally {
+                spy.mockRestore();
+                if (savedOutput === undefined) {
+                    delete process.env.BSI_OUTPUT;
+                } else {
+                    process.env.BSI_OUTPUT = savedOutput;
+                }
+            }
+
+            expect(writes.join('')).toContain('My Cloud App');
+        });
+    });
+
     describe('ordering of the media-library cleanup', () => {
         test('deletes the image files only after the app has been saved', async () => {
             // Deleting first meant a failed save left every sheet pointing at images that

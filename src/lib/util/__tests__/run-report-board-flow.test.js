@@ -84,6 +84,9 @@ const runArgs = (overrides = {}) => ({
     namedAppIds: ['app-1', 'app-2'],
     selectorAppIds: [],
     selector: null,
+    // The rung is a required argument, threaded from emitRunHeader in
+    // production; each describe below passes its own explicitly.
+    rung: 'board',
     plan: {
         browser: { name: 'chrome', version: 'recommended', headless: true, pageWaitSeconds: 5 },
         writes: { kind: 'thumbnails', contentLibrary: 'lib', publishedAppCount: 1 },
@@ -162,7 +165,7 @@ describe('the off rung (BSI_OUTPUT=off)', () => {
     });
 
     test('suppresses the plan and verdict blocks entirely on a real run', async () => {
-        await runOverAppsWithReport(runArgs());
+        await runOverAppsWithReport(runArgs({ rung: 'off' }));
 
         expect(stdoutWrites).toHaveLength(0);
         expect(timeline.some((line) => line.includes('PLAN'))).toBe(false);
@@ -172,6 +175,7 @@ describe('the off rung (BSI_OUTPUT=off)', () => {
     test('never suppresses the dry-run report - it is the command product', async () => {
         await runOverAppsWithReport(
             runArgs({
+                rung: 'off',
                 dryRun: true,
                 planApp: jest.fn(async (appId, report) => {
                     const entry = addAppToReport(report, { id: appId, name: appId, sheetCount: 1 });
@@ -186,6 +190,7 @@ describe('the off rung (BSI_OUTPUT=off)', () => {
     test('never suppresses a dry run PLAN block - provenance and match counts live only there', async () => {
         await runOverAppsWithReport(
             runArgs({
+                rung: 'off',
                 dryRun: true,
                 planApp: jest.fn(async (appId, report) => {
                     const entry = addAppToReport(report, { id: appId, name: appId, sheetCount: 1 });
@@ -206,12 +211,28 @@ describe('the off rung (BSI_OUTPUT=off)', () => {
     });
 });
 
+describe('the rung is a required argument', () => {
+    test('runOverAppsWithReport throws without one instead of silently re-deciding', async () => {
+        await expect(runOverAppsWithReport(runArgs({ rung: undefined }))).rejects.toThrow(
+            /requires the rung/
+        );
+    });
+
+    test('announceDryRun throws without one instead of defaulting to the plain banner', () => {
+        expect(() => announceDryRun('qseow create-sheet-thumbnails')).toThrow(/requires the rung/);
+    });
+});
+
 describe('an unrecognised BSI_OUTPUT value', () => {
     test('warns once per process even though the rung is consulted repeatedly', async () => {
         process.env.BSI_OUTPUT = 'fancy';
 
-        emitRunHeader({ version: '9.9.9-test', jobLabel: 'QSEoW sheet thumbnails', options: {} });
-        await runOverAppsWithReport(runArgs());
+        const rung = emitRunHeader({
+            version: '9.9.9-test',
+            jobLabel: 'QSEoW sheet thumbnails',
+            options: {},
+        });
+        await runOverAppsWithReport(runArgs({ rung }));
 
         expect(logger.warn).toHaveBeenCalledTimes(1);
         expect(logger.warn.mock.calls[0][0]).toContain('BSI_OUTPUT="fancy"');

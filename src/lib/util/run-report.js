@@ -7,7 +7,7 @@ import {
     isRemovalReport,
     logRunHeader,
 } from './run-report-render.js';
-import { selectRung, RUNG } from './select-rung.js';
+import { selectRung, rendersAsBoard, RUNG } from './select-rung.js';
 import {
     boardContext,
     renderBoardHeader,
@@ -164,7 +164,7 @@ const emitBlockOnRung = ({
     forceVisible = false,
     suppressOnOff = true,
 }) => {
-    if (rung === RUNG.BOARD || rung === RUNG.LIVE) {
+    if (rendersAsBoard(rung)) {
         withConsoleSilenced(plainEmit);
         process.stdout.write(renderBoardBlock());
 
@@ -239,13 +239,23 @@ export const emitRunHeader = ({ version, jobLabel, options = {} }) => {
  * still goes through the logger, console silenced - the same both-audiences
  * split as every other board block.
  *
+ * The rung is required, not defaulted: a permissive default here would let a
+ * future worker forget the threading and silently print the `=`-framed plain
+ * banner into the middle of board output - the exact divergence the
+ * rung-threading exists to make impossible.
+ *
  * @param {string} command - The command being planned, e.g. `qseow create-sheet-thumbnails`.
- * @param {string} [rung] - The rung from {@link emitRunHeader}. Callers
- *     without one get the plain banner.
+ * @param {string} rung - The rung returned by {@link emitRunHeader}.
  *
  * @returns {void}
  */
-export const announceDryRun = (command, rung = RUNG.PLAIN) => {
+export const announceDryRun = (command, rung) => {
+    if (!rung) {
+        // Loud, not lenient: a defaulted rung here would print the plain
+        // banner under a board header - divergence with no failing test.
+        throw new Error('announceDryRun requires the rung returned by emitRunHeader');
+    }
+
     const emit = () => {
         logger.info(RUN_FRAME);
         logger.info(`DRY RUN of ${command}: planning only - NOTHING WILL BE CHANGED`);
@@ -748,9 +758,12 @@ export const recordPlannedSheet = (
  * @param {{option: string, value: string}|null} run.selector - The selector used, if any.
  * @param {object} [run.plan] - Structural plan sections (target, auth, sheetPart,
  *     rules, browser, output, writes), assembled by the worker.
- * @param {string} [run.rung] - The output rung decided by the worker's
- *     `emitRunHeader` call, so header and blocks share one decision. Omitted
- *     by callers without a header; decided fresh then.
+ * @param {string} run.rung - The output rung returned by the worker's
+ *     `emitRunHeader` call, so header and blocks share one decision. Required,
+ *     not defaulted: a fallback deciding fresh here would quietly re-derive
+ *     the rung from different inputs, recreating the header/blocks divergence
+ *     the threading exists to eliminate. Callers without a header pass
+ *     `RUNG.PLAIN` explicitly.
  * @param {{plan: string, process: string}} run.logPrefix - Per-mode log prefixes.
  * @param {string} run.emptySelectionHint - Guidance when nothing was selected.
  * @param {(appId: string, report: object) => Promise<void>} run.planApp - The per-app planner.
@@ -766,23 +779,28 @@ export const runOverAppsWithReport = async ({
     selectorAppIds,
     selector,
     plan = null,
-    rung: providedRung = null,
+    rung,
     logPrefix,
     emptySelectionHint,
     planApp,
     processApp,
 }) => {
+    if (!rung) {
+        // Loud, not lenient: re-deciding here from different inputs is the
+        // header/blocks divergence the threading exists to eliminate, and a
+        // silent plain fallback under a board header is the same bug.
+        throw new Error('runOverAppsWithReport requires the rung returned by emitRunHeader');
+    }
+
     const report = createRunReport({ command, dryRun });
     recordSelection(report, { namedAppIds, selectorAppIds, selector });
     report.plan = plan;
 
-    // Decided once, at the start of the run (issue #1076): workers pass the
-    // rung their `emitRunHeader` call decided, so the header and the blocks
-    // cannot disagree even if the terminal changes between them. The
-    // fallback decides fresh for callers without a header. `live` renders as
-    // the board until rung C (issue #1075) exists.
-    const rung = providedRung ?? decideRung(plan?.browser?.headless);
-    const board = rung === RUNG.BOARD || rung === RUNG.LIVE;
+    // Decided once, at the start of the run (issue #1076): the worker's
+    // emitRunHeader call decided the rung and passed it here, so the header
+    // and the blocks cannot disagree even if the terminal changes between
+    // them - structurally, because nothing here re-decides.
+    const board = rendersAsBoard(rung);
     const ctx = board ? boardContext() : null;
 
     const emitPlan = () => {

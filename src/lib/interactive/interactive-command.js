@@ -1,6 +1,5 @@
 import { Command, Option } from 'commander';
 import { logger, appVersion } from '../../globals.js';
-import { logRunHeader } from '../util/run-report-render.js';
 import { runCommand } from '../commands/run-command.js';
 import { assertInteractiveCapable } from './tty.js';
 import { isPromptCancellation } from './prompt-runtime.js';
@@ -73,7 +72,13 @@ const runWizardUnlessCancelled = async () => {
  * @returns {Promise<boolean>} `true` on success, `false` on failure.
  */
 const handleInteractive = async (options = {}, _cmd) => {
-    logRunHeader(logger, appVersion, 'interactive wizard');
+    // One unframed line, not logRunHeader: since the run headers moved into
+    // the workers, a wizard-launched run prints the real header (wordmark
+    // frame included, on the board rung) when it starts - a second framed
+    // banner here would double the branding on every wizard session. The
+    // version stays, because a wizard session that never runs a command is
+    // still a support artefact.
+    logger.info(`Butler Sheet Icons ${appVersion} - interactive wizard`);
 
     return runCommand(
         'INTERACTIVE MAIN 11',
