@@ -921,6 +921,7 @@ describe('progressive disclosure', () => {
                 headless: true,
                 pagewait: '5',
                 imagedir: './img',
+                captureOverviewAfter: true,
                 senseVersion: '2025-Nov',
                 browser: 'chrome',
                 browserVersion: 'recommended',

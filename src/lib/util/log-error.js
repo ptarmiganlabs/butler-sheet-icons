@@ -114,10 +114,14 @@ const MAX_CAUSE_DEPTH = 5;
  * A cause already quoted in an enclosing message is skipped: several call sites throw
  * ``new Error(`PREFIX: ${err}`, { cause: err })``, and repeating it would say the same thing twice.
  *
+ * Exported for the handful of `catch` blocks that report a failure at `warn` rather than
+ * `error` - a step that is allowed to fail without failing the run. They need the same
+ * never-throws rendering as `logError`, at a different log level.
+ *
  * @param {Error|unknown} error - The caught value.
  * @returns {string} e.g. `Failed to update sheet thumbnails in app X [caused by: Not connected]`.
  */
-const describeWithCauses = (error) => {
+export const describeWithCauses = (error) => {
     const parts = [describeError(error)];
     const seen = new Set([error]);
 

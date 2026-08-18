@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, beforeEach, jest } from '@jest/globals';
+import { describe, test, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
 
 // Mock every dependency of qseowProcessApp using the ESM-native
 // jest.unstable_mockModule + dynamic import pattern. This mirrors the pattern
@@ -26,9 +26,11 @@ const mockFs = jest.unstable_mockModule('fs', () => ({
     default: {
         mkdirSync: jest.fn(),
         existsSync: jest.fn().mockReturnValue(false),
+        rmSync: jest.fn(),
     },
     mkdirSync: jest.fn(),
     existsSync: jest.fn().mockReturnValue(false),
+    rmSync: jest.fn(),
 }));
 
 const mockJimp = jest.unstable_mockModule('jimp', () => ({
@@ -103,6 +105,7 @@ const mockDetermineSheetExcludeStatus = jest.unstable_mockModule(
     })
 );
 
+let fs;
 let qseowProcessApp;
 let puppeteer;
 let enigma;
@@ -146,6 +149,7 @@ beforeAll(async () => {
     ({ qseowUploadToContentLibrary } = await import('../qseow-upload.js'));
     ({ qseowUpdateSheetThumbnails } = await import('../qseow-updatesheets.js'));
     ({ qseowLogout } = await import('../qseow-logout.js'));
+    fs = (await import('fs')).default;
     ({ qseowProcessApp } = await import('../qseow-process-app.js'));
 });
 
@@ -172,6 +176,11 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         headless: true,
         blurFactor: 5,
         loglevel: 'info',
+        // Off in the shared fixture, on by default in the product. The after-capture opens a
+        // *second* browser session, which would double the launch/close counts that the
+        // lifecycle tests in this file assert on. It gets its own describe block below, where
+        // the second session is the subject rather than an unannounced extra.
+        captureOverviewAfter: false,
     };
 
     /**
@@ -867,6 +876,188 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             await qseowProcessApp('test-app-id', defaultOptions);
 
             expect(enigma.create).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    // Issue #735. The after-capture is the only part of a run that opens a second browser
+    // session, and it does so after the thumbnails are already uploaded and assigned - which
+    // is precisely why it must never be able to fail the run.
+    describe('app overview captured after the update (#735)', () => {
+        beforeEach(() => {
+            // The enclosing describe has no beforeEach, so both call counts and mock
+            // implementations accumulate across its tests. clearAllMocks resets the counts but
+            // deliberately keeps implementations, so the browser mocks are restored by hand.
+            jest.clearAllMocks();
+            detectAvailableBrowser.mockResolvedValue({
+                executablePath: '/test/browser',
+                source: 'system',
+                browser: 'chrome',
+                buildId: 'system-installed',
+            });
+            browserInstall.mockReset();
+            qseowUploadToContentLibrary.mockResolvedValue(true);
+            qseowUpdateSheetThumbnails.mockResolvedValue(1);
+        });
+
+        afterEach(() => {
+            // These tests queue one-shot launch and logout outcomes. clearAllMocks keeps
+            // queued implementations, so an unconsumed one would surface in an unrelated
+            // test several describes later, where it makes no sense at all.
+            puppeteer.launch.mockReset();
+            qseowLogout.mockReset();
+            qseowLogout.mockResolvedValue(true);
+        });
+
+        /**
+         * Every path the run passed to `page.screenshot`.
+         *
+         * @param {object} browser - Mock browser returned by setupHappyPath.
+         *
+         * @returns {string[]} Screenshot paths, in the order they were written.
+         */
+        const shotPaths = (browser) => browser._page.screenshot.mock.calls.map(([arg]) => arg.path);
+
+        test('names the main session overview after the state it shows', async () => {
+            const browser = setupHappyPath();
+
+            await qseowProcessApp('test-app-id', defaultOptions);
+
+            // Renamed from overview-1.png: with a second capture in play, a positional
+            // name no longer says which of the two an operator is looking at.
+            expect(shotPaths(browser)).toContain('./img/qseow/test-app-id/overview-before.png');
+        });
+
+        test('signs in again and captures the overview when enabled', async () => {
+            const browser = setupHappyPath();
+
+            await qseowProcessApp('test-app-id', {
+                ...defaultOptions,
+                captureOverviewAfter: true,
+            });
+
+            expect(puppeteer.launch).toHaveBeenCalledTimes(2);
+            expect(browser.close).toHaveBeenCalledTimes(2);
+            expect(shotPaths(browser)).toContain('./img/qseow/test-app-id/overview-after.png');
+        });
+
+        test('captures only after the sheets have been pointed at the new thumbnails', async () => {
+            const browser = setupHappyPath();
+
+            await qseowProcessApp('test-app-id', {
+                ...defaultOptions,
+                captureOverviewAfter: true,
+            });
+
+            // Ordering is the whole point: capture too early and the screenshot shows the
+            // starting state while claiming to show the result.
+            const index = browser._page.screenshot.mock.calls.findIndex(([arg]) =>
+                arg.path.endsWith('overview-after.png')
+            );
+            const capturedAt = browser._page.screenshot.mock.invocationCallOrder[index];
+            const updatedAt = qseowUpdateSheetThumbnails.mock.invocationCallOrder[0];
+
+            expect(capturedAt).toBeGreaterThan(updatedAt);
+        });
+
+        test('gives the second login its own screenshots rather than overwriting the first', async () => {
+            const browser = setupHappyPath();
+
+            await qseowProcessApp('test-app-id', {
+                ...defaultOptions,
+                captureOverviewAfter: true,
+            });
+
+            const paths = shotPaths(browser);
+
+            expect(paths).toContain('./img/qseow/test-app-id/loginpage-after-1.png');
+            expect(paths).toContain('./img/qseow/test-app-id/loginpage-after-2.png');
+
+            // The first session's login evidence is what an operator reads when a run fails
+            // to sign in. A second session reusing those names would erase it.
+            expect(paths.filter((path) => path.endsWith('/loginpage-1.png'))).toHaveLength(1);
+            expect(paths.filter((path) => path.endsWith('/loginpage-2.png'))).toHaveLength(1);
+        });
+
+        test('opens no second session when switched off', async () => {
+            const browser = setupHappyPath();
+
+            await qseowProcessApp('test-app-id', {
+                ...defaultOptions,
+                captureOverviewAfter: false,
+            });
+
+            expect(puppeteer.launch).toHaveBeenCalledTimes(1);
+            expect(shotPaths(browser)).not.toContain('./img/qseow/test-app-id/overview-after.png');
+        });
+
+        test('clears a stale after-image before attempting the capture', async () => {
+            setupHappyPath();
+
+            await qseowProcessApp('test-app-id', {
+                ...defaultOptions,
+                captureOverviewAfter: true,
+            });
+
+            // The run has already overwritten overview-before.png by this point. If the
+            // capture then fails, an after-image left by an earlier run would pair a fresh
+            // before with a stale after and read as one run's evidence.
+            expect(fs.rmSync).toHaveBeenCalledWith('./img/qseow/test-app-id/overview-after.png', {
+                force: true,
+            });
+        });
+
+        test('a logout failure is not reported as a failed capture', async () => {
+            const browser = setupHappyPath();
+            qseowLogout.mockResolvedValueOnce(true);
+            qseowLogout.mockRejectedValueOnce(new Error('QPS DELETE refused'));
+
+            await expect(
+                qseowProcessApp('test-app-id', { ...defaultOptions, captureOverviewAfter: true })
+            ).resolves.not.toThrow();
+
+            const warnings = logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+
+            // The screenshot is written before the logout is attempted, so the file exists.
+            // Saying it could not be captured would send an operator looking for a file that
+            // is sitting in the image directory.
+            expect(shotPaths(browser)).toContain('./img/qseow/test-app-id/overview-after.png');
+            expect(warnings).toContain('could not log the second session out');
+            expect(warnings).not.toContain('Could not capture the app overview');
+        });
+
+        test('survives a rejection that carries no message', async () => {
+            const browser = setupHappyPath();
+            // The main session gets its page; the after-capture's newPage rejects with a bare
+            // undefined. Nothing between there and the caller's catch wraps it - rejecting the
+            // browser launch instead would be wrapped in a QseowError and prove nothing.
+            browser.newPage.mockResolvedValueOnce(browser._page);
+            browser.newPage.mockRejectedValueOnce(undefined);
+
+            // Reading `.message` off this would throw from inside the very catch block that
+            // exists to keep the capture from failing the run, turning a run whose thumbnails
+            // were fully applied into a failed one.
+            await expect(
+                qseowProcessApp('test-app-id', { ...defaultOptions, captureOverviewAfter: true })
+            ).resolves.not.toThrow();
+
+            const warnings = logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(warnings).toContain('Could not capture the app overview after the update');
+        });
+
+        test('warns but does not fail the run when the second session cannot start', async () => {
+            const browser = setupHappyPath();
+            puppeteer.launch.mockResolvedValueOnce(browser);
+            puppeteer.launch.mockRejectedValueOnce(new Error('no browser available'));
+
+            await expect(
+                qseowProcessApp('test-app-id', { ...defaultOptions, captureOverviewAfter: true })
+            ).resolves.not.toThrow();
+
+            const warnings = logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(warnings).toContain('Could not capture the app overview after the update');
+
+            // The thumbnails were applied before the capture was attempted, so the run stands.
+            expect(qseowUpdateSheetThumbnails).toHaveBeenCalled();
         });
     });
 });

@@ -156,3 +156,27 @@ const isProbablyContainer = () => {
         return false;
     }
 };
+
+/**
+ * Removes an image left behind by an earlier run, best-effort.
+ *
+ * Used for outputs that a run may or may not produce. Writing one is not guaranteed - the
+ * after-overview capture is explicitly allowed to fail without failing the run - and a file
+ * from a previous run surviving that failure is worse than no file at all: the run overwrites
+ * its other images, so the leftover would be read as part of this run's output when it belongs
+ * to the previous one.
+ *
+ * Never throws. Failing to clear a stale file leaves things exactly as they were before this
+ * function existed, which is not a reason to fail the run that called it.
+ *
+ * @param {string} filePath - Absolute or relative path of the image to remove.
+ *
+ * @returns {void}
+ */
+export const removeStaleImage = (filePath) => {
+    try {
+        fs.rmSync(filePath, { force: true });
+    } catch (err) {
+        logger.debug(`Could not remove stale image ${filePath}: ${err}`);
+    }
+};

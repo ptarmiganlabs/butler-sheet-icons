@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeAll, beforeEach, jest } from '@jest/globals';
+import { describe, test, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
 
 // Mock every dependency of processCloudApp using the ESM-native
 // jest.unstable_mockModule + dynamic import pattern. This mirrors the pattern
@@ -26,9 +26,11 @@ const mockFs = jest.unstable_mockModule('fs', () => ({
     default: {
         mkdirSync: jest.fn(),
         existsSync: jest.fn().mockReturnValue(false),
+        rmSync: jest.fn(),
     },
     mkdirSync: jest.fn(),
     existsSync: jest.fn().mockReturnValue(false),
+    rmSync: jest.fn(),
 }));
 
 const mockJimp = jest.unstable_mockModule('jimp', () => ({
@@ -92,6 +94,7 @@ const mockSheetScreenshot = jest.unstable_mockModule('../sheet-screenshot.js', (
     takeSheetScreenshot: jest.fn().mockResolvedValue(true),
 }));
 
+let fs;
 let processCloudApp;
 let puppeteer;
 let enigma;
@@ -125,6 +128,7 @@ beforeAll(async () => {
     ({ browserInstall } = await import('../../browser/browser-install.js'));
     ({ detectAvailableBrowser } = await import('../../browser/browser-detect.js'));
     ({ takeSheetScreenshot } = await import('../sheet-screenshot.js'));
+    fs = (await import('fs')).default;
     ({ qscloudUploadToApp } = await import('../cloud-upload.js'));
     ({ qscloudUpdateSheetThumbnails } = await import('../cloud-updatesheets.js'));
     ({ processCloudApp } = await import('../process-cloud-app.js'));
@@ -149,6 +153,10 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         excludeSheetStatus: ['private'],
         excludeSheetNumber: [],
         excludeSheetTitle: [],
+        // Off in the shared fixture, on by default in the product. The after-capture opens a
+        // *second* browser session, which would double the launch/close counts that the
+        // lifecycle tests in this file assert on. It gets its own describe block below.
+        captureOverviewAfter: false,
     };
 
     const defaultSaasInstance = {
@@ -600,6 +608,197 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         const logged = logger.error.mock.calls.map((call) => String(call[0])).join('\n');
         expect(logged).toContain('Could not obtain a browser for Qlik Sense Cloud app test-app-id');
         expect(puppeteer.launch).not.toHaveBeenCalled();
+    });
+
+    // Issue #735. Mirrors the QSEoW twin: the after-capture is the only part of a run that
+    // opens a second browser session, and it does so after the thumbnails are already
+    // uploaded and assigned - which is precisely why it must never fail the run.
+    describe('app overview captured after the update (#735)', () => {
+        beforeEach(() => {
+            // The enclosing describe has no beforeEach, so both call counts and mock
+            // implementations accumulate across its tests. clearAllMocks resets the counts but
+            // deliberately keeps implementations, so the browser mocks are restored by hand.
+            jest.clearAllMocks();
+            detectAvailableBrowser.mockResolvedValue({
+                executablePath: '/test/browser',
+                source: 'system',
+                browser: 'chrome',
+                buildId: 'system-installed',
+            });
+            browserInstall.mockReset();
+            qscloudUploadToApp.mockResolvedValue(true);
+            qscloudUpdateSheetThumbnails.mockResolvedValue(1);
+        });
+
+        afterEach(() => {
+            // These tests queue one-shot launch outcomes. clearAllMocks keeps queued
+            // implementations, so an unconsumed one would surface in an unrelated test
+            // several describes later, where it makes no sense at all.
+            puppeteer.launch.mockReset();
+        });
+
+        /**
+         * Every path the run passed to `page.screenshot`.
+         *
+         * @param {object} browser - Mock browser returned by setupHappyPath.
+         *
+         * @returns {string[]} Screenshot paths, in the order they were written.
+         */
+        const shotPaths = (browser) => browser._page.screenshot.mock.calls.map(([arg]) => arg.path);
+
+        test('names the main session overview after the state it shows', async () => {
+            const browser = setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, defaultOptions);
+
+            expect(shotPaths(browser)).toContain('./img/cloud/test-app-id/overview-before.png');
+        });
+
+        test('signs in again and captures the overview when enabled', async () => {
+            const browser = setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                // The lone fixture sheet is unpublished and unapproved, so the default
+                // --exclude-sheet-status private skips it and the run creates nothing. The
+                // after-capture is deliberately skipped for a run that changed nothing, so
+                // without this the second session could never be observed here.
+                excludeSheetStatus: [],
+                captureOverviewAfter: true,
+            });
+
+            expect(puppeteer.launch).toHaveBeenCalledTimes(2);
+            expect(browser.close).toHaveBeenCalledTimes(2);
+            expect(shotPaths(browser)).toContain('./img/cloud/test-app-id/overview-after.png');
+        });
+
+        test('captures only after the sheets have been pointed at the new thumbnails', async () => {
+            const browser = setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                // The lone fixture sheet is unpublished and unapproved, so the default
+                // --exclude-sheet-status private skips it and the run creates nothing. The
+                // after-capture is deliberately skipped for a run that changed nothing, so
+                // without this the second session could never be observed here.
+                excludeSheetStatus: [],
+                captureOverviewAfter: true,
+            });
+
+            const index = browser._page.screenshot.mock.calls.findIndex(([arg]) =>
+                arg.path.endsWith('overview-after.png')
+            );
+            const capturedAt = browser._page.screenshot.mock.invocationCallOrder[index];
+            const updatedAt = qscloudUpdateSheetThumbnails.mock.invocationCallOrder[0];
+
+            expect(capturedAt).toBeGreaterThan(updatedAt);
+        });
+
+        test('gives the second login its own screenshots rather than overwriting the first', async () => {
+            const browser = setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                // The lone fixture sheet is unpublished and unapproved, so the default
+                // --exclude-sheet-status private skips it and the run creates nothing. The
+                // after-capture is deliberately skipped for a run that changed nothing, so
+                // without this the second session could never be observed here.
+                excludeSheetStatus: [],
+                captureOverviewAfter: true,
+            });
+
+            const paths = shotPaths(browser);
+
+            expect(paths).toContain('./img/cloud/test-app-id/loginpage-after-1.png');
+            expect(paths).toContain('./img/cloud/test-app-id/loginpage-after-2.png');
+
+            expect(paths.filter((path) => path.endsWith('/loginpage-1.png'))).toHaveLength(1);
+            expect(paths.filter((path) => path.endsWith('/loginpage-2.png'))).toHaveLength(1);
+        });
+
+        test('opens no second session when switched off', async () => {
+            const browser = setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                excludeSheetStatus: [],
+                captureOverviewAfter: false,
+            });
+
+            expect(puppeteer.launch).toHaveBeenCalledTimes(1);
+            expect(shotPaths(browser)).not.toContain('./img/cloud/test-app-id/overview-after.png');
+        });
+
+        test('clears a stale after-image before attempting the capture', async () => {
+            setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                excludeSheetStatus: [],
+                captureOverviewAfter: true,
+            });
+
+            expect(fs.rmSync).toHaveBeenCalledWith('./img/cloud/test-app-id/overview-after.png', {
+                force: true,
+            });
+        });
+
+        test('survives a rejection that carries no message', async () => {
+            const browser = setupHappyPath();
+            // The main session gets its page; the after-capture's newPage rejects with a bare
+            // undefined. Nothing between there and the caller's catch wraps it - rejecting the
+            // browser launch instead would be wrapped in a CloudError and prove nothing.
+            browser.newPage.mockResolvedValueOnce(browser._page);
+            browser.newPage.mockRejectedValueOnce(undefined);
+
+            await expect(
+                processCloudApp('test-app-id', defaultSaasInstance, {
+                    ...defaultOptions,
+                    excludeSheetStatus: [],
+                    captureOverviewAfter: true,
+                })
+            ).resolves.not.toThrow();
+
+            const warnings = logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(warnings).toContain('Could not capture the app overview after the update');
+        });
+
+        test('announces a skipped login once per app, not once per session', async () => {
+            setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                excludeSheetStatus: [],
+                skipLogin: true,
+                captureOverviewAfter: true,
+            });
+
+            // The session helper opens both the main session and the after-capture, so a
+            // notice logged inside it is printed twice for every app in a collection.
+            const notices = logger.info.mock.calls
+                .map((call) => String(call[0]))
+                .filter((line) => line.includes('Skipping login'));
+
+            expect(notices).toHaveLength(1);
+        });
+
+        test('warns but does not fail the run when the second session cannot start', async () => {
+            const browser = setupHappyPath();
+            puppeteer.launch.mockResolvedValueOnce(browser);
+            puppeteer.launch.mockRejectedValueOnce(new Error('no browser available'));
+
+            await expect(
+                processCloudApp('test-app-id', defaultSaasInstance, {
+                    ...defaultOptions,
+                    excludeSheetStatus: [],
+                    captureOverviewAfter: true,
+                })
+            ).resolves.not.toThrow();
+
+            const warnings = logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+            expect(warnings).toContain('Could not capture the app overview after the update');
+            expect(qscloudUpdateSheetThumbnails).toHaveBeenCalled();
+        });
     });
 });
 
