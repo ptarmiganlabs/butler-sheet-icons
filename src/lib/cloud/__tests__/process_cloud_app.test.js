@@ -181,6 +181,9 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
      */
     function buildMockPage() {
         return {
+            // Sheet-loading detection (#1119). Defaults to "not loading" so every
+            // existing test describes a sheet that had finished rendering.
+            evaluate: jest.fn().mockResolvedValue(false),
             setViewport: jest.fn().mockResolvedValue(true),
             setDefaultTimeout: jest.fn().mockResolvedValue(true),
             goto: jest.fn().mockResolvedValue(true),

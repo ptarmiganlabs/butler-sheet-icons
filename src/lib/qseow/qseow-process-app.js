@@ -25,6 +25,7 @@ import { getQseowHubSelectors } from './qseow-selectors.js';
 import { logError, describeWithCauses } from '../util/log-error.js';
 import { openQseowAppOverviewPage, captureQseowOverviewAfter } from './qseow-app-session.js';
 import { parseTrueFalseOption } from '../util/true-false-option.js';
+import { sheetWasStillLoading, stillLoadingWarning } from '../util/sheet-loading.js';
 
 /**
  * Processes a Qlik Sense Enterprise on Windows (QSEoW) application to generate
@@ -276,6 +277,22 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                                 // Ensure that the element we're interested in is loaded
                                 await page.waitForSelector(selector);
                                 const sheetMainPart = await page.$(selector);
+
+                                // Checked before the shutter rather than after: the two are
+                                // milliseconds apart, and of the two ways to be wrong, a
+                                // spurious warning is far cheaper than staying silent about a
+                                // thumbnail that shows the loading screen.
+                                if (await sheetWasStillLoading(page, logger)) {
+                                    logger.warn(
+                                        stillLoadingWarning(
+                                            'QSEOW APP',
+                                            iSheetNum,
+                                            sheet?.qMeta?.title,
+                                            options.pagewait
+                                        )
+                                    );
+                                }
+
                                 await sheetMainPart.screenshot({
                                     path: fileName,
                                 });
