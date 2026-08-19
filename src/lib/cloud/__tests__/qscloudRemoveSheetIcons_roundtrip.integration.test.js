@@ -187,24 +187,41 @@ test(
         // than an unconditional create.
         // ---------------------------------------------------------------------------------
         let iconsBefore = await readIconState(appIds);
+        let mediaBefore = await readThumbnailMediaCounts(saasInstance, appIds);
         const anyIcon = (state) =>
             Object.values(state).some((sheets) => sheetIdsWithIcon(sheets).length > 0);
 
-        if (!anyIcon(iconsBefore)) {
+        // An app whose sheets carry icons but whose media library holds none of the files
+        // behind them is arranged, not asserted against. That state is reachable without
+        // anything being broken: creating thumbnails on Cloud deletes the old media before
+        // uploading the new, so a create run that failed in between leaves sheets pointing at
+        // files that no longer exist. This test used to assert the pairing here and fail on
+        // it, which made it depend on the tenant's history and on which test had run before
+        // it - it failed on exactly this the first time it ran in CI, and the create-thumbnails
+        // test later in the same job repaired the tenant behind it. Creating thumbnails
+        // restores both halves, so arranging covers this case as naturally as the no-icons one.
+        const iconsWithoutMedia = appIds.filter(
+            (appId) => sheetIdsWithIcon(iconsBefore[appId]).length > 0 && mediaBefore[appId] === 0
+        );
+
+        if (!anyIcon(iconsBefore) || iconsWithoutMedia.length > 0) {
             console.log(
-                'No sheet in the selected app(s) carries an icon. Creating thumbnails first, so the removal has something to remove.'
+                iconsWithoutMedia.length > 0
+                    ? `Sheet icons in app(s) ${iconsWithoutMedia.join(', ')} have no thumbnail media behind them. Creating thumbnails first, so both halves of the removal have something to remove.`
+                    : 'No sheet in the selected app(s) carries an icon. Creating thumbnails first, so the removal has something to remove.'
             );
             expect(await qscloudCreateThumbnails(options)).toBe(true);
             iconsBefore = await readIconState(appIds);
+            mediaBefore = await readThumbnailMediaCounts(saasInstance, appIds);
         }
 
         expect(anyIcon(iconsBefore)).toBe(true);
 
-        const mediaBefore = await readThumbnailMediaCounts(saasInstance, appIds);
         const datesBefore = await readAppModifiedDates(saasInstance, appIds);
 
-        // Every app that has icons must also have the media files behind them, or the media half
-        // of the assertion below would be testing nothing.
+        // Now a statement about what arranging produced rather than about the tenant's past:
+        // every app that has icons has the media files behind them, or the media half of the
+        // assertion below would be testing nothing.
         for (const appId of appIds) {
             if (sheetIdsWithIcon(iconsBefore[appId]).length > 0) {
                 expect(mediaBefore[appId]).toBeGreaterThan(0);
