@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 
 import { logger, sleep } from '../../globals.js';
+import { describeWithCauses } from '../util/log-error.js';
 import { normalizeVirtualProxyPrefix } from './qseow-prefix.js';
 
 /** The stable selector for the Qlik Sense hub logout item. */
@@ -187,5 +188,53 @@ export const qseowLogout = async (page, options, xpathHubUserPageButton, legacyL
             `QSEOW: Please report this to support@ptarmiganlabs.com or https://github.com/ptarmiganlabs/butler-sheet-icons/issues/new, including the Qlik Sense version and --sense-version value.`
         );
         return false;
+    }
+};
+
+/**
+ * Logs out without letting the attempt fail the caller.
+ *
+ * Mirrors `closeBrowserQuietly`. Two jobs, only one of which is load-bearing today.
+ *
+ * The load-bearing one is the `!page` guard: this is called from a `finally` that also runs
+ * when the sign-in itself failed, and there is then no session to release.
+ *
+ * The `catch` is a guard on a contract, not a live bug. `qseowLogout` above reports both of
+ * its failure paths and returns `false` rather than throwing, so today nothing reaches it.
+ * It stays because this runs in a `finally`, where anything thrown replaces whatever the
+ * block was already failing with - a logout error would bury the sheet-render error that
+ * actually explains the run - and because that contract is a property of the function below,
+ * not of the language.
+ *
+ * Logging out is what releases the Qlik Sense proxy session; closing the browser does not.
+ * A session that is not released stays alive until it times out, and every stranded session
+ * brings the user closer to their parallel-session limit, at which point Qlik Sense refuses
+ * to open apps at all. That makes leaked sessions self-reinforcing: one failed run makes the
+ * next one likelier to fail, and on a busy server it takes a service restart to clear.
+ *
+ * @param {object|undefined} page - Puppeteer page holding the session, if one was ever opened.
+ * @param {object} logoutOptions - Options forwarded to `qseowLogout`.
+ * @param {string} xpathHubUserPageButton - Hub user-menu selector for the fallback path.
+ * @param {string} legacyLogoutButton - Legacy logout selector for the fallback path.
+ *
+ * @returns {Promise<void>} Always resolves.
+ */
+export const qseowLogoutQuietly = async (
+    page,
+    logoutOptions,
+    xpathHubUserPageButton,
+    legacyLogoutButton
+) => {
+    // No page means the run never got as far as signing in, so there is no session to release.
+    if (!page) {
+        return;
+    }
+
+    try {
+        await qseowLogout(page, logoutOptions, xpathHubUserPageButton, legacyLogoutButton);
+    } catch (err) {
+        logger.warn(
+            `QSEOW: Could not log the browser session out. It will stay active on the server until Qlik Sense times it out, which counts against the parallel-session limit for this user. ${describeWithCauses(err)}`
+        );
     }
 };

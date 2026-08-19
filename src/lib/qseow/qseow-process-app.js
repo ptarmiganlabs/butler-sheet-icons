@@ -20,7 +20,7 @@ import { activeLiveView } from '../util/run-live.js';
 import { addAppToReport, recordPlannedSheet, recordAppOutcome } from '../util/run-report.js';
 import { appProgressLine, sheetProgressLine } from '../util/run-report-render.js';
 import { QSEOW_SHEET_PART_SELECTORS } from './sheet-parts.js';
-import { qseowLogout } from './qseow-logout.js';
+import { qseowLogoutQuietly } from './qseow-logout.js';
 import { getQseowHubSelectors } from './qseow-selectors.js';
 import { logError, describeWithCauses } from '../util/log-error.js';
 import { openQseowAppOverviewPage, captureQseowOverviewAfter } from './qseow-app-session.js';
@@ -147,6 +147,11 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                         ErrorClass: QseowError,
                     });
 
+                    // Declared outside the try so the `finally` can reach them even when the
+                    // sign-in itself is what failed.
+                    let signedInPage;
+                    let signedInHubUrl;
+
                     try {
                         // The live `signed in` row (issue #1075) is bound to
                         // the real login below: it begins here and resolves
@@ -164,6 +169,11 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                             appId,
                             { imgDir, pageTimeout, loginPagePrefix: 'loginpage' }
                         );
+
+                        // Held for the `finally` below, which has to log this session out
+                        // however this block ends.
+                        signedInPage = page;
+                        signedInHubUrl = hubUrl;
 
                         // Only now is the session real: the login click has
                         // navigated and the page has settled.
@@ -387,15 +397,23 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                         }
 
                         logger.verbose(`QSEoW APP: Done creating thumbnails`);
-
+                    } finally {
+                        // In the `finally`, not at the end of the try: a failure anywhere in
+                        // the sheet loop used to skip the logout entirely and strand the Qlik
+                        // Sense session until it timed out. Closing the browser does not
+                        // release it. Since a stranded session counts against the user's
+                        // parallel-session limit, one failed run made the next likelier to
+                        // fail, and a run of failures could take the server to the point where
+                        // it refuses to open apps at all.
+                        //
                         // The API path avoids a version- and privilege-dependent hub menu. The
-                        // fallback remains available for virtual proxies or authentication modes
-                        // that do not accept the browser-side QPS DELETE.
-                        await qseowLogout(
-                            page,
+                        // fallback remains available for virtual proxies or authentication
+                        // modes that do not accept the browser-side QPS DELETE.
+                        await qseowLogoutQuietly(
+                            signedInPage,
                             {
                                 prefix: options.prefix,
-                                hubUrl,
+                                hubUrl: signedInHubUrl,
                                 pageTimeout,
                                 pagewait: options.pagewait,
                                 senseVersion: options.senseVersion,
@@ -403,7 +421,7 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                             xpathHubUserPageButton,
                             legacyLogoutButton
                         );
-                    } finally {
+
                         await closeBrowserQuietly(browser, 'QSEOW');
                     }
                 }

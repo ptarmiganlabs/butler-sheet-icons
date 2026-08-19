@@ -2,9 +2,8 @@ import { logger, sleep } from '../../globals.js';
 import { launchBrowserForApp, closeBrowserQuietly } from '../browser/browser-launch.js';
 import { QseowError } from '../util/errors.js';
 import { normalizeVirtualProxyPrefix } from './qseow-prefix.js';
-import { qseowLogout } from './qseow-logout.js';
+import { qseowLogoutQuietly } from './qseow-logout.js';
 import { removeStaleImage } from '../util/image-dir.js';
-import { describeWithCauses } from '../util/log-error.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -172,6 +171,9 @@ export const captureQseowOverviewAfter = async (
         ErrorClass: QseowError,
     });
 
+    let signedInPage;
+    let signedInHubUrl;
+
     try {
         const { page, hubUrl } = await openQseowAppOverviewPage(browser, options, appId, {
             imgDir,
@@ -179,32 +181,27 @@ export const captureQseowOverviewAfter = async (
             loginPagePrefix: 'loginpage-after',
         });
 
-        await page.screenshot({ path: imagePath });
+        signedInPage = page;
+        signedInHubUrl = hubUrl;
 
-        // The screenshot is this function's product and it is now on disk. Logging out is
-        // cleanup, so its failure is reported on its own terms rather than propagating into
-        // the caller's "could not capture the app overview" warning - which would claim the
-        // file is missing while it sits in the image directory. The session is closed from
-        // the client side by the finally below either way.
-        try {
-            await qseowLogout(
-                page,
-                {
-                    prefix: options.prefix,
-                    hubUrl,
-                    pageTimeout,
-                    pagewait: options.pagewait,
-                    senseVersion: options.senseVersion,
-                },
-                userMenuButton,
-                legacyLogoutButton
-            );
-        } catch (err) {
-            logger.warn(
-                `QSEOW: Captured the after-update app overview, but could not log the second session out cleanly. ${describeWithCauses(err)}`
-            );
-        }
+        await page.screenshot({ path: imagePath });
     } finally {
+        // Same reasoning as the main session: this session has to be released however the
+        // block ends, and a logout failure must not surface as "could not capture the app
+        // overview" when the screenshot is already on disk.
+        await qseowLogoutQuietly(
+            signedInPage,
+            {
+                prefix: options.prefix,
+                hubUrl: signedInHubUrl,
+                pageTimeout,
+                pagewait: options.pagewait,
+                senseVersion: options.senseVersion,
+            },
+            userMenuButton,
+            legacyLogoutButton
+        );
+
         await closeBrowserQuietly(browser, 'QSEOW');
     }
 
