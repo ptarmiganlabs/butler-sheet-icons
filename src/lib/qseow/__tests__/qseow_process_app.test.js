@@ -79,6 +79,7 @@ const mockQseowUpdateSheets = jest.unstable_mockModule('../qseow-updatesheets.js
 
 const mockQseowLogout = jest.unstable_mockModule('../qseow-logout.js', () => ({
     qseowLogout: jest.fn().mockResolvedValue(true),
+    qseowLogoutQuietly: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockQseowQrs = jest.unstable_mockModule('../qseow-qrs.js', () => ({
@@ -118,6 +119,7 @@ let Jimp;
 let qseowUploadToContentLibrary;
 let qseowUpdateSheetThumbnails;
 let qseowLogout;
+let qseowLogoutQuietly;
 
 beforeAll(async () => {
     await Promise.all([
@@ -148,7 +150,7 @@ beforeAll(async () => {
     ({ Jimp } = await import('jimp'));
     ({ qseowUploadToContentLibrary } = await import('../qseow-upload.js'));
     ({ qseowUpdateSheetThumbnails } = await import('../qseow-updatesheets.js'));
-    ({ qseowLogout } = await import('../qseow-logout.js'));
+    ({ qseowLogout, qseowLogoutQuietly } = await import('../qseow-logout.js'));
     fs = (await import('fs')).default;
     ({ qseowProcessApp } = await import('../qseow-process-app.js'));
 });
@@ -772,7 +774,7 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
                 senseVersion: '2026-May',
             });
 
-            expect(qseowLogout).toHaveBeenCalledWith(
+            expect(qseowLogoutQuietly).toHaveBeenCalledWith(
                 browser._page,
                 expect.objectContaining({
                     prefix: 'form',
@@ -786,12 +788,43 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
 
         test('continues uploading and updating when logout cannot be completed', async () => {
             setupHappyPath();
-            qseowLogout.mockResolvedValueOnce(false);
+            qseowLogoutQuietly.mockResolvedValueOnce(undefined);
 
             await qseowProcessApp('test-app-id', defaultOptions);
 
             expect(qseowUploadToContentLibrary).toHaveBeenCalledTimes(1);
             expect(qseowUpdateSheetThumbnails).toHaveBeenCalledTimes(1);
+        });
+
+        test('logs out even when the sheet loop fails (#1119 follow-up)', async () => {
+            // Logging out is what releases the Qlik Sense proxy session; closing the browser
+            // does not. The logout used to sit at the end of the try, so any failure here
+            // skipped it and stranded the session until it timed out - and because stranded
+            // sessions count against the user's parallel-session limit, one failed run made
+            // the next likelier to fail, until Qlik Sense refused to open apps at all.
+            const browser = setupHappyPath();
+            browser._page.waitForSelector.mockRejectedValue(new Error('#grid-wrap timed out'));
+
+            await expect(qseowProcessApp('test-app-id', defaultOptions)).rejects.toThrow();
+
+            expect(qseowLogoutQuietly).toHaveBeenCalled();
+            expect(browser.close).toHaveBeenCalled();
+        });
+
+        test('does not attempt a logout when the run never signed in', async () => {
+            // No page means no session was ever established, so there is nothing to release
+            // and nothing to warn about.
+            const browser = setupHappyPath();
+            browser.newPage.mockRejectedValue(new Error('browser died on arrival'));
+
+            await expect(qseowProcessApp('test-app-id', defaultOptions)).rejects.toThrow();
+
+            expect(qseowLogoutQuietly).toHaveBeenCalledWith(
+                undefined,
+                expect.anything(),
+                expect.anything(),
+                expect.anything()
+            );
         });
     });
 
@@ -948,6 +981,8 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             puppeteer.launch.mockReset();
             qseowLogout.mockReset();
             qseowLogout.mockResolvedValue(true);
+            qseowLogoutQuietly.mockReset();
+            qseowLogoutQuietly.mockResolvedValue(undefined);
         });
 
         /**
@@ -1048,23 +1083,19 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             });
         });
 
-        test('a logout failure is not reported as a failed capture', async () => {
+        test('logs the after-capture session out once the screenshot is on disk', async () => {
             const browser = setupHappyPath();
-            qseowLogout.mockResolvedValueOnce(true);
-            qseowLogout.mockRejectedValueOnce(new Error('QPS DELETE refused'));
 
-            await expect(
-                qseowProcessApp('test-app-id', { ...defaultOptions, captureOverviewAfter: true })
-            ).resolves.not.toThrow();
+            await qseowProcessApp('test-app-id', {
+                ...defaultOptions,
+                captureOverviewAfter: true,
+            });
 
-            const warnings = logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
-
-            // The screenshot is written before the logout is attempted, so the file exists.
-            // Saying it could not be captured would send an operator looking for a file that
-            // is sitting in the image directory.
+            // Both sessions are released. Whether a logout that fails can take the capture
+            // down with it is settled in qseow_logout.test.js, which owns the wrapper that
+            // swallows it - here it is enough that the second session is logged out at all.
             expect(shotPaths(browser)).toContain('./img/qseow/test-app-id/overview-after.png');
-            expect(warnings).toContain('could not log the second session out');
-            expect(warnings).not.toContain('Could not capture the app overview');
+            expect(qseowLogoutQuietly).toHaveBeenCalledTimes(2);
         });
 
         test('survives a rejection that carries no message', async () => {
