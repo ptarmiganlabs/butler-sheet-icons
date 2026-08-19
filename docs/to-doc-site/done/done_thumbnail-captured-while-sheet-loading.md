@@ -1,3 +1,23 @@
+<!--
+PUBLISHED to `next` on 2026-08-19, butler-sheet-icons-docs PR #112. Version gate 5.0.0, read
+from release-please PR #974 at publish time. Publishing this completed the doc half of #1119.
+
+NOT published as a page. The doc site has a single `/guide/troubleshooting` page rather than a
+troubleshooting folder, so this became a section in it,
+`#thumbnail-shows-loading-screen`, placed at the end of the run-failure material and before
+`## Authentication Issues`.
+
+DROPPED SECTION. "Why Butler Sheet Icons does not simply wait longer by itself" was left out.
+It explains an implementation choice - that a readiness signal differs across Sense versions
+and platforms - which reads as a design note rather than troubleshooting, and the section is
+already long. The reasoning is preserved in the #1119 pull request if it is ever wanted.
+
+FIXED BEFORE PUBLICATION. The draft's "Checking the result" section linked the after-run
+overview screenshot as a placeholder `(#)`, which would have failed the doc-site build. It now
+names `--capture-overview-after` in prose, and the published section links
+`/guide/concepts/app-overview-screenshots` instead.
+-->
+
 # When a thumbnail shows the loading screen instead of the sheet
 
 **Status:** pending publication

@@ -1,3 +1,22 @@
+<!--
+PUBLISHED to `next` on 2026-08-19, butler-sheet-icons-docs PR #112. Version gate 5.0.0, read
+from release-please PR #974 at publish time. Publishing this completed the doc half of #735.
+
+Published as a NEW Core Concepts page, `/guide/concepts/app-overview-screenshots`, with a
+sidebar entry. The draft hedged between "new page or a section on run output"; a page won
+because the material is a concept (what the pair is for) rather than an option reference, and
+the reference tables carry the option itself.
+
+DROPPED CLAIM. This draft costs the second sign-in as "one extra browser launch and one extra
+web UI login, roughly ten seconds". The ten seconds was an estimate, never measured - a real
+run's second sign-in was never timed in isolation. The published page states the extra launch
+and login and says nothing about duration. Do not reinstate the figure without measuring it.
+
+ADDED AT PUBLICATION. A `See also` section, and the note that the wizard asks about the option
+under Advanced. The login-screenshot warning was reworded to say the `loginpage-after-*` files
+exist only when the after-capture actually runs.
+-->
+
 # Before/after app overview screenshots on every thumbnail run
 
 **Status:** pending publication
