@@ -5,13 +5,18 @@ const logger = {
     error: jest.fn(),
     info: jest.fn(),
     verbose: jest.fn(),
+    warn: jest.fn(),
 };
 const sleep = jest.fn().mockResolvedValue(undefined);
 
 jest.unstable_mockModule('../../../globals.js', () => ({ logger, sleep }));
 
-const { QSEOW_LOGOUT_API_TIMEOUT_MS, QSEOW_LOGOUT_BUTTON_SELECTOR, qseowLogout } =
-    await import('../qseow-logout.js');
+const {
+    QSEOW_LOGOUT_API_TIMEOUT_MS,
+    QSEOW_LOGOUT_BUTTON_SELECTOR,
+    qseowLogout,
+    qseowLogoutQuietly,
+} = await import('../qseow-logout.js');
 
 /**
  * Builds a page mock for the API and hub logout paths.
@@ -186,5 +191,48 @@ describe('qseowLogout', () => {
         expect(loggedErrors).toContain('--sense-version 2026-May');
         expect(loggedErrors).toContain('support@ptarmiganlabs.com');
         expect(logger.debug).toHaveBeenCalled();
+    });
+});
+
+describe('qseowLogoutQuietly', () => {
+    test('does nothing when the run never signed in', async () => {
+        // Called from a finally that also runs when the sign-in itself failed. There is no
+        // session to release then, and warning about it would be noise on top of the real
+        // error the run is already reporting.
+        await expect(
+            qseowLogoutQuietly(undefined, logoutOptions, hubUserPageButton)
+        ).resolves.toBeUndefined();
+        expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    test('releases the session when there is a page to release it from', async () => {
+        const page = buildPage();
+
+        await qseowLogoutQuietly(page, logoutOptions, hubUserPageButton);
+
+        expect(page.evaluate).toHaveBeenCalled();
+    });
+
+    test('returns quietly when logout fails, rather than failing the caller', async () => {
+        // The caller is a finally. Whatever happens here must not replace the error the block
+        // is already unwinding with.
+        const page = buildPage();
+        page.evaluate.mockRejectedValue(new Error('QPS unavailable'));
+        page.goto.mockRejectedValue(new Error('hub unavailable'));
+
+        await expect(
+            qseowLogoutQuietly(page, logoutOptions, hubUserPageButton)
+        ).resolves.toBeUndefined();
+    });
+
+    test('qseowLogout reports failure by returning false, never by throwing', async () => {
+        // The reason the wrapper's catch is a contract guard rather than a live bug fix.
+        // If this ever starts throwing, the catch stops being theoretical - which is exactly
+        // why it is there.
+        const page = buildPage();
+        page.evaluate.mockRejectedValue(new Error('QPS unavailable'));
+        page.goto.mockRejectedValue(new Error('hub unavailable'));
+
+        await expect(qseowLogout(page, logoutOptions, hubUserPageButton)).resolves.toBe(false);
     });
 });

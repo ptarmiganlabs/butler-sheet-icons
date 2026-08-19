@@ -7,13 +7,15 @@
 # captures: a real BSI run must execute between the two overview images,
 # because nothing else changes the sheet icons.
 #
-#   reset (recorded) -> dry run (recorded) -> real run (recorded, yields
-#   "before") -> second real run (yields "after")
+#   reset (recorded) -> dry run (recorded) -> real run (recorded, yields both
+#   "before" and "after")
 #
-# The overview screenshot is taken at the START of every real run, before any
-# sheet is touched, so run N's overview-1.png shows the state run N-1 left
-# behind. That is why the "after" image needs a second real run - which is
-# also a harmless idempotent rewrite of the same thumbnails.
+# Since #735 a single run captures the overview twice - overview-before.png
+# before any sheet is touched, overview-after.png once the thumbnails are
+# applied - so one run yields both panels. Before that, the after image had to
+# come from a second real run, because the only overview a run captured was
+# the one it took at the start, showing whatever the previous run had left
+# behind.
 #
 # Every step is idempotent, so the whole script is restartable: re-run it, or
 # re-run a single step by name.
@@ -27,13 +29,12 @@
 # pairing ships.)
 #
 # Usage:
-#   demo/record.sh [all|reset|dryrun|before|after|render|check|check-update]
+#   demo/record.sh [all|reset|dryrun|run|render|check|check-update]
 #
-#   all     reset + dryrun + before + after + render (the default)
+#   all     reset + dryrun + run + render (the default)
 #   reset   record qseow remove-sheet-icons doing its real removal
 #   dryrun  record qseow create-sheet-thumbnails --dry-run
-#   before  real run, recorded; harvest the "before" overview image
-#   after   second real run, unrecorded; harvest the "after" overview image
+#   run     real run, recorded; harvest both overview images from it
 #   render  re-render shareable GIF/MP4/WebM from the committed .cast
 #           masters - touches no server
 #   check   text-only drift check of every recorded command against
@@ -247,16 +248,17 @@ record_cast() {
 }
 
 overview_png() {
-    printf '%s' "$REPO_ROOT/$BSI_QSEOW_CST_IMAGE_DIR/qseow/$BSI_QSEOW_CST_APP_ID/overview-1.png"
+    printf '%s' "$REPO_ROOT/$BSI_QSEOW_CST_IMAGE_DIR/qseow/$BSI_QSEOW_CST_APP_ID/overview-$1.png"
 }
 
 # Copy ONE named file out of the image directory. Never publish or copy the
 # directory itself: BSI screenshots the Qlik login page with credentials
 # filled in (loginpage-2.png) into the same tree.
 harvest_overview() {
-    local dest="$OUT_DIR/panels/$1"
+    local phase="$1"
+    local dest="$OUT_DIR/panels/$2"
     local src
-    src="$(overview_png)"
+    src="$(overview_png "$phase")"
     [ -f "$src" ] || die "expected overview screenshot not found: $src"
     mkdir -p "$OUT_DIR/panels"
     cp "$src" "$dest"
@@ -277,22 +279,20 @@ step_dryrun() {
     record_cast "$CAST_DIR/qseow-dry-run.cast" asciicast-v2 qseow create-sheet-thumbnails --dry-run
 }
 
-step_before() {
-    log "before: real run, recorded; its overview shows the post-reset state"
+step_run() {
+    log "run: real run, recorded; it captures the overview before and after itself"
     require_cmd asciinema "Install with: brew install asciinema"
 
-    # Fresh image dir so the harvested overview is provably this run's.
+    # Fresh image dir so the harvested overviews are provably this run's.
     rm -rf "${REPO_ROOT:?}/${BSI_QSEOW_CST_IMAGE_DIR:?}"
 
     record_cast "$CAST_DIR/qseow-real-run.cast" asciicast-v2 qseow create-sheet-thumbnails
 
-    harvest_overview app-overview-before.png
-}
-
-step_after() {
-    log "after: second real run (idempotent rewrite); its overview shows the thumbnails"
-    (cd "$REPO_ROOT" && bsi qseow create-sheet-thumbnails)
-    harvest_overview app-overview-after.png
+    # Both panels come out of the one run. The after image only exists if the
+    # run's second sign-in succeeded; harvest_overview fails loudly rather than
+    # leaving a stale panel from an earlier recording in place.
+    harvest_overview before app-overview-before.png
+    harvest_overview after app-overview-after.png
 }
 
 render_one() {
@@ -475,15 +475,13 @@ main() {
         all)
             step_reset
             step_dryrun
-            step_before
-            step_after
+            step_run
             step_render
             log "done. Panels + renders are in demo/output/, cast masters in demo/cast/."
             ;;
         reset) step_reset ;;
         dryrun) step_dryrun ;;
-        before) step_before ;;
-        after) step_after ;;
+        run) step_run ;;
         render) step_render ;;
         check) step_check ;;
         check-update) step_check update ;;

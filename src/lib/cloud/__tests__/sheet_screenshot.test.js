@@ -42,6 +42,9 @@ const createPage = () => {
         goto: jest.fn().mockResolvedValue(undefined),
         waitForSelector: jest.fn().mockResolvedValue(undefined),
         $: jest.fn().mockResolvedValue(elementHandle),
+        // Sheet-loading detection (#1119). Defaults to "not loading", so every existing
+        // test here describes a sheet that had finished rendering.
+        evaluate: jest.fn().mockResolvedValue(false),
         elementHandle,
     };
 };
@@ -241,5 +244,71 @@ describe('takeSheetScreenshot', () => {
 
             await expect(run(page)).rejects.toThrow('Waiting for selector failed');
         });
+    });
+});
+
+// Issue #1119. A short --pagewait can have the shutter fall while Qlik Sense is still opening
+// the sheet, and the loading screen is then uploaded as the thumbnail. The run reported that
+// as a success, which is the part this makes impossible.
+describe('a thumbnail captured while the sheet was still loading', () => {
+    test('says so, naming the sheet and the option that fixes it', async () => {
+        const page = createPage();
+        page.evaluate.mockResolvedValue(true);
+
+        await takeSheetScreenshot(
+            page,
+            APP_URL,
+            IMG_DIR,
+            APP_ID,
+            { ...SHEET, qMeta: { title: 'Regional sales' } },
+            4,
+            { ...BASE_OPTIONS, pagewait: 1 },
+            mockLogger
+        );
+
+        const warnings = mockLogger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(warnings).toContain('Sheet 4');
+        expect(warnings).toContain('Regional sales');
+        expect(warnings).toContain('--pagewait (currently 1)');
+    });
+
+    test('still captures the thumbnail rather than quietly dropping the sheet', async () => {
+        const page = createPage();
+        page.evaluate.mockResolvedValue(true);
+
+        const created = await takeSheetScreenshot(
+            page,
+            APP_URL,
+            IMG_DIR,
+            APP_ID,
+            SHEET,
+            2,
+            BASE_OPTIONS,
+            mockLogger
+        );
+
+        // Detection reports; it does not change what a run does. Silently skipping the sheet
+        // would trade one invisible outcome for another.
+        expect(page.elementHandle.screenshot).toHaveBeenCalled();
+        expect(created.fileNameShort).toBe('thumbnail-2.png');
+    });
+
+    test('stays quiet when the sheet had finished rendering', async () => {
+        const page = createPage();
+        page.evaluate.mockResolvedValue(false);
+
+        await takeSheetScreenshot(
+            page,
+            APP_URL,
+            IMG_DIR,
+            APP_ID,
+            SHEET,
+            2,
+            BASE_OPTIONS,
+            mockLogger
+        );
+
+        const warnings = mockLogger.warn.mock.calls.map((call) => String(call[0])).join('\n');
+        expect(warnings).not.toContain('still opening');
     });
 });

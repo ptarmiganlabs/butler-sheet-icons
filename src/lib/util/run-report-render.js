@@ -498,6 +498,12 @@ const sumAppField = (report, field) => {
  * count from one place - two counting loops would be two chances for the
  * boards to disagree about the same run.
  *
+ * The dry-run summary counts from here too (issue #1115). It used to keep its
+ * own loop, bucketing on `sheet.action` alone, and that second loop did
+ * disagree: a no-op clear was reported as an icon that would be cleared by the
+ * plan and as a sheet that had no icon by the run. A plan and the run it
+ * predicts are counted by one rule or they are two answers about one app.
+ *
  * @param {object} report - The report.
  *
  * @returns {{seen: number, captured: number, blurred: number, excluded: number,

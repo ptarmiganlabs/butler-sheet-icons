@@ -4,6 +4,7 @@ import {
     RUN_FRAME,
     renderRunPlanLines,
     renderRunVerdictLines,
+    verdictCounts,
     isRemovalReport,
     logRunHeader,
 } from './run-report-render.js';
@@ -629,31 +630,6 @@ export const recordAppOutcome = (appEntry, { sheetsUpdated, imagesDir, imageFile
     appEntry.imagesKeptBytes = kept.bytes;
 };
 
-/**
- * Totals over every recorded decision.
- *
- * Derived at render time rather than kept as counters, so the totals cannot
- * disagree with the rows they summarise.
- *
- * @param {object} report - The report.
- *
- * @returns {{apps: number, sheets: number, update: number, blur: number, skip: number, clear: number}} Totals.
- */
-export const reportTotals = (report) => {
-    const totals = { apps: report.apps.length, sheets: 0, update: 0, blur: 0, skip: 0, clear: 0 };
-
-    for (const app of report.apps) {
-        for (const sheet of app.sheets) {
-            totals.sheets += 1;
-            if (Object.hasOwn(totals, sheet.action)) {
-                totals[sheet.action] += 1;
-            }
-        }
-    }
-
-    return totals;
-};
-
 const ACTION_LABEL = Object.freeze({
     update: 'update',
     blur: 'update, blurred',
@@ -748,7 +724,13 @@ export const renderDryRunReport = (report, log = logger) => {
             log.info('');
         });
 
-        const t = reportTotals(report);
+        // Counted by the same rule the real run's verdict uses, from the same
+        // function (issue #1115). The summary used to bucket purely on
+        // `sheet.action`, so a `{action: 'clear', reason: NO_ICON}` row - a
+        // clear that is already a no-op - was counted among the icons that
+        // would be cleared, contradicting both the row printed above it and
+        // the verdict the real run prints for the identical input.
+        const counts = verdictCounts(report);
 
         // Failed planners now always leave a marked entry, but the selection
         // count is still cross-checked so an app that vanished entirely (a
@@ -763,13 +745,19 @@ export const renderDryRunReport = (report, log = logger) => {
         }
 
         if (isRemovalReport(report)) {
+            // The no-op clears are named rather than merely subtracted: with
+            // them dropped from the cleared count and nowhere else, the
+            // summary's numbers would no longer account for every sheet it
+            // just listed. Same split and same order as the verdict's removal
+            // line, so plan and run read against each other directly.
+            const noIconNote = counts.noIcon > 0 ? `, ${counts.noIcon} with no icon` : '';
             log.info(
-                `Summary: ${t.apps} app(s), ${t.sheets} sheets. ${t.clear} icon(s) would be cleared, ${t.skip} skipped.`
+                `Summary: ${report.apps.length} app(s), ${counts.seen} sheets. ${counts.cleared} icon(s) would be cleared${noIconNote}, ${counts.excluded} skipped.`
             );
         } else {
-            const blurNote = t.blur > 0 ? ` (${t.blur} blurred)` : '';
+            const blurNote = counts.blurred > 0 ? ` (${counts.blurred} blurred)` : '';
             log.info(
-                `Summary: ${t.apps} app(s), ${t.sheets} sheets. ${t.update + t.blur} would be updated${blurNote}, ${t.skip} skipped.`
+                `Summary: ${report.apps.length} app(s), ${counts.seen} sheets. ${counts.captured} would be updated${blurNote}, ${counts.excluded} skipped.`
             );
         }
 

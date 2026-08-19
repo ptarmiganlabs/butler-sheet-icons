@@ -1,3 +1,29 @@
+<!--
+PUBLISHED to `next` on 2026-08-19, butler-sheet-icons-docs PR #113, as
+`/guide/concepts/live-view` with a sidebar entry beside the contact sheet. The version gate
+resolved to 5.0.0, read from release-please PR #974 at publish time as this draft instructed.
+
+CORRECTED BEFORE PUBLISHING. The draft said "`qscloud remove-sheet-icons` keeps the contact
+sheet". It was written before `qseow remove-sheet-icons` existed, so it named the only removal
+command there was. Both keep the contact sheet - only the two `create-sheet-thumbnails` workers
+call `startLiveRunView` - and the published page says so.
+
+VERIFIED STILL TRUE, not assumed. The Ctrl-C caveat: there is no `SIGINT` or `SIGTERM` handler
+anywhere in `src/lib`, so an interrupted run can still leave the cursor hidden, while completion,
+failure and crash all restore the terminal through `restoreLiveTerminal`. This is the claim most
+likely to rot - it describes something *missing*, so it silently becomes wrong the day graceful
+interrupt handling lands. Re-check it rather than trusting the page.
+
+The gate list ("when you get it - and when you deliberately do not") was checked line by line
+against `selectRung` in `src/lib/util/select-rung.js` and matches, including the 80x24 minimum,
+the `TERM=dumb` gate being independent of colour, and `BSI_OUTPUT=live` being a permission rather
+than a force.
+
+FIXED IN THE SAME PR. Publishing this made the contact-sheet page self-contradictory: its
+`BSI_OUTPUT` table still described `live` as "reserved for a future live view; today it behaves
+like automatic selection". That row was corrected alongside.
+-->
+
 # Live run view: watching a thumbnail run as it happens
 
 > **Publisher note:** new page — it needs a sidebar entry in

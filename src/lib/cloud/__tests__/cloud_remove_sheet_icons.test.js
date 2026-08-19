@@ -935,6 +935,9 @@ describe('qscloudRemoveSheetIcons', () => {
 
             const info = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
             expect(info).toContain('(no icon currently set)');
+            // ...and not counted as an icon that would be cleared (issue
+            // #1115). The row and the summary describe the same sheet.
+            expect(info).toContain('0 icon(s) would be cleared, 1 with no icon, 0 skipped.');
         });
 
         test('the real run still writes when dryRun is absent - the control case', async () => {
