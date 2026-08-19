@@ -1,3 +1,23 @@
+<!--
+PUBLISHED to `next` on 2026-08-19, butler-sheet-icons-docs PR #112. Version gate 5.0.0, read
+from release-please PR #974 at publish time. Publishing this completed the doc half of #1122.
+
+NOT published as a page. Became a section of `/guide/troubleshooting`,
+`#too-many-sessions-active-in-parallel`, placed at the top of `## Authentication Issues` -
+it is an access failure, and that is where a reader looks for one.
+
+RESHAPED AT PUBLICATION. The draft's "Let runs log out" bullet was dropped from the advice
+list, because it told the reader to do something that is no longer theirs to do: 5.0.0 logs
+out on both paths by itself. It became a `Fixed in 5.0.0` tip container explaining what the
+old behaviour was and why it made the problem self-reinforcing, which is the part a reader on
+an older version still needs.
+
+WORTH KNOWING. Everything in the symptom section was observed rather than reasoned: the
+selector-timeout wording, the Qlik dialog text, and the fact that QRS and the hub keep
+answering while the web client is unusable all came from hitting this on the lab server on
+2026-08-18. See the `qseow-lab-server` memory note for the full signature.
+-->
+
 # "Too many sessions active in parallel"
 
 **Status:** pending publication

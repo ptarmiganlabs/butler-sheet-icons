@@ -1,3 +1,25 @@
+<!--
+PUBLISHED to `next` on 2026-08-19, butler-sheet-icons-docs PR #113. No version gate of its own:
+it is an addition to `/guide/concepts/dry-run`, which already carries the 5.0.0 gate.
+
+NOT published as a page, exactly as this draft's own publisher notes proposed - it went into
+the `remove-sheet-icons` paragraph on `/guide/concepts/dry-run`.
+
+The notes also asked whether `/reference/qseow` or `/reference/qscloud` show a removal dry-run
+transcript that would need the same correction. Checked: neither page contains one, so there
+was nothing to fix there.
+
+TRANSCRIPT SOURCE. The published sample was taken from `demo/snapshots/
+qseow-remove-sheet-icons-dry-run.txt`, which is generated from a real run against a lab server,
+rather than from this draft. They matched exactly, and the conditional `with no icon` clause was
+confirmed against `renderDryRunReport` in `src/lib/util/run-report.js` - but a generated snapshot
+is the better thing to copy from, and stays the better thing next time.
+
+STILL TRUE at publication: the warning in note 3 below. `done/done_qseow-remove-sheet-icons.md`
+in this folder holds a transcript with the old, wrong summary line, and already carries its own
+OUTDATED TRANSCRIPT note saying so.
+-->
+
 # The removal dry run's summary now counts sheets the way the real run does
 
 > **Publisher notes (not for the site):**
