@@ -205,12 +205,22 @@ test(
         );
 
         if (!anyIcon(iconsBefore) || iconsWithoutMedia.length > 0) {
+            // Repairing missing media is scoped to the apps that are actually missing it.
+            // The whole selection would be correct but wasteful: a create pass costs minutes
+            // per app, the test already pays for one at the end to restore what it removed,
+            // and a second full pass took the round trip past its timeout with every
+            // assertion still passing - a slower test failing for the clock, not the code.
+            const arrangeOptions =
+                iconsWithoutMedia.length > 0 && anyIcon(iconsBefore)
+                    ? { ...options, appid: iconsWithoutMedia, collectionid: '' }
+                    : options;
+
             console.log(
                 iconsWithoutMedia.length > 0
-                    ? `Sheet icons in app(s) ${iconsWithoutMedia.join(', ')} have no thumbnail media behind them. Creating thumbnails first, so both halves of the removal have something to remove.`
+                    ? `Sheet icons in app(s) ${iconsWithoutMedia.join(', ')} have no thumbnail media behind them. Creating thumbnails for those app(s) first, so both halves of the removal have something to remove.`
                     : 'No sheet in the selected app(s) carries an icon. Creating thumbnails first, so the removal has something to remove.'
             );
-            expect(await qscloudCreateThumbnails(options)).toBe(true);
+            expect(await qscloudCreateThumbnails(arrangeOptions)).toBe(true);
             iconsBefore = await readIconState(appIds);
             mediaBefore = await readThumbnailMediaCounts(saasInstance, appIds);
         }
