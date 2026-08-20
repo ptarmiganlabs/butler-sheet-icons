@@ -26,6 +26,9 @@
 
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 
 const require = createRequire(import.meta.url);
@@ -43,6 +46,92 @@ const SENTINEL_FUSE = 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2';
 const MACHO_SEGMENT_NAME = 'NODE_SEA';
 
 /**
+ * Set by a variant build to substitute the module behind the `#extensions` specifier. Unset for
+ * every build in this repository, which is what makes the committed default the bundled one.
+ * Issue #1135.
+ */
+const extensionsModule = process.env.EXTENSIONS_MODULE
+    ? resolve(process.env.EXTENSIONS_MODULE)
+    : undefined;
+
+/**
+ * Stop a build whose extensions module targets a different contract version than this source tree.
+ *
+ * Both halves are always built together, so a mismatch belongs to the build rather than to the
+ * machine the binary later runs on - which is why this is checked here and asserted nowhere at
+ * runtime.
+ *
+ * @returns {Promise<void>} Resolves when the two versions agree; rejects otherwise, so the build
+ *     stops before esbuild has produced anything.
+ */
+const checkExtensionsVersion = async () => {
+    const { assertSeamVersion } = await import(
+        new URL('../src/lib/extensions/version.js', import.meta.url).href
+    );
+    const { extensions } = await import(pathToFileURL(extensionsModule).href);
+
+    assertSeamVersion(extensions, extensionsModule);
+};
+
+/**
+ * Core's own Commander, aliased into an override build so exactly one copy is bundled.
+ *
+ * Without this, an extensions module outside this tree resolves `commander` from its own
+ * `node_modules` and esbuild bundles a second copy. The two are different module instances, so a
+ * `Command` built by one and added to a tree owned by the other fails - and it fails at run time
+ * inside the packaged binary, after a build that reported success.
+ */
+const commanderEntry = require.resolve('commander');
+
+/**
+ * The version of Commander that a given file resolves.
+ *
+ * @param {string|URL} fromFile - The file to resolve from.
+ *
+ * @returns {string|undefined} The version, or undefined when it cannot be determined.
+ */
+const commanderVersionFrom = (fromFile) => {
+    try {
+        const entry = createRequire(fromFile).resolve('commander');
+
+        // `commander/package.json` is not listed in the package's `exports`, so requiring it as a
+        // subpath fails with ERR_PACKAGE_PATH_NOT_EXPORTED. Read from the package root instead.
+        return JSON.parse(readFileSync(join(dirname(entry), 'package.json'), 'utf8')).version;
+    } catch {
+        return undefined;
+    }
+};
+
+/**
+ * Stop a build whose extensions module was written against a different major of Commander.
+ *
+ * The alias above guarantees one Commander in the bundle, which removes the two-instances crash.
+ * What an alias cannot do is make code written against one major work against another, and that
+ * failure lands in the same expensive place: a `Command` built against Commander 12 and dispatched
+ * by core's 15 dies with `subCommand._prepareForParse is not a function`, at run time, on the
+ * machine of whoever received the binary. Comparing the two here turns it into a build failure.
+ *
+ * Best effort by design: when either version cannot be determined the build proceeds rather than
+ * being blocked by a guard that is itself unsure.
+ *
+ * @returns {void} Nothing. Returns normally when the majors agree or cannot be compared.
+ *
+ * @throws {Error} When the two majors differ, so the build stops before esbuild runs.
+ */
+const checkCommanderMatch = () => {
+    const core = commanderVersionFrom(import.meta.url);
+    const variant = commanderVersionFrom(pathToFileURL(extensionsModule));
+
+    if (!core || !variant || core.split('.')[0] === variant.split('.')[0]) {
+        return;
+    }
+
+    throw new Error(
+        `Commander mismatch: ${extensionsModule} resolves commander ${variant}, this source tree uses ${core}. Only core's copy is bundled, so a description built against a different major would fail at run time rather than here. Align the extensions module on commander ${core}.`
+    );
+};
+
+/**
  * Bundle the CLI into a single CJS file for the SEA blob.
  *
  * `format: 'cjs'` is not a preference: Node's SEA blob takes one CommonJS file. It is also why
@@ -55,6 +144,11 @@ const MACHO_SEGMENT_NAME = 'NODE_SEA';
  * @returns {Promise<void>} Resolves when the bundle has been written.
  */
 const bundle = async () => {
+    if (extensionsModule) {
+        await checkExtensionsVersion();
+        checkCommanderMatch();
+    }
+
     await build({
         entryPoints: [`src/${distFileName}.js`],
         bundle: true,
@@ -64,6 +158,9 @@ const bundle = async () => {
         target: 'node24',
         inject: ['./src/lib/util/import-meta-url.js'],
         define: { 'import.meta.url': 'import_meta_url' },
+        alias: extensionsModule
+            ? { '#extensions': extensionsModule, commander: commanderEntry }
+            : undefined,
     });
 };
 

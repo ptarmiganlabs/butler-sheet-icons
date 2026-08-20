@@ -13,6 +13,8 @@ import { loadWizard } from './registry.js';
 import { formatReviewTable } from './review-table.js';
 import { saveEnvFile, ENV_FILE } from './save-env-file.js';
 import { openingOn } from './spec-ops.js';
+import { extensions } from '#extensions';
+import { runBeforeAction } from '../extensions/apply.js';
 
 /** Heading for the checks that run before the first question is asked. */
 const CHECKED_UP_FRONT = 'Checking what you supplied';
@@ -380,6 +382,13 @@ export const runInteractive = async ({
                 '\nDRY RUN: --dry-run is in effect - the run below plans only, nothing will be changed.\n'
             );
         }
+
+        // The authoritative entitlement point for an interactive run, and the reason this call
+        // exists at all. The `preAction` hook fired before the first question was asked, when the
+        // options bag held `interactive: true` and little else; these are the options the run will
+        // actually use. Throwing here aborts before the run starts, which is the same promise the
+        // hook makes on an ordinary command line. Does nothing unless this build describes a hook.
+        await runBeforeAction(extensions, path, options);
 
         runtime.write('\n');
 

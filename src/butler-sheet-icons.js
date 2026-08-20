@@ -14,6 +14,8 @@ import { buildBrowserCommand } from './lib/commands/browser/index.js';
 import { buildDoctorCommand } from './lib/commands/doctor/index.js';
 import { buildInteractiveCommand } from './lib/interactive/interactive-command.js';
 import { relaxMandatoryOptionsIfInteractive } from './lib/interactive/mandatory-relaxation.js';
+import { extensions } from '#extensions';
+import { applyExtensions } from './lib/extensions/apply.js';
 
 // Process-level safety net: catch any error that escapes all try/catch blocks,
 // write a crash dump, and exit with code 1. Installed before anything else so
@@ -45,6 +47,13 @@ const program = new Command();
     program.addCommand(buildBrowserCommand());
     program.addCommand(buildDoctorCommand());
     program.addCommand(buildInteractiveCommand());
+
+    // Whatever this build adds on top of the commands above - nothing at all, unless the bundle
+    // was built against an extensions module. The position is forced rather than chosen: a
+    // contributed option has to exist before the relaxation call below, because Commander rejects
+    // a command line missing a mandatory option before any hook or handler runs. See
+    // src/lib/extensions/apply.js and issue #1135.
+    applyExtensions(program, extensions);
 
     // Must happen before the parse: Commander rejects a command line missing a
     // mandatory option before any hook or handler runs, so `-i` would never be
