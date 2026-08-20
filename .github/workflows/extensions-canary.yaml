@@ -1,0 +1,112 @@
+name: extensions-canary
+
+# Does the `#extensions` build-time override still work once the binary is packaged?
+#
+# ---------------------------------------------------------------------------------------------
+# Why this exists
+# ---------------------------------------------------------------------------------------------
+#
+# The override landed with issue #1135 and was verified on macOS/arm64 only. This repo ships SEA
+# binaries for macOS, Windows and Linux, and its signature failure mode is "works everywhere except
+# inside the packaged binary": the Windows signing timestamp URL changed from http to https in May
+# 2026 and nothing noticed until the 4.0.0 release failed in August, which is why
+# windows-signing-canary.yaml exists at all.
+#
+# Most of the override is bundle-time and platform-agnostic - esbuild resolves an alias long before
+# anything platform-specific happens. One part is not. `scripts/bundle.mjs` resolves
+# EXTENSIONS_MODULE to an absolute path and hands it to esbuild as an alias value and to
+# pathToFileURL; on Windows that is a C:\ path with backslashes, and until this workflow ran, that
+# had never happened anywhere. Issue #1137.
+#
+# It also asserts node:crypto works inside the packaged binary. `src/lib/qseow/qseow-logout.js`
+# imports it, so every binary already depends on it, and nothing checked that the native binding
+# survived packaging on any platform.
+#
+# ---------------------------------------------------------------------------------------------
+# What it does NOT cover
+# ---------------------------------------------------------------------------------------------
+#
+# Signing. scripts/release-win.ps1 strips Node's signature before postject and re-applies one
+# after, a sequence neither macOS nor Linux has an equivalent of - and covering it needs the
+# win-code-sign self-hosted runner with a live SimplySign session, which no routine canary can
+# depend on. windows-signing-canary.yaml in `full` mode covers that path for the ordinary build,
+# and an override build differs from it only in the contents of one bundled module. That is an
+# inference, and it is deliberately recorded as one rather than presented as a result.
+#
+# macOS is not in the matrix either. It is the platform the override was verified on by hand, and
+# the one the local build script exercises on every developer machine.
+#
+# ---------------------------------------------------------------------------------------------
+# Reading the result
+# ---------------------------------------------------------------------------------------------
+#
+# Every assertion prints `ok` or `FAIL`, and the job fails with the full list rather than at the
+# first problem - a platform difference is more useful reported whole. The run also builds a binary
+# with no override at all and asserts it is unchanged, so a green run says the normal build is fine
+# as well as the exotic one.
+#
+# No secrets are read, so this is safe to run for a pull request from a fork.
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/bundle.mjs'
+      - 'scripts/extensions-canary.mjs'
+      - 'src/lib/extensions/**'
+      - 'build-script/sea-config.json'
+      - '.github/workflows/extensions-canary.yaml'
+      # Dependency bumps belong here as much as the source does. bundle.mjs aliases `commander` to
+      # this tree's copy for an override build and fails the build when the majors differ, so a
+      # commander bump changes the behaviour this canary guards without touching a single file
+      # above it. The same goes for esbuild, since the override is an esbuild `alias`.
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: extensions-canary-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  canary:
+    name: extensions override in a packaged binary (${{ matrix.os }})
+    strategy:
+      # Report both platforms rather than cancelling the sibling on first failure. The whole point
+      # is to find a platform difference, and a difference is only visible when both legs report.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    # Two full SEA builds per leg - bundle, blob, copy, inject, twice - plus the install. Measured
+    # at well under this; the bound is here so a hung postject costs minutes rather than hours.
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # Same reasoning as pr-unit-tests.yaml: npm 11.x resolves this lockfile differently between
+      # patch releases, and setup-node has no npm-version input.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build, package and interrogate the binaries
+        run: node scripts/extensions-canary.mjs
