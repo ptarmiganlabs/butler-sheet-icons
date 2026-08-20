@@ -1348,6 +1348,42 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
         expect(qseowUploadToContentLibrary).toHaveBeenCalledTimes(1);
         expect(qseowUpdateSheetThumbnails).not.toHaveBeenCalled();
     });
+
+    test('uploads the sheets that worked when one sheet cannot be captured', async () => {
+        // Before #1091 step 1 finished, a capture failure threw straight out of QSEoW's bare
+        // sheet loop: the whole app was abandoned and nothing was uploaded, while the Cloud
+        // twin isolated the same failure to the one sheet and applied the rest. runOverSheets
+        // gives QSEoW that isolation, so this pins the behaviour the platforms now share.
+        setup([sheetItem('sheet-a', 1), sheetItem('sheet-b', 2)]);
+
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        let sheetElementsHandedOut = 0;
+        page.$ = jest.fn().mockImplementation((selector) => {
+            // The login form is gone; anything else is a sheet element being captured.
+            if (selector === '#username-input') {
+                return Promise.resolve(null);
+            }
+            sheetElementsHandedOut += 1;
+            return Promise.resolve({
+                screenshot:
+                    sheetElementsHandedOut === 1
+                        ? jest.fn().mockRejectedValue(new Error('sheet element went away'))
+                        : jest.fn().mockResolvedValue(true),
+            });
+        });
+
+        // The app is still reported as failed - one sheet never got its thumbnail.
+        await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow();
+
+        // But the sheet that worked was uploaded and applied, rather than discarded with it.
+        expect(qseowUploadToContentLibrary).toHaveBeenCalledTimes(1);
+        expect(qseowUpdateSheetThumbnails).toHaveBeenCalledTimes(1);
+
+        const uploaded = qseowUploadToContentLibrary.mock.calls[0][0];
+        expect(uploaded.length).toBeGreaterThan(0);
+        expect(uploaded.every((file) => file.sheetPos === 2)).toBe(true);
+    });
 });
 
 describe('qseow-process-app.js — a blurred thumbnail that cannot be created', () => {
