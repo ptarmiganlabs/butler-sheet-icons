@@ -4,7 +4,7 @@
  * The keys are the option's allowed values and the values are the CSS selectors the screenshot is
  * taken from, so the set of values BSI accepts is by construction the set it can actually render.
  * The `Option` declaration in `src/lib/commands/qseow/index.js`, the guard in
- * `qseow-create-thumbnails.js` and the screenshot code in `qseow-process-app.js` all derive from
+ * `qseow-create-thumbnails.js` and the screenshot code in `sheet-screenshot.js` all derive from
  * this one map rather than restating the list: a value accepted somewhere but missing a selector
  * here reaches `page.waitForSelector()` with nothing to wait for, and fails with an error that
  * says nothing about the option that caused it.
