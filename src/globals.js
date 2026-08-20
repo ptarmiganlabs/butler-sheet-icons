@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 // `dotenv/config` is deliberately NOT imported here. Importing this module used to read `.env`
 // off disk as a side effect, and almost every unit test imports it transitively - so unit runs
 // executed against whatever Qlik Sense settings the developer happened to have. Because option
@@ -13,6 +14,7 @@ import path from 'node:path';
 import { redactSensitivePatterns, redactValue } from './lib/util/redact-secrets.js';
 import { isColourEnabled } from './lib/util/colour.js';
 import { isTimestampEnabled } from './lib/util/log-timestamps.js';
+import { interruptAbortSignal } from './lib/util/interrupt.js';
 
 const require = createRequire(import.meta.url);
 const LEVEL = Symbol.for('level');
@@ -332,14 +334,37 @@ const isSea = sea.isSea();
 const bsiExecutablePath = isSea ? path.dirname(process.execPath) : process.cwd();
 
 /**
- * Resolves after the given number of milliseconds.
+ * Resolves after the given number of milliseconds, or rejects at once if the run
+ * is interrupted.
+ *
+ * The abort is what makes Ctrl-C feel immediate (issue #1107). Closing the
+ * browser unblocks every in-flight Puppeteer call, but not a sleep: a pending
+ * `--pagewait` would run out its clock first, and operators are told to set
+ * that high enough for the slowest sheet to render. At the values seen in the
+ * field that is the difference between shutting down inside `docker stop`'s
+ * ten-second grace period and being SIGKILLed before the report is written.
+ *
+ * Rejecting rather than resolving early is deliberate, and is the same
+ * mechanism the browser close uses: the rejection propagates through the
+ * caller's existing error path, the app unwinds, and the loop stops at its
+ * next boundary. Resolving early would let the caller carry on into work the
+ * operator has just asked it to stop doing.
+ *
+ * Every current caller is work that should stop when the run does - the two
+ * per-sheet page waits, the logout waits, and `browser-install`'s retry delay.
  *
  * @param {number} ms - Number of milliseconds to wait before resolving.
  *
  * @returns {Promise<void>} A promise that resolves after `ms` milliseconds.
+ *
+ * @throws {Error} An `AbortError` if the run is interrupted while waiting, or
+ *     was already interrupted when the call was made.
  */
 function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    // Read per call, never captured at module load: the signal is replaced
+    // when the interrupt state is reset, and a captured one would be the
+    // previous run's - already aborted, so every sleep would reject.
+    return delay(ms, undefined, { signal: interruptAbortSignal() });
 }
 
 // Export all the variables and functions

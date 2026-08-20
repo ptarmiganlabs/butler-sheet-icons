@@ -19,6 +19,7 @@ import { parseHeadlessOption } from '../util/headless-option.js';
 import { activeLiveView } from '../util/run-live.js';
 import { markReported } from '../util/reported-error.js';
 import { logError } from '../util/log-error.js';
+import { registerInterruptAction, interruptAbortSignal } from '../util/interrupt.js';
 
 /**
  * Chromium flags used for every Butler Sheet Icons browser launch.
@@ -447,6 +448,39 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
             // The name is not interchangeable: grep the installed puppeteer-core for
             // `ignoreHTTPSErrors` and there are zero hits, in the code and in the type definitions.
             acceptInsecureCerts: true,
+            // Butler Sheet Icons owns signal handling now (issue #1107), and
+            // these three must be off or it does not.
+            //
+            // Puppeteer's defaults are all `true`, and its handler in
+            // `@puppeteer/browsers` is `case 'SIGINT': this.kill();
+            // process.exit(130)`. That exit is unconditional and immediate: it
+            // runs the moment Ctrl-C arrives, so the run never unwinds, the app
+            // loop never reaches its next boundary, and the report saying which
+            // apps were already written is never printed. The whole feature is
+            // silently defeated by a library default.
+            //
+            // It hid well, which is why this comment is long. Puppeteer exits
+            // 130 - exactly the code BSI uses for SIGINT - so an interrupted run
+            // still looked completely correct from the shell. Only the missing
+            // report gave it away, on a live run against a real server.
+            //
+            // Nothing is lost by turning them off. The browser is closed on
+            // interrupt through the teardown registered below, which is the
+            // same `closeBrowserQuietly` every other path uses, and unlike
+            // Puppeteer's version it lets the run finish reporting first.
+            handleSIGINT: false,
+            handleSIGTERM: false,
+            handleSIGHUP: false,
+            // Covers the launch itself, which the teardown registry cannot:
+            // the browser is only registered once `version()` has answered,
+            // and `launch()` may sit here for BROWSER_LAUNCH_TIMEOUT_MS on a
+            // cold cache or with security software holding startup. Without
+            // this, a Ctrl-C in that window reached nothing at all - the
+            // registry was empty and Puppeteer's own handlers are off - and
+            // shutdown stalled the full watchdog before hard-exiting, on the
+            // one path where BSI has nothing useful to report anyway.
+            // Puppeteer closes the browser when this aborts.
+            signal: interruptAbortSignal(),
             executablePath,
             headless,
             args: browserArgs,
@@ -488,6 +522,18 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
         const version = await browser.version();
         logger.verbose(`Browser responded to version query: ${version}`);
 
+        // Registered here, and here only, so both platform twins are wired
+        // identically by construction - the same argument as the live-view
+        // call above. This is how a Ctrl-C reaches a browser that otherwise
+        // lives in a local variable inside a processor: closing it makes every
+        // in-flight Puppeteer await reject, which unwinds the run through the
+        // error paths that already exist (issue #1107).
+        //
+        // After the version query, not after `launch()`: a browser that cannot
+        // answer a protocol call is closed on the failure path below, and
+        // registering earlier would leave a stale action pointing at it.
+        registerBrowserForInterrupt(browser, logPrefix);
+
         // Resolved only now: the browser is not just found and started but
         // has answered a protocol call - the same bar the launch itself sets.
         const live = activeLiveView();
@@ -514,6 +560,52 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
 };
 
 /**
+ * Unregister thunks for browsers currently registered as interrupt teardown.
+ *
+ * Keyed by the browser handle so `closeBrowserQuietly` can drop exactly the
+ * one it is closing. Normally holds at most one entry - BSI processes apps
+ * sequentially - but a map rather than a single slot, because a second browser
+ * appearing would otherwise silently overwrite the first and strand it.
+ *
+ * A `WeakMap` so a browser that is closed without going through
+ * `closeBrowserQuietly` cannot be kept alive by this bookkeeping.
+ *
+ * @type {WeakMap<object, () => void>}
+ */
+const interruptUnregister = new WeakMap();
+
+/**
+ * Registers a launched browser to be closed if the run is interrupted.
+ *
+ * @param {object} browser - Puppeteer browser handle.
+ * @param {string} logPrefix - Prefix for the error line, e.g. `'QSEOW'`.
+ *
+ * @returns {void}
+ */
+const registerBrowserForInterrupt = (browser, logPrefix) => {
+    interruptUnregister.set(
+        browser,
+        registerInterruptAction(() => closeBrowserQuietly(browser, logPrefix))
+    );
+};
+
+/**
+ * Drops a browser's interrupt registration.
+ *
+ * @param {object} browser - Puppeteer browser handle.
+ *
+ * @returns {void}
+ */
+const unregisterBrowserForInterrupt = (browser) => {
+    const unregister = interruptUnregister.get(browser);
+
+    if (unregister) {
+        interruptUnregister.delete(browser);
+        unregister();
+    }
+};
+
+/**
  * Closes a virtual browser, swallowing and logging any failure.
  *
  * Belongs in a `finally`. Both screenshot paths launched the browser and closed it ~290 lines
@@ -535,6 +627,12 @@ export const closeBrowserQuietly = async (browser, logPrefix) => {
     if (!browser) {
         return;
     }
+
+    // Whoever closes it first wins: an ordinary `finally` on the way out of an
+    // app, or the signal handler on the way out of the run. Dropping the
+    // registration here means the second one finds nothing to do rather than
+    // closing a browser that has already gone (issue #1107).
+    unregisterBrowserForInterrupt(browser);
 
     // Recorded before the close so the `disconnected` handler installed at launch stays quiet:
     // every successful run ends with a disconnect, and reporting those as "the build cannot be

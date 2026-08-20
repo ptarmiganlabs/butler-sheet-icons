@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 
 jest.unstable_mockModule('../../../globals.js', () => ({
     logger: {
@@ -12,6 +12,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 
 const { logger } = await import('../../../globals.js');
 const { runOverApps } = await import('../run-over-apps.js');
+const { markInterrupted, resetInterruptState } = await import('../interrupt.js');
 
 const CTX = { logPrefix: 'TEST PREFIX' };
 
@@ -22,8 +23,20 @@ const CTX = { logPrefix: 'TEST PREFIX' };
  */
 const errorLog = () => logger.error.mock.calls.map((call) => String(call[0])).join('\n');
 
+/**
+ * Joins everything logged at info level, for substring assertions.
+ *
+ * @returns {string} All info lines, newline separated.
+ */
+const infoLog = () => logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+
 beforeEach(() => {
     jest.clearAllMocks();
+    resetInterruptState();
+});
+
+afterEach(() => {
+    resetInterruptState();
 });
 
 describe('runOverApps', () => {
@@ -188,5 +201,85 @@ describe('runOverApps', () => {
 
         expect(result).toBe(false);
         expect(errorLog()).toContain('just a string');
+    });
+});
+
+describe('runOverApps when the run is interrupted (issue #1107)', () => {
+    test('stops starting new apps at the app boundary', async () => {
+        const worker = jest.fn(async (appId) => {
+            if (appId === 'b') markInterrupted('SIGINT');
+        });
+
+        await runOverApps(['a', 'b', 'c', 'd'], CTX, worker);
+
+        // Every app past the boundary is one the operator can be told was
+        // left exactly as it was - which is the whole point of the report.
+        expect(worker.mock.calls.map((call) => call[0])).toEqual(['a', 'b']);
+    });
+
+    test('says how many apps were not started', async () => {
+        const worker = jest.fn(async (appId) => {
+            if (appId === 'a') markInterrupted('SIGINT');
+        });
+
+        await runOverApps(['a', 'b', 'c'], CTX, worker);
+
+        expect(infoLog()).toContain('2 of 3 app(s) were not started');
+    });
+
+    test('never announces an app it did not start', async () => {
+        const worker = jest.fn(async () => markInterrupted('SIGINT'));
+
+        await runOverApps(['first', 'second'], CTX, worker);
+
+        expect(infoLog()).not.toContain('second');
+    });
+
+    test('an abandoned app is not counted as a failed one', async () => {
+        const worker = jest.fn(async () => {
+            markInterrupted('SIGINT');
+            // Shutdown closes the browser, so the in-flight await rejects
+            // exactly like a real failure would.
+            throw new Error('Protocol error: Target closed');
+        });
+
+        await runOverApps(['a', 'b'], CTX, worker);
+
+        // An operator who pressed Ctrl-C and reads "1 failed" goes looking for
+        // a broken app that does not exist.
+        expect(errorLog()).not.toContain('Failed to process');
+        expect(infoLog()).toContain('it was abandoned');
+    });
+
+    test('the cause of the abandonment is still available, just not as an error', async () => {
+        const worker = jest.fn(async () => {
+            markInterrupted('SIGTERM');
+            throw new Error('Protocol error: Target closed');
+        });
+
+        await runOverApps(['a'], CTX, worker);
+
+        expect(infoLog()).toContain('Target closed');
+    });
+
+    test('a genuine failure before the signal is still reported as a failure', async () => {
+        const worker = jest.fn(async (appId) => {
+            if (appId === 'a') throw new Error('server unreachable');
+            markInterrupted('SIGINT');
+        });
+
+        const result = await runOverApps(['a', 'b', 'c'], CTX, worker);
+
+        expect(result).toBe(false);
+        expect(errorLog()).toContain('Failed to process app a');
+    });
+
+    test('an interrupted run with nothing failing still returns true here', async () => {
+        // runOverAppsWithReport overrides this - the verdict a stopped run
+        // reports is not this loop's job. Pinned so a future change to either
+        // side has to look at the other.
+        const worker = jest.fn(async () => markInterrupted('SIGINT'));
+
+        await expect(runOverApps(['a', 'b'], CTX, worker)).resolves.toBe(true);
     });
 });

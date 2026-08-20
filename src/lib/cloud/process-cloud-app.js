@@ -14,6 +14,8 @@ import {
     SHEET_LIST_FIELDS_WITH_SHOW_CONDITION,
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
+import { isInterrupted } from '../util/interrupt.js';
+import { isAbortArtifact } from '../util/abort-artifact.js';
 import { createAppImageDir } from '../util/image-dir.js';
 import { activeLiveView } from '../util/run-live.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
@@ -301,11 +303,44 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
             `Closed session after generating sheet thumbnail images for all sheets in QS Cloud app ${appId} on tenant ${options.tenanturl}`
         );
 
+        // Symmetry with the QSEoW twin, which abandons the app from inside its
+        // bare sheet loop (issue #1107). Only for the interrupt: a genuine
+        // partial failure still falls through to the upload and update below,
+        // deliberately, so the sheets that did work are applied - that is what
+        // the `assertAllProcessed()` at the very end of this function is for.
+        //
+        // An interrupt is different in both directions. The steps below are two
+        // more round trips to the tenant during a shutdown that has to finish
+        // inside `docker stop`'s ten seconds; and applying a partial set of
+        // thumbnails would make the report's account of an abandoned app -
+        // left exactly as it was - untrue on this platform and true on the
+        // other.
+        if (sheetRun?.interrupted) {
+            sheetRun.assertAllProcessed();
+        }
+
         // Upload to QS Cloud app
         await qscloudUploadToApp(createdFiles, appId, options);
 
         // Update sheets in app
-        const sheetsUpdated = await qscloudUpdateSheetThumbnails(createdFiles, appId, options);
+        let sheetsUpdated;
+        // Wrapped so the interrupt path still records what landed (issue
+        // #1107). The update writes and saves each sheet as it goes, so a
+        // signal part-way through leaves real thumbnails in Sense; the throw
+        // that follows would otherwise skip `recordAppOutcome` below and the
+        // verdict would report zero for work that was done.
+        try {
+            sheetsUpdated = await qscloudUpdateSheetThumbnails(createdFiles, appId, options);
+        } catch (err) {
+            recordAppOutcome(appEntry, {
+                sheetsUpdated: err?.sheetsUpdated ?? 0,
+                imagesDir: `${imgDir}/cloud/${appId}`,
+                imageFileNames: createdFiles.flatMap((file) =>
+                    [file.fileNameShort, file.fileNameShortBlurred].filter(Boolean)
+                ),
+            });
+            throw err;
+        }
 
         // The sheets now point at their new thumbnails, which is the first moment an
         // overview screenshot can show the result rather than the starting state. The
@@ -346,7 +381,21 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
         // anyone debugging at verbose.
         logger.verbose(`Done processing app ${appId}`);
     } catch (err) {
-        logError('CLOUD APP', err);
+        // An interrupted app is not a failed one, and this line is the
+        // only thing on the shutdown path that says otherwise: the abort
+        // that unwound the run arrives here as an ordinary error, and
+        // `logError` prints it at error level with its cause chain. The app
+        // loop already reports the abandonment at info, so this would be a
+        // second, louder account of a Ctrl-C the operator asked for
+        // (issue #1107).
+        //
+        // Narrowed to errors the teardown itself produced. Keyed on the flag
+        // alone, a genuine failure that happened to be unwinding when the
+        // signal landed lost its error line AND its cause chain - the run
+        // could end with a real defect and no record of it anywhere.
+        if (!isInterrupted() || !isAbortArtifact(err)) {
+            logError('CLOUD APP', err);
+        }
         // Rethrow so the app loop can count this app as failed. Logging and returning
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;

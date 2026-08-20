@@ -1,4 +1,4 @@
-import { describe, test, expect, beforeEach, jest } from '@jest/globals';
+import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
 /**
  * Flow tests for `runOverAppsWithReport` as extended by issue #1073: the plan
@@ -27,6 +27,9 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 
 const { runOverAppsWithReport } = await import('../run-report.js');
 const { getLoggingLevel, setLoggingLevel } = await import('../../../globals.js');
+const { emitRunVerdictOnce } = await import('../run-report.js');
+const { markInterrupted, resetInterruptState, hasInterruptibleWork } =
+    await import('../interrupt.js');
 
 /**
  * A minimal but complete run argument bag.
@@ -70,6 +73,11 @@ beforeEach(() => {
     // rung the loop selects and route the blocks away from the logger these
     // assertions read. The board rung has its own flow test.
     delete process.env.BSI_OUTPUT;
+    resetInterruptState();
+});
+
+afterEach(() => {
+    resetInterruptState();
 });
 
 describe('runOverAppsWithReport - the plan renders before the first write', () => {
@@ -203,5 +211,102 @@ describe('runOverAppsWithReport - countable app lines', () => {
         await runOverAppsWithReport(runArgs({ dryRun: true }));
 
         expect(timeline).toContain('LOG plan app 1/2  app-1');
+    });
+});
+
+describe('runOverAppsWithReport - an interrupted run (issue #1107)', () => {
+    /**
+     * Everything the logger was given, joined.
+     *
+     * @returns {string} All log lines, newline separated.
+     */
+    const logged = () => timeline.filter((entry) => entry.startsWith('LOG ')).join('\n');
+
+    test('emits a verdict covering the apps already completed', async () => {
+        const processApp = jest.fn(async (appId) => {
+            timeline.push(`PROCESS ${appId}`);
+            if (appId === 'app-1') markInterrupted('SIGINT');
+        });
+
+        await runOverAppsWithReport(runArgs({ appIds: ['app-1', 'app-2', 'app-3'], processApp }));
+
+        // The one thing an operator needs after a Ctrl-C: which apps were
+        // already written, and how much is left to re-run.
+        expect(logged()).toContain('RESULT  INTERRUPTED');
+        expect(logged()).toContain('1 ok');
+        expect(logged()).toContain('2 not started');
+    });
+
+    test('reports failure, whatever the app loop counted', async () => {
+        // The loop can legitimately count zero failures - it stopped at a
+        // boundary - and exiting 0 there would tell a scheduler the run did
+        // its job.
+        const processApp = jest.fn(async () => markInterrupted('SIGINT'));
+
+        await expect(
+            runOverAppsWithReport(runArgs({ appIds: ['app-1', 'app-2'], processApp }))
+        ).resolves.toBe(false);
+    });
+
+    test('the app in flight is recorded as interrupted, not failed', async () => {
+        const processApp = jest.fn(async () => {
+            markInterrupted('SIGINT');
+            throw new Error('Protocol error: Target closed');
+        });
+
+        await runOverAppsWithReport(runArgs({ appIds: ['app-1', 'app-2'], processApp }));
+
+        expect(logged()).toContain('1 interrupted');
+        expect(logged()).not.toContain('1 failed');
+    });
+
+    test('a genuine failure is still a failure when a later signal arrives', async () => {
+        const processApp = jest.fn(async (appId) => {
+            if (appId === 'app-1') throw new Error('server unreachable');
+            markInterrupted('SIGINT');
+        });
+
+        await runOverAppsWithReport(runArgs({ appIds: ['app-1', 'app-2', 'app-3'], processApp }));
+
+        expect(logged()).toContain('1 failed');
+    });
+
+    test('the verdict is emitted exactly once, whichever path reaches it first', async () => {
+        const processApp = jest.fn(async () => markInterrupted('SIGINT'));
+
+        await runOverAppsWithReport(runArgs({ appIds: ['app-1', 'app-2'], processApp }));
+
+        const verdicts = timeline.filter((entry) => entry.includes('RESULT')).length;
+        expect(verdicts).toBe(1);
+
+        // The signal handler's second-signal and watchdog paths both call
+        // this. Neither may print a second verdict.
+        expect(emitRunVerdictOnce()).toBe(false);
+        expect(timeline.filter((entry) => entry.includes('RESULT')).length).toBe(1);
+    });
+
+    test('the interruptible region is closed even when the loop throws', async () => {
+        const planApp = jest.fn(async () => {
+            throw new Error('planner exploded');
+        });
+
+        await runOverAppsWithReport(runArgs({ dryRun: true, planApp })).catch(() => {});
+
+        // Left open, every later signal would wait eight seconds for a run
+        // that had already finished.
+        expect(hasInterruptibleWork()).toBe(false);
+    });
+
+    test('a dry run discards the pending verdict rather than printing two reports', async () => {
+        await runOverAppsWithReport(runArgs({ dryRun: true }));
+
+        expect(emitRunVerdictOnce()).toBe(false);
+    });
+
+    test('an uninterrupted run still says ok', async () => {
+        await runOverAppsWithReport(runArgs());
+
+        expect(logged()).toContain('RESULT  ok');
+        expect(logged()).not.toContain('not started');
     });
 });

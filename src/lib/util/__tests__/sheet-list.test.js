@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 
 jest.unstable_mockModule('../../../globals.js', () => ({
     logger: {
@@ -22,6 +22,7 @@ const {
     SHEET_LIST_FIELDS,
     SHEET_LIST_FIELDS_EXTENDED,
 } = await import('../sheet-list.js');
+const { markInterrupted, resetInterruptState } = await import('../interrupt.js');
 
 /**
  * Joins everything logged at error level, for substring assertions.
@@ -30,8 +31,20 @@ const {
  */
 const errorLog = () => logger.error.mock.calls.map((call) => String(call[0])).join('\n');
 
+/**
+ * Joins everything logged at info level, for substring assertions.
+ *
+ * @returns {string} All info lines, newline separated.
+ */
+const infoLog = () => logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+
 beforeEach(() => {
     jest.clearAllMocks();
+    resetInterruptState();
+});
+
+afterEach(() => {
+    resetInterruptState();
 });
 
 /**
@@ -623,5 +636,119 @@ describe('getSheetList', () => {
 
     test('an app with no sheets yields an empty list, not a throw', async () => {
         await expect(getSheetList(appReturning([]))).resolves.toEqual([]);
+    });
+});
+
+describe('runOverSheets when the run is interrupted (issue #1107)', () => {
+    const CTX = {
+        logPrefix: 'TEST PREFIX',
+        appId: 'app-1',
+        action: 'remove icons for',
+        ErrorClass: class TestError extends Error {},
+    };
+
+    test('stops at the sheet boundary rather than writing to more sheets', async () => {
+        // remove-sheet-icons is the one path that writes per sheet, so this
+        // boundary is what keeps the cleared count true.
+        const worker = jest.fn(async (s, n) => {
+            if (n === 2) markInterrupted('SIGINT');
+        });
+
+        const result = await runOverSheets(
+            [sheet('a'), sheet('b'), sheet('c'), sheet('d')],
+            CTX,
+            worker
+        );
+
+        expect(worker).toHaveBeenCalledTimes(2);
+        expect(result.interrupted).toBe(true);
+        expect(result.changed).toBe(2);
+    });
+
+    test('the abandoned sheet is not counted as failed', async () => {
+        const worker = jest.fn(async (s, n) => {
+            if (n !== 2) return undefined;
+            markInterrupted('SIGINT');
+            throw new Error('Protocol error: Target closed');
+        });
+
+        const result = await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+
+        expect(result.failed).toBe(0);
+        expect(result.interrupted).toBe(true);
+        expect(errorLog()).toBe('');
+    });
+
+    test('does not blame the engine for a browser the shutdown closed', async () => {
+        // `Target closed` matches isSessionLevelFailure, so without the
+        // interrupt check first this reads as a lost engine session - the
+        // wrong explanation, and the one the operator would act on.
+        const worker = jest.fn(async () => {
+            markInterrupted('SIGINT');
+            throw new Error('Protocol error: Target closed');
+        });
+
+        await runOverSheets([sheet('a'), sheet('b')], CTX, worker);
+
+        expect(errorLog()).not.toContain('Lost the engine session');
+        expect(infoLog()).toContain('abandoned when the run was interrupted');
+    });
+
+    test('assertAllProcessed throws so the app unwinds, saying it was abandoned', async () => {
+        const worker = jest.fn(async (s, n) => {
+            if (n === 2) markInterrupted('SIGINT');
+        });
+
+        const result = await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+
+        expect(() => result.assertAllProcessed()).toThrow(/abandoned when the run was interrupted/);
+        // The count is the number the operator needs: how far the removal got.
+        expect(() => result.assertAllProcessed()).toThrow(/2 sheet\(s\) had been processed/);
+    });
+
+    test('a real sheet failure outranks the interrupt', async () => {
+        const worker = jest.fn(async (s, n) => {
+            if (n === 1) throw new Error('sheet is broken');
+            markInterrupted('SIGINT');
+        });
+
+        const result = await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+
+        // Both are true, but only one of them is still true after a re-run.
+        // Reported the other way round, an interrupt at sheet 5 erased four
+        // genuine failures at sheets 1-4: the app came back as merely
+        // abandoned, `failedApps` was 0, and the operator re-ran without ever
+        // learning those sheets were broken.
+        expect(result.failed).toBe(1);
+        expect(result.interrupted).toBe(true);
+        expect(() => result.assertAllProcessed()).toThrow(/Failed to remove icons for 1 of/);
+    });
+
+    test('a lost engine session also outranks the interrupt', async () => {
+        const worker = jest.fn(async (s, n) => {
+            if (n === 1) throw new Error('Socket closed');
+            markInterrupted('SIGINT');
+        });
+
+        const result = await runOverSheets([sheet('a'), sheet('b')], CTX, worker);
+
+        expect(() => result.assertAllProcessed()).toThrow(/Socket closed/);
+    });
+
+    test('with nothing broken, the interrupt is what is reported', async () => {
+        const worker = jest.fn(async (s, n) => {
+            if (n === 2) markInterrupted('SIGINT');
+        });
+
+        const result = await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+
+        expect(() => result.assertAllProcessed()).toThrow(/abandoned when the run was interrupted/);
+    });
+
+    test('an uninterrupted run is untouched', async () => {
+        const result = await runOverSheets([sheet('a'), sheet('b')], CTX, jest.fn());
+
+        expect(result.interrupted).toBe(false);
+        expect(() => result.assertAllProcessed()).not.toThrow();
     });
 });

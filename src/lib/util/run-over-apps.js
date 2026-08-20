@@ -1,4 +1,6 @@
 import { logger } from '../../globals.js';
+import { isInterrupted } from './interrupt.js';
+import { isAbortArtifact } from './abort-artifact.js';
 
 /**
  * Runs a per-app worker over a list of app IDs, isolating each app from the others and
@@ -40,6 +42,9 @@ import { logger } from '../../globals.js';
  *
  * @returns {Promise<boolean>} `true` only when at least one app was selected and every one
  *     of them was processed without error. An empty selection is a failure, not a no-op.
+ *     An interrupted run can still return `true` - nothing failed, the run simply stopped
+ *     early - so `runOverAppsWithReport` overrides the verdict for that case rather than
+ *     letting a stopped run exit 0.
  */
 export const runOverApps = async (
     appIds,
@@ -63,8 +68,23 @@ export const runOverApps = async (
 
     let failed = 0;
     let appNumber = 0;
+    let abandoned = 0;
 
     for (const appId of uniqueAppIds) {
+        // The app boundary is where an interrupted run stops (issue #1107).
+        // Checked before the banner line, so the log never announces an app
+        // that was never touched - and before any write, which is the whole
+        // point: every app past this line is one the operator can be told was
+        // left exactly as it was.
+        if (isInterrupted()) {
+            const notStarted = uniqueAppIds.length - appNumber;
+            logger.info('');
+            logger.info(
+                `Interrupted: stopping here. ${notStarted} of ${uniqueAppIds.length} app(s) were not started.`
+            );
+            break;
+        }
+
         appNumber += 1;
         try {
             // Countable, and printed before the worker runs, so a run that
@@ -80,6 +100,29 @@ export const runOverApps = async (
 
             logger.verbose(`Done processing app ${appId}`);
         } catch (err) {
+            // An app that was in flight when the signal arrived lands here
+            // too: shutdown closes the browser under it, so its next await
+            // rejects exactly like a real failure. It is not one, and must not
+            // be counted as one - an operator who pressed Ctrl-C and reads
+            // `1 failed` goes looking for a broken app that does not exist.
+            // Reported at `info` with the cause still attached, because the
+            // detail is occasionally worth having and never worth an error
+            // line.
+            //
+            // Both halves of the condition matter. The flag alone said "any
+            // error that happens to be unwinding when a signal lands is the
+            // signal's doing" - so an app failing on a real server error at the
+            // moment `docker stop` arrived was filed as abandoned, and its
+            // failure vanished from the verdict entirely. `isAbortArtifact`
+            // asks whether THIS error is one we caused.
+            if (isInterrupted() && isAbortArtifact(err)) {
+                abandoned += 1;
+                logger.info(
+                    `Interrupted while processing app ${appId} - it was abandoned: ${err?.message ?? err}`
+                );
+                continue;
+            }
+
             failed += 1;
             logger.error(`${logPrefix}: Failed to process app ${appId}: ${err?.message ?? err}`);
         }
@@ -87,6 +130,10 @@ export const runOverApps = async (
 
     if (failed > 0) {
         logger.error(`Failed to process ${failed} of ${uniqueAppIds.length} app(s)`);
+    }
+
+    if (abandoned > 0) {
+        logger.info(`Abandoned ${abandoned} app(s) that were being processed when the run stopped`);
     }
 
     return failed === 0;

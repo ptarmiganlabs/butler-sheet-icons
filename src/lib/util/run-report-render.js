@@ -554,15 +554,61 @@ export const verdictCounts = (report) => {
 export const verdictFacts = (report) => {
     const failedApps = report.apps.filter((app) => app.failed).length;
 
+    // An app abandoned mid-run is neither ok nor failed (issue #1107). Counted
+    // out of `okApps` as well as out of `failedApps`, or an interrupted run
+    // would claim to have finished an app it stopped halfway through.
+    const interruptedApps = report.apps.filter((app) => app.interrupted).length;
+
     return {
-        okApps: report.apps.length - failedApps,
+        okApps: report.apps.length - failedApps - interruptedApps,
         failedApps,
+        interruptedApps,
+        interrupted: Boolean(report.interrupted),
+        notStartedApps: report.appsNotStarted ?? 0,
         emptySelection: (report.selection?.total ?? 0) === 0 && report.apps.length === 0,
         sheetsUpdated: sumAppField(report, 'sheetsUpdated'),
         imagesKeptFiles: sumAppField(report, 'imagesKeptFiles'),
         imagesKeptBytes: sumAppField(report, 'imagesKeptBytes'),
         mediaFilesDeleted: sumAppField(report, 'mediaFilesDeleted'),
     };
+};
+
+/**
+ * The `apps` line's counts, as one string.
+ *
+ * A shared builder for the same reason `verdictFacts` and `describeWrites`
+ * are: the plain verdict and the board verdict must never be able to disagree
+ * about how many apps were done. The two interrupt counts appear only when
+ * they are non-zero, so an ordinary run's line is unchanged.
+ *
+ * `not started` is the number that matters after a Ctrl-C - it is what is left
+ * to re-run - and it is deliberately distinct from `interrupted`, which is the
+ * single app that was in flight.
+ *
+ * @param {object} facts - From {@link verdictFacts}.
+ *
+ * @returns {string} e.g. `7 ok, 1 interrupted, 4 not started`.
+ */
+export const appCountSummary = (facts) => {
+    const parts = [`${facts.okApps} ok`];
+
+    if (facts.failedApps > 0) {
+        parts.push(`${facts.failedApps} failed`);
+    } else if (!facts.interrupted) {
+        // Kept unconditionally on an ordinary run: `0 failed` is the shape
+        // every existing run has printed, and operators grep for it.
+        parts.push('0 failed');
+    }
+
+    if (facts.interruptedApps > 0) {
+        parts.push(`${facts.interruptedApps} interrupted`);
+    }
+
+    if (facts.notStartedApps > 0) {
+        parts.push(`${facts.notStartedApps} not started`);
+    }
+
+    return parts.join(', ');
 };
 
 /**
@@ -579,9 +625,14 @@ export const verdictFacts = (report) => {
  * @returns {string[]} The block's lines.
  */
 export const renderRunVerdictLines = (report) => {
-    const lines = ['', `RESULT  ${report.succeeded ? 'ok' : 'FAILED'}`];
-
     const facts = verdictFacts(report);
+
+    // INTERRUPTED rather than FAILED, because they call for different
+    // responses: a failed run is something to investigate, an interrupted one
+    // is something to re-run (issue #1107). The counts below say how much of
+    // it is left to re-run.
+    const result = facts.interrupted ? 'INTERRUPTED' : report.succeeded ? 'ok' : 'FAILED';
+    const lines = ['', `RESULT  ${result}`];
 
     if (facts.emptySelection) {
         lines.push(row('apps', '0 selected - nothing was done'));
@@ -590,7 +641,7 @@ export const renderRunVerdictLines = (report) => {
         return lines;
     }
 
-    lines.push(row('apps', `${facts.okApps} ok, ${facts.failedApps} failed`));
+    lines.push(row('apps', appCountSummary(facts)));
 
     const { seen, captured, blurred, excluded, cleared, noIcon } = verdictCounts(report);
 

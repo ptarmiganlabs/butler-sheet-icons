@@ -567,11 +567,24 @@ export const stripForApp = (appEntry, symbols) => {
                 : capturedCell
             : (glyphFor[sheet.action] ?? failedCell);
 
-    const count = Math.max(
-        typeof appEntry.sheetCount === 'number' ? appEntry.sheetCount : 0,
-        appEntry.sheets.length,
-        ...appEntry.sheets.map(positionOf)
-    );
+    // The gap-fill length. Sheets are recorded only once their capture has
+    // succeeded, so any position up to `sheetCount` without a row is a sheet
+    // that was reached and did not work - painted failed, which is the point.
+    //
+    // An app abandoned mid-run is the one case where that reading is wrong
+    // (issue #1107): its remaining sheets were never attempted, and painting
+    // them failed would show a wall of failures for a run the operator
+    // stopped, and count them into the verdict legend's "not processed".
+    // Clipped at the last recorded sheet instead - the same rule
+    // `renderSheetStrip` applies to the live view's in-progress app, for
+    // exactly the same reason.
+    const count = appEntry.interrupted
+        ? Math.max(appEntry.sheets.length, 0, ...appEntry.sheets.map(positionOf))
+        : Math.max(
+              typeof appEntry.sheetCount === 'number' ? appEntry.sheetCount : 0,
+              appEntry.sheets.length,
+              ...appEntry.sheets.map(positionOf)
+          );
 
     const cells = Array.from({ length: count }, () => failedCell);
     appEntry.sheets.forEach((sheet, i) => {
@@ -644,7 +657,24 @@ export const renderSheetStrip = (appEntry, ctx, limit = Infinity) =>
 export const renderBoardAppRow = (appEntry, { n, total, removal }, ctx) => {
     const { palette, symbols } = ctx;
 
-    const marker = appEntry.failed ? palette.red(symbols.failed) : palette.green(symbols.done);
+    // Three states, not two (issue #1107): an app abandoned mid-run gets the
+    // warning marker, because a green tick would claim work that never
+    // happened and a red cross would report a failure that never occurred.
+    //
+    // Padded to the width of the done/failed pair before it is coloured.
+    // `symbols.warning` is contact-sheet furniture - `!` in BOTH sets - while
+    // the ASCII markers are `[ok]` and `[!!]`, four columns each; dropping it
+    // in raw shifted the whole row three columns left on Windows conhost and
+    // any runner without unicode, which is exactly where `docker stop` and
+    // SIGTERM are the normal way a run ends. Padded plain, coloured after,
+    // for the standing reason that ANSI codes count as width otherwise.
+    const markerWidth = Math.max(width(symbols.done), width(symbols.failed));
+    const pad = (glyph) => glyph + ' '.repeat(Math.max(0, markerWidth - width(glyph)));
+    const marker = appEntry.interrupted
+        ? palette.yellow(pad(symbols.warning))
+        : appEntry.failed
+          ? palette.red(pad(symbols.failed))
+          : palette.green(pad(symbols.done));
 
     const counter = padTo(`${n}/${total}`, width(`${total}/${total}`));
     const name = padTo(clip(appEntry.name ?? appEntry.id ?? '', NAME_WIDTH), NAME_WIDTH);
@@ -712,7 +742,13 @@ export const renderBoardVerdict = (report, ctx) => {
     const counts = verdictCounts(report);
 
     const parts = [];
-    if (report.succeeded) {
+    if (facts.interrupted) {
+        // Yellow, not red: the run was stopped, not broken, and the two ask
+        // the operator for completely different things (issue #1107).
+        parts.push(
+            palette.yellow('INTERRUPTED') + (elapsed ? ` ${palette.dim(`after ${elapsed}`)}` : '')
+        );
+    } else if (report.succeeded) {
         parts.push(palette.green(elapsed ? `done in ${elapsed}` : 'done'));
     } else {
         parts.push(palette.red('FAILED') + (elapsed ? ` ${palette.dim(`after ${elapsed}`)}` : ''));
@@ -720,6 +756,17 @@ export const renderBoardVerdict = (report, ctx) => {
     parts.push(`${facts.okApps} app(s) ok`);
     if (facts.failedApps > 0) {
         parts.push(palette.red(`${facts.failedApps} failed`));
+    }
+    if (facts.interruptedApps > 0) {
+        // The same word the plain verdict uses. They disagreed - `abandoned`
+        // here, `interrupted` there - which meant the count most operators
+        // actually see (board is the default rung on a real terminal) was not
+        // the one the docs and any log matcher were written against.
+        parts.push(palette.yellow(`${facts.interruptedApps} interrupted`));
+    }
+    if (facts.notStartedApps > 0) {
+        // The number to act on: this is what a re-run has left to do.
+        parts.push(palette.yellow(`${facts.notStartedApps} not started`));
     }
 
     if (removal) {

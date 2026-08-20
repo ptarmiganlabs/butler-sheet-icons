@@ -6,6 +6,7 @@ import { askQuestions } from './ask-questions.js';
 import { answersToOptions } from './to-cli-options.js';
 import { formatCommandLine, formatSecretEnvVars } from './render-command-line.js';
 import { defaultRuntime } from './prompt-runtime.js';
+import { isInterrupted } from '../util/interrupt.js';
 import { buildTheme } from './theme.js';
 import { getSymbols } from './symbols.js';
 import { loadWizard } from './registry.js';
@@ -386,9 +387,21 @@ export const runInteractive = async ({
         const result = await wizard.run(options);
         const ok = result !== false;
 
-        runtime.write(
-            `\n${ok ? `${symbols.done} Done` : `${symbols.failed} The run reported a failure - the log above says which apps and why`}\n`
-        );
+        // An interrupted run returns false so the exit code is right, but it
+        // did not fail (issue #1107). Saying so here would sit directly under
+        // a verdict that just went out of its way to print INTERRUPTED rather
+        // than FAILED, and send the operator hunting for broken apps that do
+        // not exist.
+        let line;
+        if (isInterrupted()) {
+            line = `${symbols.warning} Stopped - the run card above says which apps were already updated`;
+        } else if (ok) {
+            line = `${symbols.done} Done`;
+        } else {
+            line = `${symbols.failed} The run reported a failure - the log above says which apps and why`;
+        }
+
+        runtime.write(`\n${line}\n`);
 
         return ok;
     }
