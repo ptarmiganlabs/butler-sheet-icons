@@ -10,6 +10,8 @@ import { launchBrowserForApp, closeBrowserQuietly } from '../browser/browser-lau
 import {
     sortSheetsByRank,
     getSheetList,
+    runOverSheets,
+    SHEET_SKIPPED,
     SHEET_LIST_FIELDS_WITH_SHOW_CONDITION,
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
@@ -77,6 +79,7 @@ export const qseowProcessApp = async (appId, options, report = null) => {
 
     // Create image directory for this app
     let blurFailures = 0;
+    let sheetRun;
 
     createAppImageDir({
         imagedir: options.imagedir,
@@ -137,8 +140,6 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                 }
 
                 if (sheets.length > 0) {
-                    let iSheetNum = 1;
-
                     const browser = await launchBrowserForApp(options, {
                         appId,
                         logPrefix: 'QSEOW',
@@ -190,128 +191,67 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                         // Sort sheets
                         sortSheetsByRank(sheets);
 
-                        // Loop over all sheets in app, processing each one unless excluded
-                        for (const sheet of sheets) {
-                            // The sheet boundary an interrupted run stops at,
-                            // mirroring the `runOverSheets` check the Cloud
-                            // twin gets for free (issue #1107). A capture
-                            // failure already throws straight out of this bare
-                            // loop, but a blur failure is caught per sheet and
-                            // continues - so without this, shutdown would work
-                            // through every remaining sheet failing each one.
-                            if (isInterrupted()) {
-                                throw new QseowError(
-                                    `App ${appId} was abandoned when the run was interrupted, at sheet ${iSheetNum} of ${sheets.length}`
-                                );
-                            }
+                        // Loop over all sheets in app, processing each one unless excluded.
+                        // runOverSheets carries the interrupt check, the per-sheet error
+                        // isolation and the session-failure detection that this loop used to
+                        // hand-mirror - see #1091 step 1.
+                        sheetRun = await runOverSheets(
+                            sheets,
+                            {
+                                logPrefix: 'QSEOW APP',
+                                appId,
+                                action: 'create a thumbnail for',
+                                ErrorClass: QseowError,
+                            },
+                            async (sheet, iSheetNum) => {
+                                // Get repository db sheet id from mapRepoEngineSheetId, using sheet.qInfo.qId as key
+                                const repoDbSheetId = mapRepoEngineSheetId.get(sheet.qInfo.qId);
+                                const engineSheetId = sheet.qInfo.qId;
 
-                            // Get repository db sheet id from mapRepoEngineSheetId, using sheet.qInfo.qId as key
-                            const repoDbSheetId = mapRepoEngineSheetId.get(sheet.qInfo.qId);
-                            const engineSheetId = sheet.qInfo.qId;
+                                // Should this sheet be processed, or is it on exclude list?
+                                // Options are
+                                // --exclude-sheet-tag <value>
+                                // --exclude-sheet-number <number...>
+                                // --exclude-sheet-title <title...>
+                                // --exclude-sheet-status <status...>
 
-                            // Should this sheet be processed, or is it on exclude list?
-                            // Options are
-                            // --exclude-sheet-tag <value>
-                            // --exclude-sheet-number <number...>
-                            // --exclude-sheet-title <title...>
-                            // --exclude-sheet-status <status...>
-
-                            const { excludeSheet, excludeReason, sheetIsHidden } =
-                                await determineSheetExcludeStatus(
-                                    app,
-                                    sheet,
-                                    options,
-                                    tagSheetAppMetadata,
-                                    iSheetNum,
-                                    repoDbSheetId,
-                                    engineSheetId,
-                                    logger
-                                );
-
-                            // The blur decision is applied later, in
-                            // updatesheets - computed here as well, from the
-                            // same module and the same inputs, so the progress
-                            // line and the report can say `blurred` where the
-                            // update step will use the blurred file.
-                            const { blurSheet, blurReason } = excludeSheet
-                                ? { blurSheet: false, blurReason: null }
-                                : determineSheetBlurStatus(
-                                      sheet,
-                                      options,
-                                      blurTagSheetAppMetadata,
-                                      iSheetNum,
-                                      logger
-                                  );
-
-                            // The ~230-column line with the sheet ids, description,
-                            // approved/published/hidden fields lives at verbose now;
-                            // the info line is the countable one-liner.
-                            logger.verbose(
-                                `${excludeSheet === true ? 'Excluded' : 'Processing'} sheet ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
-                            );
-
-                            if (excludeSheet === true) {
-                                // Recorded and logged immediately - the exclusion
-                                // is already a fact.
-                                if (appEntry) {
-                                    recordPlannedSheet(appEntry, {
-                                        n: iSheetNum,
-                                        title: sheet.qMeta.title,
-                                        excludeSheet,
-                                        excludeReason,
-                                        blurSheet,
-                                        blurReason,
-                                    });
-                                }
-                                logger.info(
-                                    sheetProgressLine({
-                                        n: iSheetNum,
-                                        total: sheets.length,
-                                        label: 'excluded',
-                                        title: sheet.qMeta.title,
-                                        reason: excludeReason,
-                                    })
-                                );
-                            } else {
-                                const { fileName, fileNameShort } = await captureSheetImage(
-                                    page,
-                                    appUrl,
-                                    imgDir,
-                                    appId,
-                                    sheet,
-                                    iSheetNum,
-                                    options,
-                                    logger,
-                                    pageTimeout
-                                );
-
-                                createdFiles.push({
-                                    sheetPos: iSheetNum,
-                                    blurred: false,
-                                    fileNameShort,
-                                });
-
-                                try {
-                                    const { fileNameShortBlurred } = await blurSheetImage(
-                                        fileName,
-                                        imgDir,
-                                        appId,
-                                        iSheetNum,
+                                const { excludeSheet, excludeReason, sheetIsHidden } =
+                                    await determineSheetExcludeStatus(
+                                        app,
+                                        sheet,
                                         options,
+                                        tagSheetAppMetadata,
+                                        iSheetNum,
+                                        repoDbSheetId,
+                                        engineSheetId,
                                         logger
                                     );
 
-                                    createdFiles.push({
-                                        sheetPos: iSheetNum,
-                                        blurred: true,
-                                        fileNameShort: fileNameShortBlurred,
-                                    });
+                                // The blur decision is applied later, in
+                                // updatesheets - computed here as well, from the
+                                // same module and the same inputs, so the progress
+                                // line and the report can say `blurred` where the
+                                // update step will use the blurred file.
+                                const { blurSheet, blurReason } = excludeSheet
+                                    ? { blurSheet: false, blurReason: null }
+                                    : determineSheetBlurStatus(
+                                          sheet,
+                                          options,
+                                          blurTagSheetAppMetadata,
+                                          iSheetNum,
+                                          logger
+                                      );
 
-                                    // Recorded and logged only now: both files
-                                    // exist, so `captured` (or `blurred`) is a
-                                    // fact rather than an intention. A sheet
-                                    // whose capture or blur failed leaves no
-                                    // row - the error lines tell that story.
+                                // The ~230-column line with the sheet ids, description,
+                                // approved/published/hidden fields lives at verbose now;
+                                // the info line is the countable one-liner.
+                                logger.verbose(
+                                    `${excludeSheet === true ? 'Excluded' : 'Processing'} sheet ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
+                                );
+
+                                if (excludeSheet === true) {
+                                    // Recorded and logged immediately - the exclusion
+                                    // is already a fact.
                                     if (appEntry) {
                                         recordPlannedSheet(appEntry, {
                                             n: iSheetNum,
@@ -326,41 +266,103 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                                         sheetProgressLine({
                                             n: iSheetNum,
                                             total: sheets.length,
-                                            label: blurSheet ? 'blurred' : 'captured',
+                                            label: 'excluded',
                                             title: sheet.qMeta.title,
-                                            reason: blurReason,
+                                            reason: excludeReason,
                                         })
                                     );
-                                } catch (err) {
-                                    logError(
-                                        'QSEOW CREATE BLURRED IMAGE: Failed to create blurred image',
-                                        err
+
+                                    return SHEET_SKIPPED;
+                                } else {
+                                    const { fileName, fileNameShort } = await captureSheetImage(
+                                        page,
+                                        appUrl,
+                                        imgDir,
+                                        appId,
+                                        sheet,
+                                        iSheetNum,
+                                        options,
+                                        logger,
+                                        pageTimeout
                                     );
 
-                                    // Drop this sheet entirely rather than leave the unblurred entry
-                                    // behind. The blur decision is made later, in updatesheets, from
-                                    // the CLI options alone - so leaving the entry meant the sheet was
-                                    // repointed at a `-blurred.png` that was never created, giving a
-                                    // broken icon. Dropping it means updatesheets skips the sheet and
-                                    // it keeps the icon it already had.
-                                    //
-                                    // --blur-sheet-* is a redaction control, so falling back to the
-                                    // plain screenshot is not an option either: it would publish the
-                                    // unredacted image the operator asked to hide.
-                                    for (let i = createdFiles.length - 1; i >= 0; i -= 1) {
-                                        if (createdFiles[i].sheetPos === iSheetNum) {
-                                            createdFiles.splice(i, 1);
+                                    createdFiles.push({
+                                        sheetPos: iSheetNum,
+                                        blurred: false,
+                                        fileNameShort,
+                                    });
+
+                                    try {
+                                        const { fileNameShortBlurred } = await blurSheetImage(
+                                            fileName,
+                                            imgDir,
+                                            appId,
+                                            iSheetNum,
+                                            options,
+                                            logger
+                                        );
+
+                                        createdFiles.push({
+                                            sheetPos: iSheetNum,
+                                            blurred: true,
+                                            fileNameShort: fileNameShortBlurred,
+                                        });
+
+                                        // Recorded and logged only now: both files
+                                        // exist, so `captured` (or `blurred`) is a
+                                        // fact rather than an intention. A sheet
+                                        // whose capture or blur failed leaves no
+                                        // row - the error lines tell that story.
+                                        if (appEntry) {
+                                            recordPlannedSheet(appEntry, {
+                                                n: iSheetNum,
+                                                title: sheet.qMeta.title,
+                                                excludeSheet,
+                                                excludeReason,
+                                                blurSheet,
+                                                blurReason,
+                                            });
                                         }
-                                    }
+                                        logger.info(
+                                            sheetProgressLine({
+                                                n: iSheetNum,
+                                                total: sheets.length,
+                                                label: blurSheet ? 'blurred' : 'captured',
+                                                title: sheet.qMeta.title,
+                                                reason: blurReason,
+                                            })
+                                        );
+                                    } catch (err) {
+                                        logError(
+                                            'QSEOW CREATE BLURRED IMAGE: Failed to create blurred image',
+                                            err
+                                        );
 
-                                    blurFailures += 1;
-                                    logger.error(
-                                        `QSEOW APP: Sheet ${iSheetNum} in app ${appId} was left unchanged because its blurred thumbnail could not be created`
-                                    );
+                                        // Drop this sheet entirely rather than leave the unblurred entry
+                                        // behind. The blur decision is made later, in updatesheets, from
+                                        // the CLI options alone - so leaving the entry meant the sheet was
+                                        // repointed at a `-blurred.png` that was never created, giving a
+                                        // broken icon. Dropping it means updatesheets skips the sheet and
+                                        // it keeps the icon it already had.
+                                        //
+                                        // --blur-sheet-* is a redaction control, so falling back to the
+                                        // plain screenshot is not an option either: it would publish the
+                                        // unredacted image the operator asked to hide.
+                                        for (let i = createdFiles.length - 1; i >= 0; i -= 1) {
+                                            if (createdFiles[i].sheetPos === iSheetNum) {
+                                                createdFiles.splice(i, 1);
+                                            }
+                                        }
+
+                                        blurFailures += 1;
+                                        logger.error(
+                                            `QSEOW APP: Sheet ${iSheetNum} in app ${appId} was left unchanged because its blurred thumbnail could not be created`
+                                        );
+                                    }
                                 }
+                                return undefined;
                             }
-                            iSheetNum += 1;
-                        }
+                        );
 
                         logger.verbose(`QSEoW APP: Done creating thumbnails`);
                     } finally {
@@ -396,6 +398,14 @@ export const qseowProcessApp = async (appId, options, report = null) => {
         logger.verbose(
             `Closed session after generating sheet thumbnail images for all sheets in QSEoW app ${appId} on host ${options.host}`
         );
+
+        // Only for the interrupt, mirroring the Cloud twin: a genuine partial failure falls
+        // through to the upload and update below so the sheets that did work are applied.
+        // The assertAllProcessed() at the very end of this function is what still reports
+        // the app as failed.
+        if (sheetRun?.interrupted) {
+            sheetRun.assertAllProcessed();
+        }
 
         // Upload to QSEoW content library
         await qseowUploadToContentLibrary(createdFiles, appId, options);
@@ -487,6 +497,10 @@ export const qseowProcessApp = async (appId, options, report = null) => {
 
     // Asserted last, and outside the try, so the sheets that did work are still uploaded
     // and applied.
+    // Capture failures are asserted before blur failures: a sheet that never produced an
+    // image is the more fundamental failure, and its message names the sheet count.
+    sheetRun?.assertAllProcessed();
+
     if (blurFailures > 0) {
         throw new QseowError(
             `Failed to create a blurred thumbnail for ${blurFailures} sheet(s) in app ${appId}`
