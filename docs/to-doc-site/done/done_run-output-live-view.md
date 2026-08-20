@@ -14,6 +14,13 @@ failure and crash all restore the terminal through `restoreLiveTerminal`. This i
 likely to rot - it describes something *missing*, so it silently becomes wrong the day graceful
 interrupt handling lands. Re-check it rather than trusting the page.
 
+NOW WRONG, as predicted above. Issue #1107 landed graceful signal handling: an interrupted run
+collapses the live view and restores the terminal through the same `restoreLiveTerminal` hook,
+and the signal handler writes a show-cursor sequence besides. The published page's Ctrl-C
+paragraph must be corrected - `interrupting-a-run.md` in the staging folder carries that
+instruction and the replacement wording. Recorded here so a later reader of `done/` does not
+trust the caveat above.
+
 The gate list ("when you get it - and when you deliberately do not") was checked line by line
 against `selectRung` in `src/lib/util/select-rung.js` and matches, including the 80x24 minimum,
 the `TERM=dumb` gate being independent of colour, and `BSI_OUTPUT=live` being a permission rather
