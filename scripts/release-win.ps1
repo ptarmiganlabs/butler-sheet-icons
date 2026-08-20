@@ -60,7 +60,7 @@ else {
 New-Item -ItemType Directory -Force -Path ./build | Out-Null
 
 # Create a single JS file using esbuild
-./node_modules/.bin/esbuild "src/${env:DIST_FILE_NAME}.js" --bundle --outfile=./build/build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+node scripts/bundle.mjs bundle
 
 # Generate blob to be injected into the binary
 node --experimental-sea-config build-script/sea-config.json
@@ -77,7 +77,7 @@ node -e "require('fs').copyFileSync(process.execPath, '${env:DIST_FILE_NAME}.exe
 # with, which alarms users and antivirus far more than no signature at all.
 Invoke-BsiStripSignature -Path "./${env:DIST_FILE_NAME}.exe" -Signtool $signtool
 
-npx --no-install postject "${env:DIST_FILE_NAME}.exe" NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
+node scripts/bundle.mjs inject "${env:DIST_FILE_NAME}.exe"
 
 # -------------------
 # Sign the executable.
