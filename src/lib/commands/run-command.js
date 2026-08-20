@@ -1,6 +1,7 @@
 import { logger } from '../../globals.js';
 import { logError } from '../util/log-error.js';
 import { restoreLiveTerminal } from '../util/run-live.js';
+import { isInterrupted, interruptExitCode } from '../util/interrupt.js';
 
 /**
  * Runs a command implementation on behalf of a Commander action handler, and makes its
@@ -55,5 +56,14 @@ export const runCommand = async (logPrefix, run, onError) => {
         // shell. A no-op for every command that never started a live view;
         // the crash half lives in installFatalHandlers.
         restoreLiveTerminal();
+
+        // In the `finally`, and last, so it wins over both branches above
+        // (issue #1107). An interrupted run can legitimately report success -
+        // the app loop stops at a boundary, so nothing need have failed - and
+        // exiting 0 there would tell a scheduler the run did its job when the
+        // operator had just stopped it. 130 for SIGINT, 143 for SIGTERM.
+        if (isInterrupted()) {
+            process.exitCode = interruptExitCode();
+        }
     }
 };

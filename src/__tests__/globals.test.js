@@ -1,9 +1,12 @@
-import { describe, test, expect, beforeAll, afterAll } from '@jest/globals';
+import { describe, test, expect, beforeAll, afterAll, afterEach } from '@jest/globals';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 let logger;
+let sleep;
+let markInterrupted;
+let resetInterruptState;
 let originalWarningListeners;
 let originalNoProcessWarnings;
 
@@ -12,7 +15,8 @@ beforeAll(async () => {
     originalNoProcessWarnings = process.noProcessWarnings;
     process.removeAllListeners('warning');
 
-    ({ logger } = await import('../globals.js'));
+    ({ logger, sleep } = await import('../globals.js'));
+    ({ markInterrupted, resetInterruptState } = await import('../lib/util/interrupt.js'));
 });
 
 afterAll(() => {
@@ -180,5 +184,57 @@ describe('library code does not read .env off disk (issue #1014)', () => {
 
         expect(dotenvAt).toBeGreaterThanOrEqual(0);
         expect(dotenvAt).toBeLessThan(firstOther);
+    });
+});
+
+describe('sleep aborts when the run is interrupted (issue #1107)', () => {
+    afterEach(() => {
+        resetInterruptState();
+    });
+
+    test('resolves normally when nothing interrupts it', async () => {
+        await expect(sleep(1)).resolves.toBeUndefined();
+    });
+
+    test('a pending sleep rejects the moment the signal arrives', async () => {
+        // Closing the browser unblocks every in-flight Puppeteer call, but not
+        // a sleep. Without this a shutdown waits out --pagewait, which
+        // operators are told to set high enough for the slowest sheet - past
+        // `docker stop`'s ten-second grace period.
+        const started = Date.now();
+        const pending = sleep(60_000);
+
+        markInterrupted('SIGINT');
+
+        await expect(pending).rejects.toThrow();
+        expect(Date.now() - started).toBeLessThan(1000);
+    });
+
+    test('rejects rather than resolving early', async () => {
+        // Resolving would let the caller carry on into work the operator has
+        // just asked it to stop doing. Rejecting propagates through the
+        // caller's existing error path, exactly as the browser close does.
+        const pending = sleep(60_000);
+        markInterrupted('SIGINT');
+
+        await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+    });
+
+    test('a sleep started after the interrupt rejects immediately', async () => {
+        markInterrupted('SIGINT');
+
+        await expect(sleep(60_000)).rejects.toThrow();
+    });
+
+    test('reads the abort signal per call, so a reset restores normal sleeping', async () => {
+        markInterrupted('SIGINT');
+        await expect(sleep(1)).rejects.toThrow();
+
+        resetInterruptState();
+
+        // A module that captured the signal at import time would hold the
+        // aborted one, and every sleep for the rest of the process would
+        // reject.
+        await expect(sleep(1)).resolves.toBeUndefined();
     });
 });

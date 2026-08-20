@@ -25,6 +25,13 @@ import {
 } from './run-live.js';
 import { toOptionValueList } from './option-values.js';
 import { measureImageFiles } from './image-dir.js';
+import {
+    isInterrupted,
+    interruptSignal,
+    beginInterruptibleRun,
+    endInterruptibleRun,
+} from './interrupt.js';
+import { isAbortArtifact } from './abort-artifact.js';
 
 /**
  * The run report: one object holding what a run resolved and decided, read by
@@ -489,6 +496,81 @@ const markAppFailed = (report, appId) => {
 };
 
 /**
+ * Mark the app that was in flight when the signal arrived (issue #1107).
+ *
+ * Not the same as failing it, and the distinction is the point. Shutdown works
+ * by closing the browser under the run, so the app's last await rejects and it
+ * arrives in the same catch a genuinely broken app would - identical from
+ * there, and counted identically unless something says otherwise. An operator
+ * reading `1 failed` after pressing Ctrl-C would go looking for a problem with
+ * that app, and there is none: it was abandoned, and on both platforms an
+ * abandoned app is left exactly as it was, because every write happens after
+ * the capture loop the interrupt cut short.
+ *
+ * `remove-sheet-icons` is the exception worth knowing about: it writes per
+ * sheet, so an app interrupted there is genuinely part-cleared. It is still
+ * `interrupted` rather than `failed` - nothing went wrong - and the verdict's
+ * cleared count says how far it got.
+ *
+ * @param {object} report - The report.
+ * @param {string} appId - The app that was abandoned.
+ *
+ * @returns {void}
+ */
+const markAppInterrupted = (report, appId) => {
+    const entry = report.apps.find((app) => app.id === appId);
+
+    if (entry) {
+        entry.interrupted = true;
+    } else {
+        addAppToReport(report, { id: appId }).interrupted = true;
+    }
+};
+
+/**
+ * Mark the app the loop is currently inside, and clear it on the way out.
+ *
+ * The report needs to know which app was in flight when a signal landed, and
+ * only the loop can say: by the time `stampInterruptOutcome` runs, on the
+ * watchdog and second-signal paths, the worker has not returned and no other
+ * field distinguishes "still running" from "finished". Inferring it from a
+ * timing field is what this replaced, and that inference was wrong for dry
+ * runs and one refactor away from being wrong for real ones (issue #1107).
+ *
+ * A no-op until the processor has created the entry. That is not a gap: an app
+ * abandoned before it recorded anything has nothing to report about either, and
+ * `appsNotStarted` accounts for it.
+ *
+ * @param {object} report - The report.
+ * @param {string} appId - The app now being processed.
+ *
+ * @returns {void}
+ */
+const markAppInFlight = (report, appId) => {
+    const entry = report.apps.find((app) => app.id === appId);
+
+    if (entry) {
+        entry.inFlight = true;
+    }
+};
+
+/**
+ * Clear the in-flight mark. Belongs in a `finally`.
+ *
+ * @param {object} report - The report.
+ * @param {string} appId - The app that has finished, however it finished.
+ *
+ * @returns {void}
+ */
+const clearAppInFlight = (report, appId) => {
+    const entry = report.apps.find((app) => app.id === appId);
+
+    if (entry) {
+        entry.inFlight = false;
+    }
+};
+
+/**
  * Record how the app selection resolved.
  *
  * The provenance counts are the cheap line #993 asks for: "the tag matched 40
@@ -567,6 +649,8 @@ export const addAppToReport = (report, { id, name, sheetCount }) => {
         sheets: [],
         mediaFilesToDelete: null,
         failed: false,
+        interrupted: false,
+        inFlight: false,
     };
     report.apps.push(entry);
 
@@ -816,6 +900,114 @@ export const recordPlannedSheet = (
 };
 
 /**
+ * Stamp the interrupt facts onto the report, if the run was interrupted.
+ *
+ * Called from {@link emitRunVerdictOnce} rather than only after the app loop,
+ * because the loop is exactly what does not return on two of the three paths
+ * that reach the verdict: a second signal and the shutdown watchdog both render
+ * while the run is still in flight. Doing it in one place is what stops the
+ * watchdog's report saying `FAILED` and counting the app it caught mid-flight
+ * as `ok` - which is what it did before this moved here.
+ *
+ * Idempotent, so the ordinary path calling it before the verdict and a signal
+ * path calling it again cannot double-count.
+ *
+ * @param {object} report - The report.
+ * @param {number} totalApps - Size of the deduplicated selection the loop walked.
+ *
+ * @returns {void}
+ */
+const stampInterruptOutcome = (report, totalApps) => {
+    if (!isInterrupted() || report.interrupted) {
+        return;
+    }
+
+    // Read from the flag the loop sets and clears around each app, not
+    // inferred. This used to test `typeof app.durationMs !== 'number'`, which
+    // was wrong for dry runs - only the real-run worker stamps a duration, so
+    // every fully-planned app looked like it was still in flight and an
+    // interrupted dry run reported `0 ok, N interrupted`. It was fragile for
+    // real runs too: the day anyone stamps `durationMs` at app *start* for a
+    // live elapsed timer, every abandoned app would silently become `ok`.
+    // The loop knows which app it is in; asking it is one line and cannot rot.
+    for (const app of report.apps) {
+        if (app.inFlight && !app.failed) {
+            app.interrupted = true;
+        }
+    }
+
+    report.interrupted = { signal: interruptSignal() };
+    report.appsNotStarted = Math.max(0, (totalApps ?? report.apps.length) - report.apps.length);
+
+    // Not a success whatever the loop counted: it broke off before reaching
+    // the apps it was asked to process, and the exit code says 130/143.
+    report.succeeded = false;
+};
+
+/**
+ * The run whose verdict has not been emitted yet, and the rung and board
+ * context it must be emitted on.
+ *
+ * A module-level registry, exactly like the active live view in `run-live.js`
+ * and for the same reason: the signal handler has to reach the run report, and
+ * it lives in a local inside `runOverAppsWithReport` fifteen frames below where
+ * the signal arrives.
+ *
+ * @type {{report: object, rung: string, ctx: object|null}|null}
+ */
+let pendingVerdict = null;
+
+/**
+ * Emit the run verdict, at most once per run (issue #1107).
+ *
+ * Three paths can reach the end of an interrupted run, and exactly one verdict
+ * must be printed whichever gets there first:
+ *
+ *   - the run unwinds normally and `runOverAppsWithReport` finishes;
+ *   - the operator sends a second signal while it is still unwinding;
+ *   - the shutdown watchdog fires because the unwinding stalled.
+ *
+ * The registry is cleared before the block is rendered, not after, so a render
+ * that throws still cannot produce a second verdict on a later call.
+ *
+ * @returns {boolean} `true` if this call emitted the verdict.
+ */
+export const emitRunVerdictOnce = () => {
+    const pending = pendingVerdict;
+
+    if (!pending) {
+        return false;
+    }
+
+    pendingVerdict = null;
+
+    const { report, rung, ctx, totalApps } = pending;
+
+    // The interrupt paths reach here with the run still in flight, so the
+    // fields the renderers read may not have been stamped yet.
+    report.finishedAt ??= Date.now();
+    stampInterruptOutcome(report, totalApps);
+    report.succeeded ??= false;
+
+    // The animated region is erased and the cursor restored before the
+    // verdict renders, so it goes to a quiet terminal through the ordinary
+    // board path. A no-op when the signal handler already restored it.
+    activeLiveView()?.stop();
+
+    emitBlockOnRung({
+        rung,
+        plainEmit: () => {
+            for (const line of renderRunVerdictLines(report)) {
+                logger.info(line);
+            }
+        },
+        renderBoardBlock: () => renderBoardVerdict(report, ctx),
+    });
+
+    return true;
+};
+
+/**
  * The report-carrying app loop every dry-run-capable worker shares: build the
  * report, record the selection and the plan, render the plan block, run the
  * loop against the planner or the processor, and render the verdict.
@@ -908,79 +1100,148 @@ export const runOverAppsWithReport = async ({
 
     const removal = isRemovalReport(report);
 
-    const result = await runOverApps(
-        appIds,
-        {
-            logPrefix: dryRun ? logPrefix.plan : logPrefix.process,
-            action: dryRun ? 'plan' : 'process',
-            emptySelectionHint,
-        },
-        dryRun
-            ? async (appId) => {
-                  try {
-                      return await planApp(appId, report);
-                  } catch (err) {
-                      // A planner that failed after recording its rows would
-                      // otherwise render as a clean, fully-planned app - on
-                      // the mode whose report is the entire product.
-                      markAppFailed(report, appId);
-                      throw err;
-                  }
-              }
-            : async (appId, position) => {
-                  const appStartedAt = Date.now();
-                  // The loop's own position, not a re-count: one owner for
-                  // the number the log line, the live block and the committed
-                  // row all state (issue #1110).
-                  activeLiveView()?.appStarted({ n: position.n, total: position.total, id: appId });
-                  try {
-                      const result = await processApp(appId, report);
+    // One owner for "how many apps were selected", shared by the verdict
+    // registration and the post-loop stamping below.
+    const totalApps = new Set(appIds).size;
 
-                      // Every attempted app must have an entry, or the
-                      // verdict's ok-count silently undercounts a processor
-                      // that recorded nothing.
-                      if (!report.apps.some((app) => app.id === appId)) {
-                          addAppToReport(report, { id: appId });
+    // From here to the `finally` below, a signal shuts the run down
+    // gracefully instead of exiting on the spot: there is work to unwind and a
+    // report to render. Outside this region - the wizard, `browser install`,
+    // `doctor` - the signal handler exits immediately, because waiting would
+    // buy the operator nothing (issue #1107).
+    beginInterruptibleRun();
+
+    // Registered before the first app so that a signal arriving at any point
+    // in the loop finds a verdict to emit, even from the watchdog.
+    //
+    // Real runs only. A dry run's product is `renderDryRunReport`, and a
+    // verdict block is not something it may ever print: the counts come from
+    // the planned-sheet rows, so an interrupted dry run would have announced
+    // captures and thumbnails uploaded for a run that connected read-only and
+    // changed nothing. Gating here rather than discarding after the loop is
+    // what closes the window - a discard can only run if the loop returns, and
+    // the signal paths reach the verdict while it is still going.
+    if (!dryRun) {
+        pendingVerdict = { report, rung, ctx, totalApps };
+    }
+
+    let result;
+    try {
+        result = await runOverApps(
+            appIds,
+            {
+                logPrefix: dryRun ? logPrefix.plan : logPrefix.process,
+                action: dryRun ? 'plan' : 'process',
+                emptySelectionHint,
+            },
+            dryRun
+                ? async (appId) => {
+                      markAppInFlight(report, appId);
+                      try {
+                          return await planApp(appId, report);
+                      } catch (err) {
+                          // A planner that failed after recording its rows would
+                          // otherwise render as a clean, fully-planned app - on
+                          // the mode whose report is the entire product.
+                          //
+                          // Same three-way split as the real-run twin below: an
+                          // app abandoned by a signal is not one whose planning
+                          // broke, and telling a dry run's reader to "fix the
+                          // errors above" when the only event was their own
+                          // Ctrl-C is the confusion this change exists to remove.
+                          if (isInterrupted() && isAbortArtifact(err)) {
+                              markAppInterrupted(report, appId);
+                          } else {
+                              markAppFailed(report, appId);
+                          }
+                          throw err;
+                      } finally {
+                          clearAppInFlight(report, appId);
                       }
+                  }
+                : async (appId, position) => {
+                      const appStartedAt = Date.now();
+                      // The loop's own position, not a re-count: one owner for
+                      // the number the log line, the live block and the committed
+                      // row all state (issue #1110).
+                      activeLiveView()?.appStarted({
+                          n: position.n,
+                          total: position.total,
+                          id: appId,
+                      });
+                      markAppInFlight(report, appId);
+                      try {
+                          const result = await processApp(appId, report);
 
-                      return result;
-                  } catch (err) {
-                      // Recorded before the loop's own catch logs it, so the
-                      // verdict's failed-app count cannot disagree with the
-                      // error lines above it.
-                      markAppFailed(report, appId);
-                      throw err;
-                  } finally {
-                      // Both paths above guarantee the entry exists by now.
-                      // Stamped by the loop, not the processors: one clock
-                      // for both platform twins.
-                      const entry = report.apps.find((app) => app.id === appId);
-                      if (entry) {
-                          entry.durationMs = Date.now() - appStartedAt;
-                          if (board) {
-                              // Appended as each app finishes. With a live
-                              // view active the identical row is committed
-                              // above the animated region instead of being
-                              // appended raw - one renderer, two carriers.
-                              const row = renderBoardAppRow(
-                                  entry,
-                                  { n: position.n, total: position.total, removal },
-                                  ctx
-                              );
-                              const live = activeLiveView();
-                              if (live) {
-                                  live.appFinished(entry, row);
-                              } else {
-                                  process.stdout.write(row);
+                          // Every attempted app must have an entry, or the
+                          // verdict's ok-count silently undercounts a processor
+                          // that recorded nothing.
+                          if (!report.apps.some((app) => app.id === appId)) {
+                              addAppToReport(report, { id: appId });
+                          }
+
+                          return result;
+                      } catch (err) {
+                          // Recorded before the loop's own catch logs it, so the
+                          // verdict's failed-app count cannot disagree with the
+                          // error lines above it.
+                          //
+                          // An app that was in flight when the signal arrived
+                          // arrives here too - shutdown closes the browser under
+                          // it, so its last await rejects like any other failure.
+                          // The flag is the only thing that can tell the two
+                          // apart from inside this catch (issue #1107).
+                          // Same test the app loop applies, so the report's
+                          // classification and the loop's counts cannot
+                          // disagree about one app.
+                          if (isInterrupted() && isAbortArtifact(err)) {
+                              markAppInterrupted(report, appId);
+                          } else {
+                              markAppFailed(report, appId);
+                          }
+                          throw err;
+                      } finally {
+                          // Both paths above guarantee the entry exists by now.
+                          // Stamped by the loop, not the processors: one clock
+                          // for both platform twins.
+                          const entry = report.apps.find((app) => app.id === appId);
+                          if (entry) {
+                              entry.inFlight = false;
+                              entry.durationMs = Date.now() - appStartedAt;
+                              if (board) {
+                                  // Appended as each app finishes. With a live
+                                  // view active the identical row is committed
+                                  // above the animated region instead of being
+                                  // appended raw - one renderer, two carriers.
+                                  const row = renderBoardAppRow(
+                                      entry,
+                                      { n: position.n, total: position.total, removal },
+                                      ctx
+                                  );
+                                  const live = activeLiveView();
+                                  if (live) {
+                                      live.appFinished(entry, row);
+                                  } else {
+                                      process.stdout.write(row);
+                                  }
                               }
                           }
                       }
                   }
-              }
-    );
+        );
+    } finally {
+        endInterruptibleRun();
+    }
 
     report.finishedAt = Date.now();
-    report.succeeded = result;
+
+    if (isInterrupted()) {
+        // Through the same helper the signal paths use, so the three routes to
+        // a verdict cannot describe the same run differently.
+        stampInterruptOutcome(report, totalApps);
+    } else {
+        report.succeeded = result;
+    }
 
     // The collapse (issue #1075): the animated region is erased and the
     // cursor restored *before* the verdict renders, so the verdict below
@@ -995,19 +1256,15 @@ export const runOverAppsWithReport = async ({
         // The report is the entire product of a dry run, so no rung - `off`
         // included - suppresses it. On the board rung the plan block above
         // already rendered as a board; the per-sheet decisions stay in the
-        // log, where their reasons are.
+        // log, where their reasons are. Nothing to discard: a dry run never
+        // registered a verdict in the first place.
         renderDryRunReport(report);
     } else {
-        emitBlockOnRung({
-            rung,
-            plainEmit: () => {
-                for (const line of renderRunVerdictLines(report)) {
-                    logger.info(line);
-                }
-            },
-            renderBoardBlock: () => renderBoardVerdict(report, ctx),
-        });
+        // Through the once-only seam, not inline: a second signal or the
+        // shutdown watchdog can reach the same verdict from the signal
+        // handler, and the operator must see it exactly once (issue #1107).
+        emitRunVerdictOnce();
     }
 
-    return result;
+    return isInterrupted() ? false : result;
 };

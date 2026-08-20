@@ -5,6 +5,9 @@ import 'dotenv/config';
 import { Command } from 'commander';
 import { appVersion } from './globals.js';
 import { installFatalHandlers } from './lib/util/fatal-handlers.js';
+import { installSignalHandlers } from './lib/util/signal-handlers.js';
+import { isInterrupted, interruptExitCode } from './lib/util/interrupt.js';
+import { flushAndExit } from './lib/util/flush-exit.js';
 import { buildQseowCommand } from './lib/commands/qseow/index.js';
 import { buildQscloudCommand } from './lib/commands/qscloud/index.js';
 import { buildBrowserCommand } from './lib/commands/browser/index.js';
@@ -16,6 +19,12 @@ import { relaxMandatoryOptionsIfInteractive } from './lib/interactive/mandatory-
 // write a crash dump, and exit with code 1. Installed before anything else so
 // the net is in place before there is anything to fall out of it.
 installFatalHandlers();
+
+// Ctrl-C, `docker stop` and a CI timeout all arrive here (issue #1107). Beside
+// the crash net rather than inside it: a signal is not a crash, writes no dump,
+// and shuts the run down through the ordinary teardown so the operator is told
+// which apps were already updated.
+installSignalHandlers();
 
 const program = new Command();
 
@@ -44,4 +53,24 @@ const program = new Command();
     relaxMandatoryOptionsIfInteractive(program, process.argv);
 
     await program.parseAsync(process.argv);
+
+    // The one place the interrupted run is allowed to end the process, and the
+    // second considered exception to the codebase's "set `process.exitCode`,
+    // never call `process.exit()`" rule - the first being the injected `exit`
+    // in `fatal-handlers.js`.
+    //
+    // It has to be here rather than inside the run: `runCommand` has already
+    // set the code, but a shutdown leaves Puppeteer and enigma handles behind
+    // that can hold the event loop open indefinitely, so waiting for a natural
+    // drain would hang the very shutdown this exists to make prompt. By this
+    // point the command has returned and the report has been rendered, so
+    // nothing is lost by exiting outright.
+    if (isInterrupted()) {
+        // Drains stdout before exiting rather than calling `process.exit()`
+        // outright. The verdict has just been rendered, and on a pipe -
+        // `docker logs`, a CI collector, `| tee` - it is still buffered; a
+        // hard exit here discards the report the interrupt existed to
+        // produce. `flush-exit.js` carries the measurements and the bound.
+        flushAndExit(process.exitCode ?? interruptExitCode());
+    }
 })();

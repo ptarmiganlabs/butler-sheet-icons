@@ -10,6 +10,8 @@ import {
     formatElapsed,
     formatBytes,
     isOptionEnabled,
+    verdictFacts,
+    appCountSummary,
 } from '../run-report-render.js';
 import {
     createRunReport,
@@ -527,5 +529,92 @@ describe('formatters', () => {
         expect(isOptionEnabled('true')).toBe(true);
         expect(isOptionEnabled(false)).toBe(false);
         expect(isOptionEnabled('false')).toBe(false);
+    });
+});
+
+describe('the verdict of an interrupted run (issue #1107)', () => {
+    /**
+     * A report stopped mid-run: one app done, one abandoned in flight, two
+     * never started.
+     *
+     * @returns {object} The report.
+     */
+    const interruptedReport = () => {
+        const report = qseowReport();
+
+        report.apps = [];
+        addAppToReport(report, { id: 'app-1', name: 'Done', sheetCount: 2 }).sheetsUpdated = 2;
+        addAppToReport(report, { id: 'app-2', name: 'Abandoned', sheetCount: 3 }).interrupted =
+            true;
+
+        report.interrupted = { signal: 'SIGINT' };
+        report.appsNotStarted = 2;
+        report.succeeded = false;
+        report.finishedAt = report.startedAt + 4000;
+
+        return report;
+    };
+
+    test('an abandoned app counts as neither ok nor failed', () => {
+        const facts = verdictFacts(interruptedReport());
+
+        expect(facts).toMatchObject({
+            okApps: 1,
+            failedApps: 0,
+            interruptedApps: 1,
+            notStartedApps: 2,
+            interrupted: true,
+        });
+    });
+
+    test('says INTERRUPTED, not FAILED', () => {
+        const lines = renderRunVerdictLines(interruptedReport()).join('\n');
+
+        // The two call for different responses: a failed run is something to
+        // investigate, an interrupted one is something to re-run.
+        expect(lines).toContain('RESULT  INTERRUPTED');
+        expect(lines).not.toContain('FAILED');
+    });
+
+    test('states what is left to re-run', () => {
+        const lines = renderRunVerdictLines(interruptedReport()).join('\n');
+
+        expect(lines).toContain('1 ok, 1 interrupted, 2 not started');
+    });
+
+    test('stays pure ASCII, like every other renderer output', () => {
+        const lines = renderRunVerdictLines(interruptedReport()).join('\n');
+
+        expect(lines).toMatch(PURE_ASCII);
+    });
+
+    test('an ordinary run keeps its 0 failed, which operators grep for', () => {
+        expect(
+            appCountSummary({ okApps: 3, failedApps: 0, interruptedApps: 0, notStartedApps: 0 })
+        ).toBe('3 ok, 0 failed');
+    });
+
+    test('a failed app is still reported alongside an interrupt', () => {
+        expect(
+            appCountSummary({
+                okApps: 1,
+                failedApps: 2,
+                interruptedApps: 1,
+                notStartedApps: 5,
+                interrupted: true,
+            })
+        ).toBe('1 ok, 2 failed, 1 interrupted, 5 not started');
+    });
+
+    test('an uninterrupted report is unchanged', () => {
+        const report = qseowReport();
+        report.succeeded = true;
+
+        const facts = verdictFacts(report);
+
+        expect(facts.interrupted).toBe(false);
+        expect(facts.interruptedApps).toBe(0);
+        expect(facts.notStartedApps).toBe(0);
+        expect(renderRunVerdictLines(report).join('\n')).toContain('RESULT  ok');
     });
 });

@@ -612,3 +612,121 @@ describe('the verdict block', () => {
         expect(verdict).not.toContain('thumbnails uploaded');
     });
 });
+
+describe('the board on an interrupted run (issue #1107)', () => {
+    /**
+     * A report stopped mid-run: one app done, one abandoned in flight, two
+     * never started.
+     *
+     * @returns {object} The report.
+     */
+    const interruptedReport = () => ({
+        command: 'qseow create-sheet-thumbnails',
+        startedAt: 1000,
+        finishedAt: 5000,
+        succeeded: false,
+        interrupted: { signal: 'SIGINT' },
+        appsNotStarted: 2,
+        selection: { total: 4 },
+        apps: [
+            {
+                id: 'app-1',
+                name: 'Done',
+                sheetCount: 2,
+                failed: false,
+                interrupted: false,
+                sheetsUpdated: 2,
+                sheets: [
+                    { n: 1, title: 'One', action: 'update', reason: null },
+                    { n: 2, title: 'Two', action: 'update', reason: null },
+                ],
+            },
+            {
+                id: 'app-2',
+                name: 'Abandoned',
+                sheetCount: 3,
+                failed: false,
+                interrupted: true,
+                sheets: [{ n: 1, title: 'One', action: 'update', reason: null }],
+            },
+        ],
+    });
+
+    test('says INTERRUPTED rather than FAILED', () => {
+        const out = stripAnsi(renderBoardVerdict(interruptedReport(), uniCtx()));
+
+        expect(out).toContain('INTERRUPTED');
+        expect(out).not.toContain('FAILED');
+    });
+
+    test('states what was abandoned and what was never started', () => {
+        const out = stripAnsi(renderBoardVerdict(interruptedReport(), uniCtx()));
+
+        expect(out).toContain('1 app(s) ok');
+        expect(out).toContain('1 interrupted');
+        expect(out).toContain('2 not started');
+    });
+
+    test('the interrupt is yellow, not red - stopped is not broken', () => {
+        const out = renderBoardVerdict(interruptedReport(), uniCtx(true));
+
+        expect(out).toMatch(ANSI);
+        // 33 is yellow, 31 red. A red INTERRUPTED would send the operator
+        // looking for a fault they caused deliberately.
+        expect(out).toContain(`${ESC}[33mINTERRUPTED`);
+    });
+
+    test('the marker keeps its column width in the ASCII set', () => {
+        const [done, abandoned] = interruptedReport().apps;
+
+        const okRow = stripAnsi(
+            renderBoardAppRow(done, { n: 1, total: 4, removal: false }, asciiCtx())
+        );
+        const warnRow = stripAnsi(
+            renderBoardAppRow(abandoned, { n: 2, total: 4, removal: false }, asciiCtx())
+        );
+
+        // symbols.warning is '!' in BOTH sets while the ASCII markers are
+        // '[ok]' and '[!!]'. Unpadded, the abandoned row shifted three columns
+        // left of every other row on Windows conhost and any runner without
+        // unicode - which is exactly where docker stop and SIGTERM are the
+        // normal way a run ends.
+        expect(warnRow.indexOf('2/4')).toBe(okRow.indexOf('1/4'));
+    });
+
+    test('an abandoned app row is marked with the warning symbol, not a tick or a cross', () => {
+        const [, abandoned] = interruptedReport().apps;
+
+        const uni = stripAnsi(
+            renderBoardAppRow(abandoned, { n: 2, total: 4, removal: false }, uniCtx())
+        );
+        const ascii = stripAnsi(
+            renderBoardAppRow(abandoned, { n: 2, total: 4, removal: false }, asciiCtx())
+        );
+
+        expect(uni).toContain(UNICODE_SYMBOLS.warning);
+        expect(uni).not.toContain(UNICODE_SYMBOLS.done);
+        expect(uni).not.toContain(UNICODE_SYMBOLS.failed);
+        expect(ascii).toContain(ASCII_SYMBOLS.warning);
+    });
+
+    test('a completed app row still gets its tick', () => {
+        const [done] = interruptedReport().apps;
+
+        const out = stripAnsi(
+            renderBoardAppRow(done, { n: 1, total: 4, removal: false }, uniCtx())
+        );
+
+        expect(out).toContain(UNICODE_SYMBOLS.done);
+    });
+
+    test('the abandoned app has no failed cells painted for sheets it never reached', () => {
+        const [, abandoned] = interruptedReport().apps;
+
+        // recordPlannedSheet only runs after a capture succeeds, so the
+        // unreached tail is simply absent rather than shown as failed.
+        const cells = stripForApp(abandoned, UNICODE_SYMBOLS);
+
+        expect(cells.filter((cell) => cell.kind === 'failed')).toHaveLength(0);
+    });
+});

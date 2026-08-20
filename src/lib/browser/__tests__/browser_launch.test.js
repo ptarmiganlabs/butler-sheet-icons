@@ -81,6 +81,8 @@ const {
     BROWSER_LAUNCH_TIMEOUT_MS,
     BROWSER_PROTOCOL_TIMEOUT_MS,
 } = await import('../browser-launch.js');
+const { markInterrupted, runInterruptActions, resetInterruptState } =
+    await import('../../util/interrupt.js');
 
 /** Stand-in typed error, matching the (message, { cause }) shape of the real ones. */
 class TestError extends Error {
@@ -732,5 +734,85 @@ describe('launchBrowserForApp — slow launch reporting (issue #870)', () => {
         expect(errorOutput()).toContain('Could not launch virtual browser');
         expect(errorOutput()).not.toContain('did not become ready within');
         expect(logger.warn).not.toHaveBeenCalled();
+    });
+});
+
+describe('a launched browser is closed when the run is interrupted (issue #1107)', () => {
+    beforeEach(() => {
+        resetInterruptState();
+    });
+
+    afterEach(() => {
+        resetInterruptState();
+    });
+
+    test("puppeteer's own signal handlers are off, or it exits before the report", async () => {
+        puppeteer.launch.mockResolvedValue(fakeBrowser());
+
+        await launchBrowserForApp(OPTIONS, CONTEXT);
+
+        // @puppeteer/browsers defaults these to true, and its SIGINT handler
+        // is `this.kill(); process.exit(130)` - unconditional and immediate.
+        // Left on, the run never unwinds and the report naming the apps
+        // already written is never printed. It exits 130, the same code BSI
+        // uses, so the shell cannot tell the difference.
+        expect(puppeteer.launch).toHaveBeenCalledWith(
+            expect.objectContaining({
+                handleSIGINT: false,
+                handleSIGTERM: false,
+                handleSIGHUP: false,
+            })
+        );
+    });
+
+    test('the signal handler can close a browser that lives inside a processor', async () => {
+        const browser = fakeBrowser();
+        puppeteer.launch.mockResolvedValue(browser);
+
+        await launchBrowserForApp(OPTIONS, CONTEXT);
+
+        // This is what makes every in-flight Puppeteer await reject, which is
+        // the only thing that unwinds a run parked on a page navigation.
+        expect(runInterruptActions()).toBe(1);
+        await new Promise((resolve) => setImmediate(resolve));
+        expect(browser.close).toHaveBeenCalledTimes(1);
+    });
+
+    test('a browser already closed on the way out is not closed again', async () => {
+        const browser = fakeBrowser();
+        puppeteer.launch.mockResolvedValue(browser);
+
+        await launchBrowserForApp(OPTIONS, CONTEXT);
+        await closeBrowserQuietly(browser, 'TEST');
+
+        expect(browser.close).toHaveBeenCalledTimes(1);
+        // Whoever closes it first wins; the other must find nothing to do.
+        expect(runInterruptActions()).toBe(0);
+        expect(browser.close).toHaveBeenCalledTimes(1);
+    });
+
+    test('a browser that could not be driven leaves no stale registration', async () => {
+        const browser = fakeBrowser({
+            version: jest.fn().mockRejectedValue(new Error('Session closed')),
+        });
+        puppeteer.launch.mockResolvedValue(browser);
+
+        await expect(launchBrowserForApp(OPTIONS, CONTEXT)).rejects.toThrow(TestError);
+
+        // It is closed on that failure path already; a registration pointing
+        // at it would be an action with nothing to do.
+        expect(runInterruptActions()).toBe(0);
+    });
+
+    test('a browser launched after the signal is closed immediately', async () => {
+        const browser = fakeBrowser();
+        puppeteer.launch.mockResolvedValue(browser);
+        markInterrupted('SIGINT');
+
+        await launchBrowserForApp(OPTIONS, CONTEXT);
+        await new Promise((resolve) => setImmediate(resolve));
+
+        // Otherwise it is stranded with nothing left to close it.
+        expect(browser.close).toHaveBeenCalledTimes(1);
     });
 });

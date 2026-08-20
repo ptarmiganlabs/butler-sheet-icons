@@ -7,6 +7,7 @@ import errorCodes from 'enigma.js/error-codes.js';
 
 import { logger } from '../../globals.js';
 import { getErrorCategory } from './error-categorizer.js';
+import { isInterrupted } from './interrupt.js';
 
 /**
  * The `qData` projection every caller needs: enough to place a sheet and see its thumbnail.
@@ -284,10 +285,11 @@ const describeCloseEvent = (err) => {
  *     invoked once per sheet, with the 1-based sheet number. Returns `SHEET_SKIPPED` to
  *     record that it did nothing for that sheet.
  *
- * @returns {Promise<{attempted: number, failed: number, skipped: number, changed: number, assertAllProcessed: () => void}>}
+ * @returns {Promise<{attempted: number, failed: number, skipped: number, changed: number, interrupted: boolean, assertAllProcessed: () => void}>}
  *     The counts - `changed` being only the sheets the worker completed, so neither a failed
- *     sheet nor the one that killed the session is included - plus a check to call once the
- *     engine session has been released.
+ *     sheet nor the one that killed the session is included - plus `interrupted`, set when the
+ *     loop stopped because the run was signalled rather than because a sheet went wrong, and a
+ *     check to call once the engine session has been released.
  */
 export const runOverSheets = async (sheets, ctx, processSheet) => {
     const { logPrefix, appId, action, ErrorClass, requireAttempt = false } = ctx;
@@ -297,8 +299,22 @@ export const runOverSheets = async (sheets, ctx, processSheet) => {
     let skipped = 0;
     let iSheetNum = 1;
     let sessionFailure;
+    let interrupted = false;
 
     for (const sheet of sheets) {
+        // The sheet boundary is where an interrupted run stops within an app
+        // (issue #1107). It matters most for `remove-sheet-icons`, which is
+        // the one path that writes per sheet rather than per app: stopping
+        // here is what keeps the report's cleared count true instead of
+        // clearing more icons on the way out.
+        if (isInterrupted()) {
+            interrupted = true;
+            logger.info(
+                `${logPrefix}: Interrupted while processing app ${appId}, stopping at sheet ${iSheetNum} of ${sheets.length}`
+            );
+            break;
+        }
+
         try {
             const outcome = await processSheet(sheet, iSheetNum);
 
@@ -311,6 +327,20 @@ export const runOverSheets = async (sheets, ctx, processSheet) => {
         } catch (err) {
             // A sheet that threw was attempted, whatever it was about to return.
             attempted += 1;
+
+            // Shutdown closes the browser under the run, so the sheet that
+            // was in flight rejects with `Target closed` - which
+            // `isSessionLevelFailure` matches, and would otherwise be reported
+            // as a lost engine session. The engine was fine; the operator
+            // stopped the run. Checked first so the wrong explanation is never
+            // the one logged (issue #1107).
+            if (isInterrupted()) {
+                interrupted = true;
+                logger.info(
+                    `${logPrefix}: Sheet ${iSheetNum} in app ${appId} was abandoned when the run was interrupted`
+                );
+                break;
+            }
 
             if (isSessionLevelFailure(err)) {
                 // Not this sheet's fault, and every sheet after it would fail identically.
@@ -335,6 +365,7 @@ export const runOverSheets = async (sheets, ctx, processSheet) => {
         failed,
         skipped,
         changed,
+        interrupted,
         assertAllProcessed: () => {
             // Surface the real cause, not a sheet count that would blame the sheets.
             if (sessionFailure) {
@@ -344,6 +375,20 @@ export const runOverSheets = async (sheets, ctx, processSheet) => {
             if (failed > 0) {
                 throw new ErrorClass(
                     `Failed to ${action} ${failed} of ${attempted} sheet(s) in app ${appId}`
+                );
+            }
+
+            // Last of the three, deliberately (issue #1107). An interrupted app
+            // still has to throw, so the caller stops and the app loop counts
+            // it - but a real failure outranks the interrupt, because the two
+            // ask the operator for different things and only one of them is
+            // still true after a re-run. Checked first, an interrupt at sheet 5
+            // erased four genuine failures at sheets 1-4: the app was reported
+            // as merely abandoned, `failedApps` was 0, and the operator re-ran
+            // without ever learning those sheets were broken.
+            if (interrupted) {
+                throw new ErrorClass(
+                    `App ${appId} was abandoned when the run was interrupted, after ${changed} sheet(s) had been processed`
                 );
             }
 
