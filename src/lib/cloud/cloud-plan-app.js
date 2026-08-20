@@ -1,5 +1,6 @@
 import { logger } from '../../globals.js';
 import { setupEnigmaConnection } from './cloud-enigma.js';
+import { readCloudAppContext } from './cloud-app-context.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
 import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
 import { withEngineSession } from '../util/engine-session.js';
@@ -38,11 +39,10 @@ import { appProgressLine } from '../util/run-report-render.js';
  * @returns {Promise<void>} Resolves when the app's plan is recorded.
  */
 export const cloudPlanApp = async (appId, saasInstance, options, report) => {
-    // Get app name - same read, same endpoint as the real run.
-    const appMetadata = await saasInstance.Get(`apps/${appId}`);
-
-    // If empty the app is not published
-    const appIsPublished = !!appMetadata.attributes.publishTime;
+    // The same read the real run makes - shared rather than copied, so the two modes cannot
+    // drift apart. Clearing existing thumbnails is deliberately not done here: planning an app
+    // must not change it.
+    const { appMetadata, appIsPublished } = await readCloudAppContext(appId, saasInstance);
 
     const configEnigma = setupEnigmaConnection(appId, options);
 
