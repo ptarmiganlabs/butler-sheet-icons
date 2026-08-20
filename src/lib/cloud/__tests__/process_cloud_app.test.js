@@ -195,7 +195,13 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
             click: jest.fn().mockResolvedValue(true),
             keyboard: { type: jest.fn().mockResolvedValue(true) },
             waitForSelector: jest.fn().mockResolvedValue(true),
-            $: jest.fn().mockImplementation(() => Promise.resolve(buildMockSheetMainPart())),
+            // A successful form login leaves no login form behind, which is what the
+            // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+            $: jest
+                .fn()
+                .mockImplementation((selector) =>
+                    Promise.resolve(selector === '[id="1-email"]' ? null : buildMockSheetMainPart())
+                ),
             $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
         };
     }
@@ -937,6 +943,9 @@ describe('process-cloud-app.js — a sheet with no metadata does not abort the a
             screenshot: jest.fn().mockResolvedValue(true),
             click: jest.fn().mockResolvedValue(true),
             keyboard: { type: jest.fn().mockResolvedValue(true) },
+            // A successful form login leaves no login form behind, which is what the
+            // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+            $: jest.fn().mockResolvedValue(null),
         };
         puppeteer.launch.mockResolvedValue({
             // launchBrowserForApp health checks the browser and watches for an unexpected
@@ -1057,6 +1066,9 @@ describe('process-cloud-app.js — a failed upload must not update the sheets', 
                 screenshot: jest.fn().mockResolvedValue(true),
                 click: jest.fn().mockResolvedValue(true),
                 keyboard: { type: jest.fn().mockResolvedValue(true) },
+                // A successful form login leaves no login form behind, which is what the
+                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                $: jest.fn().mockResolvedValue(null),
             }),
             close: jest.fn().mockResolvedValue(true),
         });
@@ -1162,6 +1174,9 @@ describe('process-cloud-app.js — a sheet whose thumbnail cannot be produced', 
                 screenshot: jest.fn().mockResolvedValue(true),
                 click: jest.fn().mockResolvedValue(true),
                 keyboard: { type: jest.fn().mockResolvedValue(true) },
+                // A successful form login leaves no login form behind, which is what the
+                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                $: jest.fn().mockResolvedValue(null),
             }),
             close: jest.fn().mockResolvedValue(true),
         });

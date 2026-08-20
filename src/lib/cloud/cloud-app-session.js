@@ -1,6 +1,7 @@
 import { logger, sleep } from '../../globals.js';
 import { launchBrowserForApp, closeBrowserQuietly } from '../browser/browser-launch.js';
 import { CloudError } from '../util/errors.js';
+import { formLogin } from '../browser/form-login.js';
 import { removeStaleImage } from '../util/image-dir.js';
 
 // Selector paths to elements on login page
@@ -81,39 +82,21 @@ export const openCloudAppOverviewPage = async (
         return { page, appUrl, loginSkipped: true };
     }
 
-    // Enter credentials
-    // User
-    await page.click(selectorLoginPageUserName, {
-        button: 'left',
-        delay: 10,
+    await formLogin(page, {
+        selectors: {
+            username: selectorLoginPageUserName,
+            password: selectorLoginPageUserPwd,
+            submit: selectorLoginPageLoginButton,
+        },
+        username: `${options.logonuserid}`,
+        password: options.logonpwd,
+        pagewait: options.pagewait,
+        pageTimeout,
+        screenshotPath: `${imgDir}/cloud/${appId}/${loginPagePrefix}-2.png`,
+        logPrefix: 'CLOUD APP',
+        ErrorClass: CloudError,
+        logger,
     });
-    const user = `${options.logonuserid}`;
-    await page.keyboard.type(user);
-
-    // Pwd
-    await page.click(selectorLoginPageUserPwd, {
-        button: 'left',
-        delay: 10,
-    });
-    await page.keyboard.type(options.logonpwd);
-
-    await page.screenshot({
-        path: `${imgDir}/cloud/${appId}/${loginPagePrefix}-2.png`,
-    });
-
-    // Click login button and wait for page to load
-    await Promise.all([
-        page.click(selectorLoginPageLoginButton, {
-            button: 'left',
-            delay: 10,
-        }),
-        page.waitForNavigation({
-            waitUntil: 'networkidle2',
-            timeout: pageTimeout,
-        }),
-    ]);
-
-    await sleep(options.pagewait * 1000);
 
     return { page, appUrl, loginSkipped: false };
 };

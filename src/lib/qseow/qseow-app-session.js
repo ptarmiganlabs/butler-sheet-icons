@@ -1,6 +1,7 @@
 import { logger, sleep } from '../../globals.js';
 import { launchBrowserForApp, closeBrowserQuietly } from '../browser/browser-launch.js';
 import { QseowError } from '../util/errors.js';
+import { formLogin } from '../browser/form-login.js';
 import { normalizeVirtualProxyPrefix } from './qseow-prefix.js';
 import { qseowLogoutQuietly } from './qseow-logout.js';
 import { removeStaleImage } from '../util/image-dir.js';
@@ -99,35 +100,21 @@ export const openQseowAppOverviewPage = async (
     await sleep(options.pagewait * 1000);
     await page.screenshot({ path: `${imgDir}/qseow/${appId}/${loginPagePrefix}-1.png` });
 
-    // Enter credentials
-    // User
-    await page.click(selectorLoginPageUserName, {
-        button: 'left',
-        delay: 10,
+    await formLogin(page, {
+        selectors: {
+            username: selectorLoginPageUserName,
+            password: selectorLoginPageUserPwd,
+            submit: selectorLoginPageLoginButton,
+        },
+        username: `${options.logonuserdir}\\${options.logonuserid}`,
+        password: options.logonpwd,
+        pagewait: options.pagewait,
+        pageTimeout,
+        screenshotPath: `${imgDir}/qseow/${appId}/${loginPagePrefix}-2.png`,
+        logPrefix: 'QSEOW APP',
+        ErrorClass: QseowError,
+        logger,
     });
-
-    const user = `${options.logonuserdir}\\${options.logonuserid}`;
-    await page.keyboard.type(user);
-
-    // Pwd
-    await page.click(selectorLoginPageUserPwd, {
-        button: 'left',
-        delay: 10,
-    });
-    await page.keyboard.type(options.logonpwd);
-
-    await page.screenshot({ path: `${imgDir}/qseow/${appId}/${loginPagePrefix}-2.png` });
-
-    // Click login button and wait for page to load
-    await Promise.all([
-        page.click(selectorLoginPageLoginButton, {
-            button: 'left',
-            delay: 10,
-        }),
-        page.waitForNavigation({ waitUntil: 'networkidle2' }),
-    ]);
-
-    await sleep(options.pagewait * 1000);
 
     return { page, appUrl, hubUrl };
 };
