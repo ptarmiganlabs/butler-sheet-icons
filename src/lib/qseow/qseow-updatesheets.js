@@ -158,7 +158,22 @@ export const qseowUpdateSheetThumbnails = async (
     // about them even as the app is counted failed.
     const changed = logUpdatedSheetSummary(sheetRun);
 
-    sheetRun?.assertAllProcessed();
+    try {
+        sheetRun?.assertAllProcessed();
+    } catch (err) {
+        // The count rides out on the error for the same reason the summary is
+        // logged before the assert: these sheets were repointed and saved, and
+        // throwing loses the return value that would otherwise have told the
+        // report so (issue #1107).
+        //
+        // It matters most on the interrupt path. Each sheet is written as the
+        // loop reaches it, so a signal here leaves real, irreversible changes
+        // in Sense - and without this the verdict says `0 thumbnails uploaded`
+        // for an app whose thumbnails are live, which is the one thing the
+        // run report must never get wrong.
+        err.sheetsUpdated = changed;
+        throw err;
+    }
 
     return changed;
 };

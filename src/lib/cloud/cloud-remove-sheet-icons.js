@@ -136,6 +136,26 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = n
             `Closed session after removing sheet icons in QS Cloud app ${appId} on tenant ${options.tenanturl}`
         );
 
+        // Before the media deletion below, and this is the whole reason it is
+        // here (issue #1107). An interrupted removal has cleared *some* of the
+        // sheets and saved them; the rest still reference their thumbnail
+        // files. Falling through would delete every file in the folder,
+        // including the ones those untouched sheets point at - which is the
+        // failure mode the comment below describes, arrived at from the other
+        // direction. The result is irreversible: sheets showing a broken image
+        // where they previously had a working icon.
+        //
+        // Only for the interrupt. A genuine per-sheet failure still falls
+        // through, deliberately - see `assertAllProcessed()` at the end of this
+        // function, which is deferred precisely so the sheets that did work are
+        // finished off first.
+        //
+        // The `processCloudApp` twin got this guard and this one did not, which
+        // is the repo's standing failure shape.
+        if (sheetRun?.interrupted) {
+            sheetRun.assertAllProcessed();
+        }
+
         // Deleted only after the sheets have been repointed and the app saved. Doing it
         // first meant a failed save left every sheet pointing at images that no longer
         // existed - broken icons on every sheet, where the old behaviour of saving per

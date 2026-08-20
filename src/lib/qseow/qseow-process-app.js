@@ -15,6 +15,8 @@ import {
     SHEET_LIST_FIELDS_WITH_SHOW_CONDITION,
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
+import { isInterrupted } from '../util/interrupt.js';
+import { isAbortArtifact } from '../util/abort-artifact.js';
 import { createAppImageDir } from '../util/image-dir.js';
 import { activeLiveView } from '../util/run-live.js';
 import { addAppToReport, recordPlannedSheet, recordAppOutcome } from '../util/run-report.js';
@@ -193,6 +195,19 @@ export const qseowProcessApp = async (appId, options, report = null) => {
 
                         // Loop over all sheets in app, processing each one unless excluded
                         for (const sheet of sheets) {
+                            // The sheet boundary an interrupted run stops at,
+                            // mirroring the `runOverSheets` check the Cloud
+                            // twin gets for free (issue #1107). A capture
+                            // failure already throws straight out of this bare
+                            // loop, but a blur failure is caught per sheet and
+                            // continues - so without this, shutdown would work
+                            // through every remaining sheet failing each one.
+                            if (isInterrupted()) {
+                                throw new QseowError(
+                                    `App ${appId} was abandoned when the run was interrupted, at sheet ${iSheetNum} of ${sheets.length}`
+                                );
+                            }
+
                             // Get repository db sheet id from mapRepoEngineSheetId, using sheet.qInfo.qId as key
                             const repoDbSheetId = mapRepoEngineSheetId.get(sheet.qInfo.qId);
                             const engineSheetId = sheet.qInfo.qId;
@@ -438,12 +453,27 @@ export const qseowProcessApp = async (appId, options, report = null) => {
         // The blur-tag metadata is passed, never the exclude-tag metadata: they are queried on
         // different options, and handing the exclude set to the blur rule would blur sheets
         // carrying the *exclude* tag. See issue #840.
-        const sheetsUpdated = await qseowUpdateSheetThumbnails(
-            createdFiles,
-            appId,
-            options,
-            blurTagSheetAppMetadata
-        );
+        let sheetsUpdated;
+        // Wrapped so the interrupt path still records what landed (issue
+        // #1107). The update writes and saves each sheet as it goes, so a
+        // signal part-way through leaves real thumbnails in Sense; the throw
+        // that follows would otherwise skip `recordAppOutcome` below and the
+        // verdict would report zero for work that was done.
+        try {
+            sheetsUpdated = await qseowUpdateSheetThumbnails(
+                createdFiles,
+                appId,
+                options,
+                blurTagSheetAppMetadata
+            );
+        } catch (err) {
+            recordAppOutcome(appEntry, {
+                sheetsUpdated: err?.sheetsUpdated ?? 0,
+                imagesDir: `${imgDir}/qseow/${appId}`,
+                imageFileNames: createdFiles.map((file) => file.fileNameShort),
+            });
+            throw err;
+        }
 
         // The sheets now point at their new thumbnails, which is the first moment an
         // overview screenshot can show the result rather than the starting state. The
@@ -484,7 +514,21 @@ export const qseowProcessApp = async (appId, options, report = null) => {
         // anyone debugging at verbose.
         logger.verbose(`Done processing app ${appId}`);
     } catch (err) {
-        logError('QSEOW: qseowProcessApp', err);
+        // An interrupted app is not a failed one, and this line is the
+        // only thing on the shutdown path that says otherwise: the abort
+        // that unwound the run arrives here as an ordinary error, and
+        // `logError` prints it at error level with its cause chain. The app
+        // loop already reports the abandonment at info, so this would be a
+        // second, louder account of a Ctrl-C the operator asked for
+        // (issue #1107).
+        //
+        // Narrowed to errors the teardown itself produced. Keyed on the flag
+        // alone, a genuine failure that happened to be unwinding when the
+        // signal landed lost its error line AND its cause chain - the run
+        // could end with a real defect and no record of it anywhere.
+        if (!isInterrupted() || !isAbortArtifact(err)) {
+            logError('QSEOW: qseowProcessApp', err);
+        }
         // Rethrow so the app loop can count this app as failed. Logging and returning
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;

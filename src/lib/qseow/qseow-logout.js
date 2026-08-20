@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 
 import { logger, sleep } from '../../globals.js';
+import { isInterrupted } from '../util/interrupt.js';
 import { describeWithCauses } from '../util/log-error.js';
 import { normalizeVirtualProxyPrefix } from './qseow-prefix.js';
 
@@ -175,6 +176,25 @@ export const qseowLogout = async (page, options, xpathHubUserPageButton, legacyL
     } catch (hubError) {
         logger.info(`QSEOW: Legacy hub logout fallback failed: ${hubError?.message ?? hubError}`);
         logger.debug(`QSEOW: Legacy hub logout fallback failure: ${hubError?.stack ?? hubError}`);
+
+        // On an interrupted run both paths were always going to fail, and none
+        // of the advice below applies (issue #1107). Shutdown closes the
+        // browser to unblock the run, and this runs from the `finally` just
+        // after - so `page.evaluate` and `page.goto` are driving a browser that
+        // is already gone, and the page waits reject as well. Saying the Sense
+        // web client has changed, and asking the operator to open a support
+        // ticket, is wrong on every count for a Ctrl-C they pressed
+        // deliberately.
+        //
+        // The session is genuinely left behind, which is worth one line rather
+        // than five: it is released when Qlik Sense times it out.
+        if (isInterrupted()) {
+            logger.info(
+                `QSEOW: The run was interrupted before the browser session could be logged out. Qlik Sense will release it when it times out.`
+            );
+            return false;
+        }
+
         logger.error(
             `QSEOW: Could not log out of Qlik Sense - both the proxy session API and the hub's user menu failed.`
         );
@@ -233,6 +253,17 @@ export const qseowLogoutQuietly = async (
     try {
         await qseowLogout(page, logoutOptions, xpathHubUserPageButton, legacyLogoutButton);
     } catch (err) {
+        // Same reasoning as the block above: on an interrupted run this is the
+        // expected outcome, not a fault, and `qseowLogout` has already said so
+        // at `info`. Warning about the parallel-session limit here would put a
+        // second, more alarming account of one Ctrl-C on the operator's screen.
+        if (isInterrupted()) {
+            logger.verbose(
+                `QSEOW: Logout skipped because the run was interrupted: ${describeWithCauses(err)}`
+            );
+            return;
+        }
+
         logger.warn(
             `QSEOW: Could not log the browser session out. It will stay active on the server until Qlik Sense times it out, which counts against the parallel-session limit for this user. ${describeWithCauses(err)}`
         );

@@ -96,6 +96,8 @@ const mockSheetScreenshot = jest.unstable_mockModule('../sheet-screenshot.js', (
 
 let fs;
 let processCloudApp;
+let markInterrupted;
+let resetInterruptState;
 let puppeteer;
 let enigma;
 let logger;
@@ -132,6 +134,7 @@ beforeAll(async () => {
     ({ qscloudUploadToApp } = await import('../cloud-upload.js'));
     ({ qscloudUpdateSheetThumbnails } = await import('../cloud-updatesheets.js'));
     ({ processCloudApp } = await import('../process-cloud-app.js'));
+    ({ markInterrupted, resetInterruptState } = await import('../../util/interrupt.js'));
 });
 
 describe('process-cloud-app.js — puppeteer launch and click options', () => {
@@ -800,6 +803,54 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
 
             const warnings = logger.warn.mock.calls.map((call) => String(call[0])).join('\n');
             expect(warnings).toContain('Could not capture the app overview after the update');
+            expect(qscloudUpdateSheetThumbnails).toHaveBeenCalled();
+        });
+    });
+
+    describe('the sheet loop stops when the run is interrupted (#1107)', () => {
+        afterEach(() => {
+            resetInterruptState();
+        });
+
+        test('abandons the app rather than failing every remaining sheet', async () => {
+            const browser = setupHappyPath();
+            markInterrupted('SIGINT');
+
+            await expect(
+                processCloudApp('test-app-id', defaultSaasInstance, {
+                    ...defaultOptions,
+                    pagewait: 0,
+                })
+            ).rejects.toThrow(/abandoned when the run was interrupted/);
+
+            // No sheet was captured, so nothing was uploaded and no sheet was
+            // repointed - the app is left exactly as it was.
+            expect(qscloudUploadToApp).not.toHaveBeenCalled();
+            expect(qscloudUpdateSheetThumbnails).not.toHaveBeenCalled();
+            expect(browser.close).toHaveBeenCalled();
+        });
+
+        test('does not report a lost engine session for a browser the shutdown closed', async () => {
+            setupHappyPath();
+            markInterrupted('SIGINT');
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                pagewait: 0,
+            }).catch(() => {});
+
+            const errors = logger.error.mock.calls.map(([line]) => String(line)).join('\n');
+            expect(errors).not.toContain('Lost the engine session');
+        });
+
+        test('an uninterrupted run is unaffected', async () => {
+            setupHappyPath();
+
+            await processCloudApp('test-app-id', defaultSaasInstance, {
+                ...defaultOptions,
+                pagewait: 0,
+            });
+
             expect(qscloudUpdateSheetThumbnails).toHaveBeenCalled();
         });
     });

@@ -108,6 +108,8 @@ const mockDetermineSheetExcludeStatus = jest.unstable_mockModule(
 
 let fs;
 let qseowProcessApp;
+let markInterrupted;
+let resetInterruptState;
 let puppeteer;
 let enigma;
 let qrsInteract;
@@ -153,6 +155,7 @@ beforeAll(async () => {
     ({ qseowLogout, qseowLogoutQuietly } = await import('../qseow-logout.js'));
     fs = (await import('fs')).default;
     ({ qseowProcessApp } = await import('../qseow-process-app.js'));
+    ({ markInterrupted, resetInterruptState } = await import('../../util/interrupt.js'));
 });
 
 describe('qseow-process-app.js — puppeteer launch and click options', () => {
@@ -1130,6 +1133,48 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             expect(warnings).toContain('Could not capture the app overview after the update');
 
             // The thumbnails were applied before the capture was attempted, so the run stands.
+            expect(qseowUpdateSheetThumbnails).toHaveBeenCalled();
+        });
+    });
+
+    describe('qseow-process-app.js — the sheet loop stops when the run is interrupted (#1107)', () => {
+        afterEach(() => {
+            resetInterruptState();
+        });
+
+        test('abandons the app rather than working through the remaining sheets', async () => {
+            const browser = setupHappyPath();
+            markInterrupted('SIGINT');
+
+            await expect(
+                qseowProcessApp('test-app-id', { ...defaultOptions, pagewait: 0 })
+            ).rejects.toThrow(/abandoned when the run was interrupted/);
+
+            // No sheet was captured, so no thumbnail was uploaded and no sheet was
+            // repointed - the app is left exactly as it was.
+            expect(qseowUploadToContentLibrary).not.toHaveBeenCalled();
+            expect(qseowUpdateSheetThumbnails).not.toHaveBeenCalled();
+            expect(browser.close).toHaveBeenCalled();
+        });
+
+        test('the QSEoW session is still logged out on the way past', async () => {
+            setupHappyPath();
+            markInterrupted('SIGINT');
+
+            await qseowProcessApp('test-app-id', { ...defaultOptions, pagewait: 0 }).catch(
+                () => {}
+            );
+
+            // A stranded Sense session counts against the parallel-session limit,
+            // so an interrupted run must not leave one behind either.
+            expect(qseowLogoutQuietly).toHaveBeenCalled();
+        });
+
+        test('an uninterrupted run is unaffected', async () => {
+            setupHappyPath();
+
+            await qseowProcessApp('test-app-id', { ...defaultOptions, pagewait: 0 });
+
             expect(qseowUpdateSheetThumbnails).toHaveBeenCalled();
         });
     });
