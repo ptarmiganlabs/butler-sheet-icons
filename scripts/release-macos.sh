@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 mkdir -p ./build
 
 # Create a single JS file using esbuild
-./node_modules/.bin/esbuild src/${DIST_FILE_NAME}.js --bundle --outfile=./build/build.cjs --format=cjs --platform=node --target=node24 --inject:./src/lib/util/import-meta-url.js --define:import.meta.url=import_meta_url
+node scripts/bundle.mjs bundle
 
 # Generate blob to be injected into the binary
 node --experimental-sea-config build-script/sea-config.json
@@ -24,7 +24,7 @@ cp $(command -v node) ${DIST_FILE_NAME}
 codesign --remove-signature ${DIST_FILE_NAME}
 
 # Inject the blob
-npx postject@1.0.0-alpha.6 ${DIST_FILE_NAME} NODE_SEA_BLOB ./build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2 --macho-segment-name NODE_SEA
+node scripts/bundle.mjs inject ${DIST_FILE_NAME}
 
 # Wired to the signals as well as EXIT: a cancelled workflow run is killed, not exited, and the
 # old EXIT-only trap is how a build could leave its keychain behind on a self-hosted Mac.
