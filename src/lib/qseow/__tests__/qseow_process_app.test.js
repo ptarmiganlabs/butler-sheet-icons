@@ -217,7 +217,15 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
             click: jest.fn().mockResolvedValue(true),
             keyboard: { type: jest.fn().mockResolvedValue(true) },
             waitForSelector: jest.fn().mockResolvedValue(true),
-            $: jest.fn().mockImplementation(() => Promise.resolve(buildMockSheetMainPart())),
+            // A successful form login leaves no login form behind, which is what the
+            // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+            $: jest
+                .fn()
+                .mockImplementation((selector) =>
+                    Promise.resolve(
+                        selector === '#username-input' ? null : buildMockSheetMainPart()
+                    )
+                ),
             $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
         };
     }
@@ -1284,7 +1292,17 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
             click: jest.fn().mockResolvedValue(true),
             keyboard: { type: jest.fn().mockResolvedValue(true) },
             waitForSelector: jest.fn().mockResolvedValue(true),
-            $: jest.fn().mockResolvedValue({ screenshot: jest.fn().mockResolvedValue(true) }),
+            // A successful form login leaves no login form behind, which is what the
+            // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+            $: jest
+                .fn()
+                .mockImplementation((selector) =>
+                    Promise.resolve(
+                        selector === '#username-input'
+                            ? null
+                            : { screenshot: jest.fn().mockResolvedValue(true) }
+                    )
+                ),
             $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
         };
         puppeteer.launch.mockResolvedValue({
@@ -1436,7 +1454,17 @@ describe('qseow-process-app.js — a blurred thumbnail that cannot be created', 
                 click: jest.fn().mockResolvedValue(true),
                 keyboard: { type: jest.fn().mockResolvedValue(true) },
                 waitForSelector: jest.fn().mockResolvedValue(true),
-                $: jest.fn().mockResolvedValue({ screenshot: jest.fn().mockResolvedValue(true) }),
+                // A successful form login leaves no login form behind, which is what the
+                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                $: jest
+                    .fn()
+                    .mockImplementation((selector) =>
+                        Promise.resolve(
+                            selector === '#username-input'
+                                ? null
+                                : { screenshot: jest.fn().mockResolvedValue(true) }
+                        )
+                    ),
                 $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
             }),
             close: jest.fn().mockResolvedValue(true),
