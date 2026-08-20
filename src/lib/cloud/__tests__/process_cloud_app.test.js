@@ -88,6 +88,10 @@ const mockBrowserDetect = jest.unstable_mockModule('../../browser/browser-detect
 
 const mockCloudDeleteThumbnails = jest.unstable_mockModule('../cloud-delete-thumbnails.js', () => ({
     deleteCloudAppThumbnail: jest.fn().mockResolvedValue(true),
+    // The pre-flight clear moved out of this module; its own behaviour is covered in
+    // cloud_delete_thumbnails.test.js. No test here ever exercised it - every saas stub
+    // answers media/list with an empty array, so the thumbnails folder never existed.
+    clearExistingCloudThumbnails: jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockSheetScreenshot = jest.unstable_mockModule('../sheet-screenshot.js', () => ({

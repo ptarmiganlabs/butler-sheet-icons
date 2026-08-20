@@ -2,7 +2,8 @@ import { setupEnigmaConnection } from './cloud-enigma.js';
 import { logger } from '../../globals.js';
 import { qscloudUploadToApp } from './cloud-upload.js';
 import { qscloudUpdateSheetThumbnails } from './cloud-updatesheets.js';
-import { deleteCloudAppThumbnail } from './cloud-delete-thumbnails.js';
+import { clearExistingCloudThumbnails } from './cloud-delete-thumbnails.js';
+import { readCloudAppContext } from './cloud-app-context.js';
 import { takeSheetScreenshot } from './sheet-screenshot.js';
 import { CloudError } from '../util/errors.js';
 import { launchBrowserForApp, closeBrowserQuietly } from '../browser/browser-launch.js';
@@ -57,47 +58,11 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
         ErrorClass: CloudError,
     });
     try {
-        // Does the app have a thumbnail folder in its media library?
-        logger.verbose(
-            `Getting media list for app ${appId}, media path is "apps/${appId}/media/list"`
-        );
-        const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
-        if (
-            mediaList.find((item) => {
-                const thumbnailFolderExists =
-                    item.type === 'directory' && item.name === 'thumbnails';
-                return thumbnailFolderExists;
-            })
-        ) {
-            // "thumbnails" folder exists in app's media library
-            logger.debug(`App ${appId} has a "thumbnails" folder in its media library`);
-            // Remove all existing thumbnail images from this app
-            let existingThumbnails;
-            try {
-                logger.verbose(
-                    `Getting existing thumbnails for app ${appId}, media path is "apps/${appId}/media/list/thumbnails"`
-                );
-                existingThumbnails = await saasInstance.Get(`apps/${appId}/media/list/thumbnails`);
-            } catch (err) {
-                logError('CREATE THUMBNAILS 2: Error getting existing thumbnails', err);
-                throw new Error('Error getting existing thumbnails', { cause: err });
-            }
+        // Clearing the old images is a Cloud-only side effect; the read below is shared with
+        // the dry-run planner so the two modes cannot drift apart.
+        await clearExistingCloudThumbnails(appId, saasInstance, logger);
 
-            for (const thumbnailImg of existingThumbnails) {
-                if (thumbnailImg.type === 'image') {
-                    await deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance, logger);
-                }
-            }
-        }
-
-        // Get app name
-        const appMetadata = await saasInstance.Get(`apps/${appId}`);
-
-        // Is app published?
-        // appMetadata.attributes.publishTime is a string like "2021-09-01T12:34:56.789Z"
-
-        // If empty the app is not published
-        const appIsPublished = !!appMetadata.attributes.publishTime;
+        const { appMetadata, appIsPublished } = await readCloudAppContext(appId, saasInstance);
 
         // Configure Enigma.js
         const configEnigma = setupEnigmaConnection(appId, options);
