@@ -72,7 +72,16 @@ export const formLogin = async (page, params) => {
 
     await sleep(pagewait * 1000);
 
-    await assertAuthenticated(page, { selectors, logPrefix, ErrorClass, logger });
+    await assertAuthenticated(page, {
+        selectors,
+        logPrefix,
+        ErrorClass,
+        logger,
+        situation: 'submitting the credentials and waiting for navigation',
+        remedy:
+            'Check the username and password supplied to BSI, and that the login page is the ' +
+            'form this strategy expects.',
+    });
 };
 
 /**
@@ -87,30 +96,38 @@ export const formLogin = async (page, params) => {
  * The check is deliberately the plainest thing that distinguishes the two states: if the username
  * field the strategy just typed into is still on the page, the login did not take.
  *
+ * Callers that never typed a credential use it too - `--skip-login` on Cloud asserts that the
+ * session it was told to rely on is actually signed in, which is the path where an unauthenticated
+ * browser is most likely and the one where this check is most trustworthy: nothing here could have
+ * left a login form behind, so finding one means the skipped login was not there to skip.
+ *
  * @param {object} page - Puppeteer page instance.
  * @param {object} params - Assertion parameters.
  * @param {object} params.selectors - `{ username }` at minimum.
  * @param {string} params.logPrefix - Log prefix, e.g. `'QSEOW APP'`.
  * @param {Function} params.ErrorClass - Platform error class to throw.
  * @param {object} params.logger - Logger instance.
+ * @param {string} params.situation - What was tried, in the message's `not authenticated after …`.
+ * @param {string} params.remedy - What the operator should check, appended to the message.
  *
  * @returns {Promise<void>} Resolves when the page is authenticated.
  *
- * @throws {Error} An instance of `ErrorClass`, naming the strategy and what it expected to see.
+ * @throws {Error} An instance of `ErrorClass`, naming what was tried and what it expected to see.
  */
-export const assertAuthenticated = async (page, { selectors, logPrefix, ErrorClass, logger }) => {
+export const assertAuthenticated = async (
+    page,
+    { selectors, logPrefix, ErrorClass, logger, situation, remedy }
+) => {
     const loginFieldStillPresent = (await page.$(selectors.username)) !== null;
 
     if (!loginFieldStillPresent) {
-        logger.debug(`${logPrefix}: form login succeeded, the login form is gone.`);
+        logger.debug(`${logPrefix}: authenticated after ${situation} - the login form is gone.`);
         return;
     }
 
     throw new ErrorClass(
-        `${logPrefix}: form login did not authenticate. After submitting the credentials and ` +
-            `waiting for navigation, the login form's username field (${selectors.username}) is ` +
-            `still on the page, so the browser is still on the login screen. Continuing would ` +
-            `capture that screen as though it were a sheet. Check the username and password ` +
-            `supplied to BSI, and that the login page is the form this strategy expects.`
+        `${logPrefix}: not authenticated after ${situation}. The login form's username field ` +
+            `(${selectors.username}) is still on the page, so the browser is on the login ` +
+            `screen. Continuing would capture that screen as though it were a sheet. ${remedy}`
     );
 };

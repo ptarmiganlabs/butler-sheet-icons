@@ -1,13 +1,20 @@
 import { logger, sleep } from '../../globals.js';
 import { launchBrowserForApp, closeBrowserQuietly } from '../browser/browser-launch.js';
 import { CloudError } from '../util/errors.js';
-import { formLogin } from '../browser/form-login.js';
+import { formLogin, assertAuthenticated } from '../browser/form-login.js';
 import { removeStaleImage } from '../util/image-dir.js';
 
 // Selector paths to elements on login page
 const selectorLoginPageUserName = '[id="\u0031-email"]';
 const selectorLoginPageUserPwd = '[id="\u0031-password"]';
 const selectorLoginPageLoginButton = '[id="\u0031-submit"]';
+
+/** The login form, as one set, so the skip-login assertion and the form login cannot disagree. */
+const loginSelectors = {
+    username: selectorLoginPageUserName,
+    password: selectorLoginPageUserPwd,
+    submit: selectorLoginPageLoginButton,
+};
 
 /**
  * Builds the app URL for a Qlik Sense Cloud tenant.
@@ -79,15 +86,26 @@ export const openCloudAppOverviewPage = async (
     // Reported by the caller, not here: this helper opens both the main session and the
     // after-capture session, so logging it here announced a skipped login twice per app.
     if (options.skipLogin === true) {
+        // Skipped, not proven. If the session the caller was relying on has expired, the browser
+        // is sitting on the login form right now - and without this check BSI would screenshot
+        // that form once per sheet and report the run as successful. Nothing on this path typed a
+        // credential, so a login form here can only mean there was no session to skip to.
+        await assertAuthenticated(page, {
+            selectors: loginSelectors,
+            logPrefix: 'CLOUD APP',
+            ErrorClass: CloudError,
+            logger,
+            situation: 'opening the app with --skip-login',
+            remedy:
+                'The session --skip-login relies on is not signed in. Sign in to Qlik Sense Cloud ' +
+                'in the browser profile BSI uses, or drop --skip-login and supply credentials.',
+        });
+
         return { page, appUrl, loginSkipped: true };
     }
 
     await formLogin(page, {
-        selectors: {
-            username: selectorLoginPageUserName,
-            password: selectorLoginPageUserPwd,
-            submit: selectorLoginPageLoginButton,
-        },
+        selectors: loginSelectors,
         username: `${options.logonuserid}`,
         password: options.logonpwd,
         pagewait: options.pagewait,

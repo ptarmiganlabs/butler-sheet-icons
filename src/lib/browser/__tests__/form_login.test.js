@@ -169,16 +169,19 @@ describe('assertAuthenticated', () => {
      * Runs the assertion against a page that either still shows the login form or does not.
      *
      * @param {boolean} stillOnLoginPage - Whether `page.$` finds the username field.
-     * @param {object} [selectors] - Selector set to assert against.
+     * @param {object} [overrides] - Fields to merge over the defaults.
      *
      * @returns {Promise<void>} Whatever the assertion resolves or rejects with.
      */
-    const assertWith = (stillOnLoginPage, selectors = QSEOW_SELECTORS) =>
+    const assertWith = (stillOnLoginPage, overrides = {}) =>
         assertAuthenticated(createPage({ stillOnLoginPage }), {
-            selectors,
+            selectors: QSEOW_SELECTORS,
             logPrefix: 'QSEOW APP',
             ErrorClass: TestError,
             logger: mockLogger,
+            situation: 'submitting the credentials and waiting for navigation',
+            remedy: 'Check the username and password supplied to BSI.',
+            ...overrides,
         });
 
     test('resolves when the login form is gone', async () => {
@@ -189,10 +192,28 @@ describe('assertAuthenticated', () => {
         await expect(assertWith(true)).rejects.toBeInstanceOf(TestError);
     });
 
-    test('names the strategy, the platform and the field it still sees', async () => {
-        await expect(assertWith(true)).rejects.toThrow(/form login did not authenticate/);
+    test('names what was tried, the platform and the field it still sees', async () => {
+        await expect(assertWith(true)).rejects.toThrow(
+            /not authenticated after submitting the credentials/
+        );
         await expect(assertWith(true)).rejects.toThrow(/QSEOW APP/);
         await expect(assertWith(true)).rejects.toThrow(/#username-input/);
+    });
+
+    test('carries the remedy the caller supplied', async () => {
+        await expect(assertWith(true)).rejects.toThrow(/Check the username and password/);
+    });
+
+    test('describes the situation the caller was in, not always a form login', async () => {
+        // The --skip-login path never typed a credential, so a message about submitting
+        // credentials would send the operator looking in the wrong place.
+        await expect(
+            assertWith(true, {
+                logPrefix: 'CLOUD APP',
+                situation: 'opening the app with --skip-login',
+                remedy: 'Sign in in the browser profile BSI uses.',
+            })
+        ).rejects.toThrow(/not authenticated after opening the app with --skip-login/);
     });
 
     test('says why continuing would be worse than failing', async () => {
@@ -202,6 +223,6 @@ describe('assertAuthenticated', () => {
     });
 
     test('reports the Cloud field when run against Cloud selectors', async () => {
-        await expect(assertWith(true, CLOUD_SELECTORS)).rejects.toThrow(/1-email/);
+        await expect(assertWith(true, { selectors: CLOUD_SELECTORS })).rejects.toThrow(/1-email/);
     });
 });
