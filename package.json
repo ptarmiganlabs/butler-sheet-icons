@@ -4,6 +4,9 @@
     "description": "Creates thumbnail images based on sheets in Qlik Sense applications",
     "type": "module",
     "main": "src/butler-sheet-icons.js",
+    "imports": {
+        "#extensions": "./src/lib/extensions/index.js"
+    },
     "scripts": {
         "jest": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js --runInBand",
         "jest:handles": "npm run jest -- --detectOpenHandles",
