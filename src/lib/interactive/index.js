@@ -388,7 +388,13 @@ export const runInteractive = async ({
         // options bag held `interactive: true` and little else; these are the options the run will
         // actually use. Throwing here aborts before the run starts, which is the same promise the
         // hook makes on an ordinary command line. Does nothing unless this build describes a hook.
-        await runBeforeAction(extensions, path, options);
+        // Every value here came from the operator: the wizard's own answers, plus whatever they
+        // supplied on the command line or through the environment and were therefore not asked
+        // about again. There is no Commander record to consult - these options were assembled from
+        // answers rather than parsed - so the bag's own keys are the honest answer.
+        await runBeforeAction(extensions, path, options, {
+            supplied: new Set(Object.keys(options)),
+        });
 
         runtime.write('\n');
 

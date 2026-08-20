@@ -198,6 +198,60 @@ describe('runBeforeAction', () => {
 });
 
 describe('the beforeAction hook', () => {
+    // The values alone cannot say which of them the operator actually gave: `opts()` reports a
+    // default and a typed value identically, and by hook time dotenv has merged every BSI_* variable
+    // into the environment. Commander's record is the only thing that can separate them, so core
+    // computes it and hands it over rather than leaving an extension to guess.
+    test('is told which options the operator supplied, and which are defaults', async () => {
+        const { program } = buildProgram();
+        const seen = [];
+
+        applyExtensions(program, {
+            ...nothing(),
+            options: [
+                { path: 'qseow create-sheet-thumbnails', option: new Option('--brand-logo <p>') },
+                {
+                    path: 'qseow create-sheet-thumbnails',
+                    option: new Option('--untouched <p>').default('a default'),
+                },
+            ],
+            hooks: { beforeAction: (path, options, context) => seen.push({ options, context }) },
+        });
+
+        await program.parseAsync(
+            ['qseow', 'create-sheet-thumbnails', '--brand-logo', '/tmp/logo.png'],
+            { from: 'user' }
+        );
+
+        expect(seen[0].options.untouched).toBe('a default');
+        expect([...seen[0].context.supplied]).toContain('brandLogo');
+        expect([...seen[0].context.supplied]).not.toContain('untouched');
+    });
+
+    test('counts an environment-supplied value as supplied', async () => {
+        const { program } = buildProgram();
+        const seen = [];
+
+        process.env.BSI_BRAND_LOGO = '/from/env.png';
+
+        applyExtensions(program, {
+            ...nothing(),
+            options: [
+                {
+                    path: 'qseow create-sheet-thumbnails',
+                    option: new Option('--brand-logo <p>').env('BSI_BRAND_LOGO'),
+                },
+            ],
+            hooks: { beforeAction: (_path, _options, context) => seen.push(context) },
+        });
+
+        await program.parseAsync(['qseow', 'create-sheet-thumbnails'], { from: 'user' });
+
+        delete process.env.BSI_BRAND_LOGO;
+
+        expect([...seen[0].supplied]).toContain('brandLogo');
+    });
+
     test('receives the command path and the parsed options', async () => {
         const { program } = buildProgram();
         const seen = [];

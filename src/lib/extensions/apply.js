@@ -31,6 +31,33 @@
  */
 
 /**
+ * Which of a command's options the user actually supplied.
+ *
+ * The values alone cannot answer this. `opts()` reports a default and a typed value identically, and
+ * by the time a hook runs `dotenv` has already merged every `BSI_*` variable into the environment,
+ * so reading the environment cannot separate them either. Commander's own record can, and it is the
+ * only thing that can - which is why this is computed here and handed over, rather than left as
+ * something an extension is expected to work out.
+ *
+ * `cli` and `env` both count as supplied: an operator who set an environment variable asked for that
+ * value just as deliberately as one who typed it.
+ *
+ * @param {import('commander').Command} command - The command about to run.
+ *
+ * @returns {Set<string>} Attribute names whose value the operator supplied.
+ */
+const suppliedOptionsOf = (command) =>
+    new Set(
+        command.options
+            .map((option) => option.attributeName())
+            .filter((attribute) => {
+                const source = command.getOptionValueSource(attribute);
+
+                return source === 'cli' || source === 'env';
+            })
+    );
+
+/**
  * Runs after the command line has been parsed and before the action handler is dispatched, so a run
  * that was never going to be allowed to proceed fails at startup rather than partway through.
  *
@@ -46,6 +73,8 @@
  * @callback BeforeAction
  * @param {string} path - Space-separated path of the command that is about to run.
  * @param {object} options - The options that command will run with.
+ * @param {{supplied: Set<string>}} context - What core knows that the options bag cannot express.
+ *     `supplied` names the options whose value the operator actually gave, as opposed to a default.
  *
  * @returns {void|Promise<void>} Nothing, or a promise the caller will await.
  */
@@ -160,7 +189,9 @@ export const applyExtensions = (program, extensions) => {
     // option. Both are genuine failures of the same command line, and reordering would mean
     // contributing options after the relaxation call, which is exactly what cannot be done.
     program.hook('preAction', (_hookedCommand, actionCommand) =>
-        hooks.beforeAction(pathOfCommand(actionCommand), actionCommand.opts())
+        hooks.beforeAction(pathOfCommand(actionCommand), actionCommand.opts(), {
+            supplied: suppliedOptionsOf(actionCommand),
+        })
     );
 };
 
@@ -181,9 +212,11 @@ export const applyExtensions = (program, extensions) => {
  * @param {SeamDescription} extensions - The description, which may describe no hooks at all.
  * @param {string} path - Space-separated command path, e.g. `'qseow create-sheet-thumbnails'`.
  * @param {object} options - The options the run will actually use.
+ * @param {{supplied: Set<string>}} [context] - What core knows that the options bag cannot express.
+ *     Defaulted so a caller with nothing to add need not construct one.
  *
  * @returns {void|Promise<void>} Whatever the hook returns, so an async hook is awaited by the
  *     caller. Nothing at all when no hook is described, which is the committed default's case.
  */
-export const runBeforeAction = (extensions, path, options) =>
-    extensions?.hooks?.beforeAction?.(path, options);
+export const runBeforeAction = (extensions, path, options, context = { supplied: new Set() }) =>
+    extensions?.hooks?.beforeAction?.(path, options, context);
