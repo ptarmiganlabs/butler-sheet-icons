@@ -1,7 +1,5 @@
-import { Jimp } from 'jimp';
-
 import { setupEnigmaConnection } from './qseow-enigma.js';
-import { logger, sleep } from '../../globals.js';
+import { logger } from '../../globals.js';
 import { qseowUploadToContentLibrary } from './qseow-upload.js';
 import { qseowUpdateSheetThumbnails } from './qseow-updatesheets.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
@@ -21,13 +19,12 @@ import { createAppImageDir } from '../util/image-dir.js';
 import { activeLiveView } from '../util/run-live.js';
 import { addAppToReport, recordPlannedSheet, recordAppOutcome } from '../util/run-report.js';
 import { appProgressLine, sheetProgressLine } from '../util/run-report-render.js';
-import { QSEOW_SHEET_PART_SELECTORS } from './sheet-parts.js';
+import { captureSheetImage, blurSheetImage } from './sheet-screenshot.js';
 import { qseowLogoutQuietly } from './qseow-logout.js';
 import { getQseowHubSelectors } from './qseow-selectors.js';
 import { logError, describeWithCauses } from '../util/log-error.js';
 import { openQseowAppOverviewPage, captureQseowOverviewAfter } from './qseow-app-session.js';
 import { parseTrueFalseOption } from '../util/true-false-option.js';
-import { sheetWasStillLoading, stillLoadingWarning } from '../util/sheet-loading.js';
 
 /**
  * Processes a Qlik Sense Enterprise on Windows (QSEoW) application to generate
@@ -276,85 +273,39 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                                     })
                                 );
                             } else {
-                                // Build URL to current sheet
-                                const sheetUrl = `${appUrl}/sheet/${sheet.qInfo.qId}`;
-                                logger.debug(`Sheet URL: ${sheetUrl}`);
+                                const { fileName, fileNameShort } = await captureSheetImage(
+                                    page,
+                                    appUrl,
+                                    imgDir,
+                                    appId,
+                                    sheet,
+                                    iSheetNum,
+                                    options,
+                                    logger,
+                                    pageTimeout
+                                );
 
-                                // Open sheet in browser, then take screen shot
-                                await Promise.all([
-                                    page.goto(sheetUrl, {
-                                        waitUntil: 'networkidle2',
-                                        timeout: pageTimeout,
-                                    }),
-                                ]);
-
-                                await sleep(options.pagewait * 1000);
-
-                                const fileName = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}.png`;
-                                const fileNameShort = `thumbnail-${appId}-${iSheetNum}.png`;
-
-                                // Which part of the sheet to capture. The map is the single source
-                                // of truth for the values --includesheetpart accepts - see
-                                // sheet-parts.js.
-                                const selector =
-                                    QSEOW_SHEET_PART_SELECTORS[options.includesheetpart];
-
-                                // Ensure that the element we're interested in is loaded
-                                await page.waitForSelector(selector);
-                                const sheetMainPart = await page.$(selector);
-
-                                // Checked before the shutter rather than after: the two are
-                                // milliseconds apart, and of the two ways to be wrong, a
-                                // spurious warning is far cheaper than staying silent about a
-                                // thumbnail that shows the loading screen.
-                                if (await sheetWasStillLoading(page, logger)) {
-                                    logger.warn(
-                                        stillLoadingWarning(
-                                            'QSEOW APP',
-                                            iSheetNum,
-                                            sheet?.qMeta?.title,
-                                            options.pagewait
-                                        )
-                                    );
-                                }
-
-                                await sheetMainPart.screenshot({
-                                    path: fileName,
-                                });
                                 createdFiles.push({
                                     sheetPos: iSheetNum,
                                     blurred: false,
                                     fileNameShort,
                                 });
 
-                                // Blur image and store as separate file
-                                const fileNameBlurred = `${imgDir}/qseow/${appId}/thumbnail-${appId}-${iSheetNum}-blurred.png`;
-                                const fileNameShortBlurred = `thumbnail-${appId}-${iSheetNum}-blurred.png`;
-
-                                // Create blurred image from the already taken screenshot
-                                // Load the image from disk, blur it, then save it back to disk with new name
                                 try {
-                                    let blurFactor;
-
-                                    // Blur factor should be between 1 and 100
-                                    if (options?.blurFactor < 1) {
-                                        blurFactor = 1; // Min blur value
-                                    } else if (options?.blurFactor > 100) {
-                                        blurFactor = 100; // Max blur value
-                                    } else {
-                                        blurFactor = parseInt(options?.blurFactor, 10);
-                                    }
-
-                                    // Use Jimp instead of Sharp
-                                    const image = await Jimp.read(fileName);
-                                    await image.blur(blurFactor).write(fileNameBlurred);
+                                    const { fileNameShortBlurred } = await blurSheetImage(
+                                        fileName,
+                                        imgDir,
+                                        appId,
+                                        iSheetNum,
+                                        options,
+                                        logger
+                                    );
 
                                     createdFiles.push({
                                         sheetPos: iSheetNum,
                                         blurred: true,
                                         fileNameShort: fileNameShortBlurred,
                                     });
-                                    logger.verbose(`Created blurred image: ${fileNameBlurred}`);
 
                                     // Recorded and logged only now: both files
                                     // exist, so `captured` (or `blurred`) is a
