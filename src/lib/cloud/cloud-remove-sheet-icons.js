@@ -1,4 +1,5 @@
 import { setupEnigmaConnection } from './cloud-enigma.js';
+import { listExistingCloudThumbnails } from './cloud-delete-thumbnails.js';
 import { logger, appVersion, setLoggingLevel, bsiExecutablePath, isSea } from '../../globals.js';
 import { redactOptions } from '../util/redact-secrets.js';
 import QlikSaas from './cloud-repo.js';
@@ -161,36 +162,26 @@ const removeSheetIconsCloudApp = async (appId, saasInstance, options, report = n
         // existed - broken icons on every sheet, where the old behaviour of saving per
         // sheet had at least persisted the ones processed before the failure. Clearing the
         // reference and then removing the file is the order that degrades safely.
-        // Does the app have a thumbnail folder in its media library?
-        const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
+        // Shared with the capture run's pre-flight and with the dry run below, so all three
+        // agree on what counts as an existing thumbnail.
+        const existingThumbnails = await listExistingCloudThumbnails(
+            appId,
+            saasInstance,
+            logger,
+            'REMOVE SHEET ICONS'
+        );
         let mediaFilesDeleted = 0;
 
-        if (
-            mediaList.find((item) => {
-                const thumbnailFolderExists =
-                    item.type === 'directory' && item.name === 'thumbnails';
-                return thumbnailFolderExists;
-            })
-        ) {
-            // "thumbnails" folder exists in app's media library
-            // Remove all existing thumbnail images from this app
-            const existingThumbnails = await saasInstance.Get(
-                `apps/${appId}/media/list/thumbnails`
+        for (const thumbnailImg of existingThumbnails) {
+            const result = await saasInstance.Delete(
+                `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
             );
-
-            for (const thumbnailImg of existingThumbnails) {
-                if (thumbnailImg.type === 'image') {
-                    const result = await saasInstance.Delete(
-                        `apps/${appId}/media/files/thumbnails/${thumbnailImg.name}`
-                    );
-                    logger.debug(
-                        `Deleted existing file ${JSON.stringify(
-                            thumbnailImg.name
-                        )}, result=${JSON.stringify(result)}`
-                    );
-                    mediaFilesDeleted += 1;
-                }
-            }
+            logger.debug(
+                `Deleted existing file ${JSON.stringify(
+                    thumbnailImg.name
+                )}, result=${JSON.stringify(result)}`
+            );
+            mediaFilesDeleted += 1;
         }
 
         if (appEntry) {
@@ -284,15 +275,15 @@ const planRemoveSheetIconsCloudApp = async (appId, saasInstance, options, report
             // The read half of the media cleanup, recorded on the report so the
             // deletion count renders inside the app's section rather than as a
             // log line scrolled far above it.
-            const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
-            if (mediaList.find((item) => item.type === 'directory' && item.name === 'thumbnails')) {
-                const existingThumbnails = await saasInstance.Get(
-                    `apps/${appId}/media/list/thumbnails`
-                );
-                appEntry.mediaFilesToDelete = existingThumbnails.filter(
-                    (item) => item.type === 'image'
-                ).length;
-            }
+            // The same listing the real run makes, so the count predicted here and the count
+            // reported there cannot come from two different ideas of what a thumbnail is.
+            const existingThumbnails = await listExistingCloudThumbnails(
+                appId,
+                saasInstance,
+                logger,
+                'REMOVE SHEET ICONS'
+            );
+            appEntry.mediaFilesToDelete = existingThumbnails.length;
         }
     );
 

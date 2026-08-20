@@ -36,6 +36,59 @@ export async function deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance,
 }
 
 /**
+ * Lists the thumbnail images already in an app's media library.
+ *
+ * Three places needed this: the pre-flight clear before a capture run, the delete pass in
+ * `cloud-remove-sheet-icons.js`, and that command's dry-run counterpart. All three carried their own
+ * copy of the same folder predicate and the same two endpoints, and the last two are a real-run and
+ * planner pair - so the dry run and the run it predicts could come to disagree about how many files
+ * would be deleted. That is the drift ptarmiganlabs/butler-sheet-icons#1091 exists to remove.
+ *
+ * Returns only entries of type `image`; the folder listing also contains directories.
+ *
+ * @param {string} appId - Qlik Sense app ID.
+ * @param {object} saasInstance - QlikSaas instance for the tenant.
+ * @param {object} logger - Logger instance.
+ * @param {string} logPrefix - Prefix for the error log, e.g. `'CREATE THUMBNAILS 2'`.
+ *
+ * @returns {Promise<object[]>} The thumbnail images, or an empty array when the app has no
+ *     thumbnails folder at all.
+ *
+ * @throws {Error} When the folder exists but its contents cannot be listed. Acting on an app whose
+ *     existing images are in an unknown state is worse than stopping.
+ */
+export const listExistingCloudThumbnails = async (appId, saasInstance, logger, logPrefix) => {
+    // Does the app have a thumbnail folder in its media library?
+    logger.verbose(`Getting media list for app ${appId}, media path is "apps/${appId}/media/list"`);
+    const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
+
+    const hasThumbnailFolder = mediaList.find((item) => {
+        const thumbnailFolderExists = item.type === 'directory' && item.name === 'thumbnails';
+        return thumbnailFolderExists;
+    });
+
+    if (!hasThumbnailFolder) {
+        return [];
+    }
+
+    // "thumbnails" folder exists in app's media library
+    logger.debug(`App ${appId} has a "thumbnails" folder in its media library`);
+
+    let existingThumbnails;
+    try {
+        logger.verbose(
+            `Getting existing thumbnails for app ${appId}, media path is "apps/${appId}/media/list/thumbnails"`
+        );
+        existingThumbnails = await saasInstance.Get(`apps/${appId}/media/list/thumbnails`);
+    } catch (err) {
+        logError(`${logPrefix}: Error getting existing thumbnails`, err);
+        throw new Error('Error getting existing thumbnails', { cause: err });
+    }
+
+    return existingThumbnails.filter((item) => item.type === 'image');
+};
+
+/**
  * Removes every thumbnail already in an app's media library, before new ones are captured.
  *
  * Cloud clears the old images and QSEoW does not - a real difference between the platforms, not an
@@ -49,43 +102,21 @@ export async function deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance,
  * @param {object} saasInstance - QlikSaas instance for the tenant.
  * @param {object} logger - Logger instance.
  *
- * @returns {Promise<void>} Resolves once every existing thumbnail image has been deleted.
+ * @returns {Promise<number>} How many thumbnail images were deleted.
  *
- * @throws {Error} When the existing thumbnails cannot be listed. Capturing over an app whose old
- *     images are in an unknown state is worse than stopping.
+ * @throws {Error} When the existing thumbnails cannot be listed or a delete fails.
  */
 export const clearExistingCloudThumbnails = async (appId, saasInstance, logger) => {
-    // Does the app have a thumbnail folder in its media library?
-    logger.verbose(`Getting media list for app ${appId}, media path is "apps/${appId}/media/list"`);
-    const mediaList = await saasInstance.Get(`apps/${appId}/media/list`);
-
-    const hasThumbnailFolder = mediaList.find((item) => {
-        const thumbnailFolderExists = item.type === 'directory' && item.name === 'thumbnails';
-        return thumbnailFolderExists;
-    });
-
-    if (!hasThumbnailFolder) {
-        return;
-    }
-
-    // "thumbnails" folder exists in app's media library
-    logger.debug(`App ${appId} has a "thumbnails" folder in its media library`);
-
-    // Remove all existing thumbnail images from this app
-    let existingThumbnails;
-    try {
-        logger.verbose(
-            `Getting existing thumbnails for app ${appId}, media path is "apps/${appId}/media/list/thumbnails"`
-        );
-        existingThumbnails = await saasInstance.Get(`apps/${appId}/media/list/thumbnails`);
-    } catch (err) {
-        logError('CREATE THUMBNAILS 2: Error getting existing thumbnails', err);
-        throw new Error('Error getting existing thumbnails', { cause: err });
-    }
+    const existingThumbnails = await listExistingCloudThumbnails(
+        appId,
+        saasInstance,
+        logger,
+        'CREATE THUMBNAILS 2'
+    );
 
     for (const thumbnailImg of existingThumbnails) {
-        if (thumbnailImg.type === 'image') {
-            await deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance, logger);
-        }
+        await deleteCloudAppThumbnail(thumbnailImg, appId, saasInstance, logger);
     }
+
+    return existingThumbnails.length;
 };

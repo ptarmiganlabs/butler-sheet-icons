@@ -3,6 +3,7 @@ import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 import {
     deleteCloudAppThumbnail,
     clearExistingCloudThumbnails,
+    listExistingCloudThumbnails,
 } from '../cloud-delete-thumbnails.js';
 
 const mockLogger = {
@@ -156,5 +157,84 @@ describe('clearExistingCloudThumbnails', () => {
             clearExistingCloudThumbnails(APP_ID, saasInstance, mockLogger)
         ).rejects.toThrow('Error getting existing thumbnails');
         expect(saasInstance.Delete).not.toHaveBeenCalled();
+    });
+});
+
+describe('listExistingCloudThumbnails', () => {
+    /**
+     * Builds a saas stub whose media library contains the given entries.
+     *
+     * @param {object} [opts] - Stub behaviour.
+     * @param {Array} [opts.mediaList] - What `media/list` returns.
+     * @param {Array} [opts.thumbnails] - What `media/list/thumbnails` returns.
+     *
+     * @returns {object} A saas-shaped object with `Get`.
+     */
+    const createSaas = ({ mediaList = [], thumbnails = [] } = {}) => ({
+        Get: jest.fn((path) =>
+            Promise.resolve(path.endsWith('/thumbnails') ? thumbnails : mediaList)
+        ),
+    });
+
+    const FOLDER = { type: 'directory', name: 'thumbnails' };
+
+    test('returns nothing, without a second call, when there is no thumbnails folder', async () => {
+        const saasInstance = createSaas({ mediaList: [{ type: 'directory', name: 'other' }] });
+
+        const result = await listExistingCloudThumbnails(APP_ID, saasInstance, mockLogger, 'TEST');
+
+        expect(result).toEqual([]);
+        expect(saasInstance.Get).toHaveBeenCalledTimes(1);
+    });
+
+    test('returns only the images, not the directories beside them', async () => {
+        const saasInstance = createSaas({
+            mediaList: [FOLDER],
+            thumbnails: [
+                { type: 'image', name: 'thumbnail-1.png' },
+                { type: 'directory', name: 'nested' },
+                { type: 'image', name: 'thumbnail-2.png' },
+            ],
+        });
+
+        const result = await listExistingCloudThumbnails(APP_ID, saasInstance, mockLogger, 'TEST');
+
+        expect(result.map((item) => item.name)).toEqual(['thumbnail-1.png', 'thumbnail-2.png']);
+    });
+
+    test('throws when the folder exists but its contents cannot be listed', async () => {
+        const saasInstance = createSaas({ mediaList: [FOLDER] });
+        saasInstance.Get.mockImplementation((path) =>
+            path.endsWith('/thumbnails')
+                ? Promise.reject(new Error('403 Forbidden'))
+                : Promise.resolve([FOLDER])
+        );
+
+        await expect(
+            listExistingCloudThumbnails(APP_ID, saasInstance, mockLogger, 'TEST')
+        ).rejects.toThrow('Error getting existing thumbnails');
+    });
+});
+
+describe('clearExistingCloudThumbnails return value', () => {
+    test('reports how many images it deleted, for the caller to record', async () => {
+        const saasInstance = {
+            Get: jest.fn((path) =>
+                Promise.resolve(
+                    path.endsWith('/thumbnails')
+                        ? [
+                              { type: 'image', name: 'a.png' },
+                              { type: 'image', name: 'b.png' },
+                              { type: 'directory', name: 'nested' },
+                          ]
+                        : [{ type: 'directory', name: 'thumbnails' }]
+                )
+            ),
+            Delete: jest.fn().mockResolvedValue({ statusCode: 204 }),
+        };
+
+        const deleted = await clearExistingCloudThumbnails(APP_ID, saasInstance, mockLogger);
+
+        expect(deleted).toBe(2);
     });
 });
