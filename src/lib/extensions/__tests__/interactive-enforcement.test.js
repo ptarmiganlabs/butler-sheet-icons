@@ -90,12 +90,12 @@ describe('a wizard run reaches the beforeAction hook', () => {
 
     test('before the run starts, so throwing stops it', async () => {
         beforeAction.mockImplementation(() => {
-            throw new Error('not entitled');
+            throw new Error('refused by the hook');
         });
 
         await expect(
             runInteractive({ path: PATH, runtime: scriptedRuntime(answers()) })
-        ).rejects.toThrow('not entitled');
+        ).rejects.toThrow('refused by the hook');
 
         expect(qseowCreateThumbnails).not.toHaveBeenCalled();
     });
@@ -116,7 +116,7 @@ describe('a wizard run reaches the beforeAction hook', () => {
         expect(qseowCreateThumbnails).toHaveBeenCalledTimes(1);
     });
 
-    // Cancelling never reaches the run, so there is nothing to be entitled to.
+    // Cancelling never reaches the run, so there is nothing for the hook to refuse.
     test('but a cancelled wizard never calls it', async () => {
         await runInteractive({
             path: PATH,

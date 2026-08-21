@@ -87,17 +87,17 @@ describe('contributed options', () => {
             options: [
                 {
                     path: 'qseow create-sheet-thumbnails',
-                    option: new Option('--brand-logo <path>', 'a contributed option'),
+                    option: new Option('--extra-file <path>', 'a contributed option'),
                 },
             ],
         });
 
         await program.parseAsync(
-            ['qseow', 'create-sheet-thumbnails', '--brand-logo', '/tmp/logo.png'],
+            ['qseow', 'create-sheet-thumbnails', '--extra-file', '/tmp/extra.txt'],
             { from: 'user' }
         );
 
-        expect(runs[0].brandLogo).toBe('/tmp/logo.png');
+        expect(runs[0].extraFile).toBe('/tmp/extra.txt');
     });
 
     test('reach a command through its alias too', () => {
@@ -179,12 +179,12 @@ describe('runBeforeAction', () => {
             ...nothing(),
             hooks: {
                 beforeAction: () => {
-                    throw new Error('not entitled');
+                    throw new Error('refused by the hook');
                 },
             },
         };
 
-        expect(() => runBeforeAction(description, 'qseow x', {})).toThrow('not entitled');
+        expect(() => runBeforeAction(description, 'qseow x', {})).toThrow('refused by the hook');
     });
 
     // The committed default's every-run path: no hook described, nothing happens, no crash.
@@ -209,7 +209,7 @@ describe('the beforeAction hook', () => {
         applyExtensions(program, {
             ...nothing(),
             options: [
-                { path: 'qseow create-sheet-thumbnails', option: new Option('--brand-logo <p>') },
+                { path: 'qseow create-sheet-thumbnails', option: new Option('--extra-file <p>') },
                 {
                     path: 'qseow create-sheet-thumbnails',
                     option: new Option('--untouched <p>').default('a default'),
@@ -219,12 +219,12 @@ describe('the beforeAction hook', () => {
         });
 
         await program.parseAsync(
-            ['qseow', 'create-sheet-thumbnails', '--brand-logo', '/tmp/logo.png'],
+            ['qseow', 'create-sheet-thumbnails', '--extra-file', '/tmp/extra.txt'],
             { from: 'user' }
         );
 
         expect(seen[0].options.untouched).toBe('a default');
-        expect([...seen[0].context.supplied]).toContain('brandLogo');
+        expect([...seen[0].context.supplied]).toContain('extraFile');
         expect([...seen[0].context.supplied]).not.toContain('untouched');
     });
 
@@ -232,14 +232,14 @@ describe('the beforeAction hook', () => {
         const { program } = buildProgram();
         const seen = [];
 
-        process.env.BSI_BRAND_LOGO = '/from/env.png';
+        process.env.BSI_EXTRA_FILE = '/from/env.txt';
 
         applyExtensions(program, {
             ...nothing(),
             options: [
                 {
                     path: 'qseow create-sheet-thumbnails',
-                    option: new Option('--brand-logo <p>').env('BSI_BRAND_LOGO'),
+                    option: new Option('--extra-file <p>').env('BSI_EXTRA_FILE'),
                 },
             ],
             hooks: { beforeAction: (_path, _options, context) => seen.push(context) },
@@ -247,9 +247,9 @@ describe('the beforeAction hook', () => {
 
         await program.parseAsync(['qseow', 'create-sheet-thumbnails'], { from: 'user' });
 
-        delete process.env.BSI_BRAND_LOGO;
+        delete process.env.BSI_EXTRA_FILE;
 
-        expect([...seen[0].supplied]).toContain('brandLogo');
+        expect([...seen[0].supplied]).toContain('extraFile');
     });
 
     test('receives the command path and the parsed options', async () => {
@@ -259,19 +259,19 @@ describe('the beforeAction hook', () => {
         applyExtensions(program, {
             ...nothing(),
             options: [
-                { path: 'qseow create-sheet-thumbnails', option: new Option('--brand-logo <p>') },
+                { path: 'qseow create-sheet-thumbnails', option: new Option('--extra-file <p>') },
             ],
             hooks: { beforeAction: (path, options) => seen.push({ path, options }) },
         });
 
         await program.parseAsync(
-            ['qseow', 'create-sheet-thumbnails', '--brand-logo', '/tmp/logo.png'],
+            ['qseow', 'create-sheet-thumbnails', '--extra-file', '/tmp/extra.txt'],
             { from: 'user' }
         );
 
         expect(seen).toHaveLength(1);
         expect(seen[0].path).toBe('qseow create-sheet-thumbnails');
-        expect(seen[0].options.brandLogo).toBe('/tmp/logo.png');
+        expect(seen[0].options.extraFile).toBe('/tmp/extra.txt');
     });
 
     test('reports a contributed top-level command by its own name', async () => {
@@ -301,14 +301,14 @@ describe('the beforeAction hook', () => {
             ...nothing(),
             hooks: {
                 beforeAction: () => {
-                    throw new Error('not entitled');
+                    throw new Error('refused by the hook');
                 },
             },
         });
 
         await expect(
             program.parseAsync(['qseow', 'create-sheet-thumbnails'], { from: 'user' })
-        ).rejects.toThrow('not entitled');
+        ).rejects.toThrow('refused by the hook');
         expect(runs).toHaveLength(0);
     });
 
