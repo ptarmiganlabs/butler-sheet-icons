@@ -1024,6 +1024,10 @@ jobs:
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       release_tag_name: ${{ steps.release.outputs['tag_name'] }}
+      # The commit release-please released. Unlike the tag, this exists the moment the
+      # release object does - a draft release carries a tag *name* but no ref, so the
+      # tag cannot be checked out until someone publishes. Issue #1145.
+      release_sha: ${{ steps.release.outputs['sha'] }}
       release_version: ${{ steps.release.outputs['version'] }}
       release_upload_url: ${{ steps.release.outputs['upload_url'] }}
     env:
@@ -1086,9 +1090,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Without this, the default checkout is `github.sha` - the commit that happened to
-          # trigger this run, which is not the commit release-please just tagged. See the note
+          # trigger this run, which is not the commit release-please just released. See the note
           # on the same step in release-macos-arm64 for what that shipped.
-          ref: ${{ needs.release-please.outputs.release_tag_name }}
+          #
+          # The sha rather than the tag: the release is a draft, and a draft has no tag ref
+          # until it is published. Issue #1145.
+          ref: ${{ needs.release-please.outputs.release_sha }}
           fetch-depth: 2
           persist-credentials: false
 
@@ -1190,7 +1197,11 @@ jobs:
           # that shipped all three 4.1.0 binaries built from the commit before the version bump,
           # so they reported "App version: 4.0.0": the SEA build embeds package.json as an asset
           # and globals.js reads the version straight out of it.
-          ref: ${{ needs.release-please.outputs.release_tag_name }}
+          #
+          # The sha rather than the tag, because release-please is configured to cut a *draft*
+          # release and a draft has no tag ref - GitHub creates it at publication. Checking out
+          # the tag name failed all four release jobs on 5.0.0. Issue #1145.
+          ref: ${{ needs.release-please.outputs.release_sha }}
           persist-credentials: false
 
       - name: Setup Node.js
@@ -1293,7 +1304,11 @@ jobs:
           # that shipped all three 4.1.0 binaries built from the commit before the version bump,
           # so they reported "App version: 4.0.0": the SEA build embeds package.json as an asset
           # and globals.js reads the version straight out of it.
-          ref: ${{ needs.release-please.outputs.release_tag_name }}
+          #
+          # The sha rather than the tag, because release-please is configured to cut a *draft*
+          # release and a draft has no tag ref - GitHub creates it at publication. Checking out
+          # the tag name failed all four release jobs on 5.0.0. Issue #1145.
+          ref: ${{ needs.release-please.outputs.release_sha }}
           persist-credentials: false
 
       # Fail before spending ten minutes on a build that cannot be signed.
@@ -1400,7 +1415,11 @@ jobs:
           # that shipped all three 4.1.0 binaries built from the commit before the version bump,
           # so they reported "App version: 4.0.0": the SEA build embeds package.json as an asset
           # and globals.js reads the version straight out of it.
-          ref: ${{ needs.release-please.outputs.release_tag_name }}
+          #
+          # The sha rather than the tag, because release-please is configured to cut a *draft*
+          # release and a draft has no tag ref - GitHub creates it at publication. Checking out
+          # the tag name failed all four release jobs on 5.0.0. Issue #1145.
+          ref: ${{ needs.release-please.outputs.release_sha }}
           persist-credentials: false
 
       - name: Setup Node.js
