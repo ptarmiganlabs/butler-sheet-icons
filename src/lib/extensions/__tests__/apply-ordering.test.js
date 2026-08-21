@@ -122,36 +122,39 @@ const run = async (tail, { option, hooks = {}, afterRelaxation = false } = {}) =
 
 describe('an option contributed at the call site', () => {
     test('parses like any other option', async () => {
-        const { reached, error } = await run([...COMPLETE_QSEOW, '--brand-logo', '/tmp/logo.png'], {
-            option: new Option('--brand-logo <path>', 'a contributed option'),
-        });
+        const { reached, error } = await run(
+            [...COMPLETE_QSEOW, '--extra-file', '/tmp/extra.txt'],
+            {
+                option: new Option('--extra-file <path>', 'a contributed option'),
+            }
+        );
 
         expect(error).toBeUndefined();
-        expect(reached.opts.brandLogo).toBe('/tmp/logo.png');
+        expect(reached.opts.extraFile).toBe('/tmp/extra.txt');
     });
 
     // The one nobody expects to work: `dotenv/config` has already run, and the option did not exist
     // when it did. It resolves because Commander reads `process.env` at parse time rather than at
     // declaration time - so a contributed option gets the same env binding as every core option.
     test('resolves its .env() binding, even though it was added after dotenv ran', async () => {
-        process.env.BSI_BRAND_LOGO = '/from/env.png';
+        process.env.BSI_EXTRA_FILE = '/from/env.txt';
 
         const { reached, error } = await run(COMPLETE_QSEOW, {
-            option: new Option('--brand-logo <path>', 'a contributed option').env('BSI_BRAND_LOGO'),
+            option: new Option('--extra-file <path>', 'a contributed option').env('BSI_EXTRA_FILE'),
         });
 
         expect(error).toBeUndefined();
-        expect(reached.opts.brandLogo).toBe('/from/env.png');
+        expect(reached.opts.extraFile).toBe('/from/env.txt');
     });
 
     test("participates in Commander's own missing-mandatory check when mandatory", async () => {
         const { reached, error } = await run(COMPLETE_QSEOW, {
-            option: new Option('--brand-logo <path>', 'a contributed option').makeOptionMandatory(),
+            option: new Option('--extra-file <path>', 'a contributed option').makeOptionMandatory(),
         });
 
         expect(reached).toBeUndefined();
         expect(error.code).toBe('commander.missingMandatoryOptionValue');
-        expect(error.message).toBe("error: required option '--brand-logo <path>' not specified");
+        expect(error.message).toBe("error: required option '--extra-file <path>' not specified");
     });
 });
 
@@ -159,9 +162,9 @@ describe('the position of the call is the thing being protected', () => {
     // Contributed before the relaxation call, a mandatory option is cleared with all the others and
     // the wizard is reachable. This is the whole reason the call site is where it is.
     test('a contributed mandatory option is relaxed by -i, like a core one', async () => {
-        const option = new Option('--brand-logo <path>', 'a contributed option')
+        const option = new Option('--extra-file <path>', 'a contributed option')
             .makeOptionMandatory()
-            .env('BSI_BRAND_LOGO');
+            .env('BSI_EXTRA_FILE');
 
         const { reached, error } = await run(['qseow', 'create-sheet-thumbnails', '-i'], {
             option,
@@ -172,9 +175,9 @@ describe('the position of the call is the thing being protected', () => {
     });
 
     test('and it is mandatory again by the time a handler runs', async () => {
-        const option = new Option('--brand-logo <path>', 'a contributed option')
+        const option = new Option('--extra-file <path>', 'a contributed option')
             .makeOptionMandatory()
-            .env('BSI_BRAND_LOGO');
+            .env('BSI_EXTRA_FILE');
 
         await run(['qseow', 'create-sheet-thumbnails', '-i'], { option });
 
@@ -186,7 +189,7 @@ describe('the position of the call is the thing being protected', () => {
     // every other command line, which is exactly what makes it worth a test rather than a comment.
     test('contributing after the relaxation call breaks -i', async () => {
         const { reached, error } = await run(['qseow', 'create-sheet-thumbnails', '-i'], {
-            option: new Option('--brand-logo <path>', 'a contributed option').makeOptionMandatory(),
+            option: new Option('--extra-file <path>', 'a contributed option').makeOptionMandatory(),
             afterRelaxation: true,
         });
 
@@ -199,15 +202,15 @@ describe('the beforeAction hook against the real tree', () => {
     test('names the command that is about to run, and sees its options', async () => {
         const seen = [];
 
-        const { error } = await run([...COMPLETE_QSEOW, '--brand-logo', '/tmp/logo.png'], {
-            option: new Option('--brand-logo <path>', 'a contributed option'),
+        const { error } = await run([...COMPLETE_QSEOW, '--extra-file', '/tmp/extra.txt'], {
+            option: new Option('--extra-file <path>', 'a contributed option'),
             hooks: { beforeAction: (path, options) => seen.push({ path, options }) },
         });
 
         expect(error).toBeUndefined();
         expect(seen).toHaveLength(1);
         expect(seen[0].path).toBe('qseow create-sheet-thumbnails');
-        expect(seen[0].options.brandLogo).toBe('/tmp/logo.png');
+        expect(seen[0].options.extraFile).toBe('/tmp/extra.txt');
         expect(seen[0].options.host).toBe('sense.acme.com');
     });
 
@@ -215,12 +218,12 @@ describe('the beforeAction hook against the real tree', () => {
         const { reached, error } = await run(COMPLETE_QSEOW, {
             hooks: {
                 beforeAction: () => {
-                    throw new Error('not entitled to --brand-logo');
+                    throw new Error('refused by the hook');
                 },
             },
         });
 
         expect(reached).toBeUndefined();
-        expect(error.message).toBe('not entitled to --brand-logo');
+        expect(error.message).toBe('refused by the hook');
     });
 });

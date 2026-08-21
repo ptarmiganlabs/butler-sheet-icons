@@ -383,7 +383,7 @@ export const runInteractive = async ({
             );
         }
 
-        // The authoritative entitlement point for an interactive run, and the reason this call
+        // The authoritative enforcement point for an interactive run, and the reason this call
         // exists at all. The `preAction` hook fired before the first question was asked, when the
         // options bag held `interactive: true` and little else; these are the options the run will
         // actually use. Throwing here aborts before the run starts, which is the same promise the

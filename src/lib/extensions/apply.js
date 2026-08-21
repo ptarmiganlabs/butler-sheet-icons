@@ -206,8 +206,8 @@ export const applyExtensions = (program, extensions) => {
  *
  * `runInteractive` therefore calls this again with the options the wizard assembled, immediately
  * before the run starts. Both calls are kept rather than moving the check wholesale: the first
- * still catches a licensed option typed on the command line alongside `-i`, and catches it before
- * the wizard asks anything.
+ * still catches a contributed option typed on the command line alongside `-i`, and catches it
+ * before the wizard asks anything.
  *
  * @param {SeamDescription} extensions - The description, which may describe no hooks at all.
  * @param {string} path - Space-separated command path, e.g. `'qseow create-sheet-thumbnails'`.
