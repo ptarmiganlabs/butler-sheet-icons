@@ -14,6 +14,9 @@
  *
  * @typedef {object} SeamDescription
  * @property {number} seamVersion - The contract version this description targets.
+ * @property {string} [variant] - Optional short name for this build, e.g. `'acme'`. When present,
+ *     `--version` names it and reports the extensions module's own version alongside core's; when
+ *     absent - which is what the committed stub does - `--version` is unchanged. Issue #1152.
  * @property {import('commander').Command[]} commands - Whole commands to add to the root.
  * @property {OptionContribution[]} options - Options to add to commands that already exist.
  * @property {SeamHooks} hooks - Hooks, all of them optional.

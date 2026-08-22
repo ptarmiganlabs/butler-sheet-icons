@@ -132,6 +132,56 @@ const checkCommanderMatch = () => {
 };
 
 /**
+ * The version declared by the nearest `package.json` above a file.
+ *
+ * Used to stamp a variant build with the version of the extensions module it bundled, so that
+ * `--version` can report it. Derived rather than declared on purpose: a description cannot know its
+ * own version without hard-coding a number, and a hard-coded number goes stale silently the first
+ * time somebody forgets it. Issue #1152.
+ *
+ * Walks up rather than assuming the module sits beside its manifest - `src/index.js` is the ordinary
+ * layout, and the manifest is a directory or two above it.
+ *
+ * @param {string} fromFile - Absolute path to the module.
+ *
+ * @returns {string|undefined} The version, or undefined when no manifest declares one.
+ */
+const packageVersionAbove = (fromFile) => {
+    let directory = dirname(fromFile);
+
+    for (;;) {
+        try {
+            const { version } = JSON.parse(readFileSync(join(directory, 'package.json'), 'utf8'));
+
+            if (typeof version === 'string' && version !== '') {
+                return version;
+            }
+        } catch {
+            // No manifest here, or an unreadable one. Keep walking; the caller treats "not found"
+            // as "do not report a variant version", which is the same as a source run.
+        }
+
+        const parent = dirname(directory);
+
+        if (parent === directory) {
+            return undefined;
+        }
+
+        directory = parent;
+    }
+};
+
+/**
+ * The date stamped into every binary, as ISO yyyy-mm-dd.
+ *
+ * A date rather than a timestamp: it answers "roughly when did this come from?", and a
+ * to-the-second value would make two builds of the same commit differ for no reader's benefit.
+ *
+ * @returns {string} Today, in UTC.
+ */
+const buildDate = () => new Date().toISOString().slice(0, 10);
+
+/**
  * Bundle the CLI into a single CJS file for the SEA blob.
  *
  * `format: 'cjs'` is not a preference: Node's SEA blob takes one CommonJS file. It is also why
@@ -149,6 +199,8 @@ const bundle = async () => {
         checkCommanderMatch();
     }
 
+    const extensionsVersion = extensionsModule ? packageVersionAbove(extensionsModule) : undefined;
+
     await build({
         entryPoints: [`src/${distFileName}.js`],
         bundle: true,
@@ -157,7 +209,18 @@ const bundle = async () => {
         platform: 'node',
         target: 'node24',
         inject: ['./src/lib/util/import-meta-url.js'],
-        define: { 'import.meta.url': 'import_meta_url' },
+        define: {
+            'import.meta.url': 'import_meta_url',
+            // Stamped into every binary so `--version` can report when it was built. A source run
+            // has no define and reports no build date, which is why the reader guards on `typeof`.
+            __BSI_BUILD_DATE__: JSON.stringify(buildDate()),
+            // Only a variant build has an extensions version to report. `JSON.stringify(undefined)`
+            // is `undefined` rather than a string, so this spreads to nothing for a stock build and
+            // the identifier stays undeclared - exactly as in a source run.
+            ...(extensionsVersion === undefined
+                ? {}
+                : { __BSI_EXTENSIONS_VERSION__: JSON.stringify(extensionsVersion) }),
+        },
         alias: extensionsModule
             ? { '#extensions': extensionsModule, commander: commanderEntry }
             : undefined,
