@@ -652,3 +652,70 @@ describe('adding interactive mode changes nothing that already worked', () => {
         expect(result.stdout).not.toContain('interactive');
     });
 });
+
+describe('a failed command line is not a crash (issue #1150)', () => {
+    // A `beforeAction` hook that throws is a deliberate abort. Through the real dispatch it
+    // used to escape `parseAsync` into the unhandledRejection listener and produce a crash
+    // dump. Bundling with a throwing fixture is the only way to drive the real seam; the
+    // committed default contributes no hooks.
+    test('a throwing beforeAction hook reports its message without a crash dump', () => {
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        const repoRoot = path.resolve(__dirname, '../..');
+        const fixture = path.resolve(
+            __dirname,
+            '../lib/extensions/fixtures/throwing-before-action.js'
+        );
+        const dumpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bsi-no-crash-'));
+        // The bundle must live under the repo root: globals.js locates package.json
+        // relative to the injected import.meta.url, i.e. next to the bundle itself.
+        const buildDir = path.join(repoRoot, 'build');
+        fs.mkdirSync(buildDir, { recursive: true });
+        const outfile = path.join(buildDir, 'bsi-throwing-hook.cjs');
+
+        try {
+            const esbuild = path.join(repoRoot, 'node_modules', 'esbuild', 'bin', 'esbuild');
+            const build = childProcess.spawnSync(
+                'node',
+                [
+                    esbuild,
+                    path.resolve(__dirname, '../butler-sheet-icons.js'),
+                    '--bundle',
+                    '--platform=node',
+                    '--format=cjs',
+                    '--alias:#extensions=' + fixture,
+                    '--outfile=' + outfile,
+                    // Same pair bundle.mjs uses: import.meta.url has no meaning in a
+                    // flattened CJS bundle, and globals.js builds a require from it.
+                    '--inject:' + path.resolve(repoRoot, 'src/lib/util/import-meta-url.js'),
+                    '--define:import.meta.url=import_meta_url',
+                ],
+                { encoding: 'utf-8', timeout: 60000 }
+            );
+            expect(build.status).toBe(0);
+
+            const result = childProcess.spawnSync('node', [outfile, 'browser', 'list-installed'], {
+                encoding: 'utf-8',
+                timeout: 60000,
+                env: {
+                    ...process.env,
+                    BSI_CRASH_DUMP_DIR: dumpDir,
+                    BSI_CRASH_DUMP_ENABLE: '1',
+                    BSI_CRASH_DUMP_CREATE_JSON: '1',
+                    BSI_CRASH_DUMP_CREATE_TEXT: '1',
+                },
+            });
+
+            expect(result.status).toBe(1);
+            expect(result.stderr).toContain('beforeAction says no');
+            expect(result.stderr).not.toContain('CRASH DUMP');
+            expect(result.stderr).not.toContain('FATAL');
+            expect(fs.readdirSync(dumpDir).filter((name) => name.startsWith('crash_dump'))).toEqual(
+                []
+            );
+        } finally {
+            fs.rmSync(outfile, { force: true });
+            fs.rmSync(dumpDir, { recursive: true, force: true });
+        }
+    }, 120000);
+});
