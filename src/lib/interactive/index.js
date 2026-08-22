@@ -89,6 +89,10 @@ const review = async ({ path, specs, answers, runtime, theme, symbols }) => {
  * @param {object} [args.presetOptions] - Answers already known, used as starting values.
  * @param {object} [args.presetSources] - Where each of those came from, `cli` or `env`, keyed the
  *     same way. Used to name the environment variable behind a value whose check fails.
+ * @param {object} [args.rejectedOptions] - Supplied values the command's own parse refused, keyed
+ *     the same way: `{ value, message, source }`. Not answers - they are asked about, opened on
+ *     the refused value and introduced with the parser's message - and not presets, which is why
+ *     the launcher keeps them out of `presetOptions`.
  * @param {object} [args.runtime] - Prompt runtime. Injectable for tests.
  * @param {string} [args.cwd] - Directory a saved `.env` is written to. Injectable for tests.
  *
@@ -99,6 +103,7 @@ export const runInteractive = async ({
     path,
     presetOptions = {},
     presetSources = {},
+    rejectedOptions = {},
     runtime = defaultRuntime,
     cwd = process.cwd(),
 } = {}) => {
@@ -136,9 +141,21 @@ export const runInteractive = async ({
     const symbols = getSymbols();
     const theme = buildTheme({ symbols });
 
+    // A variable whose value the parse refused is treated as unset from here on:
+    // the question it would have answered is required again, and the refused text
+    // is not offered as a default - it is opened on below, which is different,
+    // because a default is something the wizard vouches for.
+    const env = { ...process.env };
+
+    for (const option of command.options) {
+        if (option.attributeName() in rejectedOptions && option.envVar) {
+            delete env[option.envVar];
+        }
+    }
+
     // Derived from the command every time, so a newly added option is asked
     // about without anyone editing the wizard.
-    const specs = specsFromCommand(command);
+    const specs = specsFromCommand(command, { env });
 
     const refined = wizard.refine ? wizard.refine(specs, { answers: presetOptions }) : specs;
 
@@ -205,6 +222,14 @@ export const runInteractive = async ({
         )
         .map((spec) =>
             spec.key in presetOptions ? openingOn(spec, presetOptions[spec.key]) : spec
+        )
+        // A refused value is opened on too, so correcting it is an edit rather than
+        // a retype - but only where the prompt takes text. A select offered a value
+        // that is not one of its choices would not know what to do with it.
+        .map((spec) =>
+            spec.key in rejectedOptions && (spec.type === 'input' || spec.type === 'list')
+                ? openingOn(spec, rejectedOptions[spec.key].value)
+                : spec
         )
         .map((spec) => (checkOnly(spec) ? { ...spec, checkOnly: true } : spec));
 
@@ -290,6 +315,31 @@ export const runInteractive = async ({
         runtime.write(
             `${theme.style.help(`Supplied, but asked about again so you can change it for this run: ${overridden.join(', ')}.`)}\n`
         );
+    }
+
+    const rejected = specs.filter((spec) => spec.key in rejectedOptions);
+
+    if (rejected.length > 0) {
+        // Said here, before the first question, and again nowhere else: the
+        // question itself then reads as any other question does. The message is
+        // the parser's own - the same sentence the prompt would have shown had
+        // the value been typed there - and the variable is named because that is
+        // what has to be edited for the next run to pass without being asked.
+        runtime.write(
+            `${theme.style.help('Supplied, but not usable as given, so asked about below:')}\n`
+        );
+
+        for (const spec of rejected) {
+            const { message, source } = rejectedOptions[spec.key];
+            const origin =
+                source === 'env' && spec.option?.envVar
+                    ? `${nameOf(spec)} (from ${spec.option.envVar})`
+                    : source === 'cli'
+                      ? `${nameOf(spec)} (from the command line)`
+                      : nameOf(spec);
+
+            runtime.write(`  ${theme.style.error(`${origin}:`)} ${message}\n`);
+        }
     }
 
     for (;;) {

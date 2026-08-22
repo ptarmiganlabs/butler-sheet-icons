@@ -179,6 +179,56 @@ describe('askQuestions', () => {
     });
 });
 
+describe('the stored answer', () => {
+    // The validator runs the option's parser and keeps only the verdict. The
+    // answer stored for later questions - and for the probes, the review table and
+    // the echoed command line - is the parsed value, so everything that reads it
+    // sees what the run will see (issue #1148).
+    test('is what the option parser makes of the text, when that is a string', async () => {
+        const option = {
+            parseArg: (value) =>
+                String(value)
+                    .trim()
+                    .replace(/^https?:\/\//, ''),
+        };
+        const runtime = scriptedRuntime({ host: '  https://sense.acme.com ' });
+
+        const answers = await askQuestions([spec({ key: 'host', option })], ctx(), { runtime });
+
+        expect(answers.host).toBe('sense.acme.com');
+    });
+
+    test('is left as typed when the parser returns something other than a string', async () => {
+        const option = { parseArg: () => 42 };
+        const runtime = scriptedRuntime({ k: 'typed' });
+
+        const answers = await askQuestions([spec({ option })], ctx(), { runtime });
+
+        expect(answers.k).toBe('typed');
+    });
+
+    test('is left as typed for anything but a text prompt', async () => {
+        const option = { parseArg: () => 'never' };
+        const runtime = scriptedRuntime({ k: 'b' });
+
+        const answers = await askQuestions(
+            [spec({ type: 'select', choices: ['a', 'b'], option })],
+            ctx(),
+            { runtime }
+        );
+
+        expect(answers.k).toBe('b');
+    });
+
+    test('is left as typed when there is no parser', async () => {
+        const runtime = scriptedRuntime({ k: '  spaced  ' });
+
+        const answers = await askQuestions([spec()], ctx(), { runtime });
+
+        expect(answers.k).toBe('  spaced  ');
+    });
+});
+
 describe('live choices', () => {
     test('are fetched with the answers given so far', async () => {
         // "The app fetcher was called with the tenant url the user typed",

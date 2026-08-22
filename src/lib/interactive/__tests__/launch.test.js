@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
-import { presetOptionsFrom, presetSourcesFrom } from '../launch.js';
+import { presetOptionsFrom, presetSourcesFrom, rejectedOptionsFrom } from '../launch.js';
+import { relaxMandatoryOptionsIfInteractive } from '../mandatory-relaxation.js';
 import { addInteractiveOption } from '../interactive-option.js';
 import { buildQseowCommand } from '../../commands/qseow/index.js';
 
@@ -138,5 +139,67 @@ describe('presetSourcesFrom', () => {
 
     test('tolerates being handed no command at all', () => {
         expect(presetSourcesFrom(undefined)).toEqual({});
+    });
+});
+
+describe('a value the parse refused', () => {
+    /**
+     * Parse under the real relaxation, as the entry point does, so a refused value
+     * survives the parse and is recorded.
+     *
+     * @param {string[]} tail - Argv after the command path.
+     *
+     * @returns {import('commander').Command} The parsed leaf.
+     */
+    const parseRelaxed = (tail) => {
+        const namespace = buildQseowCommand();
+        const leaf = namespace.commands[0];
+
+        if (!leaf.options.some((option) => option.long === '--interactive')) {
+            addInteractiveOption(leaf);
+        }
+        leaf.exitOverride().configureOutput({ writeOut: () => {}, writeErr: () => {} });
+        leaf._actionHandler = undefined;
+        leaf.action(() => {});
+
+        const argv = ['node', 'bsi', ...tail];
+        relaxMandatoryOptionsIfInteractive(leaf, argv);
+        leaf.parse(argv);
+
+        return leaf;
+    };
+
+    test('is not a preset, so the wizard asks about it', () => {
+        process.env.BSI_QSEOW_CST_HOST = 'https://sense.acme.com/form/hub';
+
+        const leaf = parseRelaxed(['-i']);
+
+        expect(presetOptionsFrom(leaf)).not.toHaveProperty('host');
+        expect(presetSourcesFrom(leaf)).not.toHaveProperty('host');
+    });
+
+    test('is handed over separately, with its message and origin', () => {
+        process.env.BSI_QSEOW_CST_HOST = 'https://sense.acme.com/form/hub';
+
+        const rejected = rejectedOptionsFrom(parseRelaxed(['-i']));
+
+        expect(rejected.host).toEqual({
+            value: 'https://sense.acme.com/form/hub',
+            message: expect.stringContaining('a path is not part of it'),
+            source: 'env',
+        });
+    });
+
+    test('leaves the values that passed where they were', () => {
+        process.env.BSI_QSEOW_CST_HOST = 'https://sense.acme.com/form/hub';
+
+        const leaf = parseRelaxed(['--apiuserdir', 'INTERNAL', '-i']);
+
+        expect(presetOptionsFrom(leaf).apiuserdir).toBe('INTERNAL');
+    });
+
+    test('tolerates a command that was never parsed under the relaxation', () => {
+        expect(rejectedOptionsFrom(parseQseow(['-i']))).toEqual({});
+        expect(rejectedOptionsFrom(undefined)).toEqual({});
     });
 });
