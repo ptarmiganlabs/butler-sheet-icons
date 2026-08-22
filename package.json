@@ -71,7 +71,7 @@
         "@eslint/js": "^10.0.1",
         "@jest/globals": "^30.4.1",
         "esbuild": "^0.28.1",
-        "eslint": "^10.5.0",
+        "eslint": "^10.8.1",
         "eslint-config-prettier": "^10.1.8",
         "eslint-plugin-jsdoc": "^63.3.2",
         "eslint-plugin-prettier": "^5.5.6",
