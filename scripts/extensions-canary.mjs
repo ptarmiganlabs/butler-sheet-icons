@@ -231,6 +231,28 @@ const runBinaryExpectingFailure = (label, args) => {
 };
 
 /**
+ * The value on a `--version` detail line, e.g. `core` from `  core    5.0.0`.
+ *
+ * Reads the line rather than matching a pattern built from the value being looked for. Building one
+ * meant escaping the version into a regex, and escaping only the dots is the incomplete-escaping
+ * shape CodeQL flags - correctly, since nothing guarantees a version string carries no other regex
+ * metacharacter. Splitting the line has no such failure mode and reads better besides.
+ *
+ * @param {string} output - What the binary printed.
+ * @param {string} label - The detail label to look for.
+ *
+ * @returns {string|undefined} The value, or undefined when no such line was printed.
+ */
+const detailValue = (output, label) => {
+    const line = output
+        .split('\n')
+        .map((candidate) => candidate.trim())
+        .find((candidate) => candidate.startsWith(`${label} `));
+
+    return line?.slice(label.length).trim();
+};
+
+/**
  * Bundle, package and inject a SEA binary from the current source tree.
  *
  * Mirrors what the release scripts do, minus real code signing: bundle, generate the blob, copy the
@@ -354,19 +376,17 @@ check(
 );
 check(
     'the core version is reported',
-    /\n\s+core\s+/.test(variantVersion.output),
+    detailValue(variantVersion.output, 'core') === canaryVersion,
     variantVersion.output.trim()
 );
 check(
     'the extensions module version is derived and reported',
-    new RegExp(`\\n\\s+canary\\s+${canaryVersion.replace(/\./g, '\\.')}`).test(
-        variantVersion.output
-    ),
+    detailValue(variantVersion.output, 'canary') === canaryVersion,
     variantVersion.output.trim()
 );
 check(
     'the build date is reported',
-    /\n\s+built\s+\d{4}-\d{2}-\d{2}/.test(variantVersion.output),
+    /^\d{4}-\d{2}-\d{2}$/.test(detailValue(variantVersion.output, 'built') ?? ''),
     variantVersion.output.trim()
 );
 
@@ -451,12 +471,12 @@ check(
 );
 check(
     'a stock build still reports its build date',
-    /\n\s+built\s+\d{4}-\d{2}-\d{2}/.test(version.output),
+    /^\d{4}-\d{2}-\d{2}$/.test(detailValue(version.output, 'built') ?? ''),
     version.output.trim()
 );
 check(
     'a stock build reports no core/variant split',
-    !/\n\s+core\s+/.test(version.output),
+    detailValue(version.output, 'core') === undefined,
     version.output.trim()
 );
 
