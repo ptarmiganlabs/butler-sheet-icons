@@ -1,4 +1,5 @@
 import { InvalidArgumentError, Option } from 'commander';
+import { hostOptionParser } from '../util/host-option.js';
 
 /**
  * Validates that the provided CLI argument represents a non-negative integer within optional bounds.
@@ -159,6 +160,32 @@ const collectChoices =
     };
 
 /**
+ * The `--tenanturl` option, for the three qscloud commands.
+ *
+ * A factory rather than a shared instance: Commander registers an Option with the command it
+ * is added to, and each command binds its own environment variable - the one thing each
+ * caller supplies.
+ *
+ * Declared once because the promise and the behaviour have to travel together. The help text
+ * offering both a URL and a bare host was written in three places while the tolerance for the
+ * URL form existed in one, which is issue #1148: the description and the parser that honours it
+ * now live in the same declaration, and the wizard derives its prompt and its validator from
+ * that same Option.
+ *
+ * @param {string} envVar - The command's own environment variable, e.g. `BSI_QSCLOUD_CST_TENANTURL`.
+ *
+ * @returns {Option} A new `--tenanturl` option.
+ */
+const buildTenantUrlOption = (envVar) =>
+    new Option(
+        '--tenanturl <url>',
+        'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
+    )
+        .argParser(hostOptionParser({ example: 'tenant.eu.qlikcloud.com' }))
+        .makeOptionMandatory()
+        .env(envVar);
+
+/**
  * The `--browser-cache-dir` option, for the commands that read or write the browser cache.
  *
  * A factory rather than a shared instance, because Commander stores parsed values on the
@@ -216,6 +243,7 @@ export {
     collectPositiveIntegers,
     collectAppIds,
     collectChoices,
+    buildTenantUrlOption,
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
 };

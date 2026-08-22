@@ -11,6 +11,7 @@ import {
     parsePositiveInteger,
     collectPositiveIntegers,
     collectAppIds,
+    buildTenantUrlOption,
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
 } from '../helpers.js';
@@ -87,14 +88,7 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 .default('12.612.0')
                 .env('BSI_QSCLOUD_CST_SCHEMAVERSION')
         )
-        .addOption(
-            new Option(
-                '--tenanturl <url>',
-                'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
-            )
-                .makeOptionMandatory()
-                .env('BSI_QSCLOUD_CST_TENANTURL')
-        )
+        .addOption(buildTenantUrlOption('BSI_QSCLOUD_CST_TENANTURL'))
         .addOption(
             new Option('--apikey <key>', 'API key used to access the Sense APIs')
                 .makeOptionMandatory()

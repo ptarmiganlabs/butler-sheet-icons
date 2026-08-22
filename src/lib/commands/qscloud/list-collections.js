@@ -3,6 +3,7 @@ import { logger, appVersion } from '../../../globals.js';
 import { logRunHeader } from '../../util/run-report-render.js';
 import { qscloudListCollections } from '../../cloud/cloud-collections.js';
 import { runCommand } from '../run-command.js';
+import { buildTenantUrlOption } from '../helpers.js';
 
 /**
  * Commander action that lists available Qlik Sense Cloud collections through the worker module.
@@ -35,14 +36,7 @@ const buildCloudListCollectionsCommand = () => {
                 .default('info')
                 .env('BSI_QSCLOUD_LC_LOG_LEVEL')
         )
-        .addOption(
-            new Option(
-                '--tenanturl <url>',
-                'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
-            )
-                .makeOptionMandatory()
-                .env('BSI_QSCLOUD_LC_TENANTURL')
-        )
+        .addOption(buildTenantUrlOption('BSI_QSCLOUD_LC_TENANTURL'))
         .addOption(
             new Option('--apikey <key>', 'API key used to access the Sense APIs')
                 .makeOptionMandatory()
