@@ -79,6 +79,46 @@ describe('a variant build', () => {
 });
 
 describe('the detail block', () => {
+    // The bug a fixed pad width hides: `padEnd` does not truncate, so a label as long as the column
+    // was concatenated straight onto its value - `  enterprise2.1.0`, no separator. Every label in
+    // the alignment test below is shorter than the floor, so only an explicitly long one catches it.
+    test('keeps a separator when the variant name is longer than the column', () => {
+        const line = describeVersion({
+            name: NAME,
+            version: '5.1.0',
+            variant: 'enterprise',
+            variantVersion: '2.1.0',
+        })
+            .split('\n')
+            // Past the headline, which also names the variant - in parentheses, not as a label.
+            .slice(1)
+            .find((candidate) => candidate.includes('enterprise'));
+
+        expect(line).toBe('  enterprise 2.1.0');
+        expect(line).not.toContain('enterprise2.1.0');
+    });
+
+    test('still lines up when a long label widens the column', () => {
+        const lines = describeVersion({
+            name: NAME,
+            version: '5.1.0',
+            variant: 'a-very-long-variant-name',
+            variantVersion: '2.1.0',
+            buildDate: '2026-09-14',
+        })
+            .split('\n')
+            .slice(1);
+
+        expect(new Set(lines.map((line) => line.search(/\S+$/))).size).toBe(1);
+    });
+
+    // Short labels must not have moved: this is the output every existing build produces.
+    test('leaves the ordinary case exactly as it was', () => {
+        expect(describeVersion({ name: NAME, version: '5.0.0', buildDate: '2026-09-14' })).toBe(
+            ['butler-sheet-icons 5.0.0', '  built   2026-09-14'].join('\n')
+        );
+    });
+
     test('lines up its values under each other', () => {
         const lines = describeVersion({
             name: NAME,

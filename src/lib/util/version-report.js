@@ -36,8 +36,14 @@ export const BUILD_DATE =
 export const EXTENSIONS_VERSION =
     typeof __BSI_EXTENSIONS_VERSION__ === 'undefined' ? undefined : __BSI_EXTENSIONS_VERSION__;
 
-/** Width the detail labels are padded to, so the values line up under each other. */
-const LABEL_WIDTH = 8;
+/**
+ * Narrowest the detail label column gets, so short labels keep a readable gutter.
+ *
+ * A floor rather than a fixed width. `padEnd` does not truncate, so a fixed width silently produces
+ * `  enterprise2.1.0` - no separator at all - the moment a variant is named something as long as the
+ * column. The width below grows past this for any label that needs it.
+ */
+const MIN_LABEL_WIDTH = 8;
 
 /**
  * Render the string Commander prints for `--version`.
@@ -70,7 +76,11 @@ export const describeVersion = ({ name, version, variant, variantVersion, buildD
         return headline;
     }
 
-    const lines = details.map(([label, value]) => `  ${label.padEnd(LABEL_WIDTH)}${value}`);
+    // Derived from the labels actually present, never assumed: a variant is named by whoever built
+    // it, so the longest label is not knowable in advance. `+ 1` keeps at least one space after the
+    // longest one, which is the guarantee a fixed width cannot make.
+    const width = Math.max(MIN_LABEL_WIDTH, ...details.map(([label]) => label.length + 1));
+    const lines = details.map(([label, value]) => `  ${label.padEnd(width)}${value}`);
 
     return [headline, ...lines].join('\n');
 };
