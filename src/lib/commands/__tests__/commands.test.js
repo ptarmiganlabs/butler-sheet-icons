@@ -478,6 +478,123 @@ describe('--browser-cache-dir (issue #1024)', () => {
     });
 });
 
+describe('--tenanturl and --host accept a pasted URL (issue #1148)', () => {
+    // Every option that names a Sense host, on both platforms. The list is the point:
+    // the promise "URL or host" was written into three qscloud descriptions while the
+    // tolerance for the URL form lived in the REST client alone, so a value with a
+    // scheme passed the pre-flight and then failed on the engine session with
+    // `getaddrinfo ENOTFOUND https`.
+    const leaf = (parent, name) => parent.commands.find((cmd) => cmd.name() === name);
+
+    const carriers = [
+        [
+            'qscloud create-sheet-thumbnails',
+            '--tenanturl',
+            () => thumbnailCommand(buildQscloudCommand()),
+        ],
+        [
+            'qscloud list-collections',
+            '--tenanturl',
+            () => leaf(buildQscloudCommand(), 'list-collections'),
+        ],
+        [
+            'qscloud remove-sheet-icons',
+            '--tenanturl',
+            () => leaf(buildQscloudCommand(), 'remove-sheet-icons'),
+        ],
+        ['qseow create-sheet-thumbnails', '--host', () => thumbnailCommand(buildQseowCommand())],
+        [
+            'qseow remove-sheet-icons',
+            '--host',
+            () => leaf(buildQseowCommand(), 'remove-sheet-icons'),
+        ],
+    ];
+
+    const optionOn = (build, flag) => {
+        const option = build().options.find((opt) => opt.long === flag);
+
+        if (!option) {
+            throw new Error(`Option ${flag} not found`);
+        }
+
+        return option;
+    };
+
+    /**
+     * Parse one option in isolation with the variable behind it set to `value`.
+     *
+     * @param {import('commander').Option} option - The option.
+     * @param {string} value - What the environment variable holds.
+     *
+     * @returns {{ opts: object, error: Error|undefined }} The parsed bag, or the error.
+     */
+    const parseFromEnv = (option, value) => {
+        const saved = process.env[option.envVar];
+        process.env[option.envVar] = value;
+
+        try {
+            const parent = new Command();
+            parent.exitOverride().configureOutput({ writeErr: () => {} });
+            parent.addOption(option);
+            parent.parse(['node', 'test']);
+
+            return { opts: parent.opts(), error: undefined };
+        } catch (error) {
+            return { opts: undefined, error };
+        } finally {
+            if (saved === undefined) {
+                delete process.env[option.envVar];
+            } else {
+                process.env[option.envVar] = saved;
+            }
+        }
+    };
+
+    test.each(carriers)('%s normalises %s on the command line', (_name, flag, build) => {
+        const option = optionOn(build, flag);
+        const parent = new Command();
+        parent.exitOverride();
+        parent.addOption(option);
+        parent.parseOptions([flag, 'https://sense.example.com/']);
+
+        expect(parent.opts()[option.attributeName()]).toBe('sense.example.com');
+    });
+
+    // Commander runs parseArg on environment values too, which matters more here than
+    // on the command line: the reported run took its tenant url from a .env file.
+    test.each(carriers)('%s normalises %s from the environment', (_name, flag, build) => {
+        const option = optionOn(build, flag);
+        const { opts, error } = parseFromEnv(option, 'https://sense.example.com');
+
+        expect(error).toBeUndefined();
+        expect(opts[option.attributeName()]).toBe('sense.example.com');
+    });
+
+    // Commander's missing-mandatory check tests for `undefined`, so a variable that is
+    // set but empty satisfies it and the run would start against no host at all. The
+    // parser is the only thing that can report it, and it names the variable.
+    test.each(carriers)(
+        '%s refuses a set-but-empty %s variable, naming it',
+        (_name, flag, build) => {
+            const option = optionOn(build, flag);
+            const { error } = parseFromEnv(option, '');
+
+            expect(error).toBeDefined();
+            expect(error.code).toBe('commander.invalidArgument');
+            expect(error.message).toContain(`from env '${option.envVar}'`);
+            expect(error.message).toContain('Enter the host');
+        }
+    );
+
+    // The description is the promise; the parser is what keeps it. Both platforms, not
+    // only the one whose option is built by the factory - the QSEoW twin once had the
+    // parser without the promise, so its help and the generated doc-site table said
+    // "IP/FQDN" while the doc page said a URL works.
+    test.each(carriers)('%s says in its help text that a URL is accepted', (_name, flag, build) => {
+        expect(optionOn(build, flag).description).toContain('https://');
+    });
+});
+
 describe('--sense-version choices', () => {
     test('uses the shared QSEoW version list and defaults to 2026-May', () => {
         const option = thumbnailCommand(buildQseowCommand()).options.find(

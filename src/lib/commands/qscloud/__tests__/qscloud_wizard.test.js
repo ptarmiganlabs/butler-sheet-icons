@@ -22,6 +22,7 @@ jest.unstable_mockModule('../../../cloud/cloud-create-thumbnails.js', () => ({
 }));
 
 const { runInteractive } = await import('../../../interactive/index.js');
+const { default: QlikSaas } = await import('../../../cloud/cloud-repo.js');
 const { scriptedRuntime } = await import('../../../interactive/test-helpers/scripted-runtime.js');
 const { labelForApp, labelForCollection } =
     await import('../create-sheet-thumbnails.interactive.js');
@@ -745,6 +746,41 @@ describe('the run itself', () => {
         // Synthetic questions must never reach the worker.
         expect(options._appSource).toBeUndefined();
         expect(options._advanced).toBeUndefined();
+    });
+
+    // The wizard is a third way into the same option, and it does not go through
+    // Commander's own argv parsing - `answersToOptions` builds an argv from the
+    // answers and hands it to `parseOptions()`, which is what makes the option's
+    // `argParser` apply here too. Issue #1148 was reported from a run whose value
+    // came from `.env` by way of this path.
+    test('a pasted tenant url reaches the worker as a bare host', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({ tenanturl: 'https://acme.eu.qlikcloud.com/', _review: 'run' })
+        );
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(qscloudCreateThumbnails).toHaveBeenCalledTimes(1);
+        expect(qscloudCreateThumbnails.mock.calls[0][0].tenanturl).toBe('acme.eu.qlikcloud.com');
+    });
+
+    // Not only the worker: the connection probe runs mid-conversation on the answer
+    // as stored, and `QlikSaas` tests for a lower-case scheme before prepending one.
+    // A probe handed the raw `HTTPS://…` built `https://HTTPS://…` and failed under
+    // the API-key prompt - for a value the CLI accepts. The driver now stores the
+    // parsed value, so everything that reads the answer sees what the run will see.
+    test('the connection probe, the review and the echoed line all see the bare host', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({ tenanturl: 'HTTPS://acme.eu.qlikcloud.com/', _review: 'run' })
+        );
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(QlikSaas).toHaveBeenCalledWith(
+            expect.objectContaining({ url: 'acme.eu.qlikcloud.com' })
+        );
+        expect(runtime.output()).toContain('--tenanturl acme.eu.qlikcloud.com');
+        expect(runtime.output()).not.toContain('HTTPS://');
     });
 
     test('never prints the API key', async () => {

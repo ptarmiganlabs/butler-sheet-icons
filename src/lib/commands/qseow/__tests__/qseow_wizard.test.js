@@ -964,6 +964,42 @@ describe('the run itself', () => {
         expect(options._filtering).toBeUndefined();
     });
 
+    // The Cloud twin's test, for the same reason: `--host` is read by the engine
+    // url, the app and hub urls and the QRS hostname, all of which prepend a
+    // scheme of their own. See issue #1148.
+    test('a pasted server url reaches the worker as a bare host', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({ host: 'https://sense.acme.com/', _review: 'run' })
+        );
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(qseowCreateThumbnails).toHaveBeenCalledTimes(1);
+        expect(qseowCreateThumbnails.mock.calls[0][0].host).toBe('sense.acme.com');
+    });
+
+    // The QRS lookups run mid-conversation on the answers as stored, and QRS does
+    // not tolerate a scheme in the hostname: handed the raw answer, the content
+    // library check failed naming the library, and the app picker silently fell
+    // back to free text. The driver now stores the parsed value.
+    test('the QRS probes see the bare host, not the pasted url', async () => {
+        let seenByProbe;
+        qseowVerifyContentLibraryExists.mockImplementation(async (options) => {
+            seenByProbe = { ...options };
+
+            return true;
+        });
+
+        const runtime = scriptedRuntime(baseAnswers({ host: 'https://sense.acme.com/' }));
+
+        await runInteractive({ path: PATH, runtime });
+
+        expect(seenByProbe.host).toBe('sense.acme.com');
+        expect(listAllApps).toHaveBeenCalledWith(
+            expect.objectContaining({ host: 'sense.acme.com' })
+        );
+    });
+
     test('never prints the logon password', async () => {
         const runtime = scriptedRuntime(baseAnswers({ _review: 'run' }));
 
@@ -1019,5 +1055,63 @@ describe('--dry-run combined with -i (#993)', () => {
         expect(qseowCreateThumbnails).toHaveBeenCalledTimes(1);
         expect(qseowCreateThumbnails.mock.calls[0][0].dryRun).toBeUndefined();
         expect(runtime.output()).not.toContain('DRY RUN');
+    });
+});
+
+describe('a supplied value the parse refused', () => {
+    // The launcher hands these over separately from the presets: they sit on the
+    // command because the relaxation kept the parse alive, but they are not answers
+    // the run could use. The wizard asks about them, says why, and opens the prompt
+    // on the refused text so fixing it is an edit rather than a retype.
+    const refused = {
+        host: {
+            value: 'https://sense.acme.com/form/hub',
+            message: 'Enter the host on its own - a path is not part of it.',
+            source: 'env',
+        },
+    };
+
+    test('is asked about, with the parser message shown first', async () => {
+        const runtime = scriptedRuntime(baseAnswers());
+
+        await runInteractive({ path: PATH, runtime, rejectedOptions: refused });
+
+        expect(runtime.asked.map((entry) => entry.key)).toContain('host');
+        expect(runtime.output()).toContain(
+            'Supplied, but not usable as given, so asked about below'
+        );
+        expect(runtime.output()).toContain('--host (from BSI_QSEOW_CST_HOST)');
+        expect(runtime.output()).toContain('a path is not part of it');
+    });
+
+    test('opens the prompt on the refused value', async () => {
+        const runtime = scriptedRuntime(baseAnswers());
+
+        await runInteractive({ path: PATH, runtime, rejectedOptions: refused });
+
+        const host = runtime.asked.find((entry) => entry.key === 'host');
+        expect(host.default).toBe('https://sense.acme.com/form/hub');
+    });
+
+    // Required again, although the variable is set: `specFromOption` counts a set
+    // variable as a supplied answer, and a blank would otherwise be accepted and
+    // then dropped from the command line - leaving the run with no host at all.
+    test('is required again, so a blank answer is refused', async () => {
+        const runtime = scriptedRuntime(baseAnswers({ host: ['', 'sense.acme.com'] }));
+        const saved = process.env.BSI_QSEOW_CST_HOST;
+        process.env.BSI_QSEOW_CST_HOST = refused.host.value;
+
+        try {
+            await runInteractive({ path: PATH, runtime, rejectedOptions: refused });
+        } finally {
+            if (saved === undefined) {
+                delete process.env.BSI_QSEOW_CST_HOST;
+            } else {
+                process.env.BSI_QSEOW_CST_HOST = saved;
+            }
+        }
+
+        const attempts = runtime.asked.filter((entry) => entry.key === 'host');
+        expect(attempts).toHaveLength(2);
     });
 });

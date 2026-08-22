@@ -1,6 +1,10 @@
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import { Command } from 'commander';
-import { wantsInteractive, relaxMandatoryOptionsIfInteractive } from '../mandatory-relaxation.js';
+import {
+    wantsInteractive,
+    relaxMandatoryOptionsIfInteractive,
+    rejectedOptionValues,
+} from '../mandatory-relaxation.js';
 import { addInteractiveOption } from '../interactive-option.js';
 import { specsFromCommand } from '../option-introspect.js';
 import { buildQseowCommand } from '../../commands/qseow/index.js';
@@ -262,6 +266,94 @@ describe('a literal -i used as an option value does not relax anything', () => {
 
         expect(program.reached.opts.qliksensetag).toBe('-i');
         expect(program.reached.opts.interactive).toBeUndefined();
+    });
+});
+
+describe('a supplied value the parser refuses', () => {
+    // Commander runs every argParser during the parse and exits on the first
+    // refusal, before preAction and before any interactive code. A stale value in
+    // .env therefore used to kill the wizard that exists to correct it (issue
+    // #1148). With -i really set the parse now survives, and the refusal is handed
+    // to the wizard instead.
+    test('no longer stops -i from reaching the wizard', async () => {
+        process.env.BSI_QSEOW_CST_HOST = 'https://sense.acme.com/form/hub';
+
+        const { reached, error } = await run([...QSEOW, '-i']);
+
+        expect(error).toBeUndefined();
+        expect(reached.opts.interactive).toBe(true);
+    });
+
+    test('is recorded for the wizard, with the message and where it came from', async () => {
+        process.env.BSI_QSEOW_CST_HOST = 'https://sense.acme.com/form/hub';
+
+        const { reached } = await run([...QSEOW, '--engineport', 'abc', '-i']);
+        const rejected = rejectedOptionValues(reached.cmd);
+
+        expect(rejected.host).toEqual({
+            value: 'https://sense.acme.com/form/hub',
+            message: expect.stringContaining('a path is not part of it'),
+            source: 'env',
+        });
+        expect(rejected.engineport).toEqual({
+            value: 'abc',
+            message: 'Engine port must be a non-negative integer.',
+            source: 'cli',
+        });
+    });
+
+    test('a command whose values all passed records nothing', async () => {
+        const { reached } = await run([...QSEOW, '--host', 'sense.acme.com', '-i']);
+
+        expect(rejectedOptionValues(reached.cmd)).toEqual({});
+        expect(reached.opts.host).toBe('sense.acme.com');
+    });
+
+    // The parsers are part of the tree the wizard reads: specsFromCommand() builds
+    // each prompt's validator from option.parseArg, so a still-wrapped parser would
+    // accept at the prompt the very value it had just refused.
+    test('every parser is its own again once a handler runs', async () => {
+        process.env.BSI_QSEOW_CST_HOST = 'https://sense.acme.com/form/hub';
+
+        const { reached } = await run([...QSEOW, '-i']);
+        const host = reached.cmd.options.find((option) => option.long === '--host');
+
+        expect(() => host.parseArg('https://sense.acme.com/form/hub', undefined)).toThrow(
+            /a path is not part of it/
+        );
+    });
+
+    // The false positive again: a literal -i as a value relaxed the parse, so the
+    // refusal has to be raised by hand - and first, because Commander refuses a
+    // value while parsing, before it ever looks for missing options.
+    test('is still fatal when -i was only a value, with Commander wording', async () => {
+        const argv = [
+            ...QSEOW,
+            '--host',
+            'https://sense.acme.com/form/hub',
+            '--qliksensetag',
+            '-i',
+        ];
+        const before = await run(argv, { relax: false, withFlag: false });
+        const after = await run(argv);
+
+        expect(after.reached).toBeUndefined();
+        expect(after.error.code).toBe('commander.invalidArgument');
+        expect(after.error.message).toBe(before.error.message);
+        expect(after.error.message).toContain(
+            "argument 'https://sense.acme.com/form/hub' is invalid"
+        );
+    });
+
+    test('and a refused environment value is reported naming the variable, as Commander does', async () => {
+        process.env.BSI_QSEOW_CST_ENGINE_PORT = 'abc';
+        const argv = [...QSEOW, '--qliksensetag', '-i'];
+        const before = await run(argv, { relax: false, withFlag: false });
+        const after = await run(argv);
+
+        expect(after.error.code).toBe('commander.invalidArgument');
+        expect(after.error.message).toBe(before.error.message);
+        expect(after.error.message).toContain("from env 'BSI_QSEOW_CST_ENGINE_PORT'");
     });
 });
 

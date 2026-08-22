@@ -412,6 +412,45 @@ export const configFor = (spec, choices, theme) => ({
 });
 
 /**
+ * The answer as the option's own parser would store it.
+ *
+ * The validator has just run the parser and kept only its verdict, so without this
+ * the answer stored for later questions is the raw text - and the raw text is not
+ * always what the run will use. `--tenanturl` reduces a pasted URL to a host, and a
+ * wizard probe that connected with the raw value worked or failed by luck: the
+ * QSEoW QRS lookups did not tolerate the scheme, the Cloud REST client happened to
+ * (issue #1148). Storing the parsed value here means every later reader - the
+ * probes, the review table, the echoed command line, the saved `.env` - sees the
+ * value the run will see.
+ *
+ * Only for a text prompt, and only when the parser returns a string. A
+ * `<true|false>` option's parser returns a boolean that the confirm prompt already
+ * produces, a variadic parser accumulates, and a select's parser is the choices
+ * check. Anything that would change the answer's shape is left as typed, which is
+ * exactly what every answer was before this existed.
+ *
+ * @param {import('./option-introspect.js').QuestionSpec} spec - The question.
+ * @param {unknown} raw - What was typed.
+ *
+ * @returns {unknown} The parsed value when it is a string, otherwise `raw`.
+ */
+const normalized = (spec, raw) => {
+    if (spec.type !== 'input' || typeof spec.option?.parseArg !== 'function') {
+        return raw;
+    }
+
+    try {
+        const parsed = spec.option.parseArg(String(raw), undefined);
+
+        return typeof parsed === 'string' ? parsed : raw;
+    } catch {
+        // The validator accepted it, so this is a parser that throws for reasons
+        // of its own - keep the text rather than guess.
+        return raw;
+    }
+};
+
+/**
  * Ask a list of questions and collect the answers.
  *
  * The runtime is injected rather than imported, which is what makes the whole
@@ -490,7 +529,7 @@ export const askQuestions = async (specs, ctx = {}, { runtime = defaultRuntime }
 
             // Answers are written back as we go, so a later question's `when` or
             // `choices` sees everything said so far.
-            answers[spec.key] = asked.type === 'list' ? splitEntries(raw) : raw;
+            answers[spec.key] = asked.type === 'list' ? splitEntries(raw) : normalized(spec, raw);
 
             if (!spec.probe) {
                 break;

@@ -3,7 +3,7 @@ import { addDryRunOption } from '../dry-run-option.js';
 import { setLoggingLevel } from '../../../globals.js';
 import { qscloudRemoveSheetIcons } from '../../cloud/cloud-remove-sheet-icons.js';
 import { runCommand } from '../run-command.js';
-import { collectAppIds } from '../helpers.js';
+import { collectAppIds, buildTenantUrlOption } from '../helpers.js';
 
 /**
  * Commander action that removes sheet icons from specified Qlik Sense Cloud apps.
@@ -60,14 +60,7 @@ const buildCloudRemoveSheetIconsCommand = () => {
                 .default('12.612.0')
                 .env('BSI_QSCLOUD_RSI_SCHEMAVERSION')
         )
-        .addOption(
-            new Option(
-                '--tenanturl <url>',
-                'URL or host of Qlik Sense cloud tenant. Example: "https://tenant.eu.qlikcloud.com" or "tenant.eu.qlikcloud.com"'
-            )
-                .makeOptionMandatory()
-                .env('BSI_QSCLOUD_RSI_TENANTURL')
-        )
+        .addOption(buildTenantUrlOption('BSI_QSCLOUD_RSI_TENANTURL'))
         .addOption(
             new Option('--apikey <key>', 'API key used to access the Sense APIs')
                 .makeOptionMandatory()

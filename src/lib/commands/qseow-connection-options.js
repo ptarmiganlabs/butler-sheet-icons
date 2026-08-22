@@ -1,6 +1,7 @@
 import { Option } from 'commander';
 
 import { parsePositiveInteger } from './helpers.js';
+import { hostOptionParser } from '../util/host-option.js';
 
 /**
  * The engine schema versions the Enigma loader accepts.
@@ -57,7 +58,23 @@ const SCHEMA_VERSIONS = [
  * @returns {Record<string, Option>} New option instances, keyed by flag name.
  */
 export const buildQseowConnectionOptions = (envPrefix) => ({
-    host: new Option('--host <host>', 'Qlik Sense server IP/FQDN')
+    // The description and the parser travel together: the promise that a URL is
+    // accepted is only true because the parser reduces it to a host before the
+    // engine url, the app and hub urls and the QRS hostname each prepend their own
+    // scheme. See `hostOptionParser` and issue #1148. The hint is conditional on
+    // purpose - a pasted `https://server/hub` has a path and no prefix, and telling
+    // its owner to move `hub` into --prefix would produce a run that authenticates
+    // and never renders.
+    host: new Option(
+        '--host <host>',
+        'Host name or IP address of the Qlik Sense server, with or without "https://" in front. Example: "sense.example.com" or "https://sense.example.com"'
+    )
+        .argParser(
+            hostOptionParser({
+                example: 'sense.example.com',
+                pathHint: 'A virtual proxy prefix, if there is one, goes in --prefix.',
+            })
+        )
         .makeOptionMandatory()
         .env(`${envPrefix}_HOST`),
 
