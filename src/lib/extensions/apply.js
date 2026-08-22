@@ -63,6 +63,14 @@ const suppliedOptionsOf = (command) =>
  *
  * May be async: it runs under `parseAsync`, not at module evaluation. Throwing aborts the run.
  *
+ * **How that throw is reported depends on one property.** An error carrying `expected: true` is
+ * treated as a run that stopped deliberately: its message is logged and the process exits non-zero,
+ * with no crash dump. Anything else is treated as a fault and takes the crash path, which is what a
+ * bug inside a hook should do. A plain property rather than an error class, because the module
+ * behind `#extensions` is substituted at build time and does not import from this tree, so it has no
+ * class to extend - `isExpectedFailure` in `src/lib/util/errors.js` carries the reasoning. Issue
+ * #1150.
+ *
  * **It can run more than once for a single run, so it must be idempotent.** An interactive run
  * calls it twice, and deliberately: once from the `preAction` hook, where the command line has been
  * parsed but the wizard has not yet asked anything, and again once the wizard has assembled the

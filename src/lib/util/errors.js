@@ -121,3 +121,50 @@ export class QseowError extends BsiError {
         this.name = 'QseowError';
     }
 }
+
+/**
+ * Whether an error represents a run that was deliberately stopped, rather than something breaking.
+ *
+ * The two are not the same event and should not read the same way. A run that cannot proceed - a
+ * precondition that was not met, a command line the run refuses to act on - is an ordinary outcome
+ * with a message the operator can act on. A fault is what the crash dump exists for. Before this
+ * predicate there was no way to tell them apart above `parseAsync`, so both took the crash path:
+ * `FATAL: Unhandled promise rejection`, a dump on disk, and a message telling the operator that
+ * something fell out of every `try`/`catch` in the application. Issue #1150.
+ *
+ * **Duck-typed on purpose.** The obvious implementation is `err instanceof SomeClass`, and it would
+ * be wrong here: the module behind `#extensions` is substituted at build time and does not import
+ * from this tree (`src/lib/extensions/apply.js`), so it has no class to extend. A plain property is
+ * the only marker both sides can agree on without a dependency between them.
+ *
+ * Anything not carrying the marker keeps today's behaviour exactly, which is the important half:
+ * the safety net stays a safety net, and a genuine fault - including a bug inside a hook - still
+ * writes its dump.
+ *
+ * @param {unknown} err - The error to classify.
+ *
+ * @returns {boolean} True when the error marks itself as a deliberately stopped run.
+ */
+export const isExpectedFailure = (err) => err?.expected === true;
+
+/**
+ * A run stopped deliberately, with a message the operator can act on.
+ *
+ * Core has no site that throws this yet - it exists so that the convention {@link isExpectedFailure}
+ * recognises has one obvious spelling for code that *can* import from this tree, rather than every
+ * caller hand-setting a property and one of them eventually misspelling it.
+ */
+export class ExpectedFailure extends BsiError {
+    /**
+     * Construct a deliberately stopped run.
+     *
+     * @param {string} message - What to tell the operator, and why the run stopped.
+     * @param {object} [options] - Standard `Error` options.
+     * @param {Error|unknown} [options.cause] - Original error that caused this one.
+     */
+    constructor(message, options = {}) {
+        super(message, options);
+        this.name = 'ExpectedFailure';
+        this.expected = true;
+    }
+}

@@ -3,7 +3,8 @@
 // globals.js so that importing library code does not read a dotfile off disk - see issue #1014.
 import 'dotenv/config';
 import { Command } from 'commander';
-import { appVersion } from './globals.js';
+import { appVersion, logger } from './globals.js';
+import { isExpectedFailure } from './lib/util/errors.js';
 import { installFatalHandlers } from './lib/util/fatal-handlers.js';
 import { installSignalHandlers } from './lib/util/signal-handlers.js';
 import { isInterrupted, interruptExitCode } from './lib/util/interrupt.js';
@@ -61,7 +62,33 @@ const program = new Command();
     // and restores what it changed before any handler runs.
     relaxMandatoryOptionsIfInteractive(program, process.argv);
 
-    await program.parseAsync(process.argv);
+    // A run that stops deliberately is reported as a failed command line, not as a crash.
+    //
+    // Without this, anything thrown between the parse and the end of the action handler became a
+    // rejected promise with nobody handling it, so `installFatalHandlers()` did exactly what it is
+    // supposed to do with an error that reaches the top unhandled: logged `FATAL: Unhandled promise
+    // rejection` and wrote a crash dump. That is right for a fault and wrong for a precondition the
+    // operator can fix - and `src/lib/extensions/apply.js` documents throwing as the way a
+    // `beforeAction` hook stops a run, so the contract invited precisely the throw that produced a
+    // crash report. Issue #1150.
+    //
+    // Only errors that mark themselves are treated this way. Everything else is re-thrown
+    // unchanged, which puts it back on the path it took before: the rejection escapes this IIFE,
+    // the safety net catches it, and the dump is written. A bug inside a hook is still a bug.
+    try {
+        await program.parseAsync(process.argv);
+    } catch (err) {
+        if (!isExpectedFailure(err)) {
+            throw err;
+        }
+
+        logger.error(err.message);
+
+        // Set rather than exited on, following the rule the note below records. #1090 will decide
+        // what a deliberately stopped run should exit with; until then it is the generic failure
+        // code, which is what an unhandled throw produced here before.
+        process.exitCode = 1;
+    }
 
     // The one place the interrupted run is allowed to end the process, and the
     // second considered exception to the codebase's "set `process.exitCode`,

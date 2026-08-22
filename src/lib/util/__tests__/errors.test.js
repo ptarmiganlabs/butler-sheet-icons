@@ -1,6 +1,14 @@
 import { describe, test, expect } from '@jest/globals';
 
-import { BsiError, CertError, EnigmaError, CloudError, QseowError } from '../errors.js';
+import {
+    BsiError,
+    CertError,
+    EnigmaError,
+    CloudError,
+    QseowError,
+    ExpectedFailure,
+    isExpectedFailure,
+} from '../errors.js';
 
 describe('BsiError', () => {
     test('is an instance of Error and BsiError', () => {
@@ -63,5 +71,43 @@ describe('Subclasses', () => {
         const err = new QseowError('x');
         expect(typeof err.stack).toBe('string');
         expect(err.stack).toContain('QseowError');
+    });
+});
+
+describe('deliberately stopped runs', () => {
+    test('ExpectedFailure is a BsiError that marks itself', () => {
+        const err = new ExpectedFailure('nothing to do');
+
+        expect(err).toBeInstanceOf(BsiError);
+        expect(err.name).toBe('ExpectedFailure');
+        expect(err.expected).toBe(true);
+        expect(isExpectedFailure(err)).toBe(true);
+    });
+
+    // The marker is duck-typed rather than a class check, because the module behind `#extensions`
+    // is substituted at build time and cannot import this tree to extend anything in it.
+    test('any error carrying the marker counts, whatever its class', () => {
+        const plain = Object.assign(new Error('refused'), { expected: true });
+
+        expect(isExpectedFailure(plain)).toBe(true);
+    });
+
+    test('an ordinary fault does not count, so the crash path is unchanged', () => {
+        expect(isExpectedFailure(new Error('boom'))).toBe(false);
+        expect(isExpectedFailure(new BsiError('boom'))).toBe(false);
+        expect(isExpectedFailure(new QseowError('boom'))).toBe(false);
+    });
+
+    // A truthy-but-not-true value is the shape a careless `expected: 'yes'` would take, and it must
+    // not silently suppress a crash dump.
+    test('only an exact true counts', () => {
+        expect(isExpectedFailure(Object.assign(new Error('x'), { expected: 'yes' }))).toBe(false);
+        expect(isExpectedFailure(Object.assign(new Error('x'), { expected: 1 }))).toBe(false);
+    });
+
+    test('a non-error is handled rather than throwing from the predicate', () => {
+        expect(isExpectedFailure(undefined)).toBe(false);
+        expect(isExpectedFailure(null)).toBe(false);
+        expect(isExpectedFailure('a string')).toBe(false);
     });
 });
