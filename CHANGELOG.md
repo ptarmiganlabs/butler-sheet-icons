@@ -1,5 +1,27 @@
 # Changelog
 
+## [5.1.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.0.0...butler-sheet-icons-v5.1.0) (2026-08-22)
+
+
+### Features
+
+* let a variant build identify itself in --version ([bca69aa](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bca69aa79e4ac464c636b43ecc2b07b45ab98cfe))
+
+
+### Bug Fixes
+
+* check out the released commit, not a tag a draft release has not created ([bb71e73](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/bb71e7366f741c0d3c70fb1d1f94bf7d66c2232e))
+* **cli:** accept a pasted URL in --tenanturl and --host ([1e6add3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1e6add396726b498a6b8ac6c2e8c0feb2c5afddc)), closes [#1148](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1148)
+* derive the version label column from the labels it holds ([fc44ea7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fc44ea7101577d438cd5fc7e1cfb769076ff21f1))
+* **interactive:** let the wizard repair a value its own parse refused ([2ea7ced](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2ea7ced7d02df96569e07416525ba37b657ff14b)), closes [#1148](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1148)
+* read a version detail line instead of matching a pattern built from it ([4ae6d3f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4ae6d3fde08c9a73beaea7872b63e75d560c6ac8))
+* report a deliberately stopped run as a failure, not a crash ([46c2983](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/46c29833d9a05c14f0e212447f084cee284c0ef2))
+
+
+### Documentation
+
+* stage doc-site page for pasted tenant urls and server hosts ([5d3e8c6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5d3e8c6641622a696064f7f064d10d5f48e5099f)), closes [#1148](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1148)
+
 ## [5.0.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v4.1.0...butler-sheet-icons-v5.0.0) (2026-08-20)
 
 
