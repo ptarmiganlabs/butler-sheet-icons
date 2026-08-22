@@ -172,14 +172,62 @@ const packageVersionAbove = (fromFile) => {
 };
 
 /**
- * The date stamped into every binary, as ISO yyyy-mm-dd.
+ * Seconds since the epoch, if the string is a plain non-negative integer.
+ *
+ * Deliberately strict. `SOURCE_DATE_EPOCH` is an integer by specification, and `Number('')` is 0
+ * while `Number('   ')` is also 0 - so a loose parse would silently date every binary 1970-01-01
+ * rather than falling through to something usable.
+ *
+ * @param {string|undefined} value - The candidate.
+ *
+ * @returns {number|undefined} The seconds, or undefined when it is not a usable integer.
+ */
+const epochSeconds = (value) => {
+    if (typeof value !== 'string' || !/^\d+$/.test(value.trim())) {
+        return undefined;
+    }
+
+    const seconds = Number(value.trim());
+
+    return Number.isSafeInteger(seconds) ? seconds : undefined;
+};
+
+/**
+ * The commit this tree is at, as seconds since the epoch.
+ *
+ * @returns {number|undefined} The committer date, or undefined outside a usable git checkout.
+ */
+const commitEpochSeconds = () => {
+    const result = spawnSync('git', ['log', '-1', '--format=%ct'], { encoding: 'utf8' });
+
+    return result.status === 0 ? epochSeconds(String(result.stdout)) : undefined;
+};
+
+/**
+ * The date stamped into every binary, as ISO yyyy-mm-dd in UTC.
  *
  * A date rather than a timestamp: it answers "roughly when did this come from?", and a
  * to-the-second value would make two builds of the same commit differ for no reader's benefit.
  *
- * @returns {string} Today, in UTC.
+ * **It is derived, not read off the clock, so that a build stays reproducible.** Stamping
+ * `new Date()` meant two builds of the same commit on different days produced different bytes -
+ * which quietly cost the project the ability to rebuild a published binary and compare it, the
+ * check that distinguishes a benign difference from a tampered artifact. Three sources, in order:
+ *
+ * 1. **`SOURCE_DATE_EPOCH`**, the cross-ecosystem convention for exactly this. An explicit value
+ *    wins, so a caller reproducing an old build can name its date.
+ * 2. **The committer date of `HEAD`**, which makes every build of a given commit identical without
+ *    anyone configuring anything - including the release jobs, which build from a checkout.
+ * 3. **The wall clock**, only when neither is available: an exported tarball with no `.git` and no
+ *    environment variable. Such a build is not reproducible, and nothing here can make it so.
+ *
+ * @returns {string} The date, in UTC.
  */
-const buildDate = () => new Date().toISOString().slice(0, 10);
+const buildDate = () => {
+    const seconds = epochSeconds(process.env.SOURCE_DATE_EPOCH) ?? commitEpochSeconds();
+
+    return new Date((seconds ?? Date.now() / 1000) * 1000).toISOString().slice(0, 10);
+};
 
 /**
  * Bundle the CLI into a single CJS file for the SEA blob.
