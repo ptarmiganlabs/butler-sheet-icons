@@ -2,7 +2,7 @@
 // so `.env` has to be in place before the command tree is built. It lives here rather than in
 // globals.js so that importing library code does not read a dotfile off disk - see issue #1014.
 import 'dotenv/config';
-import { Command } from 'commander';
+import { Command, CommanderError } from 'commander';
 import { appVersion } from './globals.js';
 import { installFatalHandlers } from './lib/util/fatal-handlers.js';
 import { installSignalHandlers } from './lib/util/signal-handlers.js';
@@ -61,7 +61,20 @@ const program = new Command();
     // and restores what it changed before any handler runs.
     relaxMandatoryOptionsIfInteractive(program, process.argv);
 
-    await program.parseAsync(process.argv);
+    // A throw from a `beforeAction` hook is a failed command line, not a crash:
+    // the hook's contract is "throwing aborts the run", so the run ends here
+    // with the message and a non-zero exit - the same way Commander reports a
+    // missing mandatory option - rather than falling through to the fatal
+    // handlers as an unhandled rejection with a crash dump (issue #1150).
+    // CommanderError is exempt: Commander has already printed and coded it.
+    try {
+        await program.parseAsync(process.argv);
+    } catch (err) {
+        if (!(err instanceof CommanderError || err?.code?.startsWith?.('commander.'))) {
+            console.error(`error: ${err.message ?? err}`);
+        }
+        process.exitCode = 1;
+    }
 
     // The one place the interrupted run is allowed to end the process, and the
     // second considered exception to the codebase's "set `process.exitCode`,
