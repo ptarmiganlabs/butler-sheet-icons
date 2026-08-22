@@ -33,7 +33,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 
@@ -59,6 +59,10 @@ const BINARY_PATH = join(BUILD_DIR, process.platform === 'win32' ? 'bsi-canary.e
 const COMMAND_MARKER = 'CANARY_COMMAND_RAN';
 const HOOK_MARKER = 'CANARY_HOOK_RAN';
 const CRYPTO_MARKER = 'CANARY_CRYPTO';
+const REFUSAL_MARKER = 'CANARY_REFUSED_THIS_RUN';
+
+/** Where the safety net writes, relative to the binary's working directory. */
+const CRASH_DUMP_DIR = 'crash_dumps';
 
 const EXTENSIONS_MODULE_SOURCE = `import { Command, Option } from 'commander';
 import { createHash, randomBytes, generateKeyPairSync, sign, verify } from 'node:crypto';
@@ -88,6 +92,12 @@ export const extensions = {
                 console.log('${COMMAND_MARKER}');
                 console.log('${CRYPTO_MARKER} ' + JSON.stringify(cryptoSmoke()));
             }),
+        new Command('canary-refuse')
+            .description('Canary: a command the hook stops before it runs.')
+            .addOption(new Option('--canary-fault', 'Canary: throw an unmarked error instead.'))
+            .action(() => {
+                console.log('THIS_ACTION_MUST_NOT_RUN');
+            }),
     ],
     options: [
         {
@@ -98,6 +108,18 @@ export const extensions = {
     hooks: {
         beforeAction: (path) => {
             console.log('${HOOK_MARKER} ' + path);
+
+            // Stopping a run deliberately, the way the contract says to: throw, and mark the error
+            // so it is reported as a failed command line rather than as a crash. Issue #1150.
+            if (path === 'canary-refuse') {
+                // Unmarked when asked for: a fault must still reach the safety net, or "no crash
+                // dump" would be satisfiable by simply removing the net.
+                if (process.argv.includes('--canary-fault')) {
+                    throw new TypeError('canary fault, not a refusal');
+                }
+
+                throw Object.assign(new Error('${REFUSAL_MARKER}'), { expected: true });
+            }
         },
     },
 };
@@ -180,6 +202,29 @@ const runBinary = (label, args) => {
     }
 
     check(`${label} exits cleanly`, result.status === 0, `exit status ${result.status}`);
+
+    return { output: `${result.stdout ?? ''}${result.stderr ?? ''}`, status: result.status };
+};
+
+/**
+ * Run the binary expecting it to refuse, and report how it refused.
+ *
+ * Separate from {@link runBinary} because that one asserts a clean exit, and the whole point here is
+ * a non-zero one. Issue #1150.
+ *
+ * @param {string} label - What is being checked, for the assertion text.
+ * @param {string[]} args - Arguments to pass to the binary.
+ *
+ * @returns {{output: string, status: number}} Combined output and exit status.
+ */
+const runBinaryExpectingFailure = (label, args) => {
+    const result = spawnSync(BINARY_PATH, args, { encoding: 'utf8', shell: false });
+
+    if (result.error) {
+        throw result.error;
+    }
+
+    check(`${label} exits non-zero`, result.status !== 0, `exit status ${result.status}`);
 
     return { output: `${result.stdout ?? ''}${result.stderr ?? ''}`, status: result.status };
 };
@@ -301,6 +346,51 @@ check(
     'a contributed option reaches an existing command',
     contributedHelp.output.includes('--canary-note')
 );
+
+// ---------------------------------------------------------------------------------------------
+// A hook that stops the run deliberately - issue #1150
+// ---------------------------------------------------------------------------------------------
+//
+// `src/lib/extensions/apply.js` documents throwing as the way a `beforeAction` hook aborts a run.
+// It did abort it, and then reported it as a crash: `FATAL: Unhandled promise rejection` plus a
+// crash dump on disk, because the rejection reached the process-level safety net with nobody
+// handling it. Both halves were behaving correctly and disagreeing about what the throw meant.
+//
+// Asserted here rather than only in a unit test because the unit tests were green throughout: they
+// call the hook directly, so nothing exercised the path between the throw and the process's
+// reaction to it. That path only exists in a real run.
+rmSync(CRASH_DUMP_DIR, { recursive: true, force: true });
+
+const refused = runBinaryExpectingFailure('a run the hook refuses', ['canary-refuse']);
+
+check(
+    'the refusal message is reported',
+    refused.output.includes(REFUSAL_MARKER),
+    refused.output.trim().split('\n').slice(-3).join(' | ')
+);
+check('the action handler did not run', !refused.output.includes('THIS_ACTION_MUST_NOT_RUN'));
+check(
+    'the refusal is not reported as an unhandled rejection',
+    !refused.output.includes('Unhandled promise rejection'),
+    refused.output.trim().split('\n').slice(-3).join(' | ')
+);
+check('the refusal writes no crash dump', !existsSync(CRASH_DUMP_DIR));
+
+// The other half of the same guarantee: an unmarked throw is a fault, and a fault still crashes.
+// Without this, "no crash dump" could be satisfied by removing the safety net altogether.
+const faulted = runBinaryExpectingFailure('a run the hook faults on', [
+    'canary-refuse',
+    '--canary-fault',
+]);
+
+check(
+    'an unmarked failure still takes the crash path',
+    faulted.output.includes('Unhandled promise rejection'),
+    faulted.output.trim().split('\n').slice(-3).join(' | ')
+);
+check('an unmarked failure still writes a crash dump', existsSync(CRASH_DUMP_DIR));
+
+rmSync(CRASH_DUMP_DIR, { recursive: true, force: true });
 
 // ---------------------------------------------------------------------------------------------
 // A binary built WITHOUT one - the build every release actually makes

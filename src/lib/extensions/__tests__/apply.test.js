@@ -1,6 +1,7 @@
 import { describe, test, expect } from '@jest/globals';
 import { Command, Option } from 'commander';
 import { applyExtensions, runBeforeAction } from '../apply.js';
+import { isExpectedFailure } from '../../util/errors.js';
 
 const SILENT = { writeOut: () => {}, writeErr: () => {} };
 
@@ -310,6 +311,60 @@ describe('the beforeAction hook', () => {
             program.parseAsync(['qseow', 'create-sheet-thumbnails'], { from: 'user' })
         ).rejects.toThrow('refused by the hook');
         expect(runs).toHaveLength(0);
+    });
+
+    // The seam between the hook and the entry point's catch. `parseAsync` has to surface the error
+    // itself rather than a wrapper, or the marker never reaches the classification above it and the
+    // run is reported as a crash - which is what #1150 was. Asserted through a real parse rather
+    // than by calling the hook, because calling the hook directly is exactly the test that stayed
+    // green while the bug shipped.
+    test('an error marked as expected reaches the caller with its marker intact', async () => {
+        const { program, runs } = buildProgram();
+
+        applyExtensions(program, {
+            ...nothing(),
+            hooks: {
+                beforeAction: () => {
+                    throw Object.assign(new Error('this run may not proceed'), { expected: true });
+                },
+            },
+        });
+
+        const err = await program
+            .parseAsync(['qseow', 'create-sheet-thumbnails'], { from: 'user' })
+            .then(
+                () => undefined,
+                (caught) => caught
+            );
+
+        expect(err).toBeDefined();
+        expect(isExpectedFailure(err)).toBe(true);
+        expect(err.message).toBe('this run may not proceed');
+        expect(runs).toHaveLength(0);
+    });
+
+    test('an unmarked error stays unmarked, so a hook bug still takes the crash path', async () => {
+        const { program } = buildProgram();
+
+        applyExtensions(program, {
+            ...nothing(),
+            hooks: {
+                beforeAction: () => {
+                    // The shape a genuine bug takes: nobody meant to stop the run.
+                    throw new TypeError('opts.split is not a function');
+                },
+            },
+        });
+
+        const err = await program
+            .parseAsync(['qseow', 'create-sheet-thumbnails'], { from: 'user' })
+            .then(
+                () => undefined,
+                (caught) => caught
+            );
+
+        expect(err).toBeInstanceOf(TypeError);
+        expect(isExpectedFailure(err)).toBe(false);
     });
 
     // It runs under `parseAsync`, not at module evaluation, so it is allowed to be async - which is
