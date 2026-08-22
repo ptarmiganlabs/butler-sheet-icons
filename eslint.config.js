@@ -66,6 +66,13 @@ export default [
         languageOptions: {
             globals: {
                 ...globals.node,
+                // Substituted by esbuild's `--define` at bundle time, so they exist in a built
+                // artifact and nowhere else. Declared here rather than read through `globalThis`,
+                // because `--define` replaces a bare identifier and would not reach a member
+                // expression. `src/lib/util/version-report.js` guards each with `typeof`, which is
+                // what a source run and the test suite take.
+                __BSI_BUILD_DATE__: 'readonly',
+                __BSI_EXTENSIONS_VERSION__: 'readonly',
             },
 
             ecmaVersion: 'latest',

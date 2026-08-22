@@ -16,6 +16,7 @@ import { buildDoctorCommand } from './lib/commands/doctor/index.js';
 import { buildInteractiveCommand } from './lib/interactive/interactive-command.js';
 import { relaxMandatoryOptionsIfInteractive } from './lib/interactive/mandatory-relaxation.js';
 import { extensions } from '#extensions';
+import { BUILD_DATE, EXTENSIONS_VERSION, describeVersion } from './lib/util/version-report.js';
 import { applyExtensions } from './lib/extensions/apply.js';
 
 // Process-level safety net: catch any error that escapes all try/catch blocks,
@@ -37,7 +38,17 @@ const program = new Command();
  */
 (async () => {
     program
-        .version(appVersion)
+        // Reports which build this is and when it was made, not just what version of core it
+        // bundles - a variant build was otherwise indistinguishable from a stock one. Issue #1152.
+        .version(
+            describeVersion({
+                name: 'butler-sheet-icons',
+                version: appVersion,
+                variant: extensions?.variant,
+                variantVersion: EXTENSIONS_VERSION,
+                buildDate: BUILD_DATE,
+            })
+        )
         .name('butler-sheet-icons')
         .description(
             'This is a tool that creates thumbnail images based on the actual layout of sheets in Qlik Sense applications.\nQlik Sense Cloud and Qlik Sense Enterprise on Windows are both supported.\nThe created thumbnails are saved to disk and uploaded to the Sense app as new sheet thumbnail images.\n\nNew to Butler Sheet Icons? Run "butler-sheet-icons interactive" to be asked for what is needed instead of assembling a command line.'

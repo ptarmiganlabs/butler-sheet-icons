@@ -85,6 +85,7 @@ const cryptoSmoke = () => {
 
 export const extensions = {
     seamVersion: 1,
+    variant: 'canary',
     commands: [
         new Command('canary-check')
             .description('Canary: report what this binary can do.')
@@ -230,6 +231,28 @@ const runBinaryExpectingFailure = (label, args) => {
 };
 
 /**
+ * The value on a `--version` detail line, e.g. `core` from `  core    5.0.0`.
+ *
+ * Reads the line rather than matching a pattern built from the value being looked for. Building one
+ * meant escaping the version into a regex, and escaping only the dots is the incomplete-escaping
+ * shape CodeQL flags - correctly, since nothing guarantees a version string carries no other regex
+ * metacharacter. Splitting the line has no such failure mode and reads better besides.
+ *
+ * @param {string} output - What the binary printed.
+ * @param {string} label - The detail label to look for.
+ *
+ * @returns {string|undefined} The value, or undefined when no such line was printed.
+ */
+const detailValue = (output, label) => {
+    const line = output
+        .split('\n')
+        .map((candidate) => candidate.trim())
+        .find((candidate) => candidate.startsWith(`${label} `));
+
+    return line?.slice(label.length).trim();
+};
+
+/**
  * Bundle, package and inject a SEA binary from the current source tree.
  *
  * Mirrors what the release scripts do, minus real code signing: bundle, generate the blob, copy the
@@ -336,6 +359,37 @@ check('node:crypto produces random bytes', cryptoResult.randomBytes === 8);
 check('node:crypto completes a sign/verify round trip', cryptoResult.roundTrip === true);
 check('node:crypto rejects a payload that does not match', cryptoResult.rejectsTampered === true);
 
+// ---------------------------------------------------------------------------------------------
+// What the binary says it is - issue #1152
+// ---------------------------------------------------------------------------------------------
+//
+// A variant build used to report exactly what a stock one did, so an issue filed from one could not
+// say so and could not be told apart. The variant version is derived by the bundler from the
+// extensions module's nearest package.json, which here is this repository's own.
+const variantVersion = runBinary('--version on a variant build', ['--version']);
+const canaryVersion = require('../package.json').version;
+
+check(
+    'the headline names the variant',
+    variantVersion.output.includes(`butler-sheet-icons ${canaryVersion} (canary)`),
+    variantVersion.output.trim()
+);
+check(
+    'the core version is reported',
+    detailValue(variantVersion.output, 'core') === canaryVersion,
+    variantVersion.output.trim()
+);
+check(
+    'the extensions module version is derived and reported',
+    detailValue(variantVersion.output, 'canary') === canaryVersion,
+    variantVersion.output.trim()
+);
+check(
+    'the build date is reported',
+    /^\d{4}-\d{2}-\d{2}$/.test(detailValue(variantVersion.output, 'built') ?? ''),
+    variantVersion.output.trim()
+);
+
 const contributedHelp = runBinary('help for a command carrying a contributed option', [
     'qseow',
     'create-sheet-thumbnails',
@@ -404,7 +458,25 @@ const expectedVersion = require('../package.json').version;
 
 check(
     `--version reports ${expectedVersion}`,
-    version.output.trim() === expectedVersion,
+    version.output.split('\n')[0].trim() === `butler-sheet-icons ${expectedVersion}`,
+    version.output.trim()
+);
+
+// The half that keeps the feature honest: no override, so nothing to name, and the block must not
+// appear at all. A stock binary still says only what it is and when it was built.
+check(
+    'no variant is named on a stock build',
+    !version.output.includes('(') && !version.output.includes('canary'),
+    version.output.trim()
+);
+check(
+    'a stock build still reports its build date',
+    /^\d{4}-\d{2}-\d{2}$/.test(detailValue(version.output, 'built') ?? ''),
+    version.output.trim()
+);
+check(
+    'a stock build reports no core/variant split',
+    detailValue(version.output, 'core') === undefined,
     version.output.trim()
 );
 
