@@ -8,6 +8,8 @@ import {
     QseowError,
     ExpectedFailure,
     isExpectedFailure,
+    reportExpectedFailure,
+    EXPECTED_FAILURE_EXIT_CODE,
 } from '../errors.js';
 
 describe('BsiError', () => {
@@ -109,5 +111,33 @@ describe('deliberately stopped runs', () => {
         expect(isExpectedFailure(undefined)).toBe(false);
         expect(isExpectedFailure(null)).toBe(false);
         expect(isExpectedFailure('a string')).toBe(false);
+    });
+});
+
+describe('what happens to an error that escaped the parse', () => {
+    test('a deliberately stopped run is reported and given an exit code', () => {
+        const logged = [];
+        const code = reportExpectedFailure(new ExpectedFailure('this run may not proceed'), (m) =>
+            logged.push(m)
+        );
+
+        expect(logged).toEqual(['this run may not proceed']);
+        expect(code).toBe(EXPECTED_FAILURE_EXIT_CODE);
+    });
+
+    // The half that keeps the safety net a safety net. Swallowing this would turn every fault into
+    // a one-line message with no dump and no stack.
+    test('a fault is re-thrown unchanged, so it reaches the crash path', () => {
+        const fault = new TypeError('opts.split is not a function');
+        const logged = [];
+
+        expect(() => reportExpectedFailure(fault, (m) => logged.push(m))).toThrow(fault);
+        expect(logged).toEqual([]);
+    });
+
+    test('the exit code is the generic failure code, so this change moves none', () => {
+        // #1090 defines the graded scheme; until it lands a stopped run exits with what an
+        // unhandled throw already produced.
+        expect(EXPECTED_FAILURE_EXIT_CODE).toBe(1);
     });
 });

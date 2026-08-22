@@ -168,3 +168,39 @@ export class ExpectedFailure extends BsiError {
         this.expected = true;
     }
 }
+
+/**
+ * What a deliberately stopped run exits with.
+ *
+ * The generic failure code, which is what an unhandled throw produced here before - so this change
+ * moves no exit code. #1090 defines the graded scheme and is where a distinct value belongs.
+ */
+export const EXPECTED_FAILURE_EXIT_CODE = 1;
+
+/**
+ * Decide what to do with an error that escaped the parse.
+ *
+ * Split out of the entry point rather than written inline there, and the reason is the bug this
+ * exists to fix: `src/butler-sheet-icons.js` is a script, so the test suite reaches it by spawning a
+ * process rather than importing it, and nothing inside it is instrumented. Logic living there is
+ * logic no unit test can see - which is exactly how a contract and a safety net came to disagree for
+ * as long as they did. Issue #1150.
+ *
+ * @param {unknown} err - The error that escaped.
+ * @param {(message: string) => void} log - How to tell the operator. Injected so the decision can be
+ *     asserted without a logger.
+ *
+ * @returns {number} The exit code to set, when the run stopped deliberately.
+ *
+ * @throws {unknown} The original error, unchanged, when it is a fault rather than a stopped run -
+ *     which puts it back on the path to the process-level safety net and its crash dump.
+ */
+export const reportExpectedFailure = (err, log) => {
+    if (!isExpectedFailure(err)) {
+        throw err;
+    }
+
+    log(err.message);
+
+    return EXPECTED_FAILURE_EXIT_CODE;
+};

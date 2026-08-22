@@ -4,7 +4,7 @@
 import 'dotenv/config';
 import { Command } from 'commander';
 import { appVersion, logger } from './globals.js';
-import { isExpectedFailure } from './lib/util/errors.js';
+import { reportExpectedFailure } from './lib/util/errors.js';
 import { installFatalHandlers } from './lib/util/fatal-handlers.js';
 import { installSignalHandlers } from './lib/util/signal-handlers.js';
 import { isInterrupted, interruptExitCode } from './lib/util/interrupt.js';
@@ -72,22 +72,19 @@ const program = new Command();
     // `beforeAction` hook stops a run, so the contract invited precisely the throw that produced a
     // crash report. Issue #1150.
     //
-    // Only errors that mark themselves are treated this way. Everything else is re-thrown
-    // unchanged, which puts it back on the path it took before: the rejection escapes this IIFE,
-    // the safety net catches it, and the dump is written. A bug inside a hook is still a bug.
+    // Only errors that mark themselves are treated this way. `reportExpectedFailure` re-throws
+    // everything else unchanged, which puts it back on the path it took before: the rejection
+    // escapes this IIFE, the safety net catches it, and the dump is written. A bug inside a hook is
+    // still a bug.
+    //
+    // The decision lives in errors.js rather than inline here because nothing in this file is
+    // instrumented by the test suite - it is reached by spawning a process, not by importing one -
+    // and untestable logic is how this bug survived as long as it did. Exit code set rather than
+    // exited on, following the rule the note below records.
     try {
         await program.parseAsync(process.argv);
     } catch (err) {
-        if (!isExpectedFailure(err)) {
-            throw err;
-        }
-
-        logger.error(err.message);
-
-        // Set rather than exited on, following the rule the note below records. #1090 will decide
-        // what a deliberately stopped run should exit with; until then it is the generic failure
-        // code, which is what an unhandled throw produced here before.
-        process.exitCode = 1;
+        process.exitCode = reportExpectedFailure(err, (message) => logger.error(message));
     }
 
     // The one place the interrupted run is allowed to end the process, and the
