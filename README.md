@@ -17,6 +17,21 @@
 
 ---
 
+## ❤️ Support the project
+
+If you find this project helpful and use it in your Qlik Sense environment, please consider supporting it financially! Your sponsorship helps ensure the project's long-term sustainability and allows me to continue maintaining it, fixing bugs, and adding new features.
+
+**👉 [Sponsor the project on GitHub](https://github.com/sponsors/ptarmiganlabs)** - Click the "Sponsor" button at the repository page to become a sponsor.
+
+- ⭐ **Star the repository** on GitHub - it helps others discover the project
+- 🍴 **Fork and contribute** - pull requests are welcome!
+- 💬 **Share your feedback** - let me know how you're using it
+- 🐛 **Report issues** - help improve stability and functionality
+
+_This project is maintained by [Göran Sander](https://github.com/mountaindude) and supported by [Ptarmigan Labs](https://ptarmiganlabs.com)._
+
+---
+
 A cross-platform, command-line tool (plus Docker!) for creating sheet thumbnails based on the actual layout of sheets in Qlik Sense apps.
 
 Works on both Qlik Sense Cloud apps and Qlik Sense Enterprise on Windows (QSEoW) apps.
