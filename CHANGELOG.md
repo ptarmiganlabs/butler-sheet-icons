@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.2.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.1.0...butler-sheet-icons-v5.2.0) (2026-08-23)
+
+
+### Features
+
+* let a variant build transform each sheet's images before upload ([3ad64f6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3ad64f65d332f5f90e14f6d710609216aa002f90))
+* let the interactive mode ask about options a variant build adds ([ba02a12](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ba02a12aa16b27487487f3c63f604d6865aeaf06))
+
+
+### Bug Fixes
+
+* derive the build date so a build stays reproducible ([6710538](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/67105388095cb15ee5ebe410c9da6184d90a71d6))
+
 ## [5.1.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.0.0...butler-sheet-icons-v5.1.0) (2026-08-22)
 
 
