@@ -122,6 +122,9 @@ export const launchInteractive = async (logPrefix, path, command) =>
             try {
                 return await runInteractive({
                     path,
+                    // The parsed command is the registered one, with every option a build
+                    // contributed; the wizard must read that and not a rebuilt tree (#1159).
+                    command,
                     presetOptions: presetOptionsFrom(command),
                     presetSources: presetSourcesFrom(command),
                     rejectedOptions: rejectedOptionsFrom(command),

@@ -26,6 +26,28 @@
  * @typedef {object} OptionContribution
  * @property {string} path - Space-separated command path, e.g. `'qseow create-sheet-thumbnails'`.
  * @property {import('commander').Option} option - A fully built Commander option.
+ * @property {InteractivePlacement} [interactive] - Where the interactive mode asks about it. Absent,
+ *     the question is asked after the command's own sections, under no heading and behind no gate.
+ *     Issue #1159.
+ */
+
+/**
+ * Where the interactive mode puts a contributed option's question.
+ *
+ * A wizard's own questions are arranged by its `refine()` into sections, some behind a gate ("Exclude
+ * or blur any sheets?"). A contributed option is not known to any `refine()`, so the driver places it
+ * from this: after the command's own sections, under `section`'s heading, behind one gate per section
+ * that contributions sharing the section share. Declaring a section is what makes a contribution
+ * declinable - the gate answered no skips every question under it.
+ *
+ * @typedef {object} InteractivePlacement
+ * @property {string} section - Heading the question is asked under, e.g. `'Labels'`.
+ * @property {string} [gate] - The yes/no question that opens the section. Defaults to
+ *     `Configure <section>?`.
+ * @property {boolean} [perRun=true] - Whether the question describes this run rather than this
+ *     environment, and is therefore asked again even when a value was already supplied (opened on
+ *     that value) - the rule the wizards apply to sheet filters and app selection. `false` for a
+ *     value that stays true between runs, which a supplied value then answers without a question.
  */
 
 /**
@@ -152,6 +174,67 @@ const pathOfCommand = (command) => {
 };
 
 /**
+ * What a build said about each option it contributed, looked up by the option itself.
+ *
+ * A WeakMap rather than a property on the Option: Commander's objects are Commander's, and the
+ * interactive mode only needs to ask "was this contributed, and where does it go" of an option it
+ * already holds. Keyed by instance, which is also why a contribution aimed at two commands is two
+ * `Option` instances - Commander stores an option on the command it is added to and mutates it.
+ */
+const contributions = new WeakMap();
+
+/**
+ * What the description said about a contributed option - or nothing, for an option core declares
+ * itself.
+ *
+ * @param {import('commander').Option} option - An option taken from a command's `options`.
+ *
+ * @returns {{path: string, interactive?: InteractivePlacement}|undefined} The contribution record.
+ */
+export const contributionOf = (option) => contributions.get(option);
+
+/**
+ * Refuse an `interactive` placement that could not be acted on.
+ *
+ * Caught at registration for the same reason a bad command path is: the alternative is a question
+ * that quietly lands in the wrong place, or a gate that reads `Configure undefined?`, discovered by
+ * whoever next runs the wizard.
+ *
+ * @param {unknown} interactive - The contribution's `interactive` value.
+ * @param {import('commander').Option} option - The option it belongs to, named in the message.
+ *
+ * @returns {void}
+ *
+ * @throws {Error} When `interactive` is present but not a usable placement.
+ */
+const assertPlacement = (interactive, option) => {
+    if (interactive === undefined) {
+        return;
+    }
+
+    const name = option?.long ?? option?.flags ?? 'an option';
+    const { section, gate, perRun } = interactive ?? {};
+
+    if (typeof section !== 'string' || section.trim() === '') {
+        throw new Error(
+            `Extension option ${name} has an interactive placement without a usable section (received ${JSON.stringify(section)}).`
+        );
+    }
+
+    if (gate !== undefined && (typeof gate !== 'string' || gate.trim() === '')) {
+        throw new Error(
+            `Extension option ${name} has an interactive gate that is not a non-empty string (received ${JSON.stringify(gate)}).`
+        );
+    }
+
+    if (perRun !== undefined && typeof perRun !== 'boolean') {
+        throw new Error(
+            `Extension option ${name} has an interactive perRun that is not a boolean (received ${JSON.stringify(perRun)}).`
+        );
+    }
+};
+
+/**
  * Register everything a description asks for.
  *
  * **Where this is called from is forced, not preferred.** It must run after the command tree is
@@ -181,8 +264,10 @@ export const applyExtensions = (program, extensions) => {
         program.addCommand(command);
     }
 
-    for (const { path, option } of options) {
+    for (const { path, option, interactive } of options) {
+        assertPlacement(interactive, option);
         commandAtPath(program, path).addOption(option);
+        contributions.set(option, { path, interactive });
     }
 
     if (!hooks.beforeAction) {
