@@ -6,6 +6,7 @@ import { isPromptCancellation } from './prompt-runtime.js';
 import { runSelfTest } from './self-test.js';
 import { runMenu } from './menu.js';
 import { runInteractive } from './index.js';
+import { leafCommandIn } from './command-tree.js';
 import { withQuietLogging } from './quiet.js';
 
 /**
@@ -35,15 +36,21 @@ const runSelfTestUnlessCancelled = async () => {
 /**
  * Show the menu and run whatever is chosen, treating Ctrl-C as leaving.
  *
+ * The chosen command is looked up on the live root when there is one, so the wizard sees the
+ * command as registered - including options a build contributed through the extension point
+ * (#1159) - rather than a copy rebuilt from the builders that never heard of them.
+ *
  * The console logger is pinned while questions are on screen, because winston
  * and the prompts share stdout and a log line landing mid-redraw corrupts it.
  * It is restored before the chosen command runs, so the worker's own output -
  * and `browser install`'s progress bar - behave exactly as they do from the
  * plain CLI.
  *
+ * @param {import('commander').Command} [root] - The live root command, when the caller has it.
+ *
  * @returns {Promise<boolean>} `true` unless the command itself reported failure.
  */
-const runWizardUnlessCancelled = async () => {
+const runWizardUnlessCancelled = async (root) => {
     try {
         const path = await withQuietLogging(() => runMenu());
 
@@ -51,7 +58,10 @@ const runWizardUnlessCancelled = async () => {
             return true;
         }
 
-        return await runInteractive({ path });
+        return await runInteractive({
+            path,
+            command: root ? leafCommandIn(root, path) : undefined,
+        });
     } catch (err) {
         if (isPromptCancellation(err)) {
             logger.info('Cancelled. Nothing was changed.');
@@ -67,11 +77,12 @@ const runWizardUnlessCancelled = async () => {
  * Handle the `interactive` command.
  *
  * @param {object} [options] - Parsed command options.
- * @param {object} [_cmd] - The Commander command, unused. Kept for symmetry with the other handlers.
+ * @param {import('commander').Command} [cmd] - The `interactive` command itself. Its parent is the
+ *     live root, which is where a chosen command is looked up so the wizard sees it as registered.
  *
  * @returns {Promise<boolean>} `true` on success, `false` on failure.
  */
-const handleInteractive = async (options = {}, _cmd) => {
+const handleInteractive = async (options = {}, cmd) => {
     // One unframed line, not logRunHeader: since the run headers moved into
     // the workers, a wizard-launched run prints the real header (wordmark
     // frame included, on the board rung) when it starts - a second framed
@@ -93,7 +104,7 @@ const handleInteractive = async (options = {}, _cmd) => {
             // anything else happens.
             assertInteractiveCapable();
 
-            return runWizardUnlessCancelled();
+            return runWizardUnlessCancelled(cmd?.parent);
         },
         // The guidance from assertInteractiveCapable is already a complete
         // explanation, so print it alone. The default handler would add the

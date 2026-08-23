@@ -1,6 +1,6 @@
 import { describe, test, expect } from '@jest/globals';
 import { Command, Option } from 'commander';
-import { applyExtensions, runBeforeAction, runImageTransform } from '../apply.js';
+import { applyExtensions, runBeforeAction, runImageTransform, contributionOf } from '../apply.js';
 import { isSessionLevelFailure } from '../../util/sheet-list.js';
 import { isExpectedFailure } from '../../util/errors.js';
 
@@ -155,6 +155,102 @@ describe('contributed options', () => {
                 options: [{ path, option: new Option('--x') }],
             })
         ).toThrow(/no usable command path/);
+    });
+});
+
+describe('what a build said about each contributed option', () => {
+    test('is recorded against the option, placement included, for the interactive mode to read', () => {
+        const { program, leaf } = buildProgram();
+        const option = new Option('--tile <t>', 'Tile.');
+        const interactive = { section: 'Tiles', gate: 'Style the tiles?' };
+
+        applyExtensions(program, {
+            ...nothing(),
+            options: [{ path: 'qseow create-sheet-thumbnails', option, interactive }],
+        });
+
+        expect(contributionOf(option)).toEqual({
+            path: 'qseow create-sheet-thumbnails',
+            interactive,
+        });
+        // Read back through the command, the way the wizard finds it.
+        expect(contributionOf(leaf.options.find((entry) => entry.long === '--tile'))).toEqual({
+            path: 'qseow create-sheet-thumbnails',
+            interactive,
+        });
+    });
+
+    test('records a contribution that declared no placement too, so "contributed" is still knowable', () => {
+        const { program } = buildProgram();
+        const option = new Option('--tile <t>', 'Tile.');
+
+        applyExtensions(program, {
+            ...nothing(),
+            options: [{ path: 'qseow create-sheet-thumbnails', option }],
+        });
+
+        expect(contributionOf(option)).toEqual({
+            path: 'qseow create-sheet-thumbnails',
+            interactive: undefined,
+        });
+    });
+
+    test('knows nothing about an option core declares itself', () => {
+        const { program, leaf } = buildProgram();
+        const own = new Option('--own <o>', 'Core’s own.');
+        leaf.addOption(own);
+
+        applyExtensions(program, nothing());
+
+        expect(contributionOf(own)).toBeUndefined();
+    });
+
+    // A placement that cannot be acted on fails at registration, naming the option, rather than
+    // as a question under the wrong heading or a gate reading "Configure undefined?".
+    test.each([
+        ['no section', {}],
+        ['an empty section', { section: '   ' }],
+        ['a non-string section', { section: 3 }],
+        ['an empty gate', { section: 'Tiles', gate: '' }],
+        ['a non-string gate', { section: 'Tiles', gate: true }],
+        ['a non-boolean perRun', { section: 'Tiles', perRun: 'yes' }],
+    ])('refuses an interactive placement with %s', (_name, interactive) => {
+        const { program } = buildProgram();
+
+        expect(() =>
+            applyExtensions(program, {
+                ...nothing(),
+                options: [
+                    {
+                        path: 'qseow create-sheet-thumbnails',
+                        option: new Option('--tile <t>'),
+                        interactive,
+                    },
+                ],
+            })
+        ).toThrow(/Extension option --tile has an interactive/);
+    });
+
+    test('accepts a placement with a section alone, or with gate and perRun', () => {
+        const { program } = buildProgram();
+
+        expect(() =>
+            applyExtensions(program, {
+                ...nothing(),
+                options: [
+                    {
+                        path: 'qseow create-sheet-thumbnails',
+                        option: new Option('--a <a>'),
+                        interactive: { section: 'Tiles' },
+                    },
+                    {
+                        path: 'qseow create-sheet-thumbnails',
+                        option: new Option('--b <b>'),
+                        interactive: { section: 'Tiles', gate: 'Style?', perRun: false },
+                    },
+                ],
+            })
+        ).not.toThrow();
     });
 });
 

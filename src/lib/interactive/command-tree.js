@@ -73,3 +73,41 @@ export const leafCommandAt = (path) => {
 
     return match.command;
 };
+
+/**
+ * Look up one leaf command by its path in a tree that has already been built - the live `program`.
+ *
+ * `leafCommandAt` walks the builders, which is right for the registry guard and the round-trip test:
+ * they ask what core declares. A wizard about to ask questions needs something else - the command
+ * as registered, because a build may have added options to it through the extension point
+ * (issue #1159), and those exist on the live tree and nowhere else. The root is the acting
+ * command's ancestor, so every caller that has a Commander command in hand can reach it.
+ *
+ * Matches a segment on the command's name or one of its aliases, as Commander itself would.
+ *
+ * @param {import('commander').Command} root - The root command, with everything registered on it.
+ * @param {string} path - Space-separated command path, e.g. `qseow create-sheet-thumbnails`.
+ *
+ * @returns {import('commander').Command} The command.
+ *
+ * @throws {Error} When no command in `root` has that path.
+ */
+export const leafCommandIn = (root, path) => {
+    let command = root;
+
+    for (const segment of String(path).trim().split(/\s+/).filter(Boolean)) {
+        const child = command.commands.find(
+            (candidate) => candidate.name() === segment || candidate.aliases().includes(segment)
+        );
+
+        if (!child) {
+            throw new Error(
+                `Interactive: no command "${path}" under "${root.name()}" - "${segment}" is not a command of "${command.name()}".`
+            );
+        }
+
+        command = child;
+    }
+
+    return command;
+};

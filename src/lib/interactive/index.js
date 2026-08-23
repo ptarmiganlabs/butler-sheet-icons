@@ -1,6 +1,7 @@
 import { logger } from '../../globals.js';
 import { DRY_RUN_OPTION_ATTRIBUTE } from '../commands/dry-run-option.js';
 import { leafCommandAt } from './command-tree.js';
+import { placeContributed } from './contributed.js';
 import { specsFromCommand } from './option-introspect.js';
 import { askQuestions } from './ask-questions.js';
 import { answersToOptions } from './to-cli-options.js';
@@ -86,6 +87,10 @@ const review = async ({ path, specs, answers, runtime, theme, symbols }) => {
  *
  * @param {object} args - Arguments.
  * @param {string} args.path - Command path, e.g. `browser uninstall`.
+ * @param {import('commander').Command} [args.command] - The command itself, as registered on the
+ *     live program - which is the only place an option added through the extension point exists
+ *     (issue #1159). Both launchers pass it. Absent, the command is rebuilt from the builders, which
+ *     is right for a test asking what core declares and wrong for a build that contributed options.
  * @param {object} [args.presetOptions] - Answers already known, used as starting values.
  * @param {object} [args.presetSources] - Where each of those came from, `cli` or `env`, keyed the
  *     same way. Used to name the environment variable behind a value whose check fails.
@@ -101,6 +106,7 @@ const review = async ({ path, specs, answers, runtime, theme, symbols }) => {
  */
 export const runInteractive = async ({
     path,
+    command: registeredCommand,
     presetOptions = {},
     presetSources = {},
     rejectedOptions = {},
@@ -137,7 +143,10 @@ export const runInteractive = async ({
         return true;
     }
 
-    const command = leafCommandAt(path);
+    // The registered command when the launcher had one to give; the builders' otherwise. The
+    // difference is every option a build contributed through the extension point: those are on
+    // the live tree and nowhere else, and a wizard that rebuilt the tree asked about none of them.
+    const command = registeredCommand ?? leafCommandAt(path);
     const symbols = getSymbols();
     const theme = buildTheme({ symbols });
 
@@ -157,7 +166,16 @@ export const runInteractive = async ({
     // about without anyone editing the wizard.
     const specs = specsFromCommand(command, { env });
 
-    const refined = wizard.refine ? wizard.refine(specs, { answers: presetOptions }) : specs;
+    // The wizard arranges its own questions; the driver then places the ones a build contributed,
+    // which no wizard's refine() knows about - after the command's own sections, under the heading
+    // and behind the gate the contribution declared, or last and ungated when it declared nothing.
+    // After refine() rather than before, so a refine() that returns an explicit list cannot drop
+    // them on the floor.
+    const refined = placeContributed(
+        wizard.refine ? wizard.refine(specs, { answers: presetOptions }) : specs,
+        specs,
+        presetOptions
+    );
 
     // Anything already given on the command line or through a BSI_* environment
     // variable is an answer, not a question. Dropped here rather than in
