@@ -9,6 +9,8 @@
  * Issue #1135.
  */
 
+import { logError } from '../util/log-error.js';
+
 /**
  * What a build contributes to the CLI beyond what core declares itself.
  *
@@ -53,6 +55,89 @@
 /**
  * @typedef {object} SeamHooks
  * @property {BeforeAction} [beforeAction] - Runs once after parse, before the action handler runs.
+ * @property {ImageTransform} [imageTransform] - Runs once per captured sheet, after its image and
+ *     blurred copy are on disk and before either is recorded for upload. Issue #1158.
+ */
+
+/**
+ * The two files a captured sheet has produced, as absolute paths. Both exist when the hook runs.
+ *
+ * Every captured sheet yields exactly these two on both platforms - the plain capture and a blurred
+ * copy of it - which is what makes this the payload rather than the per-app `createdFiles` array:
+ * that array is shaped differently per platform (issue #1091 closed before reaching it), and the
+ * QSEoW update step derives the file names itself rather than reading them back. So the names are
+ * the contract, and a transform works on the files in place.
+ *
+ * Both are PNG and must stay PNG: the upload steps select files by their `.png` name and QSEoW
+ * declares the bytes as `image/png` when it posts them.
+ *
+ * @typedef {object} SheetImages
+ * @property {string} image - Absolute path of the sheet's captured image.
+ * @property {string} blurredImage - Absolute path of its blurred copy.
+ */
+
+/**
+ * What core knows about the sheet whose images are being transformed.
+ *
+ * @typedef {object} ImageTransformContext
+ * @property {'qseow'|'cloud'} platform - Which pipeline is running.
+ * @property {string} appId - The app being processed.
+ * @property {number} sheetPos - 1-based sheet number; the one the file names carry.
+ * @property {object} sheet - The SheetList entry as the loop holds it - `qInfo`, `qMeta` (title,
+ *     description, …), `qData` - the object itself, not a projection. The engine does return
+ *     sheets with no `qData` and with `qMeta` fields missing, and the loops deliberately capture
+ *     them rather than fail the app, so guard those reads the way the loops do
+ *     (`sheet?.qMeta?.title`).
+ * @property {boolean} blurSheet - Whether the update step will point this sheet at the blurred copy.
+ * @property {object} browser - The Puppeteer browser this run drives. Open a page of your own for
+ *     anything that needs rendering - the app's page is not yours to navigate - and close what you
+ *     open: core closes pages only with the browser, at the end of the app, so a page left open per
+ *     sheet accumulates for the whole app. Calls are sequential (the next capture starts after the
+ *     hook returns), so one scratch page reused across calls is the cheapest correct choice.
+ * @property {object} options - The command's options bag.
+ * @property {object} logger - The run's logger.
+ */
+
+/**
+ * The keys of {@link ImageTransformContext}, in the order the loops build them.
+ *
+ * Both pipelines build the context by hand, and nothing else couples the two literals - a field
+ * added to one would be `undefined` on the other platform with every test still green, which is
+ * the twin-drift class issue #1091 catalogued. The pipeline tests assert their context against
+ * this list, so the two cannot drift from it, or from each other, unnoticed.
+ */
+export const IMAGE_TRANSFORM_CONTEXT_KEYS = Object.freeze([
+    'platform',
+    'appId',
+    'sheetPos',
+    'sheet',
+    'blurSheet',
+    'browser',
+    'options',
+    'logger',
+]);
+
+/**
+ * Transforms a sheet's images in place, between capture and upload.
+ *
+ * Runs inside the sheet loop while the browser is still open - which is why it is per sheet and
+ * not "once before upload": both pipelines close the browser before they upload. Works on the files
+ * at the paths given and returns nothing; the file names are what the upload and update steps rely
+ * on, so a transform that renamed or re-pointed them would work on one platform and silently break
+ * the other. Must not make `blurredImage` less redacted than it was received - `--blur-sheet-*` is a
+ * redaction control, and the blurred copy is what a sheet selected for blurring will show.
+ *
+ * Throwing fails this sheet, under each platform's existing rule for a sheet whose images could not
+ * be produced: it is reported, counted, never enters the upload list and keeps the icon it had, and
+ * the run continues with the next sheet. Core guarantees the "this sheet" part: the error is logged
+ * with its stack and rethrown wrapped, so that a transform's own timeouts and closed targets are
+ * never mistaken for a lost engine session - see {@link runImageTransform}.
+ *
+ * @callback ImageTransform
+ * @param {SheetImages} images - The sheet's two files.
+ * @param {ImageTransformContext} context - What core knows about them.
+ *
+ * @returns {void|Promise<void>} Nothing, or a promise the caller will await.
  */
 
 /**
@@ -248,9 +333,11 @@ const assertPlacement = (interactive, option) => {
  *
  * The description is trusted rather than schema-validated. It is a value written by whoever built
  * the binary, it was checked against {@link import('./version.js').SEAM_VERSION} when the bundle
- * was made, and the one mistake that would otherwise be silent - an option aimed at a command that
- * does not exist - is caught in `commandAtPath` above. The three list properties are defaulted
- * below as leniency for a hand-written description; the contract still says all three are present.
+ * was made, and the two mistakes that would otherwise be silent are caught here instead: an option
+ * aimed at a command that does not exist (`commandAtPath` above), and a hook that is not a function
+ * - which for `imageTransform` would otherwise surface once per sheet, after every capture had been
+ * paid for, rather than at startup. The three list properties are defaulted below as leniency for a
+ * hand-written description; the contract still says all three are present.
  *
  * @param {import('commander').Command} program - The root command, with its own tree already built.
  * @param {SeamDescription} extensions - What to register. Describing nothing is normal.
@@ -259,6 +346,14 @@ const assertPlacement = (interactive, option) => {
  */
 export const applyExtensions = (program, extensions) => {
     const { commands = [], options = [], hooks = {} } = extensions ?? {};
+
+    for (const [name, hook] of Object.entries(hooks)) {
+        if (hook !== undefined && typeof hook !== 'function') {
+            throw new Error(
+                `Extension hook '${name}' must be a function, but the description carries a ${typeof hook}.`
+            );
+        }
+    }
 
     for (const command of commands) {
         program.addCommand(command);
@@ -316,3 +411,53 @@ export const applyExtensions = (program, extensions) => {
  */
 export const runBeforeAction = (extensions, path, options, context = { supplied: new Set() }) =>
     extensions?.hooks?.beforeAction?.(path, options, context);
+
+/**
+ * Run a description's `imageTransform` hook, if it has one.
+ *
+ * Called by both sheet loops once per captured sheet, after the blurred copy exists and before the
+ * sheet is recorded for upload. The two pipelines build `images` and `context` themselves - each
+ * knows its own file layout - and call this rather than reaching into the description, so the
+ * empty-description case stays a `?.` in one place and the call shape cannot drift between them.
+ *
+ * **A throw is logged and rethrown wrapped, deliberately.** The loops hand every error to
+ * `runOverSheets`, which tells a lost engine session from a one-sheet failure by the error's
+ * wording - `timeout`, `target closed`, `ECONNREFUSED` and friends abandon the app's remaining
+ * sheets. A transform that renders in a page of its own produces exactly those words when it fails
+ * (`Navigation timeout of 30000 ms exceeded`), and a transform fetching an asset produces those
+ * codes; neither says anything about the engine. So the original error goes to the log in full -
+ * message at error, stack at debug - and what propagates is a core error with a neutral message and
+ * the original as `cause`, which the classifier (it never reads `cause`) takes for what it is: this
+ * sheet's failure. The cost is one extra log line; the alternative was a one-sheet hiccup re-running
+ * a forty-sheet app.
+ *
+ * @param {SeamDescription} extensions - The description, which may describe no hooks at all.
+ * @param {SheetImages} images - The sheet's two files, as absolute paths.
+ * @param {ImageTransformContext} context - What core knows about them.
+ *
+ * @returns {Promise<void>} Resolves when the hook has run, or at once when no hook is described -
+ *     which is the committed default's case.
+ *
+ * @throws {Error} `Image transform failed` with the hook's error as `cause`, when the hook throws.
+ */
+export const runImageTransform = async (extensions, images, context) => {
+    const hook = extensions?.hooks?.imageTransform;
+
+    if (!hook) {
+        return;
+    }
+
+    try {
+        await hook(images, context);
+    } catch (err) {
+        logError(
+            `IMAGE TRANSFORM: Failed to transform the images of sheet ${context?.sheetPos} in app ${context?.appId}`,
+            err
+        );
+
+        // The message must not embed the original's: `runOverSheets` classifies by substring.
+        throw new Error('Image transform failed (see the IMAGE TRANSFORM error above)', {
+            cause: err,
+        });
+    }
+};

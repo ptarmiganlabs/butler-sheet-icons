@@ -1,3 +1,5 @@
+import path from 'path';
+
 import { setupEnigmaConnection } from './qseow-enigma.js';
 import { logger } from '../../globals.js';
 import { qseowUploadToContentLibrary } from './qseow-upload.js';
@@ -27,6 +29,8 @@ import { getQseowHubSelectors } from './qseow-selectors.js';
 import { logError, describeWithCauses } from '../util/log-error.js';
 import { openQseowAppOverviewPage, captureQseowOverviewAfter } from './qseow-app-session.js';
 import { parseTrueFalseOption } from '../util/true-false-option.js';
+import { extensions } from '#extensions';
+import { runImageTransform } from '../extensions/apply.js';
 
 /**
  * Processes a Qlik Sense Enterprise on Windows (QSEoW) application to generate
@@ -81,7 +85,9 @@ export const qseowProcessApp = async (appId, options, report = null) => {
     let blurFailures = 0;
     let sheetRun;
 
-    createAppImageDir({
+    // The directory comes back because the image transform hook in the sheet loop is handed
+    // absolute paths into it, derived here rather than re-spelled.
+    const appImageDir = createAppImageDir({
         imagedir: options.imagedir,
         platform: 'qseow',
         appId,
@@ -286,79 +292,107 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                                         pageTimeout
                                     );
 
-                                    createdFiles.push({
-                                        sheetPos: iSheetNum,
-                                        blurred: false,
-                                        fileNameShort,
-                                    });
-
+                                    // Blurred before anything is recorded, so a blur failure has
+                                    // nothing to take back. The blur decision itself is made later,
+                                    // in updatesheets, from the CLI options alone - so recording a
+                                    // sheet whose `-blurred.png` was never created would have it
+                                    // repointed at a file that does not exist, a broken icon. And
+                                    // --blur-sheet-* is a redaction control, so falling back to the
+                                    // plain screenshot is not an option either: it would publish the
+                                    // unredacted image the operator asked to hide. A sheet whose
+                                    // blur failed is therefore not recorded at all: updatesheets
+                                    // skips it and it keeps the icon it already had. Counted on its
+                                    // own, apart from runOverSheets' capture failures, so the app's
+                                    // verdict can say which it was; the run goes on either way.
+                                    let fileNameShortBlurred;
                                     try {
-                                        const { fileNameShortBlurred } = await blurSheetImage(
+                                        ({ fileNameShortBlurred } = await blurSheetImage(
                                             fileName,
                                             imgDir,
                                             appId,
                                             iSheetNum,
                                             options,
                                             logger
-                                        );
-
-                                        createdFiles.push({
-                                            sheetPos: iSheetNum,
-                                            blurred: true,
-                                            fileNameShort: fileNameShortBlurred,
-                                        });
-
-                                        // Recorded and logged only now: both files
-                                        // exist, so `captured` (or `blurred`) is a
-                                        // fact rather than an intention. A sheet
-                                        // whose capture or blur failed leaves no
-                                        // row - the error lines tell that story.
-                                        if (appEntry) {
-                                            recordPlannedSheet(appEntry, {
-                                                n: iSheetNum,
-                                                title: sheet.qMeta.title,
-                                                excludeSheet,
-                                                excludeReason,
-                                                blurSheet,
-                                                blurReason,
-                                            });
-                                        }
-                                        logger.info(
-                                            sheetProgressLine({
-                                                n: iSheetNum,
-                                                total: sheets.length,
-                                                label: blurSheet ? 'blurred' : 'captured',
-                                                title: sheet.qMeta.title,
-                                                reason: blurReason,
-                                            })
-                                        );
+                                        ));
                                     } catch (err) {
                                         logError(
                                             'QSEOW CREATE BLURRED IMAGE: Failed to create blurred image',
                                             err
                                         );
 
-                                        // Drop this sheet entirely rather than leave the unblurred entry
-                                        // behind. The blur decision is made later, in updatesheets, from
-                                        // the CLI options alone - so leaving the entry meant the sheet was
-                                        // repointed at a `-blurred.png` that was never created, giving a
-                                        // broken icon. Dropping it means updatesheets skips the sheet and
-                                        // it keeps the icon it already had.
-                                        //
-                                        // --blur-sheet-* is a redaction control, so falling back to the
-                                        // plain screenshot is not an option either: it would publish the
-                                        // unredacted image the operator asked to hide.
-                                        for (let i = createdFiles.length - 1; i >= 0; i -= 1) {
-                                            if (createdFiles[i].sheetPos === iSheetNum) {
-                                                createdFiles.splice(i, 1);
-                                            }
-                                        }
-
                                         blurFailures += 1;
                                         logger.error(
                                             `QSEOW APP: Sheet ${iSheetNum} in app ${appId} was left unchanged because its blurred thumbnail could not be created`
                                         );
+
+                                        return undefined;
                                     }
+
+                                    // The extension point's image transform, if the build has one
+                                    // (issue #1158). Here and not before the upload, because by
+                                    // then the session is logged out and the browser closed; and
+                                    // before the pushes below, so a transform that throws fails
+                                    // this sheet the way a capture failure does - reported and
+                                    // counted by runOverSheets, never recorded, icon kept. In
+                                    // place: updatesheets derives the names itself. The paths are
+                                    // the directory createAppImageDir made plus the names the
+                                    // capture and blur returned - the same derivation as Cloud's.
+                                    await runImageTransform(
+                                        extensions,
+                                        {
+                                            image: path.resolve(appImageDir, fileNameShort),
+                                            blurredImage: path.resolve(
+                                                appImageDir,
+                                                fileNameShortBlurred
+                                            ),
+                                        },
+                                        {
+                                            platform: 'qseow',
+                                            appId,
+                                            sheetPos: iSheetNum,
+                                            sheet,
+                                            blurSheet,
+                                            browser,
+                                            options,
+                                            logger,
+                                        }
+                                    );
+
+                                    // Recorded and logged only now: both files exist and any
+                                    // transform of them succeeded, so `captured` (or `blurred`) is
+                                    // a fact rather than an intention. A sheet whose capture, blur
+                                    // or transform failed leaves no row - the error lines tell that
+                                    // story.
+                                    createdFiles.push({
+                                        sheetPos: iSheetNum,
+                                        blurred: false,
+                                        fileNameShort,
+                                    });
+                                    createdFiles.push({
+                                        sheetPos: iSheetNum,
+                                        blurred: true,
+                                        fileNameShort: fileNameShortBlurred,
+                                    });
+
+                                    if (appEntry) {
+                                        recordPlannedSheet(appEntry, {
+                                            n: iSheetNum,
+                                            title: sheet.qMeta.title,
+                                            excludeSheet,
+                                            excludeReason,
+                                            blurSheet,
+                                            blurReason,
+                                        });
+                                    }
+                                    logger.info(
+                                        sheetProgressLine({
+                                            n: iSheetNum,
+                                            total: sheets.length,
+                                            label: blurSheet ? 'blurred' : 'captured',
+                                            title: sheet.qMeta.title,
+                                            reason: blurReason,
+                                        })
+                                    );
                                 }
                                 return undefined;
                             }
