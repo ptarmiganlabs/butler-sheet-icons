@@ -1,4 +1,15 @@
-import { describe, test, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
+import path from 'path';
+
+import {
+    describe,
+    test,
+    expect,
+    beforeAll,
+    beforeEach,
+    afterEach,
+    afterAll,
+    jest,
+} from '@jest/globals';
 
 // Mock every dependency of processCloudApp using the ESM-native
 // jest.unstable_mockModule + dynamic import pattern. This mirrors the pattern
@@ -94,12 +105,39 @@ const mockCloudDeleteThumbnails = jest.unstable_mockModule('../cloud-delete-thum
     clearExistingCloudThumbnails: jest.fn().mockResolvedValue(undefined),
 }));
 
+/**
+ * What `takeSheetScreenshot` resolves to for sheet `n` when capture and blur both succeed.
+ *
+ * The real function never resolves to anything else: a blur failure rejects. The shape matters
+ * since the image transform hook (issue #1158) builds both file paths from it before the entry is
+ * pushed, so a mock resolving to a bare `true` now fails the sheet rather than being waved through.
+ *
+ * @param {number} n - 1-based sheet number.
+ *
+ * @returns {{sheetPos: number, fileNameShort: string, blurred: boolean, fileNameShortBlurred: string}} The entry.
+ */
+const capturedFile = (n) => ({
+    sheetPos: n,
+    fileNameShort: `thumbnail-${n}.png`,
+    blurred: true,
+    fileNameShortBlurred: `thumbnail-${n}-blurred.png`,
+});
+
 const mockSheetScreenshot = jest.unstable_mockModule('../sheet-screenshot.js', () => ({
-    takeSheetScreenshot: jest.fn().mockResolvedValue(true),
+    takeSheetScreenshot: jest.fn().mockResolvedValue(capturedFile(1)),
+}));
+
+// The extension point, as the committed default describes it: no hooks. Mutable, so the image
+// transform tests at the bottom of this file can install a hook and take it out again - every
+// other test in this file runs as a build with none, which is the every-run case.
+const extensionHooks = {};
+const mockExtensions = jest.unstable_mockModule('#extensions', () => ({
+    extensions: { seamVersion: 1, commands: [], options: [], hooks: extensionHooks },
 }));
 
 let fs;
 let processCloudApp;
+let IMAGE_TRANSFORM_CONTEXT_KEYS;
 let markInterrupted;
 let resetInterruptState;
 let puppeteer;
@@ -126,6 +164,7 @@ beforeAll(async () => {
         mockBrowserDetect,
         mockCloudDeleteThumbnails,
         mockSheetScreenshot,
+        mockExtensions,
     ]);
 
     puppeteer = (await import('puppeteer-core')).default;
@@ -138,6 +177,7 @@ beforeAll(async () => {
     ({ qscloudUploadToApp } = await import('../cloud-upload.js'));
     ({ qscloudUpdateSheetThumbnails } = await import('../cloud-updatesheets.js'));
     ({ processCloudApp } = await import('../process-cloud-app.js'));
+    ({ IMAGE_TRANSFORM_CONTEXT_KEYS } = await import('../../extensions/apply.js'));
     ({ markInterrupted, resetInterruptState } = await import('../../util/interrupt.js'));
 });
 
@@ -920,7 +960,7 @@ describe('process-cloud-app.js — a sheet with no metadata does not abort the a
             browser: 'chrome',
             buildId: 'system-installed',
         });
-        takeSheetScreenshot.mockResolvedValue(true);
+        takeSheetScreenshot.mockResolvedValue(capturedFile(1));
         qscloudUploadToApp.mockResolvedValue(true);
         qscloudUpdateSheetThumbnails.mockResolvedValue(1);
 
@@ -1024,7 +1064,7 @@ describe('process-cloud-app.js — a failed upload must not update the sheets', 
             browser: 'chrome',
             buildId: 'system-installed',
         });
-        takeSheetScreenshot.mockResolvedValue(true);
+        takeSheetScreenshot.mockResolvedValue(capturedFile(1));
         qscloudUpdateSheetThumbnails.mockResolvedValue(1);
 
         const mockApp = {
@@ -1222,7 +1262,7 @@ describe('process-cloud-app.js — a sheet whose thumbnail cannot be produced', 
         takeSheetScreenshot.mockImplementation(async (page, url, dir, appId, sheet) =>
             sheet.qInfo.qId === 'sheet-a'
                 ? Promise.reject(new Error('Failed to create blurred image'))
-                : { sheetPos: 2, fileNameShort: 'thumbnail-2.png' }
+                : capturedFile(2)
         );
 
         await expect(processCloudApp('test-app-id', saasInstance, OPTIONS)).rejects.toThrow();
@@ -1236,7 +1276,7 @@ describe('process-cloud-app.js — a sheet whose thumbnail cannot be produced', 
         takeSheetScreenshot.mockImplementation(async (page, url, dir, appId, sheet) =>
             sheet.qInfo.qId === 'sheet-a'
                 ? Promise.reject(new Error('Failed to create blurred image'))
-                : { sheetPos: 2, fileNameShort: 'thumbnail-2.png' }
+                : capturedFile(2)
         );
 
         await expect(processCloudApp('test-app-id', saasInstance, OPTIONS)).rejects.toThrow();
@@ -1250,11 +1290,266 @@ describe('process-cloud-app.js — a sheet whose thumbnail cannot be produced', 
         takeSheetScreenshot.mockImplementation(async (page, url, dir, appId, sheet) =>
             sheet.qInfo.qId === 'sheet-a'
                 ? Promise.reject(new Error('Failed to create blurred image'))
-                : { sheetPos: 2, fileNameShort: 'thumbnail-2.png' }
+                : capturedFile(2)
         );
 
         await expect(processCloudApp('test-app-id', saasInstance, OPTIONS)).rejects.toThrow(
             'Failed to create a thumbnail for 1 of 2 sheet(s)'
         );
+    });
+});
+
+describe('process-cloud-app.js — the image transform hook (#1158)', () => {
+    const imageTransform = jest.fn();
+
+    /**
+     * Wires the stack with two processable sheets, a capture that succeeds for both, and the hook
+     * installed. Returns what a test needs to assert against: the SaaS stub, the browser the run
+     * will launch, and the sheet objects the loop will hold.
+     *
+     * @returns {{saasInstance: object, browser: object, sheets: object[]}} The wiring.
+     */
+    function setupTwoSheetsWithHook() {
+        jest.clearAllMocks();
+        imageTransform.mockReset();
+        extensionHooks.imageTransform = imageTransform;
+
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/test/browser',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+        qscloudUploadToApp.mockResolvedValue(true);
+        qscloudUpdateSheetThumbnails.mockResolvedValue(1);
+        takeSheetScreenshot.mockImplementation(async (page, url, dir, appId, sheet, iSheetNum) =>
+            capturedFile(iSheetNum)
+        );
+
+        const sheets = ['sheet-a', 'sheet-b'].map((id, i) => ({
+            qInfo: { qId: id },
+            qMeta: { title: `Title ${id}`, description: '', approved: false, published: false },
+            qData: { rank: i + 1, showCondition: null },
+        }));
+        const mockApp = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({ qAppObjectList: { qItems: sheets } }),
+            }),
+            evaluateEx: jest.fn().mockResolvedValue({ qIsNumeric: false, qNumber: 1 }),
+        };
+        enigma.create.mockResolvedValue({
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '1.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(mockApp),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        });
+
+        const browser = {
+            // launchBrowserForApp health checks the browser and watches for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
+            newPage: jest.fn().mockResolvedValue({
+                setViewport: jest.fn().mockResolvedValue(true),
+                setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                goto: jest.fn().mockResolvedValue(true),
+                waitForNavigation: jest.fn().mockResolvedValue(true),
+                screenshot: jest.fn().mockResolvedValue(true),
+                click: jest.fn().mockResolvedValue(true),
+                keyboard: { type: jest.fn().mockResolvedValue(true) },
+                // A successful form login leaves no login form behind, which is what the
+                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                $: jest.fn().mockResolvedValue(null),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+        };
+        puppeteer.launch.mockResolvedValue(browser);
+
+        const saasInstance = { Get: jest.fn() };
+        saasInstance.Get.mockImplementation((p2) => {
+            if (p2.includes('media/list')) return Promise.resolve([]);
+            return Promise.resolve({
+                attributes: { name: 'Test App', published: false, publishTime: null },
+            });
+        });
+
+        return { saasInstance, browser, sheets };
+    }
+
+    const OPTIONS = {
+        tenanturl: 'test-tenant.eu.qlikcloud.com',
+        apikey: 'test-api-key',
+        imagedir: './img',
+        logonuserid: 'u',
+        logonpwd: 'p',
+        appid: 'test-app-id',
+        includesheetpart: '1',
+        schemaversion: '12.612.0',
+        browser: 'chrome',
+        browserVersion: 'recommended',
+        headless: true,
+        pagewait: 0,
+        loglevel: 'info',
+        excludeSheetStatus: [],
+        excludeSheetNumber: [],
+        excludeSheetTitle: [],
+        captureOverviewAfter: false,
+    };
+
+    afterAll(() => {
+        delete extensionHooks.imageTransform;
+    });
+
+    test("is called once per captured sheet, with both files as absolute paths and the loop's own context", async () => {
+        const { saasInstance, browser, sheets } = setupTwoSheetsWithHook();
+
+        await processCloudApp('test-app-id', saasInstance, OPTIONS);
+
+        expect(imageTransform).toHaveBeenCalledTimes(2);
+
+        const [images, context] = imageTransform.mock.calls[0];
+        // Absolute, and exactly the files the upload step goes on to read: `<imagedir>/cloud/<app>/`
+        // plus the names the capture returned.
+        expect(images).toEqual({
+            image: path.resolve('./img', 'cloud', 'test-app-id', 'thumbnail-1.png'),
+            blurredImage: path.resolve('./img', 'cloud', 'test-app-id', 'thumbnail-1-blurred.png'),
+        });
+        // Exactly the documented keys - the list both pipelines are held to, so a field added to one
+        // platform's literal and not the other's fails here rather than surfacing as `undefined`.
+        expect(Object.keys(context)).toEqual([...IMAGE_TRANSFORM_CONTEXT_KEYS]);
+        expect(context.platform).toBe('cloud');
+        expect(context.appId).toBe('test-app-id');
+        expect(context.sheetPos).toBe(1);
+        // The loop's own object, not a copy - so qMeta.title and qMeta.description are the ones the
+        // loop logs.
+        expect(context.sheet).toBe(sheets[0]);
+        expect(context.blurSheet).toBe(false);
+        expect(context.browser).toBe(browser);
+        expect(context.options).toBe(OPTIONS);
+        expect(context.logger).toBe(logger);
+
+        expect(imageTransform.mock.calls[1][1]).toMatchObject({ sheetPos: 2, sheet: sheets[1] });
+    });
+
+    test('runs while the browser is still open and before anything is uploaded', async () => {
+        const { saasInstance, browser } = setupTwoSheetsWithHook();
+        const seen = [];
+        imageTransform.mockImplementation(async () => {
+            seen.push({
+                browserClosed: browser.close.mock.calls.length > 0,
+                uploaded: qscloudUploadToApp.mock.calls.length > 0,
+            });
+        });
+
+        await processCloudApp('test-app-id', saasInstance, OPTIONS);
+
+        expect(seen).toEqual([
+            { browserClosed: false, uploaded: false },
+            { browserClosed: false, uploaded: false },
+        ]);
+    });
+
+    test('is not called for an excluded sheet', async () => {
+        const { saasInstance } = setupTwoSheetsWithHook();
+
+        await processCloudApp('test-app-id', saasInstance, {
+            ...OPTIONS,
+            excludeSheetNumber: ['1'],
+        });
+
+        expect(imageTransform).toHaveBeenCalledTimes(1);
+        expect(imageTransform.mock.calls[0][1].sheetPos).toBe(2);
+    });
+
+    test('a hook that throws fails that sheet the way a failed capture does, and the run goes on', async () => {
+        const { saasInstance } = setupTwoSheetsWithHook();
+        imageTransform.mockImplementation(async (images, { sheetPos }) => {
+            if (sheetPos === 1) {
+                throw new Error('transform exploded');
+            }
+        });
+
+        await expect(processCloudApp('test-app-id', saasInstance, OPTIONS)).rejects.toThrow(
+            'Failed to create a thumbnail for 1 of 2 sheet(s) in app test-app-id'
+        );
+
+        // The sheet never entered the upload list - it keeps the icon it had - and the one that
+        // worked was still uploaded and applied.
+        const uploaded = qscloudUploadToApp.mock.calls[0][0];
+        expect(uploaded.map((f) => f.fileNameShort)).toEqual(['thumbnail-2.png']);
+        expect(qscloudUpdateSheetThumbnails).toHaveBeenCalledTimes(1);
+
+        // Two lines: the hook's own error, with the stage named (and its stack at debug); then the
+        // loop's existing per-sheet line, carrying the neutral wrapper message.
+        expect(logger.error).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /^IMAGE TRANSFORM: Failed to transform the images of sheet 1 in app test-app-id: transform exploded/
+            )
+        );
+        expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('transform exploded'));
+        expect(logger.error).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /Failed to create a thumbnail for sheet 1 .*Image transform failed \(see the IMAGE TRANSFORM error above\)/
+            )
+        );
+    });
+
+    // runOverSheets classifies a callback's error by its wording - `timeout`, `target closed`,
+    // ECONNREFUSED and friends mean "lost the engine session, abandon the app". A transform that
+    // renders in a page of its own fails with exactly those words. The wrapper in runImageTransform
+    // is what keeps such a failure on the per-sheet path; this is the end-to-end proof.
+    test('a hook error worded like a lost session still fails only that sheet', async () => {
+        const { saasInstance } = setupTwoSheetsWithHook();
+        imageTransform.mockImplementation(async (images, { sheetPos }) => {
+            if (sheetPos === 1) {
+                throw new Error('Navigation timeout of 30000 ms exceeded');
+            }
+        });
+
+        await expect(processCloudApp('test-app-id', saasInstance, OPTIONS)).rejects.toThrow(
+            'Failed to create a thumbnail for 1 of 2 sheet(s) in app test-app-id'
+        );
+
+        // Sheet 2 was still captured and uploaded; nothing said the session was lost.
+        expect(imageTransform).toHaveBeenCalledTimes(2);
+        const uploaded = qscloudUploadToApp.mock.calls[0][0];
+        expect(uploaded.map((f) => f.fileNameShort)).toEqual(['thumbnail-2.png']);
+        expect(logger.error).not.toHaveBeenCalledWith(
+            expect.stringMatching(/Lost the engine session/)
+        );
+    });
+
+    // The QSEoW twin has the same case for its blur step; here capture and blur are one call that
+    // rejects as a unit, and the hook must not see a sheet that never produced both files.
+    test('is not called for a sheet whose capture or blur rejected', async () => {
+        const { saasInstance } = setupTwoSheetsWithHook();
+        takeSheetScreenshot.mockImplementation(async (page, url, dir, appId, sheet, iSheetNum) =>
+            iSheetNum === 1
+                ? Promise.reject(new Error('Failed to create blurred image'))
+                : capturedFile(iSheetNum)
+        );
+
+        await expect(processCloudApp('test-app-id', saasInstance, OPTIONS)).rejects.toThrow(
+            'Failed to create a thumbnail for 1 of 2 sheet(s)'
+        );
+
+        expect(imageTransform).toHaveBeenCalledTimes(1);
+        expect(imageTransform.mock.calls[0][1].sheetPos).toBe(2);
+    });
+
+    test('a build with no hook behaves exactly as before', async () => {
+        const { saasInstance } = setupTwoSheetsWithHook();
+        delete extensionHooks.imageTransform;
+
+        await processCloudApp('test-app-id', saasInstance, OPTIONS);
+
+        expect(imageTransform).not.toHaveBeenCalled();
+        const uploaded = qscloudUploadToApp.mock.calls[0][0];
+        expect(uploaded.map((f) => f.fileNameShort)).toEqual([
+            'thumbnail-1.png',
+            'thumbnail-2.png',
+        ]);
     });
 });

@@ -1,6 +1,7 @@
 import { describe, test, expect } from '@jest/globals';
 import { Command, Option } from 'commander';
-import { applyExtensions, runBeforeAction } from '../apply.js';
+import { applyExtensions, runBeforeAction, runImageTransform } from '../apply.js';
+import { isSessionLevelFailure } from '../../util/sheet-list.js';
 import { isExpectedFailure } from '../../util/errors.js';
 
 const SILENT = { writeOut: () => {}, writeErr: () => {} };
@@ -195,6 +196,111 @@ describe('runBeforeAction', () => {
         ['no description at all', undefined],
     ])('does nothing for %s', (_name, description) => {
         expect(runBeforeAction(description, 'qseow x', {})).toBeUndefined();
+    });
+});
+
+describe('runImageTransform', () => {
+    const images = { image: '/abs/thumbnail-1.png', blurredImage: '/abs/thumbnail-1-blurred.png' };
+    const context = { platform: 'qseow', appId: 'app', sheetPos: 1 };
+
+    test('calls the hook with the images and the context, and resolves to nothing', async () => {
+        const seen = [];
+        const description = {
+            ...nothing(),
+            hooks: {
+                imageTransform: async (seenImages, seenContext) => {
+                    seen.push({ seenImages, seenContext });
+
+                    return 'ignored';
+                },
+            },
+        };
+
+        await expect(runImageTransform(description, images, context)).resolves.toBeUndefined();
+        expect(seen).toEqual([{ seenImages: images, seenContext: context }]);
+    });
+
+    // The wrapping is the contract's "this sheet" guarantee - see the JSDoc on runImageTransform.
+    test.each([
+        [
+            'a synchronous throw',
+            () => {
+                throw new Error('cannot draw that');
+            },
+        ],
+        ['a rejection', async () => Promise.reject(new Error('cannot draw that'))],
+    ])('rethrows %s wrapped, with the original as cause', async (_name, imageTransform) => {
+        const description = { ...nothing(), hooks: { imageTransform } };
+
+        await expect(runImageTransform(description, images, context)).rejects.toMatchObject({
+            message: 'Image transform failed (see the IMAGE TRANSFORM error above)',
+            cause: expect.objectContaining({ message: 'cannot draw that' }),
+        });
+    });
+
+    // runOverSheets tells a lost engine session from a one-sheet failure by the error's wording, and
+    // a transform that renders in a page of its own fails with exactly that wording. The wrapper's
+    // neutral message is what keeps such a failure on the per-sheet path; this is the assertion
+    // that keeps the message neutral.
+    test('a hook error worded like a lost session is still reported as a one-sheet failure', async () => {
+        const hookError = new Error('Navigation timeout of 30000 ms exceeded');
+        const description = {
+            ...nothing(),
+            hooks: {
+                imageTransform: () => {
+                    throw hookError;
+                },
+            },
+        };
+
+        const wrapped = await runImageTransform(description, images, context).catch((err) => err);
+
+        // The bare error would have abandoned the app; the wrapped one does not.
+        expect(isSessionLevelFailure(hookError)).toBe(true);
+        expect(isSessionLevelFailure(wrapped)).toBe(false);
+        expect(wrapped.cause).toBe(hookError);
+    });
+
+    // The committed default's every-run path: no hook described, nothing happens, no crash - once
+    // per captured sheet, so this is the branch the community build takes most often.
+    test.each([
+        ['a description with no hooks', { seamVersion: 1, commands: [], options: [] }],
+        ['a description describing nothing', nothing()],
+        [
+            'a description with only the other hook',
+            { ...nothing(), hooks: { beforeAction: () => {} } },
+        ],
+        ['no description at all', undefined],
+    ])('does nothing for %s', async (_name, description) => {
+        await expect(runImageTransform(description, images, context)).resolves.toBeUndefined();
+    });
+});
+
+describe('hook types are checked at registration', () => {
+    // A hook that is not a function would otherwise fail where it is called: for beforeAction at
+    // preAction, before any work; for imageTransform once per sheet, after every capture and blur
+    // had been paid for. Both are caught at startup instead, naming the hook.
+    test.each([
+        ['imageTransform', true],
+        ['imageTransform', { run: () => {} }],
+        ['beforeAction', 'yes'],
+    ])('refuses a description whose %s hook is not a function', (name, value) => {
+        const program = new Command('bsi');
+
+        expect(() => applyExtensions(program, { ...nothing(), hooks: { [name]: value } })).toThrow(
+            `Extension hook '${name}' must be a function`
+        );
+    });
+
+    test('accepts functions, and hooks that are simply absent', () => {
+        const program = new Command('bsi');
+
+        expect(() =>
+            applyExtensions(program, {
+                ...nothing(),
+                hooks: { imageTransform: async () => {}, beforeAction: undefined },
+            })
+        ).not.toThrow();
     });
 });
 

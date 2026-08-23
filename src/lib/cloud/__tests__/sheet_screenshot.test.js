@@ -1,3 +1,5 @@
+import path from 'path';
+
 import { jest, describe, test, expect, beforeEach } from '@jest/globals';
 
 const write = jest.fn().mockResolvedValue(undefined);
@@ -190,6 +192,27 @@ describe('takeSheetScreenshot', () => {
                 blurred: true,
                 fileNameShortBlurred: 'thumbnail-1-blurred.png',
             });
+        });
+
+        // The sheet loop hands the image transform hook (issue #1158) absolute paths built as
+        // `path.resolve(<the directory createAppImageDir made>, <the short name returned here>)`,
+        // where that directory is `${imagedir}/cloud/${appId}` (src/lib/util/image-dir.js). This
+        // is the assertion that ties the file this module actually writes to that derivation, so
+        // the two cannot drift apart without a red test - the loop's own test mocks this module
+        // and so cannot see it.
+        test('writes both files where the sheet loop will tell the image transform they are', async () => {
+            const page = createPage();
+
+            const created = await run(page);
+            const appImageDir = `${IMG_DIR}/cloud/${APP_ID}`;
+
+            const [{ path: written }] = page.elementHandle.screenshot.mock.calls[0];
+            expect(path.resolve(written)).toBe(path.resolve(appImageDir, created.fileNameShort));
+
+            const [blurredWritten] = write.mock.calls[0];
+            expect(path.resolve(blurredWritten)).toBe(
+                path.resolve(appImageDir, created.fileNameShortBlurred)
+            );
         });
 
         test('numbers the files after the sheet position', async () => {
