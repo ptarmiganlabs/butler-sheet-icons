@@ -1,3 +1,5 @@
+import path from 'path';
+
 import { setupEnigmaConnection } from './cloud-enigma.js';
 import { logger } from '../../globals.js';
 import { qscloudUploadToApp } from './cloud-upload.js';
@@ -26,6 +28,8 @@ import { appProgressLine, sheetProgressLine } from '../util/run-report-render.js
 import { logError, describeWithCauses } from '../util/log-error.js';
 import { openCloudAppOverviewPage, captureCloudOverviewAfter } from './cloud-app-session.js';
 import { parseTrueFalseOption } from '../util/true-false-option.js';
+import { extensions } from '#extensions';
+import { runImageTransform } from '../extensions/apply.js';
 
 /**
  * Process a single Qlik Sense Cloud app.
@@ -49,8 +53,9 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
     let sheetRun;
     let appEntry = null;
 
-    // Create image directory on disk for this app
-    createAppImageDir({
+    // Create image directory on disk for this app. The directory comes back because the image
+    // transform hook below is handed absolute paths into it, derived here rather than re-spelled.
+    const appImageDir = createAppImageDir({
         imagedir: options.imagedir,
         platform: 'cloud',
         appId,
@@ -226,10 +231,41 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
                                     logger
                                 );
 
-                                // Only reached when the screenshot, and any blur of it, succeeded. A
-                                // sheet whose thumbnail could not be produced is left out of
-                                // createdFiles entirely, so nothing later repoints it at an image that
-                                // does not exist - it keeps the icon it already had.
+                                // The extension point's image transform, if the build has one
+                                // (issue #1158). Here and not before the upload, because by then
+                                // the browser is closed; and before the push below, so a transform
+                                // that throws fails this sheet the way a capture failure does -
+                                // reported and counted by runOverSheets, never entered into
+                                // createdFiles, icon kept. In place: the names are what the upload
+                                // and update steps rely on. The paths are the directory
+                                // createAppImageDir made plus the names the capture returned - the
+                                // one derivation, not a second spelling of the layout.
+                                await runImageTransform(
+                                    extensions,
+                                    {
+                                        image: path.resolve(appImageDir, createdFile.fileNameShort),
+                                        blurredImage: path.resolve(
+                                            appImageDir,
+                                            createdFile.fileNameShortBlurred
+                                        ),
+                                    },
+                                    {
+                                        platform: 'cloud',
+                                        appId,
+                                        sheetPos: iSheetNum,
+                                        sheet,
+                                        blurSheet,
+                                        browser,
+                                        options,
+                                        logger,
+                                    }
+                                );
+
+                                // Only reached when the screenshot, any blur of it, and any
+                                // transform of both succeeded. A sheet whose thumbnail could not be
+                                // produced is left out of createdFiles entirely, so nothing later
+                                // repoints it at an image that does not exist - it keeps the icon
+                                // it already had.
                                 createdFiles.push(createdFile);
 
                                 // Recorded and logged only now, for the same

@@ -1,4 +1,15 @@
-import { describe, test, expect, beforeAll, beforeEach, afterEach, jest } from '@jest/globals';
+import path from 'path';
+
+import {
+    describe,
+    test,
+    expect,
+    beforeAll,
+    beforeEach,
+    afterEach,
+    afterAll,
+    jest,
+} from '@jest/globals';
 
 // Mock every dependency of qseowProcessApp using the ESM-native
 // jest.unstable_mockModule + dynamic import pattern. This mirrors the pattern
@@ -106,8 +117,17 @@ const mockDetermineSheetExcludeStatus = jest.unstable_mockModule(
     })
 );
 
+// The extension point, as the committed default describes it: no hooks. Mutable, so the image
+// transform tests at the bottom of this file can install a hook and take it out again - every
+// other test in this file runs as a build with none, which is the every-run case.
+const extensionHooks = {};
+const mockExtensions = jest.unstable_mockModule('#extensions', () => ({
+    extensions: { seamVersion: 1, commands: [], options: [], hooks: extensionHooks },
+}));
+
 let fs;
 let qseowProcessApp;
+let IMAGE_TRANSFORM_CONTEXT_KEYS;
 let markInterrupted;
 let resetInterruptState;
 let puppeteer;
@@ -140,6 +160,7 @@ beforeAll(async () => {
         mockBrowserInstall,
         mockBrowserDetect,
         mockDetermineSheetExcludeStatus,
+        mockExtensions,
     ]);
 
     puppeteer = (await import('puppeteer-core')).default;
@@ -155,6 +176,7 @@ beforeAll(async () => {
     ({ qseowLogout, qseowLogoutQuietly } = await import('../qseow-logout.js'));
     fs = (await import('fs')).default;
     ({ qseowProcessApp } = await import('../qseow-process-app.js'));
+    ({ IMAGE_TRANSFORM_CONTEXT_KEYS } = await import('../../extensions/apply.js'));
     ({ markInterrupted, resetInterruptState } = await import('../../util/interrupt.js'));
 });
 
@@ -1684,5 +1706,299 @@ describe('qseow-process-app.js — a QRS reply that is not a list', () => {
 
         const infos = logger.info.mock.calls.map((call) => String(call[0])).join('\n');
         expect(infos).not.toContain('Sheets carrying a tag named by');
+    });
+});
+
+describe('qseow-process-app.js — the image transform hook (#1158)', () => {
+    const imageTransform = jest.fn();
+
+    const options = {
+        senseVersion: '2023-Nov',
+        browser: 'chrome',
+        browserVersion: 'recommended',
+        imagedir: './img',
+        host: 'test-server.example.com',
+        logonuserdir: 'INTERNAL',
+        logonuserid: 'sa_api',
+        logonpwd: 'password',
+        excludeSheetNumber: [],
+        excludeSheetTitle: [],
+        excludeSheetStatus: [],
+        includesheetpart: '1',
+        pagewait: 0,
+        secure: true,
+        prefix: '',
+        headless: true,
+        blurFactor: 5,
+        loglevel: 'info',
+        captureOverviewAfter: false,
+    };
+
+    /**
+     * Wires the stack with two processable sheets, a Jimp that blurs happily, and the hook
+     * installed. Returns the browser the run will launch and the sheet objects the loop will hold.
+     *
+     * @returns {{browser: object, sheets: object[]}} The wiring.
+     */
+    function setupTwoSheetsWithHook() {
+        jest.clearAllMocks();
+        imageTransform.mockReset();
+        extensionHooks.imageTransform = imageTransform;
+
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/test/browser',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+        determineSheetExcludeStatus.mockResolvedValue({
+            excludeSheet: false,
+            sheetIsHidden: false,
+        });
+        qseowUploadToContentLibrary.mockResolvedValue(true);
+        qseowUpdateSheetThumbnails.mockResolvedValue(1);
+        Jimp.read.mockResolvedValue({
+            blur: jest.fn().mockReturnThis(),
+            write: jest.fn().mockResolvedValue(true),
+        });
+
+        const mockGet = jest.fn().mockImplementation((encodedPath) => {
+            const p2 = decodeURIComponent(encodedPath);
+            if (p2.includes('app?filter=id eq')) {
+                return Promise.resolve({
+                    body: [{ id: 'test-app-id', name: 'Test App', published: true }],
+                });
+            }
+            return Promise.resolve({ body: [] });
+        });
+        qrsInteract.mockImplementation(() => ({ Get: mockGet }));
+
+        const sheets = ['sheet-a', 'sheet-b'].map((id, i) => ({
+            qInfo: { qId: id },
+            qMeta: { title: `Title ${id}`, description: '', approved: false, published: false },
+            qData: { rank: i + 1, showCondition: null },
+        }));
+        const mockApp = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({ qAppObjectList: { qItems: sheets } }),
+            }),
+            getObject: jest.fn().mockResolvedValue({ screenshot: jest.fn() }),
+            evaluateEx: jest.fn().mockResolvedValue({ qIsNumeric: false, qNumber: 1 }),
+        };
+        enigma.create.mockResolvedValue({
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '1.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(mockApp),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        });
+
+        const browser = {
+            // launchBrowserForApp health checks the browser and watches for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
+            newPage: jest.fn().mockResolvedValue({
+                setViewport: jest.fn().mockResolvedValue(true),
+                setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                goto: jest.fn().mockResolvedValue(true),
+                waitForNavigation: jest.fn().mockResolvedValue(true),
+                screenshot: jest.fn().mockResolvedValue(true),
+                click: jest.fn().mockResolvedValue(true),
+                keyboard: { type: jest.fn().mockResolvedValue(true) },
+                waitForSelector: jest.fn().mockResolvedValue(true),
+                // A successful form login leaves no login form behind, which is what the
+                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                $: jest
+                    .fn()
+                    .mockImplementation((selector) =>
+                        Promise.resolve(
+                            selector === '#username-input'
+                                ? null
+                                : { screenshot: jest.fn().mockResolvedValue(true) }
+                        )
+                    ),
+                $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+        };
+        puppeteer.launch.mockResolvedValue(browser);
+
+        return { browser, sheets };
+    }
+
+    afterAll(() => {
+        delete extensionHooks.imageTransform;
+    });
+
+    test("is called once per captured sheet, with both files as absolute paths and the loop's own context", async () => {
+        const { browser, sheets } = setupTwoSheetsWithHook();
+
+        await qseowProcessApp('test-app-id', options);
+
+        expect(imageTransform).toHaveBeenCalledTimes(2);
+
+        const [images, context] = imageTransform.mock.calls[0];
+        // Absolute, and exactly the files the upload step goes on to read - the QSEoW names carry
+        // the app id, which is the one visible difference from the Cloud twin.
+        expect(images).toEqual({
+            image: path.resolve('./img', 'qseow', 'test-app-id', 'thumbnail-test-app-id-1.png'),
+            blurredImage: path.resolve(
+                './img',
+                'qseow',
+                'test-app-id',
+                'thumbnail-test-app-id-1-blurred.png'
+            ),
+        });
+        // Exactly the documented keys - the list both pipelines are held to, so a field added to one
+        // platform's literal and not the other's fails here rather than surfacing as `undefined`.
+        expect(Object.keys(context)).toEqual([...IMAGE_TRANSFORM_CONTEXT_KEYS]);
+        expect(context.platform).toBe('qseow');
+        expect(context.appId).toBe('test-app-id');
+        expect(context.sheetPos).toBe(1);
+        expect(context.sheet).toBe(sheets[0]);
+        expect(context.blurSheet).toBe(false);
+        expect(context.browser).toBe(browser);
+        expect(context.options).toBe(options);
+        expect(context.logger).toBe(logger);
+
+        expect(imageTransform.mock.calls[1][1]).toMatchObject({ sheetPos: 2, sheet: sheets[1] });
+    });
+
+    test('runs after the blurred copy exists, while the session is still open, before anything is uploaded', async () => {
+        const { browser } = setupTwoSheetsWithHook();
+        const seen = [];
+        imageTransform.mockImplementation(async () => {
+            seen.push({
+                blurred: Jimp.read.mock.calls.length,
+                loggedOut: qseowLogoutQuietly.mock.calls.length > 0,
+                browserClosed: browser.close.mock.calls.length > 0,
+                uploaded: qseowUploadToContentLibrary.mock.calls.length > 0,
+            });
+        });
+
+        await qseowProcessApp('test-app-id', options);
+
+        expect(seen).toEqual([
+            { blurred: 1, loggedOut: false, browserClosed: false, uploaded: false },
+            { blurred: 2, loggedOut: false, browserClosed: false, uploaded: false },
+        ]);
+    });
+
+    test('is not called for an excluded sheet', async () => {
+        setupTwoSheetsWithHook();
+        determineSheetExcludeStatus
+            .mockResolvedValueOnce({ excludeSheet: true, excludeReason: 'number' })
+            .mockResolvedValue({ excludeSheet: false, sheetIsHidden: false });
+
+        await qseowProcessApp('test-app-id', options);
+
+        expect(imageTransform).toHaveBeenCalledTimes(1);
+        expect(imageTransform.mock.calls[0][1].sheetPos).toBe(2);
+    });
+
+    test('is not called for a sheet whose blurred copy could not be created', async () => {
+        setupTwoSheetsWithHook();
+        // Sheet 1's blur fails, sheet 2's succeeds.
+        Jimp.read
+            .mockResolvedValueOnce({
+                blur: jest.fn().mockReturnThis(),
+                write: jest.fn().mockRejectedValue(new Error('disk full')),
+            })
+            .mockResolvedValue({
+                blur: jest.fn().mockReturnThis(),
+                write: jest.fn().mockResolvedValue(true),
+            });
+
+        await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow(
+            'Failed to create a blurred thumbnail for 1 sheet(s)'
+        );
+
+        // Only sheet 2 reached the hook; sheet 1 left nothing behind for upload.
+        expect(imageTransform).toHaveBeenCalledTimes(1);
+        expect(imageTransform.mock.calls[0][1].sheetPos).toBe(2);
+        const uploaded = qseowUploadToContentLibrary.mock.calls[0][0];
+        expect(uploaded.filter((f) => f.sheetPos === 1)).toEqual([]);
+        expect(uploaded.filter((f) => f.sheetPos === 2)).toHaveLength(2);
+    });
+
+    test('a hook that throws fails that sheet the way a failed capture does, and the run goes on', async () => {
+        setupTwoSheetsWithHook();
+        imageTransform.mockImplementation(async (images, { sheetPos }) => {
+            if (sheetPos === 1) {
+                throw new Error('transform exploded');
+            }
+        });
+
+        // The loop's own rule, not the blur rule: this is a thumbnail that could not be produced.
+        await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow(
+            'Failed to create a thumbnail for 1 of 2 sheet(s) in app test-app-id'
+        );
+
+        // Neither of sheet 1's entries was recorded - it keeps the icon it had - and sheet 2's
+        // two were still uploaded and applied.
+        const uploaded = qseowUploadToContentLibrary.mock.calls[0][0];
+        expect(uploaded.filter((f) => f.sheetPos === 1)).toEqual([]);
+        expect(uploaded.map((f) => f.fileNameShort)).toEqual([
+            'thumbnail-test-app-id-2.png',
+            'thumbnail-test-app-id-2-blurred.png',
+        ]);
+        expect(qseowUpdateSheetThumbnails).toHaveBeenCalledTimes(1);
+
+        // Two lines: the hook's own error, with the stage named (and its stack at debug); then the
+        // loop's existing per-sheet line, carrying the neutral wrapper message.
+        expect(logger.error).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /^IMAGE TRANSFORM: Failed to transform the images of sheet 1 in app test-app-id: transform exploded/
+            )
+        );
+        expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('transform exploded'));
+        expect(logger.error).toHaveBeenCalledWith(
+            expect.stringMatching(
+                /Failed to create a thumbnail for sheet 1 .*Image transform failed \(see the IMAGE TRANSFORM error above\)/
+            )
+        );
+    });
+
+    // runOverSheets classifies a callback's error by its wording - `timeout`, `target closed`,
+    // ECONNREFUSED and friends mean "lost the engine session, abandon the app". A transform that
+    // renders in a page of its own fails with exactly those words. The wrapper in runImageTransform
+    // is what keeps such a failure on the per-sheet path; this is the end-to-end proof.
+    test('a hook error worded like a lost session still fails only that sheet', async () => {
+        setupTwoSheetsWithHook();
+        imageTransform.mockImplementation(async (images, { sheetPos }) => {
+            if (sheetPos === 1) {
+                throw new Error('Protocol error (Page.navigate): Target closed');
+            }
+        });
+
+        await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow(
+            'Failed to create a thumbnail for 1 of 2 sheet(s) in app test-app-id'
+        );
+
+        // Sheet 2 was still captured and uploaded; nothing said the session was lost.
+        expect(imageTransform).toHaveBeenCalledTimes(2);
+        const uploaded = qseowUploadToContentLibrary.mock.calls[0][0];
+        expect(uploaded.map((f) => f.sheetPos)).toEqual([2, 2]);
+        expect(logger.error).not.toHaveBeenCalledWith(
+            expect.stringMatching(/Lost the engine session/)
+        );
+    });
+
+    test('a build with no hook behaves exactly as before', async () => {
+        setupTwoSheetsWithHook();
+        delete extensionHooks.imageTransform;
+
+        await qseowProcessApp('test-app-id', options);
+
+        expect(imageTransform).not.toHaveBeenCalled();
+        const uploaded = qseowUploadToContentLibrary.mock.calls[0][0];
+        expect(uploaded.map((f) => f.fileNameShort)).toEqual([
+            'thumbnail-test-app-id-1.png',
+            'thumbnail-test-app-id-1-blurred.png',
+            'thumbnail-test-app-id-2.png',
+            'thumbnail-test-app-id-2-blurred.png',
+        ]);
     });
 });
