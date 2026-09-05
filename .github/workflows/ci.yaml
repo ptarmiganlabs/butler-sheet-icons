@@ -729,6 +729,11 @@ jobs:
     permissions:
       actions: read
       contents: read
+    # Untimed, a hang here holds the build Mac for GitHub's 6-hour default AND pins the
+    # bsi-qseow concurrency group, which is cancel-in-progress: false - so docker-qseow-amd64
+    # and every later run queue behind it rather than replacing it. 20 minutes is ~10x the
+    # slowest observed run (measured: 2 min), with headroom for a contended QSEoW lab.
+    timeout-minutes: 20
     runs-on:
       - self-hosted
       - macos
@@ -873,6 +878,10 @@ jobs:
     permissions:
       actions: read
       contents: read
+    # Same reasoning as docker-qseow-arm64 above: an untimed hang holds the pve101 runner for
+    # 6 hours and pins the bsi-qseow concurrency group behind it. 20 minutes is ~7x the slowest
+    # observed run (measured: 2-3 min), with headroom for a contended QSEoW lab.
+    timeout-minutes: 20
     runs-on:
       - self-hosted
       - x64

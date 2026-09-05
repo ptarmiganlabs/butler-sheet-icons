@@ -46,6 +46,12 @@ jobs:
               - sp53
             self_hosted: true
     runs-on: ${{ matrix.runner }}
+    # The build-mac leg is the self-hosted signing Mac, so an untimed hang would hold it for
+    # GitHub's 6-hour default and queue every signed release behind it. 30 rather than a tight
+    # multiple of the 1-minute observed run because notarytool waits on Apple's notary service,
+    # whose latency is not ours to predict - the same reason sign in windows-signing-canary.yaml
+    # uses 30. Job-level, so it bounds the hosted leg too.
+    timeout-minutes: 30
     permissions:
       contents: read
     env:
