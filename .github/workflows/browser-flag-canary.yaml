@@ -93,6 +93,12 @@ jobs:
       - arm64
       - mac-build2
       - sp53
+    # This canary deliberately sleeps the display and can suspend the GUI session - precisely the
+    # state in which a step wedges with nobody there to interrupt it. Untimed, that wedge would
+    # hold the build Mac for GitHub's 6-hour default and queue every signed release and QSEoW
+    # suite behind it. Measured under a minute per leg; 15 leaves room for a cold npm cache
+    # without letting a hang sit.
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
