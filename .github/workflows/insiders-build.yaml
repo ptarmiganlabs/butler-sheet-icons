@@ -161,9 +161,11 @@ jobs:
         with:
           name: sbom-insiders-${{ github.sha }}
           path: ./build/sbom/
+          retention-days: 7
 
       - name: Upload insider build artifacts to GitHub
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.artifact_insider }}
           path: ${{ matrix.artifact_insider }}
+          retention-days: 7
