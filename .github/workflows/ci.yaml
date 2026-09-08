@@ -101,7 +101,11 @@ jobs:
     # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
     timeout-minutes: 30
     # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
-    # runner that holds the signing certificate. Without it they pool across every Windows runner.
+    # runner that holds the signing certificate. Without it they pool across the Windows runners
+    # this repo can see - which is the Default runner group only, so a Windows runner added
+    # elsewhere in the org cannot pick these up. Keep it that way: the org's other Windows group
+    # (windows-ci, the ciw01 CI-tier machines) sets allows_public_repositories: false, and this
+    # repo is public - so adding it there queues these jobs forever rather than failing.
     runs-on:
       - self-hosted
       - x64
@@ -206,7 +210,11 @@ jobs:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
     # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
-    # runner that holds the signing certificate. Without it they pool across every Windows runner.
+    # runner that holds the signing certificate. Without it they pool across the Windows runners
+    # this repo can see - which is the Default runner group only, so a Windows runner added
+    # elsewhere in the org cannot pick these up. Keep it that way: the org's other Windows group
+    # (windows-ci, the ciw01 CI-tier machines) sets allows_public_repositories: false, and this
+    # repo is public - so adding it there queues these jobs forever rather than failing.
     runs-on:
       - self-hosted
       - x64
@@ -345,7 +353,11 @@ jobs:
       group: bsi-qseow-${{ github.repository }}
       cancel-in-progress: false
     # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
-    # runner that holds the signing certificate. Without it they pool across every Windows runner.
+    # runner that holds the signing certificate. Without it they pool across the Windows runners
+    # this repo can see - which is the Default runner group only, so a Windows runner added
+    # elsewhere in the org cannot pick these up. Keep it that way: the org's other Windows group
+    # (windows-ci, the ciw01 CI-tier machines) sets allows_public_repositories: false, and this
+    # repo is public - so adding it there queues these jobs forever rather than failing.
     runs-on:
       - self-hosted
       - x64
