@@ -62,6 +62,12 @@ The `Example` column is the one part not derived from the code: examples are der
 
 If a description reads badly on the site, fix it in the Commander definition rather than in the table. The same text is what `--help` prints, so the page and the terminal improve together.
 
+## Options on command lines are checked
+
+Command lines in prose cannot be generated, but they are checked against the same definitions. When a pending page is committed, every long option that follows `butler-sheet-icons` — or the Docker image named after it — in a code block or inline code must be one the CLI declares. A misspelt option, one renamed since the page was written, or a page committed ahead of the code that adds its option is refused by the `doc-options` pre-commit hook (`scripts/check-doc-options.mjs`), and the unit suite runs the same check over every pending page.
+
+Other programs' options on the same line — `docker run --rm`, `npm ci --omit=dev` — and options mentioned in prose are not checked, and pages in `done/` are left alone. If the page describes an option that is being added, commit it together with the code that adds it.
+
 ## Processing status
 
 - Files **directly in this folder, without a prefix**, are pending review or publication.
