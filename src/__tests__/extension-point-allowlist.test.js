@@ -96,8 +96,8 @@ describe('the extension point allowlist', () => {
     });
 
     test.each([
-        ['a file in a new subdirectory', 'src/lib/extensions/features/branding.js'],
-        ['a flat file beside the default', 'src/lib/extensions/licence.js'],
+        ['a file in a new subdirectory', 'src/lib/extensions/subdir/unlisted.js'],
+        ['a flat file beside the default', 'src/lib/extensions/unlisted.js'],
         ['an unlisted test', 'src/lib/extensions/__tests__/something-else.test.js'],
     ])('rejects %s', (_name, filePath) => {
         const { status, output } = check([filePath]);
@@ -107,7 +107,7 @@ describe('the extension point allowlist', () => {
     });
 
     test('says what to do about it, so the guard is not simply worked around', () => {
-        const { output } = check(['src/lib/extensions/features/branding.js']);
+        const { output } = check(['src/lib/extensions/subdir/unlisted.js']);
 
         expect(output).toContain('allowlist');
         expect(output).toContain(SCRIPT);
@@ -142,12 +142,12 @@ describe('the extension point allowlist', () => {
     test('reports an extra file and a missing one together', () => {
         const { status, output } = checkFixture([
             ...ALL_LISTED.filter((f) => !f.endsWith('version.js')),
-            'src/lib/extensions/licence.js',
+            'src/lib/extensions/unlisted.js',
         ]);
 
         expect(status).toBe(1);
         expect(output).toContain('src/lib/extensions/version.js');
-        expect(output).toContain('src/lib/extensions/licence.js');
+        expect(output).toContain('src/lib/extensions/unlisted.js');
     });
 
     test('ignores paths outside the directory', () => {
@@ -161,6 +161,6 @@ describe('the extension point allowlist', () => {
     });
 
     test('rejects a Windows-style path for an unlisted one', () => {
-        expect(check(['src\\lib\\extensions\\features\\branding.js']).status).toBe(1);
+        expect(check(['src\\lib\\extensions\\subdir\\unlisted.js']).status).toBe(1);
     });
 });
