@@ -56,7 +56,7 @@ describe('the extension-point boundary', () => {
             "import { extensions } from './lib/extensions/index.js';",
         ],
         ['a deeper relative import', "import { extensions } from '../extensions/index.js';"],
-        ['reaching into a subdirectory', "import brand from '../extensions/features/branding.js';"],
+        ['reaching into a subdirectory', "import helper from '../extensions/subdir/helper.js';"],
     ])('rejects %s', async (_name, code) => {
         const { fired, message } = forRule(
             await rulesFiredFor(code, 'src/lib/probe.js'),
@@ -79,7 +79,7 @@ describe('the extension-point boundary', () => {
         ],
         [
             'a subdirectory of it',
-            "export const load = async () => import('../extensions/features/branding.js');",
+            "export const load = async () => import('../extensions/subdir/helper.js');",
         ],
     ])('rejects a dynamic import of %s', async (_name, code) => {
         const { fired, message } = forRule(
