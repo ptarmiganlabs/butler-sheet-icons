@@ -64,6 +64,22 @@ repos:
             # trailing-slash pattern would let exactly that through.
             files: '^src/lib/extensions(/|$)'
 
+          # A pending page in docs/to-doc-site/ documents this CLI, so every option it
+          # shows on a butler-sheet-icons command line has to be one the CLI declares. A
+          # misspelt option, one renamed after the page was written, or a page committed
+          # ahead of the code that adds its option is refused here, rather than found in
+          # the publishing pass or on the doc site. The option tables are generated from
+          # the same definitions for the same reason (issue #849).
+          #
+          # Pending pages only - the unprefixed files directly in the folder. done/ holds
+          # pages published long ago, whose options may since have been renamed.
+          - id: doc-options
+            name: doc pages show real options
+            entry: node scripts/check-doc-options.mjs
+            language: system
+            files: '^docs/to-doc-site/[^/]+\.md$'
+            exclude: '^docs/to-doc-site/README\.md$'
+
           # Keeps the GitNexus index current instead of relying on an agent to notice
           # it has gone stale. Inert until `npm run gitnexus:install` has been run in
           # the clone, and never blocks a git operation — see the script's header and
