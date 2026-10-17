@@ -64,8 +64,8 @@ jobs:
   # Browser suites - no Qlik back end at all.
   #
   # The five browser integration tests read only BSI_LOG_LEVEL and BSI_TEST_TIMEOUT, so these jobs
-  # carry no concurrency group and no ordering constraint. The macOS half runs on a hosted runner;
-  # the Windows half stays on-premise purely to keep Windows platform coverage.
+  # carry no concurrency group and no ordering constraint. Both halves run on hosted runners; the
+  # Windows half is there for Windows platform coverage.
   # ---------------------------------------------------------------------------------------------
   test-browser-macos:
     needs:
@@ -74,9 +74,9 @@ jobs:
       contents: read
     # The jest scripts no longer pass --forceExit (issue #951), so a suite that genuinely leaks a
     # handle now hangs instead of exiting - which is the point, it makes the leak visible. Without
-    # an explicit timeout that hang would run to GitHub's 6-hour default, and on the self-hosted
-    # jobs it would hold the runner and its concurrency group for that whole time. 30 minutes is
-    # roughly 3x the slowest of these suites (measured: 1.8-10.3 min).
+    # an explicit timeout that hang would run to GitHub's 6-hour default, holding any concurrency
+    # group the job is in for that whole time. 30 minutes is roughly 3x the slowest of these suites
+    # (measured: 1.8-10.3 min).
     timeout-minutes: 30
     runs-on: macos-15
     steps:
