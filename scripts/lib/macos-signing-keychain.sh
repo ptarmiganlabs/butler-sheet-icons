@@ -31,6 +31,14 @@
 # via --keychain is not searched when building the certificate chain unless it is also on the
 # user's list.
 #
+# The library no longer touches build.keychain, the name the scripts above used until August 2026,
+# and every build since has swept what they left. butler and ctrl-q still create
+# ~/Library/Keychains/build.keychain on the same build Mac, put it at the head of the search list and
+# make it the default for their builds, so the name is theirs now. Claiming it meant deleting
+# another project's keychain and dropping it from the person's list, which was safe only while that
+# Mac ran one job at a time. Every name this library recognises is Butler Sheet Icons' own (decided
+# with Goran, 2026-10-17).
+#
 # Written for bash 3.2 - GitHub's macOS runners still execute these scripts under /bin/bash 3.2,
 # where expanding an empty array under `set -u` is a fatal error. Hence the ${arr[@]+"${arr[@]}"}
 # guards.
@@ -42,21 +50,17 @@ BSI_KEYCHAIN_PATH=""
 # The user's keychain search list as found, minus anything of ours. Restored verbatim on teardown.
 BSI_ORIGINAL_KEYCHAINS=()
 
-# Legacy keychain created by the previous version of these scripts. Recognised so that debris left
-# on a build host by an interrupted old run can be cleaned up instead of inherited.
-BSI_LEGACY_KEYCHAIN_NAME="build.keychain"
-
 # Guards teardown against running twice - it is wired to four signals plus EXIT.
 BSI_KEYCHAIN_TORN_DOWN=""
 
-# Reports whether a search-list entry is one of ours, or debris from the old scheme.
+# Reports whether a search-list entry is one of ours. Never another project's: a build of theirs on
+# the same Mac needs its entry left alone.
 #
 # $1 - keychain path as reported by `security list-keychains`.
 #
 # Returns 0 when the entry must not be carried into the restored search list.
 bsi_keychain_is_ours() {
   case "$1" in
-    *"/${BSI_LEGACY_KEYCHAIN_NAME}"*) return 0 ;;
     *"/bsi-signing-"*) return 0 ;;
     *) return 1 ;;
   esac
@@ -64,8 +68,8 @@ bsi_keychain_is_ours() {
 
 # Snapshots the user's keychain search list, dropping entries that must not be restored.
 #
-# Two kinds are dropped. Ours - a stale build.keychain or bsi-signing keychain from a run that
-# never cleaned up - because restoring those is what made the old bug permanent. And paths that no
+# Two kinds are dropped. Ours - a stale bsi-signing keychain from a run that never cleaned up -
+# because restoring those is what made the old bug permanent. And paths that no
 # longer exist, because a search list containing a dangling path is the state the old cleanup left
 # behind, and quietly writing it back would preserve it.
 bsi_keychain_snapshot() {
@@ -92,25 +96,17 @@ bsi_keychain_snapshot() {
   echo "keychain: search list to preserve: ${BSI_ORIGINAL_KEYCHAINS[*]:-(empty)}"
 }
 
-# Removes debris left by the previous version of these scripts, and repairs the default keychain.
+# Repairs the default keychain, when an interrupted run left it broken.
 #
-# The old scheme could leave ~/Library/Keychains/build.keychain-db behind, and could leave it named
-# as the user's default keychain. Neither state heals on its own, and both keep prompting the
-# person at that Mac long after the build that caused them finished.
-#
-# Order matters here, and getting it wrong is how the old scripts made things worse: deleting a
-# keychain that is currently the default leaves the user with *no* default keychain at all, which
-# is a stranger state than the one being repaired. `security default-keychain -d user` then answers
-# with an error rather than a path. So the default is repaired *after* the delete, and an empty
-# answer counts as needing repair just as much as a stale one.
+# A default keychain that points at a keychain of ours, at a file that is gone, or at nothing keeps
+# prompting the person at that Mac long after the build that caused it, and does not heal on its
+# own. `security default-keychain -d user` answers an error rather than a path when there is no
+# default at all, so an empty answer counts as needing repair just as much as a stale one. A default
+# that is another project's live keychain, butler's build.keychain during its build say, is not
+# broken, and is theirs to restore.
 bsi_keychain_clear_legacy_state() {
   local default_keychain
   local login_keychain="${HOME}/Library/Keychains/login.keychain-db"
-
-  if [ -f "${HOME}/Library/Keychains/${BSI_LEGACY_KEYCHAIN_NAME}-db" ]; then
-    echo "keychain: found leftover ${BSI_LEGACY_KEYCHAIN_NAME} from an earlier build - deleting it"
-    security delete-keychain "${BSI_LEGACY_KEYCHAIN_NAME}" >/dev/null 2>&1 || true
-  fi
 
   default_keychain=$(security default-keychain -d user 2>/dev/null | tr -d '"' | xargs || true)
 
@@ -139,7 +135,7 @@ bsi_keychain_setup() {
   bsi_keychain_clear_legacy_state
 
   # Outside ~/Library/Keychains on purpose: it never shows up in Keychain Access, it cannot collide
-  # with a stale build.keychain, and on a runner it is swept with RUNNER_TEMP even if this script
+  # with another project's keychain there, and on a runner it is swept with RUNNER_TEMP even if this script
   # is killed hard enough that no trap runs.
   BSI_KEYCHAIN_PATH="${keychain_dir%/}/bsi-signing-$$.keychain-db"
 
