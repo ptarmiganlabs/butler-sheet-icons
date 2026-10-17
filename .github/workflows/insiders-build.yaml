@@ -15,36 +15,20 @@ jobs:
       actions: write
       security-events: write
     # The jest scripts no longer pass --forceExit (issue #951), so a unit suite that genuinely
-    # leaks a handle now hangs instead of exiting. The win and mac legs of this matrix are the
-    # self-hosted code-signing runners, so an untimed hang would hold one of them for GitHub's
-    # 6-hour default and queue every later insiders build and signed release behind it.
-    # 20 minutes is roughly 3x the slowest observed run of this job (6m34s, on win).
-    #
-    # Signing is a second way the win leg can stall, since #1041: on a host configured to show
-    # SimplySign's login dialog, signtool would wait on a prompt nobody can answer.
-    # scripts/lib/win-signing.ps1 kills signtool itself, so this stays a backstop rather than the
-    # primary guard - and signing adds well under a minute, so 20 still holds.
+    # leaks a handle now hangs instead of exiting, and without a timeout it would run to GitHub's
+    # 6-hour default. 20 minutes is roughly 3x the slowest observed run of this job (6m34s, on win).
     timeout-minutes: 20
     strategy:
       matrix:
-        target: [win, mac, linux]
+        target: [win, linux]
         include:
+          # Both GitHub-hosted: this repository is public, and no self-hosted runner group admits
+          # a public repository (plabs-house-rules, rules/ci/public-repositories.md). The Windows
+          # build is unsigned, as every insiders build is; see scripts/insider-build-win.ps1.
           - target: win
             runs_on:
-              - self-hosted
-              - x64
-              - windows
-              - sp53
-              - win-code-sign
+              - windows-latest
             artifact_insider: butler-sheet-icons--win-x64--${{ github.sha }}.zip
-          - target: mac
-            runs_on:
-              - self-hosted
-              - macos
-              - arm64
-              - mac-build2
-              - sp53
-            artifact_insider: butler-sheet-icons--macos-arm64--${{ github.sha }}.zip
           - target: linux
             runs_on:
               - ubuntu-latest
@@ -108,25 +92,11 @@ jobs:
 
       - name: Create binaries (Windows)
         if: matrix.target == 'win'
+        shell: pwsh
         env:
           DIST_FILE_NAME: butler-sheet-icons
           GITHUB_TOKEN: ${{ secrets.PAT }}
-          CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT}}
         run: ./scripts/insider-build-win.ps1
-
-      - name: Create binaries (macOS)
-        if: matrix.target == 'mac'
-        env:
-          DIST_FILE_NAME: butler-sheet-icons
-          GITHUB_TOKEN: ${{ secrets.PAT }}
-          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
-          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
-          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
-          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
-          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
-          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
-        run: bash ./scripts/insider-build-mac.sh
 
       - name: Create binaries (Linux)
         if: matrix.target == 'linux'
@@ -168,4 +138,72 @@ jobs:
         with:
           name: ${{ matrix.artifact_insider }}
           path: ${{ matrix.artifact_insider }}
+          retention-days: 7
+
+  # macOS is a job of its own so that it alone runs in the release-signing environment, which
+  # admits main alone. It is the only insiders build that is signed, and notarised, so it is the only
+  # one that needs the Apple secrets; the Windows and Linux legs have no reason to be in the
+  # environment. Why the environment matters: see release-macos-arm64 in ci.yaml. butler-sos builds
+  # its macOS insiders the same way.
+  #
+  # A workflow_dispatch from any other branch is refused at this job, because the environment admits
+  # only main; the Windows and Linux legs still run.
+  insiders-build-macos:
+    permissions:
+      contents: read
+    # The 20 minutes of the matrix above, plus room for notarisation, which waits on Apple and
+    # usually takes a few minutes but has no upper bound of its own.
+    timeout-minutes: 30
+    # GitHub-hosted, for the reason on the matrix above. Pinned rather than macos-latest because the
+    # binary must be arm64: macOS binaries are arm64 only.
+    runs-on: macos-15
+    environment: release-signing
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: ''
+
+      # See the same step in the matrix above.
+      - name: Pin npm
+        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
+        # cannot arrive any other way. Pinned to an exact version rather than a range.
+        run: | # zizmor: ignore[adhoc-packages]
+          npm install -g npm@12.0.2
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci --include=dev --include=prod
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test:unit
+
+      - name: Create binaries (macOS)
+        env:
+          DIST_FILE_NAME: butler-sheet-icons
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
+          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
+          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
+          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
+          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
+        run: bash ./scripts/insider-build-mac.sh
+
+      - name: Upload insider build artifacts to GitHub
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: butler-sheet-icons--macos-arm64--${{ github.sha }}.zip
+          path: butler-sheet-icons--macos-arm64--${{ github.sha }}.zip
           retention-days: 7
