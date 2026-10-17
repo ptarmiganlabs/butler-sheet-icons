@@ -2,12 +2,25 @@ name: ci
 
 on:
   workflow_dispatch:
+    inputs:
+      # Proves Azure signing works without cutting a release: see build-win64. Dispatch it on main.
+      # sign-win64 runs in the release-signing environment, which admits only main, so a rehearsal
+      # dispatched on any other branch is refused at that job.
+      #
+      #   gh workflow run ci.yaml -R ptarmiganlabs/butler-sheet-icons --ref main -f rehearse_signing=true
+      rehearse_signing:
+        description: Build and sign the Windows binary from this commit, and release nothing
+        type: boolean
+        default: false
   push:
     branches:
       - main
 
 jobs:
   unit-tests:
+    # A signing rehearsal tests nothing and releases nothing: skipping this job skips every job
+    # that needs it, and with them release-please. What is left is build-win64 and sign-win64.
+    if: ${{ !inputs.rehearse_signing }}
     permissions:
       contents: read
     # Same reason as the integration jobs below, and it matters more here: every one of them
@@ -567,7 +580,9 @@ jobs:
     # release-please targets main, so it must not run for a workflow_dispatch fired from a
     # feature branch. Skipping it here also skips every release-* job, since they gate on its
     # releases_created output - which is what makes the pipeline safe to dry-run from a branch.
-    if: github.ref == 'refs/heads/main'
+    #
+    # A signing rehearsal must not cut a release either, whichever branch it is dispatched from.
+    if: github.ref == 'refs/heads/main' && !inputs.rehearse_signing
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -812,115 +827,261 @@ jobs:
           pwd
           ls -la
 
-  release-win64:
+  # ---------------------------------------------------------------------------------------------
+  # Windows release: build, sign and publish, as three jobs, so that the one holding the signing
+  # identity runs no repository code.
+  #
+  # build-win64 builds the unsigned binary and checks it (scripts/release-win.ps1). sign-win64 signs
+  # it through Azure Artifact Signing and verifies the signature; it checks nothing out and runs no
+  # npm and no repository scripts, so a compromised dependency cannot reach the OIDC token that
+  # unlocks signing. publish-win64 zips the signed binary and attaches it to the release.
+  #
+  # All three are GitHub-hosted: this repository is public, and no self-hosted runner group admits
+  # a public repository (plabs-house-rules, rules/ci/public-repositories.md). butler-sos, magpie-cli
+  # and persona sign the same way.
+  #
+  # A rehearsal (workflow_dispatch with rehearse_signing) runs build-win64 and sign-win64 on the
+  # dispatched commit and releases nothing. The signed binary is kept as the win64-signed artifact,
+  # for anyone who wants to try it on a real machine.
+  # ---------------------------------------------------------------------------------------------
+  build-win64:
     needs: release-please
-    runs-on:
-      - self-hosted
-      - x64
-      - windows
-      - sp53
-      - win-code-sign
-    # Not optional. A lapsed SimplySign session can leave signtool waiting on a graphical prompt
-    # that nothing on a runner will answer; the scripts kill signtool themselves, and this is the
-    # backstop if anything else wedges. Without it the default is six hours.
+    # !cancelled() in place of the implicit success(): a rehearsal skips release-please, and a
+    # skipped dependency would otherwise skip this job too. A release still needs releases_created,
+    # which a failed or skipped release-please never sets.
+    if: >-
+      !cancelled()
+      && (needs.release-please.outputs.releases_created == 'true'
+          || (github.event_name == 'workflow_dispatch' && inputs.rehearse_signing))
+    runs-on: windows-latest
     timeout-minutes: 30
-    if: needs.release-please.outputs.releases_created == 'true'
     permissions:
-      contents: write
+      contents: read
     env:
       DIST_FILE_NAME: butler-sheet-icons
-      GITHUB_TOKEN: ${{ secrets.PAT }}
-      # The certificate is a Certum cloud certificate, reached through SimplySign Desktop on the
-      # win-code-sign runner. It only exists in that machine's certificate store while a SimplySign
-      # session is open, and a session lasts about two hours - so somebody has to log in to
-      # SimplySign Desktop before merging a release-please PR.
-      #
-      # Forgetting is not a disaster: the preflight step below fails this job in seconds, and
-      # re-running it after logging in is all that is needed. See scripts/lib/win-signing.ps1.
-      CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT }}
     steps:
-      - name: Release tag and upload url from previous job
-        shell: powershell
-        run: |
-          Write-Output 'tag_name        : ${{ needs.release-please.outputs.release_tag_name }}'
-          Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
-
-      - name: Checkout the released tag
+      - name: Checkout the commit being built
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Load-bearing. Without `ref`, checkout takes `github.sha` - the commit that triggered
-          # this run - and release-please cuts the release from main's HEAD, which is a
-          # different commit whenever an unrelated push is what started the run. On 2026-08-10
-          # that shipped all three 4.1.0 binaries built from the commit before the version bump,
-          # so they reported "App version: 4.0.0": the SEA build embeds package.json as an asset
-          # and globals.js reads the version straight out of it.
-          #
-          # The sha rather than the tag, because release-please is configured to cut a *draft*
-          # release and a draft has no tag ref - GitHub creates it at publication. Checking out
-          # the tag name failed all four release jobs on 5.0.0. Issue #1145.
-          ref: ${{ needs.release-please.outputs.release_sha }}
+          # Load-bearing. A release builds the commit release-please released, never github.sha:
+          # release-please cuts from main's HEAD, a different commit whenever an unrelated push
+          # started the run, and that is how all three 4.1.0 binaries came to report 4.0.0. The sha
+          # rather than the tag, because a draft release has no tag ref yet (issue #1145). A
+          # rehearsal has no release, so it builds the commit it was dispatched on.
+          ref: ${{ needs.release-please.outputs.releases_created == 'true' && needs.release-please.outputs.release_sha || github.sha }}
           persist-credentials: false
 
-      # Fail before spending ten minutes on a build that cannot be signed.
-      #
-      # The Certum certificate is only in this machine's store while a SimplySign session is open,
-      # and a session lasts about two hours - so "no certificate" is a routine state, not an exotic
-      # one. Checking here means the answer arrives in seconds and the fix is to log in to
-      # SimplySign Desktop on the runner and re-run this job.
-      #
-      # -ProveSigning actually signs a few-kilobyte scratch file rather than trusting the
-      # certificate store. That is not belt and braces: SimplySign leaves certificates registered
-      # after a session ends, so a store lookup would pass with an expired session and this step
-      # would wave through a build that cannot possibly be signed - which is the whole thing it
-      # exists to prevent.
-      #
-      # Written for `shell: powershell` for the same reason as the version check below - it is the
-      # shell this self-hosted runner is known to have. In fact it is the *only* one: the runner has
-      # no PowerShell 7 at all, so a `run:` step that names no shell resolves to Windows PowerShell
-      # too. Every signing script therefore has to work under 5.1, this one no more than the rest.
-      - name: Preflight the Windows signing certificate
-        shell: powershell
-        run: ./scripts/diag/win-signing-check.ps1 -RequireSigning -ProveSigning
-
+      # No npm cache: what this job builds gets signed, so it starts from nothing an earlier run
+      # left behind.
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+          cache: ''
+
       # See the note on the other jobs: pins npm so the install is identical on every runner.
       - name: Pin npm
-        shell: powershell
+        shell: pwsh
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
         run: | # zizmor: ignore[adhoc-packages]
           npm install -g npm@12.0.2
           npm --version
 
-      # Same check as the other release jobs, written in powershell because that is the shell
-      # this self-hosted runner is known to have - every other run step in this job uses it,
-      # while bash would depend on Git for Windows being on PATH. A guard that fails spuriously
-      # would block a release, which is worse than the defect it guards against.
       - name: Verify the checkout is the version being released
-        shell: powershell
+        if: needs.release-please.outputs.releases_created == 'true'
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ needs.release-please.outputs.release_version }}
         run: |
-          $expected = "${{ needs.release-please.outputs.release_version }}"
           $actual = node -p "require('./package.json').version"
-          Write-Host "release-please version : $expected"
+          Write-Host "release-please version : $env:RELEASE_VERSION"
           Write-Host "package.json version   : $actual"
-          if ($actual -ne $expected) {
-            Write-Host "::error::Refusing to build: package.json says $actual, but the release is $expected. The binary embeds package.json and would report the wrong version."
+          if ($actual -ne $env:RELEASE_VERSION) {
+            Write-Host "::error::Refusing to build: package.json says $actual, but the release is $env:RELEASE_VERSION. The binary embeds package.json and would report the wrong version."
             exit 1
           }
 
       - name: Install dependencies
-        shell: powershell
-        run: |
-          pwd
-          npm ci --include=dev --include=prod
+        shell: pwsh
+        run: npm ci --include=dev --include=prod
 
-      - name: Build binaries
+      # scripts/release-win.ps1 builds the binary unsigned, smoke-tests it, checks it carries no
+      # signature, and records the digest sign-win64 checks the artifact against.
+      - name: Build the unsigned binary
+        shell: pwsh
+        run: |
+          ./scripts/release-win.ps1
+          $hash = Get-Content -LiteralPath ./butler-sheet-icons.exe.sha256
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "Unsigned Windows binary SHA-256: ``$hash``"
+
+      # 30 days asked for a release, which is as long as GitHub lets a job be re-run: a failed
+      # sign-win64 or publish-win64 is recovered with "Re-run failed jobs", which needs this
+      # artifact to still exist. The repository's retention setting caps what is asked for (3 days
+      # in October 2026; upload-artifact warns and uses the cap), and past it, the fix ships in the
+      # next release, since a re-run of build-win64 rebuilds the released commit. A rehearsal needs
+      # three days.
+      - name: Upload the unsigned binary
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: win64-unsigned
+          path: |
+            butler-sheet-icons.exe
+            butler-sheet-icons.exe.sha256
+          retention-days: ${{ inputs.rehearse_signing && 3 || 30 }}
+          if-no-files-found: error
+
+  sign-win64:
+    needs: build-win64
+    # Explicit, because the implicit success() fails when anything further up the chain was
+    # skipped. A rehearsal skips release-please on purpose, so without this, signing would be
+    # skipped while the run still went green - a rehearsal that proved everything except signing.
+    if: ${{ !cancelled() && needs.build-win64.result == 'success' }}
+    # INVARIANT: no actions/checkout, no npm and no ./scripts in this job. A compromised dependency
+    # must not be able to reach the OIDC token; a step that needs repository content belongs in
+    # build-win64 or publish-win64.
+    runs-on: windows-latest
+    timeout-minutes: 15
+    # This line is what binds the OIDC subject, and the subject is not the obvious string. With the
+    # immutable subject switched on, GitHub presents the owner and repository ids:
+    #
+    #   repo:ptarmiganlabs@6304190/butler-sheet-icons@381155354:environment:release-signing
+    #
+    # The Azure app must carry a federated credential matching that exactly, or the login fails with
+    # AADSTS700213, "no matching federated identity record found for presented assertion subject".
+    # Regenerate the string rather than retyping it, then append ":environment:release-signing":
+    #
+    #   gh api repos/ptarmiganlabs/butler-sheet-icons/actions/oidc/customization/sub --jq .sub_claim_prefix
+    environment: release-signing
+    permissions:
+      id-token: write # the OIDC token azure/login exchanges for the signing credential
+      contents: read # nothing is checked out; downloading this run's artifact needs no more
+    outputs:
+      # The SHA-256 of the executable the verify step found signed. publish-win64 checks the
+      # executable in the zip it attaches against this.
+      signed_sha256: ${{ steps.verify.outputs.sha256 }}
+    steps:
+      - name: Download the unsigned binary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: win64-unsigned
+          path: to-sign
+
+      # Belt and braces. GitHub already integrity-protects artifacts, so this cannot currently fail,
+      # but it states what the job assumes, and it would catch a future change that re-uploads or
+      # rebuilds between build and sign.
+      - name: Verify the artifact is what build-win64 produced
+        shell: pwsh
+        run: |
+          $expected = (Get-Content to-sign/butler-sheet-icons.exe.sha256 -Raw).Trim()
+          $actual = (Get-FileHash to-sign/butler-sheet-icons.exe -Algorithm SHA256).Hash
+          Write-Host "built  : $expected"
+          Write-Host "to sign: $actual"
+          if ($actual -ne $expected) {
+            throw "Refusing to sign: the artifact does not match the digest build-win64 recorded."
+          }
+          Remove-Item to-sign/butler-sheet-icons.exe.sha256
+
+      - name: Azure login via OIDC
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign with Azure Artifact Signing
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ vars.SIGNING_CERT_PROFILE_NAME }}
+          files-folder: ${{ github.workspace }}\to-sign
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      # A hard failure, deliberately: if signing fails, the release fails, rather than quietly
+      # shipping something unsigned. Two readings of the same signature - signtool's chain and
+      # timestamp check, and the one Windows itself makes - and the signer pinned to Ptarmigan Labs
+      # AB, so variables pointed at another certificate profile fail here rather than shipping a
+      # binary somebody else signed. The executable's hash, taken once all of that has held, becomes
+      # the job's output, which nothing after this job can change.
+      - name: Verify the signature
+        id: verify
+        shell: pwsh
+        run: |
+          $st = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+                Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $st) { throw "signtool.exe not found on this runner." }
+          & $st.FullName verify /pa /v to-sign\butler-sheet-icons.exe
+          if ($LASTEXITCODE -ne 0) { throw "Signature verification failed." }
+          $sig = Get-AuthenticodeSignature -LiteralPath to-sign\butler-sheet-icons.exe
+          if ($sig.Status -ne 'Valid') { throw "Windows reads the signature as $($sig.Status): $($sig.StatusMessage)" }
+          $signer = $sig.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+          if ($signer -cne 'Ptarmigan Labs AB') {
+            throw "Signed by an unexpected certificate: '$signer' ($($sig.SignerCertificate.Subject))"
+          }
+          $hash = (Get-FileHash -LiteralPath to-sign\butler-sheet-icons.exe -Algorithm SHA256).Hash
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "sha256=$hash"
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value @(
+            "Signed by: ``$($sig.SignerCertificate.Subject)``",
+            "Timestamped by: ``$($sig.TimeStamperCertificate.Subject)``",
+            "Signed Windows binary SHA-256: ``$hash``"
+          )
+
+      - name: Upload the signed binary
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: win64-signed
+          path: to-sign/butler-sheet-icons.exe
+          retention-days: ${{ inputs.rehearse_signing && 3 || 30 }}
+          if-no-files-found: error
+
+  publish-win64:
+    needs:
+      - release-please
+      - sign-win64
+    # Never on a rehearsal, which has no release to attach to. Written out in full for the reason on
+    # sign-win64: it depends on exactly these, and no skipped job further up should get a say.
+    if: >-
+      !cancelled()
+      && needs.release-please.outputs.releases_created == 'true'
+      && needs.sign-win64.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download the signed binary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: win64-signed
+          path: package
+
+      # The same asset as before the signing moved: <tag>-win.zip, holding butler-sheet-icons.exe
+      # and nothing else. And the executable in it is the one sign-win64 found signed, byte for
+      # byte, read back out of the finished zip, so nothing between the two jobs can swap it.
+      - name: Zip it, and check it holds the binary sign-win64 verified
         env:
-          RELEASE_VERSION: ${{ needs.release-please.outputs.release_tag_name }}
-        run: ./scripts/release-win.ps1
+          RELEASE_TAG: ${{ needs.release-please.outputs.release_tag_name }}
+          SIGNED_SHA256: ${{ needs.sign-win64.outputs.signed_sha256 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SIGNED_SHA256" ]; then
+            echo "::error::sign-win64 recorded no hash of the executable it verified. Refusing to publish."
+            exit 1
+          fi
+          test -f package/butler-sheet-icons.exe || { echo "::error::butler-sheet-icons.exe is missing from what sign-win64 produced"; exit 1; }
+          ZIP="${RELEASE_TAG}-win.zip"
+          (cd package && zip -9 "../$ZIP" butler-sheet-icons.exe)
+          unzip -l "$ZIP"
+          ZIPPED=$(unzip -p "$ZIP" butler-sheet-icons.exe | sha256sum | cut -d' ' -f1 | tr '[:lower:]' '[:upper:]')
+          if [ "$ZIPPED" != "$SIGNED_SHA256" ]; then
+            echo "::error::The butler-sheet-icons.exe in $ZIP is not the executable sign-win64 verified ($SIGNED_SHA256 signed, $ZIPPED zipped). Refusing to publish."
+            exit 1
+          fi
+          echo "The butler-sheet-icons.exe in $ZIP is the one sign-win64 verified: $ZIPPED"
 
       - name: Upload to existing release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
@@ -933,11 +1094,6 @@ jobs:
           tag: ${{ needs.release-please.outputs.release_tag_name }}
           artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-win.zip
           token: ${{ github.token }}
-
-      - name: Tidy up before existing
-        shell: powershell
-        run: |
-          dir
 
   release-linux:
     needs: release-please
