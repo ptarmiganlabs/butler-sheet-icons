@@ -100,13 +100,9 @@ jobs:
       contents: read
     # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
     timeout-minutes: 30
-    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
-    # runner that holds the signing certificate. Without it they pool across every Windows runner.
-    runs-on:
-      - self-hosted
-      - x64
-      - windows
-      - sp53
+    # GitHub-hosted: this repository is public, and no self-hosted runner group admits a public
+    # repository (plabs-house-rules, rules/ci/public-repositories.md).
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -154,6 +150,11 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+    # The tenant credentials live in the qscloud-tests environment, which admits only main, so a
+    # workflow_dispatch from any other branch cannot reach them (plabs-house-rules,
+    # rules/ci/public-repositories.md). Until they have been moved there, the job still reads the
+    # repository-level secrets of the same names.
+    environment: qscloud-tests
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -205,13 +206,11 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
-    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
-    # runner that holds the signing certificate. Without it they pool across every Windows runner.
-    runs-on:
-      - self-hosted
-      - x64
-      - windows
-      - sp53
+    # Tenant credentials: see test-qscloud-macos.
+    environment: qscloud-tests
+    # GitHub-hosted: this repository is public, and no self-hosted runner group admits a public
+    # repository (plabs-house-rules, rules/ci/public-repositories.md).
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -387,6 +386,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    # Tenant credentials: see test-qscloud-macos.
+    environment: qscloud-tests
     runs-on: ubuntu-24.04-arm
     env:
       IMAGE_NAME: butler-sheet-icons:ci-arm64
@@ -476,6 +477,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    # Tenant credentials: see test-qscloud-macos.
+    environment: qscloud-tests
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: butler-sheet-icons:ci-amd64
