@@ -131,21 +131,29 @@ The section above is about the browser BSI drives. This one is about the browser
 ## SEA (Single Executable App)
 
 - SEA config: `build-script/sea-config.json` — bundles `build.cjs` and enigma.js JSON schemas as assets
-- `scripts/release-*.sh` / `scripts/release-*.ps1` produce signed/notarized binaries for macOS, Linux, Windows
-- `scripts/insider-build-*.sh` / `scripts/insider-build-*.ps1` produce insider builds — unsigned on Linux, signed on macOS, and signed on Windows only when a certificate happens to be available
+- `scripts/release-*.sh` / `scripts/release-*.ps1` build the release binaries: macOS signed and notarized, Linux unsigned, and Windows **unsigned** — `sign-win64` in `ci.yaml` signs it (see below)
+- `scripts/insider-build-*.sh` / `scripts/insider-build-*.ps1` produce insider builds — signed and notarized on macOS, unsigned on Windows and Linux
 - In SEA binaries, `__dirname`/`__filename` are unavailable; use the helpers in `src/lib/util/import-meta-url.js` (injected at build time)
 - Always clean up `build.cjs` and `sea-prep.blob` after builds
 
 ### Windows code signing
 
-**A SimplySign session must be open on the `win-code-sign` runner before a release-please PR is merged.** The Windows certificate is a Certum *cloud* certificate: it exists in that machine's certificate store only while SimplySign Desktop holds a session, and a session lasts about two hours before it needs a fresh token from the SimplySign mobile app. Nothing in CI can renew it.
+Releases are signed through **Azure Artifact Signing**, on GitHub-hosted runners, by three jobs in `ci.yaml`. No certificate is stored anywhere and no session has to be open: the signing job authenticates with GitHub's OIDC token.
 
-- Forgetting is cheap. `release-win64` preflights the certificate before it builds anything and fails in seconds; log in and re-run the job.
-- `scripts/lib/win-signing.ps1` holds the signing logic shared by the release build, the insider build and the diagnostics — including why the timestamp URL is `http` and must stay that way.
-- To check a machine, or to test signing without waiting for a release build, run `scripts/diag/win-signing-check.ps1` and `scripts/diag/win-signing-smoke.ps1` on the runner. The `windows-signing-canary` workflow runs both through the runner's own account, which is the part running them by hand cannot prove.
-- **Never decide from the certificate store alone whether a host can sign.** SimplySign leaves the certificate registered after a session ends and `HasPrivateKey` stays true, so a store lookup says yes on a machine that cannot sign at all. Use `Test-BsiSigningSession` (insider build, never throws) or `Invoke-BsiProveSigning` (release preflight, throws) — both answer by actually signing a scratch file. `BSI_PROBE_TIMEOUT_SECONDS` is the probe's own deadline, separate from `BSI_SIGN_TIMEOUT_SECONDS`.
-- `scripts/diag/win-signing-selftest.ps1` covers the parts of the library that need no certificate — how a failed signtool run is classified, and the signtool argument list. It runs on any OS and is wired into `pr-unit-tests`, including a Windows PowerShell 5.1 leg because the release preflight uses `shell: powershell`.
-- signtool only sees certificates belonging to the Windows account it runs as. A runner running as a service, or as a different account than the one SimplySign is connected as, cannot sign at all — and the symptom looks exactly like an expired session.
+- `build-win64` runs `scripts/release-win.ps1`, which builds the binary unsigned, smoke-tests `--version`, checks it carries no signature and records its SHA-256.
+- `sign-win64` checks that digest, signs in the `release-signing` environment, verifies the signature with signtool and with Windows, and fails unless the signer is **Ptarmigan Labs AB**. **It must never gain an `actions/checkout`, an `npm` step or a `./scripts` call** — that is what keeps a compromised dependency away from the signing identity. A step that needs the repository belongs in `build-win64` or `publish-win64`.
+- `publish-win64` zips `<tag>-win.zip` (`butler-sheet-icons.exe` only), checks the zipped executable is the one `sign-win64` verified, and attaches it to the draft release.
+- **Rehearse before a release depends on it:** `gh workflow run ci.yaml -R ptarmiganlabs/butler-sheet-icons --ref main -f rehearse_signing=true` builds and signs `main`'s HEAD and releases nothing; the signed binary stays as the `win64-signed` artifact for three days. It has to be `main`, because `release-signing` admits no other branch. Check that `sign-win64` actually ran, not just that the run is green.
+- Two things live outside the repository. The `release-signing` environment holds six variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `SIGNING_ENDPOINT`, `SIGNING_ACCOUNT_NAME`, `SIGNING_CERT_PROFILE_NAME`. And the Entra app needs a federated credential whose subject matches exactly what GitHub presents: `repo:ptarmiganlabs@6304190/butler-sheet-icons@381155354:environment:release-signing`. A mismatch fails the login with AADSTS700213. Regenerate the prefix rather than retyping it (`gh api repos/ptarmiganlabs/butler-sheet-icons/actions/oidc/customization/sub --jq .sub_claim_prefix`), and expect a repository or environment rename to break it.
+- Insiders builds are not signed.
+- `scripts/lib/win-signing.ps1` keeps only the signtool lookup and the signature strip that every Windows build needs before postject. butler-sheet-icons-premium dot-sources it under Windows PowerShell 5.1, so `pr-unit-tests` runs `scripts/diag/win-strip-check.ps1` under both 5.1 and PowerShell 7.
+
+### CI runners
+
+This repository is public, so every job runs on a GitHub-hosted runner: no self-hosted runner group admits a public repository (plabs-house-rules, `rules/ci/public-repositories.md`). Do not add a `self-hosted` label; such a job never starts.
+
+- The QSEoW tests need the homelab, so they run from the private companion **butler-sheet-icons-e2e**, nightly and by hand. Before merging a release-please PR, test its head there: `gh workflow run qseow-e2e.yaml -R ptarmiganlabs/butler-sheet-icons-e2e -f ref=<sha>`.
+- The QS Cloud credentials live in the `qscloud-tests` environment, which admits only `main`.
 
 ## Security
 

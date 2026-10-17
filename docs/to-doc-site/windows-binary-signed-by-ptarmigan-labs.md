@@ -1,0 +1,73 @@
+# The Windows download is now signed by Ptarmigan Labs AB
+
+**Applies to:** the Windows download of Butler Sheet Icons. The macOS and Linux downloads, and the Docker image, are unaffected.
+
+**Suggested target pages:** the section on the Windows signature that `done_windows-binary-signed-again.md` added (troubleshooting, and wherever the site covers downloading the Windows binary). This replaces that section's certificate details rather than adding a page of its own.
+
+<!--
+Do not publish until a release signed this way exists. Until then the newest Windows download is
+still the Certum-signed one, and this page would tell administrators to expect a publisher that
+download does not carry.
+
+Before publishing, read the issuer and the full subject from that release with the commands below
+and fill them into the table, and set the version gate from the release it shipped in. When this
+draft was written the open release PR was for 6.0.0; do not trust that number either.
+-->
+
+::: warning Requires Butler Sheet Icons X.Y.Z or later
+Earlier Windows downloads are signed with the previous certificate, or, for 4.0.0 and 4.1.0, not
+at all.
+:::
+
+## What changed
+
+The Windows executable is now signed with a certificate issued to **Ptarmigan Labs AB**, the company behind Butler Sheet Icons, through Microsoft's Azure Artifact Signing service. Windows shows the publisher as Ptarmigan Labs AB.
+
+Earlier releases from 5.0.0 on were signed with a Certum certificate issued to an individual open source developer, so Windows showed a person's name as the publisher. That certificate is no longer used.
+
+Nothing about how Butler Sheet Icons works has changed. This affects only how Windows identifies the file, and what an application control rule has to match.
+
+## What you may need to do
+
+**If you allow Butler Sheet Icons by publisher**, with AppLocker or Windows Defender Application Control, the rule written for the old certificate does not match the new one: the publisher, the issuer and the certificate are all different. Add a rule for the new publisher before you roll out the new version, or the new version is blocked where the old one ran.
+
+**Do not allow it by certificate thumbprint.** Azure Artifact Signing issues short-lived certificates, valid for a few days and renewed automatically, so the thumbprint is different from one release to the next. A rule pinned to one thumbprint matches one release. Match on the publisher name and issuer instead; that is what stays the same.
+
+The signature itself stays valid after the certificate behind it expires. Every release is timestamped when it is signed, and Windows checks the certificate against that moment, not against today.
+
+**If you allow it by file hash**, nothing changes: every release has a new hash anyway, as before.
+
+**If you use insiders builds** (the test builds published for every change, not the releases): the Windows insiders build is not signed. It was usually unsigned before, too, and was signed only when a signing session happened to be open. Releases are always signed: if signing fails, the release goes out without a Windows download rather than with an unsigned one.
+
+## Checking the signature yourself
+
+In PowerShell, in the folder holding the executable:
+
+```powershell
+$sig = Get-AuthenticodeSignature -LiteralPath .\butler-sheet-icons.exe
+$sig | Format-List Status, StatusMessage
+$sig.SignerCertificate | Format-List Subject, Issuer, NotBefore, NotAfter
+$sig.TimeStamperCertificate | Format-List Subject
+```
+
+You can also right-click the file, choose **Properties**, and look at the **Digital Signatures** tab.
+
+`Status` should read `Valid`, and the subject should name **Ptarmigan Labs AB**. `Valid` alone only means some trusted certificate signed the file; the publisher name is what says it was us.
+
+| | |
+|---|---|
+| Publisher | `Ptarmigan Labs AB` |
+| Subject | *(fill in from the first release signed this way)* |
+| Issuer | *(fill in from the first release signed this way)* |
+| Certificate lifetime | A few days; a new certificate, and a new thumbprint, for each release |
+
+`NotAfter` will usually be a date close to the release, and may well be in the past by the time you check. That is expected, and `Status` still reads `Valid`, because of the timestamp.
+
+## SmartScreen
+
+Microsoft Defender SmartScreen may still warn about a new release:
+
+> **Windows protected your PC**
+> Microsoft Defender SmartScreen prevented an unrecognised app from starting.
+
+SmartScreen warns based on the reputation a publisher and a file have built up, not merely on whether a signature exists, and a newly published file has none yet. Choose **More info**, check that the publisher reads Ptarmigan Labs AB, then **Run anyway**.
