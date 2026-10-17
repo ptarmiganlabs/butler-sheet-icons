@@ -50,11 +50,11 @@ note() {
 
 # Reports whether a keychain path belongs to a Butler Sheet Icons build.
 #
-# `build.keychain` is the name used by the older scripts; `bsi-signing-` is the current one. Both
-# are recognised so that a host still carrying old debris is diagnosed correctly.
+# Only `bsi-signing-`. Not `build.keychain`, the name the older scripts used until August 2026: butler
+# and ctrl-q still create a keychain by that name on the same build Mac, and it is theirs, not debris
+# of this project's (scripts/lib/macos-signing-keychain.sh says more).
 is_signing_keychain() {
   case "$1" in
-    *"/build.keychain"*) return 0 ;;
     *"/bsi-signing-"*) return 0 ;;
     *) return 1 ;;
   esac
@@ -118,13 +118,6 @@ if [ -n "$DURING_BUILD" ] && [ -n "$SIGNING_POSITION" ] && [ -n "$LOGIN_POSITION
   fi
 fi
 
-# ---------------------------------------------------------------------------------------------
-# Debris on disk. A file here outlives the search list and keeps prompting long after the build.
-# ---------------------------------------------------------------------------------------------
-if [ -f "${HOME}/Library/Keychains/build.keychain-db" ]; then
-  fail "leftover ~/Library/Keychains/build.keychain-db from an older build script"
-fi
-
 if [ "$FAILURES" -eq 0 ]; then
   note "keychain configuration is healthy"
   exit 0
@@ -132,7 +125,6 @@ fi
 
 echo "$FAILURES keychain problem(s) found." >&2
 echo "Repair: the next macOS build clears this automatically, or run" >&2
-echo "  security delete-keychain build.keychain" >&2
 echo "  security list-keychains -d user -s \"$LOGIN_KEYCHAIN\"" >&2
 echo "  security default-keychain -d user -s \"$LOGIN_KEYCHAIN\"" >&2
 exit 1
