@@ -732,6 +732,12 @@ jobs:
     # notarizes via xcrun notarytool, so signing needs no on-premise state. Pinned rather than
     # macos-latest because the artifact must be arm64.
     runs-on: macos-15
+    # In the release-signing environment, which admits main alone, like sign-win64 (and like
+    # butler-sos's macOS release). The Apple signing secrets are organisation secrets today,
+    # readable by a workflow on any branch. This lets them move into the environment, where only
+    # main's macOS jobs can read them; a job that does not name the environment would lose them
+    # then.
+    environment: release-signing
     # timeout-minutes: 15
     permissions:
       contents: write
