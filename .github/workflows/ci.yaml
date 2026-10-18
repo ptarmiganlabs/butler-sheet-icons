@@ -160,9 +160,16 @@ jobs:
       contents: read
     # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
     timeout-minutes: 30
+    # One run at a time against the shared tenant, across runs. queue: max lets the jobs that are
+    # waiting line up, up to 100, and start in turn. Without it a group holds one waiting job, and a
+    # third arrival cancels the one already waiting ("Canceling since a higher priority waiting
+    # request ... exists"). On 2026-10-18 that cancelled a merge's test-qscloud-macos after it had
+    # waited almost an hour, and skipped every job after it. queue: max needs cancel-in-progress
+    # false.
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+      queue: max
     # The tenant credentials live in the qscloud-tests environment, which admits only main, so a
     # workflow_dispatch from any other branch cannot reach them (plabs-house-rules,
     # rules/ci/public-repositories.md). BSI_CLOUD_TENANT_URL may hold the bare host or a pasted
@@ -219,6 +226,7 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+      queue: max # see test-qscloud-macos
     # Tenant credentials: see test-qscloud-macos.
     environment: qscloud-tests
     # GitHub-hosted: this repository is public, and no self-hosted runner group admits a public
@@ -396,6 +404,7 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+      queue: max # see test-qscloud-macos
     permissions:
       actions: read
       contents: read
@@ -487,6 +496,7 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+      queue: max # see test-qscloud-macos
     permissions:
       actions: read
       contents: read
