@@ -9,9 +9,11 @@ Do not publish until a release signed this way exists. Until then the newest Win
 still the Certum-signed one, and this page would tell administrators to expect a publisher that
 download does not carry.
 
-Before publishing, read the issuer and the full subject from that release with the commands below
-and fill them into the table, and set the version gate from the release it shipped in. When this
-draft was written the open release PR was for 6.0.0; do not trust that number either.
+The certificate details below come from the signing rehearsal of 2026-10-18 (ci run
+39107730794), which signed exactly as a release does and published nothing. Before publishing,
+check them against the first release signed this way with the commands below, the issuing CA in
+particular, and set the version gate from the release it shipped in. When this draft was written
+the open release PR was for 6.0.0; do not trust that number either.
 -->
 
 ::: warning Requires Butler Sheet Icons X.Y.Z or later
@@ -31,7 +33,9 @@ Nothing about how Butler Sheet Icons works has changed. This affects only how Wi
 
 **If you allow Butler Sheet Icons by publisher**, with AppLocker or Windows Defender Application Control, the rule written for the old certificate does not match the new one: the publisher, the issuer and the certificate are all different. Add a rule for the new publisher before you roll out the new version, or the new version is blocked where the old one ran.
 
-**Do not allow it by certificate thumbprint.** Azure Artifact Signing issues short-lived certificates, valid for a few days and renewed automatically, so the thumbprint is different from one release to the next. A rule pinned to one thumbprint matches one release. Match on the publisher name and issuer instead; that is what stays the same.
+**Do not allow it by certificate thumbprint.** Azure Artifact Signing issues short-lived certificates, valid for about three days and renewed automatically, so the thumbprint is different from one release to the next. A rule pinned to one thumbprint matches one release.
+
+**Do not build the rule on the issuing CA either.** The certificate is issued by one of several numbered Microsoft CAs (see the table below), and a later release may be issued by another. Match on the publisher, Ptarmigan Labs AB, which stays the same. An AppLocker publisher rule matches on the publisher name. A Windows Defender Application Control rule at the Publisher level pairs the publisher with the CA one step below Microsoft's root, Microsoft ID Verified Code Signing PCA 2021, which also stays the same.
 
 The signature itself stays valid after the certificate behind it expires. Every release is timestamped when it is signed, and Windows checks the certificate against that moment, not against today.
 
@@ -56,10 +60,11 @@ You can also right-click the file, choose **Properties**, and look at the **Digi
 
 | | |
 |---|---|
-| Publisher | `Ptarmigan Labs AB` |
-| Subject | *(fill in from the first release signed this way)* |
-| Issuer | *(fill in from the first release signed this way)* |
-| Certificate lifetime | A few days; a new certificate, and a new thumbprint, for each release |
+| Issued to (publisher) | `Ptarmigan Labs AB` |
+| Issued by | `Microsoft ID Verified CS AOC CA 03`. One of several numbered issuing CAs, so a release may show another number |
+| Above that | `Microsoft ID Verified Code Signing PCA 2021`, under `Microsoft Identity Verification Root Certificate Authority 2020` |
+| Timestamped by | `Microsoft Public RSA Time Stamping Authority` |
+| Certificate lifetime | About three days. A new certificate, and a new thumbprint, for each release |
 
 `NotAfter` will usually be a date close to the release, and may well be in the past by the time you check. That is expected, and `Status` still reads `Valid`, because of the timestamp.
 
