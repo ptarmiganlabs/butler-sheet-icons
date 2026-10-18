@@ -1,107 +1,79 @@
 $ErrorActionPreference = 'Stop'
 
-# Signing helpers, shared with the insider build and the diagnostics under scripts/diag. The
-# certificate is a Certum cloud certificate reached through SimplySign Desktop; that library's
-# header explains how it appears to signtool, why the timestamp URL is http, and why a hard timeout
-# wraps every signtool call.
+# Builds the Windows release binary, UNSIGNED, and checks it.
+#
+# Signing is not done here. The release workflow signs in a job of its own, sign-win64 in ci.yaml,
+# through Azure Artifact Signing: that job holds the signing identity and runs no repository code,
+# so nothing this script or its dependencies do can reach it. What this script leaves behind is
+# exactly what that job needs:
+#
+#   <DIST_FILE_NAME>.exe          the unsigned binary
+#   <DIST_FILE_NAME>.exe.sha256   its SHA-256, which sign-win64 checks before signing anything
+#
+# The signtool lookup and the signature stripping come from the shared helpers, which the insider
+# build and butler-sheet-icons-premium use as well.
 . "$PSScriptRoot/lib/win-signing.ps1"
 
 $signtool = Get-BsiSigntoolPath
 Write-Host "signtool: $signtool"
 
-# -------------------
-# Decide about signing before building anything.
-#
-# The build below takes minutes; deciding afterwards means spending all of them only to discover
-# the certificate is not there. A SimplySign session lasts about two hours, so "not there" is a
-# routine state rather than an exotic one, and it is worth one second to find out first.
-#
-# This is a store lookup, which catches a missing or expired certificate but NOT an expired
-# SimplySign session - SimplySign leaves certificates registered after a session ends. The job that
-# calls this script preflights with `win-signing-check.ps1 -ProveSigning`, which settles that by
-# signing a scratch file. Treat the check here as the second line, not the first.
-$signingRequested = -not [string]::IsNullOrWhiteSpace($env:CODESIGN_WIN_THUMBPRINT)
-
-if ($signingRequested) {
-    $certificate = Test-BsiSigningCertificate -Thumbprint $env:CODESIGN_WIN_THUMBPRINT
-
-    if (-not $certificate.Usable) {
-        # A hard failure, deliberately. release-win64 uploads to a *draft* release, so a failed job
-        # costs a re-run once somebody has logged in to SimplySign - while an unsigned binary
-        # published under a release that is supposed to be signed is not something a re-run fixes.
-        Write-Host "::error title=Windows code signing unavailable::The configured signing certificate is not usable ($($certificate.Reason)). See the job log for what to do."
-        throw @"
-Refusing to build: signing was requested but no usable certificate is available ($($certificate.Reason)).
-
-$(Get-BsiSimplySignHelp)
-"@
-    }
-
-    Write-Host "Signing with: $($certificate.Subject)"
-    Write-Host "Certificate valid until $($certificate.NotAfter.ToString('yyyy-MM-dd')) ($($certificate.DaysRemaining) days left)."
-
-    if ($certificate.DaysRemaining -le 30) {
-        Write-Host "::warning title=Code signing certificate expires soon::The Windows code signing certificate expires in $($certificate.DaysRemaining) days ($($certificate.NotAfter.ToString('yyyy-MM-dd'))). Renew it before it lapses - an expired certificate is what left 4.0.0 without a Windows binary."
-    }
-}
-else {
-    # The deliberate kill switch. Signing is skipped when CODESIGN_WIN_THUMBPRINT is empty, and the
-    # release ships unsigned rather than failing: that is what happened to 4.0.0, where the signing
-    # step failed and the release was published with Linux and macOS binaries and no Windows one at
-    # all. A user can click through a SmartScreen warning; they cannot click through a missing file.
-    #
-    # This is only for switching signing off on purpose. A configured certificate that turns out to
-    # be unusable takes the branch above and fails.
-    Write-Host "::warning title=Unsigned Windows binary::CODESIGN_WIN_THUMBPRINT is not set, so this release ships an UNSIGNED Windows binary. Users will see a Microsoft Defender SmartScreen warning, and environments enforcing AppLocker or WDAC publisher rules will refuse to run it."
-    Write-Host 'Skipping Windows code signing - no certificate thumbprint configured.'
-}
+$binary = "./${env:DIST_FILE_NAME}.exe"
 
 # Create build directory if it doesn't exist
 New-Item -ItemType Directory -Force -Path ./build | Out-Null
 
 # Create a single JS file using esbuild
 node scripts/bundle.mjs bundle
+if ($LASTEXITCODE -ne 0) { throw "Bundling failed with exit code $LASTEXITCODE" }
 
 # Generate blob to be injected into the binary
 node --experimental-sea-config build-script/sea-config.json
+if ($LASTEXITCODE -ne 0) { throw "Generating the SEA blob failed with exit code $LASTEXITCODE" }
 
 # Get a copy of the Node executable
-node -e "require('fs').copyFileSync(process.execPath, '${env:DIST_FILE_NAME}.exe')"
+node -e "require('fs').copyFileSync(process.execPath, '$binary')"
+if ($LASTEXITCODE -ne 0) { throw "Copying the Node executable failed with exit code $LASTEXITCODE" }
 
 # -------------------
 # Remove Node's own signature from the copied executable.
 #
-# This happens whether or not we go on to sign, and it is not optional: postject rewrites the
-# binary below, which invalidates any signature already on it. Shipping a binary carrying a broken
-# signature is worse than shipping an unsigned one - Windows reports it as corrupt or tampered
-# with, which alarms users and antivirus far more than no signature at all.
-Invoke-BsiStripSignature -Path "./${env:DIST_FILE_NAME}.exe" -Signtool $signtool
+# Not optional: postject rewrites the binary below, which invalidates any signature already on it.
+# A binary carrying a broken signature is worse than an unsigned one - Windows reports it as
+# corrupt or tampered with - and sign-win64 signs a clean file or nothing.
+Invoke-BsiStripSignature -Path $binary -Signtool $signtool
 
-node scripts/bundle.mjs inject "${env:DIST_FILE_NAME}.exe"
+node scripts/bundle.mjs inject $binary
+if ($LASTEXITCODE -ne 0) { throw "Injecting the SEA blob failed with exit code $LASTEXITCODE" }
 
 # -------------------
-# Sign the executable.
-#
-# One SHA-256 signature. This used to be a SHA-1 pass followed by a SHA-256 pass, which was neither
-# a dual signature nor useful: the second call was missing /as, so it replaced the first rather than
-# appending to it, and Windows has distrusted SHA-1 Authenticode since 2016 anyway. See
-# scripts/lib/win-signing.ps1 for the invocation and the timestamping rationale.
-if ($signingRequested) {
-    Invoke-BsiSignFile -Path "./${env:DIST_FILE_NAME}.exe" -Thumbprint $env:CODESIGN_WIN_THUMBPRINT -Signtool $signtool | Out-Null
+# Smoke-test it: the cheapest check that postject produced something that runs, and that it is the
+# version being built. One line of --version output must be exactly "butler-sheet-icons <version>",
+# so a substring match cannot accept 5.1.10 for 5.1.1, or an error message that mentions the
+# version.
+$expected = node -p "require('./package.json').version"
+$reported = (& $binary --version | Out-String).Trim()
+if ($LASTEXITCODE -ne 0) { throw "The built binary failed to run: --version exited $LASTEXITCODE." }
+if ($reported -notmatch "(?m)^\s*butler-sheet-icons $([regex]::Escape($expected))\s*$") {
+    throw "The built binary reports '$reported', expected 'butler-sheet-icons $expected'."
+}
+Write-Host "smoke test: --version reports $reported"
+
+# -------------------
+# Check it is unsigned rather than signed badly: sign-win64 signs a clean file or nothing.
+$status = (Get-AuthenticodeSignature -LiteralPath $binary).Status
+if ($status -ne 'NotSigned') {
+    throw "The built binary should carry no signature; Windows reports '$status'."
 }
 
 # -------------------
-# Create release binary zip
-$compress = @{
-    Path             = "./${env:DIST_FILE_NAME}.exe"
-    CompressionLevel = "Fastest"
-    DestinationPath  = "${env:RELEASE_VERSION}-win.zip"
-}
-Compress-Archive @compress
+# Record the digest sign-win64 checks the artifact against before it signs.
+$hash = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash
+[System.IO.File]::WriteAllText((Join-Path (Get-Location) "$binary.sha256"), $hash)
+Write-Host "Unsigned binary SHA-256: $hash"
 
 # -------------------
 # Clean up
 Remove-Item -Force ./build/build.cjs
 Remove-Item -Force ./build/sea-prep.blob
 
-dir
+Get-ChildItem $binary, "$binary.sha256"

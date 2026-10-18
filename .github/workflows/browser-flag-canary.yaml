@@ -33,9 +33,19 @@ name: browser-flag-canary
 # Running it
 # ---------------------------------------------------------------------------------------------
 #
-# Manual only. Run it when a macOS host is suspected of the #913 symptom - every app in a run
-# failing with `Page.captureScreenshot timed out` - ideally on the machine showing the symptom, in
-# the state it shows it. Nothing here touches product code or any Qlik environment.
+# Manual only. Nothing here touches product code or any Qlik environment.
+#
+# Only the hosted control runs here now. The probe that mattered ran on the self-hosted build Mac,
+# and this repository is public: no self-hosted runner group admits a public repository
+# (plabs-house-rules, rules/ci/public-repositories.md), so that job could never start again and was
+# removed in October 2026. When a macOS host is suspected of the #913 symptom - every app in a run
+# failing with `Page.captureScreenshot timed out` - run the probe on that machine, in the state it
+# shows the symptom in:
+#
+#   node scripts/diag/browser-flag-probe.mjs --label as-is --timeout 20000 --artifact-dir ./flag-probe
+#
+# or from a workflow in the private butler-sheet-icons-e2e repository, which can use the build Mac.
+# The display-sleep and session-suspend steps the removed job used are in this file's history.
 #
 # Reading the result:
 #
@@ -44,14 +54,11 @@ name: browser-flag-canary
 #     its own findings gets ignored.
 #   - "No difference observed in this state" means the machine was not in the failing state - not
 #     that the flag is fine. Absence of the symptom proves nothing on its own.
-#   - Ignore the `as-is` leg's readings when both legs run. The matrix legs share the self-hosted
-#     runner, and `display-asleep` ends with a `caffeinate` that wakes the display seconds before
-#     `as-is` starts - so `as-is` reports "just woken", not the state the machine was found in. That
-#     was observed in the 2026-08-10 run. Fix the scoping before trusting it.
 #
-# The context CI cannot give you: `test-browser-macos` takes no screenshot at all, `test-qscloud-macos`
-# runs on a hosted runner with no display to fall asleep, and `test-qseow-macos` runs on the
-# self-hosted Mac only while it is in use. None of them would ever have caught this.
+# The context CI cannot give you: `test-browser-macos` takes no screenshot at all,
+# `test-qscloud-macos` runs on a hosted runner with no display to fall asleep, and the QSEoW tests
+# in butler-sheet-icons-e2e run on the build Mac only while it is in use. None of them would ever
+# have caught this.
 
 on:
   workflow_dispatch:
@@ -60,19 +67,10 @@ on:
         description: 'Browser version to probe, e.g. recommended, stable, or a build id'
         required: false
         default: 'recommended'
-      suspend_session:
-        description: >-
-          Also probe with the GUI session suspended to the login window (fast user switching).
-          Disruptive: whoever is at the build Mac is switched out and has to log back in.
-        required: false
-        type: boolean
-        default: false
 
 # There was a nightly schedule here while #913 was open, to catch the build Mac in its unattended
 # overnight state without anyone having to force it. It ran, produced the clean negative result
-# recorded above, and was removed with the issue - a canary firing every night against a question
-# nobody is asking wakes the build Mac's display and burns self-hosted runner time for nothing.
-# Restore it if the symptom comes back and needs sampling over several nights.
+# recorded above, and was removed with the issue.
 
 permissions: {}
 
@@ -81,111 +79,6 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # The machine that has actually failed. Both legs run here, serialised by the runner itself.
-  probe-self-hosted:
-    permissions:
-      contents: read
-    # MUST stay in sync with test-qseow-macos in ci.yaml - the point is to probe the Mac that
-    # runs the real screenshot suite.
-    runs-on:
-      - self-hosted
-      - macos
-      - arm64
-      - mac-build2
-      - sp53
-    # This canary deliberately sleeps the display and can suspend the GUI session - precisely the
-    # state in which a step wedges with nobody there to interrupt it. Untimed, that wedge would
-    # hold the build Mac for GitHub's 6-hour default and queue every signed release and QSEoW
-    # suite behind it. Measured under a minute per leg; 15 leaves room for a cold npm cache
-    # without letting a hang sit.
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        state:
-          # Whatever the machine happens to be in. On a scheduled 01:00 UTC run that is the
-          # unattended overnight state; on a manual run it is usually "somebody is logged in".
-          - as-is
-          - display-asleep
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Setup node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: ''
-
-      # See the note on the other jobs: pins npm so the install is identical on every runner.
-      - name: Pin npm
-        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
-        # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: | # zizmor: ignore[adhoc-packages]
-          npm install -g npm@12.0.2
-          npm --version
-
-      - name: Install dependencies
-        run: npm ci --include=dev --include=prod
-
-      - name: Report host state before the probe
-        run: |
-          sw_vers
-          echo "arch            : $(uname -m)"
-          echo "console user    : $(stat -f%Su /dev/console)"
-          echo "launchd session : $(launchctl managername)"
-          echo "--- pmset -g ---"
-          pmset -g
-          echo "--- last display transitions ---"
-          pmset -g log | grep 'Display is turned' | tail -5
-
-      # pmset displaysleepnow needs no privileges and is undone by any input event, or by the
-      # caffeinate call in the always() step below.
-      - name: Put the display to sleep
-        if: matrix.state == 'display-asleep'
-        run: |
-          echo 'Sleeping the display, then settling for 20 s before probing.'
-          pmset displaysleepnow
-          sleep 20
-          pmset -g log | grep 'Display is turned' | tail -2
-
-      - name: Suspend the GUI session to the login window
-        if: matrix.state == 'display-asleep' && inputs.suspend_session
-        run: |
-          echo 'Switching to the login window - the session stays logged in, the runner keeps running.'
-          '/System/Library/CoreServices/Menu Extras/User.menu/Contents/Resources/CGSession' -suspend
-          sleep 10
-
-      # Both values travel via env rather than being interpolated into the script: browser_version
-      # is workflow_dispatch input, i.e. attacker-controllable text, and pasting it into a shell
-      # line is the template-injection pattern zizmor exists to catch.
-      - name: Run the A/B probe
-        env:
-          PROBE_LABEL: ${{ matrix.state }}
-          PROBE_BROWSER_VERSION: ${{ inputs.browser_version || 'recommended' }}
-        run: |
-          node scripts/diag/browser-flag-probe.mjs \
-            --label "$PROBE_LABEL" \
-            --timeout 20000 \
-            --browser-version "$PROBE_BROWSER_VERSION" \
-            --artifact-dir "$RUNNER_TEMP/flag-probe"
-
-      # Unconditional: a probe that failed must not leave the build Mac with its display asleep for
-      # the next job, and the artifacts are most interesting precisely when the step above failed.
-      - name: Wake the display
-        if: always()
-        run: caffeinate -u -t 1
-
-      - name: Upload stack samples
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: flag-probe-self-hosted-${{ matrix.state }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/flag-probe/
-          if-no-files-found: ignore
-          retention-days: 14
-
   # Control. A hosted runner has no display to put to sleep and no persistent session, so this leg
   # is expected to stay green throughout - which is what makes it worth having. If it ever goes
   # red, the trigger is not the one we think it is.
@@ -193,6 +86,8 @@ jobs:
     permissions:
       contents: read
     runs-on: macos-15
+    # Measured under a minute; 15 leaves room for a cold npm cache without letting a hang sit.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

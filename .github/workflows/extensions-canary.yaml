@@ -9,8 +9,7 @@ name: extensions-canary
 # The override landed with issue #1135 and was verified on macOS/arm64 only. This repo ships SEA
 # binaries for macOS, Windows and Linux, and its signature failure mode is "works everywhere except
 # inside the packaged binary": the Windows signing timestamp URL changed from http to https in May
-# 2026 and nothing noticed until the 4.0.0 release failed in August, which is why
-# windows-signing-canary.yaml exists at all.
+# 2026 and nothing noticed until the 4.0.0 release failed in August.
 #
 # Most of the override is bundle-time and platform-agnostic - esbuild resolves an alias long before
 # anything platform-specific happens. One part is not. `scripts/bundle.mjs` resolves
@@ -26,12 +25,12 @@ name: extensions-canary
 # What it does NOT cover
 # ---------------------------------------------------------------------------------------------
 #
-# Signing. scripts/release-win.ps1 strips Node's signature before postject and re-applies one
-# after, a sequence neither macOS nor Linux has an equivalent of - and covering it needs the
-# win-code-sign self-hosted runner with a live SimplySign session, which no routine canary can
-# depend on. windows-signing-canary.yaml in `full` mode covers that path for the ordinary build,
-# and an override build differs from it only in the contents of one bundled module. That is an
-# inference, and it is deliberately recorded as one rather than presented as a result.
+# Signing. A release strips Node's signature before postject (scripts/release-win.ps1) and signs
+# the result in a separate job through Azure Artifact Signing (sign-win64 in ci.yaml), which needs
+# the release-signing environment and so cannot run for a pull request. ci.yaml's rehearse_signing
+# input covers that path for the ordinary build, and an override build differs from it only in the
+# contents of one bundled module. That is an inference, and it is deliberately recorded as one
+# rather than presented as a result.
 #
 # macOS is not in the matrix either. It is the platform the override was verified on by hand, and
 # the one the local build script exercises on every developer machine.

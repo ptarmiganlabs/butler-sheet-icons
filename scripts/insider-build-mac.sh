@@ -2,9 +2,10 @@
 set -euo pipefail
 
 # Keychain handling lives in a shared library because release-macos.sh needs exactly the same
-# thing, and the two hand-maintained copies had already drifted apart. This script runs on the
-# self-hosted build Mac on every push to main, in a live desktop session - see the library for why
-# that made the old approach untenable.
+# thing, and the two hand-maintained copies had already drifted apart. This script used to run on
+# the self-hosted build Mac on every push to main, in a live desktop session - see the library for
+# why that made the old approach untenable. It now runs on a GitHub-hosted runner
+# (insiders-build-macos in insiders-build.yaml).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/macos-signing-keychain.sh
 . "${SCRIPT_DIR}/lib/macos-signing-keychain.sh"

@@ -11,13 +11,15 @@ name: macos-signing-canary
 # changing the runner image in release-macos-arm64, or periodically to catch GitHub retiring the
 # pinned macOS image before a release does.
 #
-# It runs on two runners, and the second one is the point of the pairing. A hosted runner is
-# ephemeral: it has no desktop session, nobody is logged in, and any mess the signing script makes
-# of the user's keychain configuration disappears with the VM. The self-hosted build Mac is the
-# opposite - a real logged-in desktop where the same script previously made its throwaway keychain
-# the user's *default* keychain for the length of every build, which is what made Google Drive ask
-# the person sitting there for a password it could not know. Only the self-hosted leg can observe
-# that class of bug, so only the self-hosted leg carries the watchdog.
+# It runs on the hosted runner the release uses. It used to run on the self-hosted build Mac as
+# well, with a watchdog for the keychain bug that only a logged-in desktop shows: the signing script
+# once made its throwaway keychain the user's *default* keychain for the length of every build,
+# which made Google Drive ask the person at that Mac for a password it could not know. This
+# repository is public, and no self-hosted runner group admits a public repository
+# (plabs-house-rules, rules/ci/public-repositories.md), so that leg could never start again and was
+# removed in October 2026, along with the insiders build that signed on that Mac. Every macOS
+# signing in this repository now happens on an ephemeral hosted runner, where that bug cannot
+# reach a person. The watchdog is in this file's history.
 
 on:
   workflow_dispatch:
@@ -26,38 +28,20 @@ permissions: {}
 
 jobs:
   sign-and-notarize:
-    name: sign-and-notarize (${{ matrix.name }})
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # MUST stay in sync with release-macos-arm64 in ci.yaml - proving that image is the point.
-          - name: hosted
-            runner: macos-15
-            self_hosted: false
-          # MUST stay in sync with the mac leg of insiders-build.yaml - that is the job which runs
-          # this signing script on every push to main, on a Mac somebody is logged in to.
-          - name: build-mac
-            runner:
-              - self-hosted
-              - macos
-              - arm64
-              - mac-build2
-              - sp53
-            self_hosted: true
-    runs-on: ${{ matrix.runner }}
-    # The build-mac leg is the self-hosted signing Mac, so an untimed hang would hold it for
-    # GitHub's 6-hour default and queue every signed release behind it. 30 rather than a tight
-    # multiple of the 1-minute observed run because notarytool waits on Apple's notary service,
-    # whose latency is not ours to predict - the same reason sign in windows-signing-canary.yaml
-    # uses 30. Job-level, so it bounds the hosted leg too.
+    # MUST stay in sync with release-macos-arm64 in ci.yaml - proving that image is the point.
+    runs-on: macos-15
+    # 30 rather than a tight multiple of the 1-minute observed run because notarytool waits on
+    # Apple's notary service, whose latency is not ours to predict.
     timeout-minutes: 30
+    # The environment release-macos-arm64 uses, which admits only main: the Apple secrets are to
+    # move into it, and this job must still find them when they do. Dispatch it on main.
+    environment: release-signing
     permissions:
       contents: read
     env:
       DIST_FILE_NAME: butler-sheet-icons
       # scripts/release-macos.sh names the archive "${RELEASE_VERSION}-macos-arm64.zip".
-      RELEASE_VERSION: canary-${{ github.run_id }}-${{ matrix.name }}
+      RELEASE_VERSION: canary-${{ github.run_id }}
       MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
       MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
       MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
@@ -114,47 +98,8 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev --include=prod
 
-      # The regression test for the Google Drive dialog. The damage was never visible before or
-      # after a build - only *during* it, in the minutes between the keychain being created and
-      # deleted. So sample the configuration once a second for the whole signing step and fail if
-      # a signing keychain ever becomes the default, or ever gets ahead of the login keychain.
-      - name: Start the keychain watchdog
-        if: matrix.self_hosted
-        run: |
-          set -euo pipefail
-          : > "$RUNNER_TEMP/keychain-violations.log"
-          cat > "$RUNNER_TEMP/watchdog.sh" <<'SH'
-          #!/usr/bin/env bash
-          while :; do
-            if ! bash scripts/diag/macos-keychain-check.sh --during-build --quiet >> "$VIOLATIONS" 2>&1; then
-              echo "  (observed at $(date -u +%Y-%m-%dT%H:%M:%SZ))" >> "$VIOLATIONS"
-            fi
-            sleep 1
-          done
-          SH
-          chmod +x "$RUNNER_TEMP/watchdog.sh"
-          VIOLATIONS="$RUNNER_TEMP/keychain-violations.log" nohup "$RUNNER_TEMP/watchdog.sh" >/dev/null 2>&1 &
-          echo $! > "$RUNNER_TEMP/watchdog.pid"
-          echo "watchdog running as pid $(cat "$RUNNER_TEMP/watchdog.pid")"
-
       - name: Build, sign and notarize
         run: bash ./scripts/release-macos.sh
-
-      - name: Stop the keychain watchdog and report
-        if: always() && matrix.self_hosted
-        run: |
-          set -uo pipefail
-          if [ -f "$RUNNER_TEMP/watchdog.pid" ]; then
-            kill "$(cat "$RUNNER_TEMP/watchdog.pid")" 2>/dev/null || true
-          fi
-
-          if [ -s "$RUNNER_TEMP/keychain-violations.log" ]; then
-            echo '::error::the signing script interfered with the user keychain configuration during the build'
-            cat "$RUNNER_TEMP/keychain-violations.log"
-            exit 1
-          fi
-
-          echo 'No keychain violations observed while signing.'
 
       # codesign -dv writes to stderr, hence the redirect. Assert the two properties that actually
       # matter and that a wrong signing identity would silently get wrong: the Developer ID
@@ -205,6 +150,6 @@ jobs:
       - name: Upload the signed archive for inspection
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: macos-signing-canary-${{ matrix.name }}-${{ github.run_id }}
+          name: macos-signing-canary-${{ github.run_id }}
           path: ./*-macos-arm64.zip
           retention-days: 3

@@ -2,12 +2,25 @@ name: ci
 
 on:
   workflow_dispatch:
+    inputs:
+      # Proves Azure signing works without cutting a release: see build-win64. Dispatch it on main.
+      # sign-win64 runs in the release-signing environment, which admits only main, so a rehearsal
+      # dispatched on any other branch is refused at that job.
+      #
+      #   gh workflow run ci.yaml -R ptarmiganlabs/butler-sheet-icons --ref main -f rehearse_signing=true
+      rehearse_signing:
+        description: Build and sign the Windows binary from this commit, and release nothing
+        type: boolean
+        default: false
   push:
     branches:
       - main
 
 jobs:
   unit-tests:
+    # A signing rehearsal tests nothing and releases nothing: skipping this job skips every job
+    # that needs it, and with them release-please. What is left is build-win64 and sign-win64.
+    if: ${{ !inputs.rehearse_signing }}
     permissions:
       contents: read
     # Same reason as the integration jobs below, and it matters more here: every one of them
@@ -51,8 +64,8 @@ jobs:
   # Browser suites - no Qlik back end at all.
   #
   # The five browser integration tests read only BSI_LOG_LEVEL and BSI_TEST_TIMEOUT, so these jobs
-  # carry no concurrency group and no ordering constraint. The macOS half runs on a hosted runner;
-  # the Windows half stays on-premise purely to keep Windows platform coverage.
+  # carry no concurrency group and no ordering constraint. Both halves run on hosted runners; the
+  # Windows half is there for Windows platform coverage.
   # ---------------------------------------------------------------------------------------------
   test-browser-macos:
     needs:
@@ -61,9 +74,9 @@ jobs:
       contents: read
     # The jest scripts no longer pass --forceExit (issue #951), so a suite that genuinely leaks a
     # handle now hangs instead of exiting - which is the point, it makes the leak visible. Without
-    # an explicit timeout that hang would run to GitHub's 6-hour default, and on the self-hosted
-    # jobs it would hold the runner and its concurrency group for that whole time. 30 minutes is
-    # roughly 3x the slowest of these suites (measured: 1.8-10.3 min).
+    # an explicit timeout that hang would run to GitHub's 6-hour default, holding any concurrency
+    # group the job is in for that whole time. 30 minutes is roughly 3x the slowest of these suites
+    # (measured: 1.8-10.3 min).
     timeout-minutes: 30
     runs-on: macos-15
     steps:
@@ -100,13 +113,9 @@ jobs:
       contents: read
     # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
     timeout-minutes: 30
-    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
-    # runner that holds the signing certificate. Without it they pool across every Windows runner.
-    runs-on:
-      - self-hosted
-      - x64
-      - windows
-      - sp53
+    # GitHub-hosted: this repository is public, and no self-hosted runner group admits a public
+    # repository (plabs-house-rules, rules/ci/public-repositories.md).
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -154,6 +163,11 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+    # The tenant credentials live in the qscloud-tests environment, which admits only main, so a
+    # workflow_dispatch from any other branch cannot reach them (plabs-house-rules,
+    # rules/ci/public-repositories.md). Until they have been moved there, the job still reads the
+    # repository-level secrets of the same names.
+    environment: qscloud-tests
     runs-on: macos-15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -205,13 +219,11 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
-    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
-    # runner that holds the signing certificate. Without it they pool across every Windows runner.
-    runs-on:
-      - self-hosted
-      - x64
-      - windows
-      - sp53
+    # Tenant credentials: see test-qscloud-macos.
+    environment: qscloud-tests
+    # GitHub-hosted: this repository is public, and no self-hosted runner group admits a public
+    # repository (plabs-house-rules, rules/ci/public-repositories.md).
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -250,177 +262,6 @@ jobs:
           BSI_CLOUD_LOGON_PWD: ${{ secrets.BSI_CLOUD_LOGON_PWD }}
           BSI_CLOUD_APP_ID: ${{ secrets.BSI_CLOUD_APP_ID }}
           BSI_CLOUD_COLLECTION_ID: ${{ secrets.BSI_CLOUD_COLLECTION_ID }}
-
-  # ---------------------------------------------------------------------------------------------
-  # QSEoW chain - every job here talks to the on-premise Qlik Sense environment, which is not
-  # reachable from the internet. All four are therefore self-hosted, and none of them may share a
-  # job with QS Cloud work.
-  # ---------------------------------------------------------------------------------------------
-  test-qseow-macos:
-    needs:
-      - unit-tests
-    permissions:
-      contents: read
-    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
-    timeout-minutes: 30
-    concurrency:
-      group: bsi-qseow-${{ github.repository }}
-      cancel-in-progress: false
-    runs-on:
-      - self-hosted
-      - macos
-      - arm64
-      - mac-build2
-      - sp53
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-
-      - name: Setup node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-      # The npm bundled with Node 24 is 11.x, and 11.x resolves this lockfile differently between
-      # patch releases - a second Windows runner picking up a newer Node installed 53 fewer
-      # packages and could not resolve jest-circus. Pinning npm here makes the install identical
-      # on every runner, hosted or self-hosted, regardless of machine state. npm 12 is also what
-      # honours min-release-age in .npmrc.
-      - name: Pin npm
-        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
-        # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: | # zizmor: ignore[adhoc-packages]
-          npm install -g npm@12.0.2
-          npm --version
-
-      - name: Install dependencies
-        run: npm ci --include=dev --include=prod
-
-      - name: Prepare QSEoW cert files
-        env:
-          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
-          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
-        run: |
-          set -euo pipefail
-          CERT_DIR="$RUNNER_TEMP/bsi-cert"
-          mkdir -p "$CERT_DIR"
-          if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
-            echo 'Missing QSEoW client certificate secrets' >&2
-            exit 1
-          fi
-          CERT_FILE="$CERT_DIR/client.pem"
-          KEY_FILE="$CERT_DIR/client_key.pem"
-          printf '%s\n' "$QS_CLIENT_PEM" > "$CERT_FILE"
-          printf '%s\n' "$QS_CLIENT_KEY_PEM" > "$KEY_FILE"
-          chmod 600 "$CERT_FILE" "$KEY_FILE"
-          {
-            echo "BSI_CERT_FILE=$CERT_FILE"
-            echo "BSI_CERT_KEY_FILE=$KEY_FILE"
-          } >> "$GITHUB_ENV"
-
-      - name: Run QSEoW tests
-        run: npm run test:integration:qseow
-        env:
-          BSI_LOG_LEVEL: 'info'
-          BSI_CONTENT_LIBRARY: 'abc 123'
-          BSI_HOST: ${{ secrets.BSI_HOST }}
-          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
-
-  test-qseow-win:
-    needs:
-      - test-qseow-macos
-    permissions:
-      contents: read
-    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
-    timeout-minutes: 30
-    concurrency:
-      group: bsi-qseow-${{ github.repository }}
-      cancel-in-progress: false
-    # No win-code-sign: these jobs sign nothing, and requiring it would pin them to the one
-    # runner that holds the signing certificate. Without it they pool across every Windows runner.
-    runs-on:
-      - self-hosted
-      - x64
-      - windows
-      - sp53
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 2
-          persist-credentials: false
-
-      - name: Setup node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: ''
-
-      # See the note on the other jobs: pins npm so the install is identical on every runner.
-      - name: Pin npm
-        shell: powershell
-        # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
-        # cannot arrive any other way. Pinned to an exact version rather than a range.
-        run: | # zizmor: ignore[adhoc-packages]
-          npm install -g npm@12.0.2
-          npm --version
-
-      - name: Install dependencies
-        shell: powershell
-        run: npm ci --include=dev --include=prod
-
-      # Writes the client certificate into RUNNER_TEMP from secrets, the same way the macOS job
-      # does. It previously took BSI_CERT_FILE/BSI_CERT_KEY_FILE from secrets holding *paths* to
-      # files pre-installed on one specific machine, which meant this job only worked on that
-      # runner. Deriving the files here instead makes any Windows runner interchangeable.
-      #
-      # .NET file APIs rather than Set-Content/Out-File: Windows PowerShell would write a BOM and
-      # CRLF line endings, and a PEM with a BOM is rejected when the certificate is parsed.
-      - name: Prepare QSEoW cert files
-        shell: powershell
-        env:
-          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
-          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          if ([string]::IsNullOrWhiteSpace($env:QS_CLIENT_PEM) -or
-              [string]::IsNullOrWhiteSpace($env:QS_CLIENT_KEY_PEM)) {
-            throw 'Missing QSEoW client certificate secrets'
-          }
-          $certDir = Join-Path $env:RUNNER_TEMP 'bsi-cert'
-          New-Item -ItemType Directory -Force -Path $certDir | Out-Null
-          $certFile = Join-Path $certDir 'client.pem'
-          $keyFile = Join-Path $certDir 'client_key.pem'
-          $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-          [System.IO.File]::WriteAllText($certFile, ($env:QS_CLIENT_PEM -replace "`r`n", "`n"), $utf8NoBom)
-          [System.IO.File]::WriteAllText($keyFile, ($env:QS_CLIENT_KEY_PEM -replace "`r`n", "`n"), $utf8NoBom)
-          [System.IO.File]::AppendAllText($env:GITHUB_ENV, "BSI_CERT_FILE=$certFile`nBSI_CERT_KEY_FILE=$keyFile`n", $utf8NoBom)
-
-      # BSI_CERT_FILE and BSI_CERT_KEY_FILE deliberately absent here - they arrive via GITHUB_ENV
-      # from the step above. A step-level env entry would take precedence over GITHUB_ENV and
-      # silently reinstate the hardcoded paths.
-      - name: Run QSEoW tests
-        shell: powershell
-        run: npm run test:integration:qseow
-        env:
-          BSI_LOG_LEVEL: 'info'
-          BSI_CONTENT_LIBRARY: 'abc 123'
-          BSI_HOST: ${{ secrets.BSI_HOST }}
-          BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-          BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-          BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-          BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-          BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-          BSI_SENSE_VERSION: ${{ secrets.BSI_SENSE_VERSION }}
 
   # ---------------------------------------------------------------------------------------------
   # Docker image builds - no Qlik back end, so no group, and they only wait on unit-tests.
@@ -558,6 +399,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    # Tenant credentials: see test-qscloud-macos.
+    environment: qscloud-tests
     runs-on: ubuntu-24.04-arm
     env:
       IMAGE_NAME: butler-sheet-icons:ci-arm64
@@ -647,6 +490,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+    # Tenant credentials: see test-qscloud-macos.
+    environment: qscloud-tests
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: butler-sheet-icons:ci-amd64
@@ -718,315 +563,26 @@ jobs:
 
           echo "Every file under $IMG_DIR is owned by uid $EXPECTED_UID."
 
-  docker-qseow-arm64:
-    needs:
-      - docker-build-arm64
-      - test-qseow-win
-    if: github.repository_owner == 'ptarmiganlabs'
-    concurrency:
-      group: bsi-qseow-${{ github.repository }}
-      cancel-in-progress: false
-    permissions:
-      actions: read
-      contents: read
-    # Untimed, a hang here holds the build Mac for GitHub's 6-hour default AND pins the
-    # bsi-qseow concurrency group, which is cancel-in-progress: false - so docker-qseow-amd64
-    # and every later run queue behind it rather than replacing it. 20 minutes is ~10x the
-    # slowest observed run (measured: 2 min), with headroom for a contended QSEoW lab.
-    timeout-minutes: 20
-    runs-on:
-      - self-hosted
-      - macos
-      - arm64
-      - mac-build2
-      - sp53
-    env:
-      IMAGE_NAME: butler-sheet-icons:ci-arm64
-      IMAGE_TAR: butler-sheet-icons-ci-arm64.tar
-      # Per-run so two runs can never share state, and named so a leftover is obvious in
-      # `docker volume ls` on a self-hosted runner.
-      CERT_VOLUME: bsi-qseow-cert-arm64-${{ github.run_id }}
-      IMG_VOLUME: bsi-qseow-img-arm64-${{ github.run_id }}
-      # Any non-root uid will do; the container adopts whoever owns the mounted image directory.
-      RUN_UID: '1000'
-      RUN_GID: '1000'
-      BSI_CONTENT_LIBRARY: 'abc 123'
-      BSI_HOST: ${{ secrets.BSI_HOST }}
-      BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-      BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-      BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-      BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-      BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-      BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-    steps:
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: butler-sheet-icons-ci-arm64-image
-
-      - name: Load Docker image
-        run: docker load --input "$IMAGE_TAR"
-
-      - name: Remove downloaded tarball
-        run: rm -f "$IMAGE_TAR"
-
-      # Docker volumes rather than host bind mounts, and the reason is issue #922. The amd64
-      # runner is a self-hosted runner running *inside a container*, talking to the host's Docker
-      # daemon. Bind-mount source paths are resolved by the daemon, on the host - not inside the
-      # container that issued the command. So `-v "$HOME/bsi-bsi/cert:/nodeapp/cert"` mounted a
-      # different, empty directory that happened to exist on the host, and the certificates written
-      # moments earlier were invisible to the container. "Certificate file ... missing" was
-      # literally true. The job had never once passed.
-      #
-      # A volume is resolved by the daemon itself, so a runner inside a container and a runner on
-      # the host behave identically. Both QSEoW Docker jobs use them so the two cannot drift apart
-      # again - this one runs on macOS, where the bug is invisible.
-      - name: Prepare Docker volumes for the run
-        env:
-          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
-          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
-        run: |
-          set -euo pipefail
-          if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
-            echo 'Missing QSEoW client certificate secrets' >&2
-            exit 1
-          fi
-
-          docker volume create "$CERT_VOLUME" >/dev/null
-          docker volume create "$IMG_VOLUME" >/dev/null
-
-          # Secrets travel on stdin, never in argv, so they cannot surface in a process listing.
-          # The Butler Sheet Icons image is its own helper: already loaded, and it carries busybox,
-          # so no second image has to be pulled or pinned.
-          printf '%s\n' "$QS_CLIENT_PEM" | docker run --rm -i \
-            -v "$CERT_VOLUME:/c" --entrypoint /bin/sh "$IMAGE_NAME" -c 'cat > /c/client.pem'
-          printf '%s\n' "$QS_CLIENT_KEY_PEM" | docker run --rm -i \
-            -v "$CERT_VOLUME:/c" --entrypoint /bin/sh "$IMAGE_NAME" -c 'cat > /c/client_key.pem'
-
-          # The mkdir is load-bearing. Docker copies the image's directory contents - and their
-          # ownership - into a volume only for as long as that volume is EMPTY, and chown alone
-          # does not make it non-empty. Without an entry here, mounting at /nodeapp/img silently
-          # resets the volume to the image's own uid and the run cannot write. Both outcomes were
-          # reproduced before settling on this.
-          docker run --rm -e OWNER="$RUN_UID:$RUN_GID" \
-            -v "$CERT_VOLUME:/c" -v "$IMG_VOLUME:/i" \
-            --entrypoint /bin/sh "$IMAGE_NAME" -c 'set -e; chmod 600 /c/client.pem /c/client_key.pem; mkdir -p /i/qseow; chown -R "$OWNER" /c /i'
-
-      - name: Report volume ownership as the container sees it
-        run: |
-          echo "runner user : $(id)"
-          docker run --rm -v "$IMG_VOLUME:/nodeapp/img" -v "$CERT_VOLUME:/nodeapp/cert" \
-            --entrypoint /bin/sh "$IMAGE_NAME" -c 'echo "image dir : $(stat -c "%u:%g %a" /nodeapp/img)"; echo "cert dir  : $(stat -c "%u:%g %a" /nodeapp/cert)"; ls -ln /nodeapp/cert'
-
-      - name: Run QSEoW Docker command (arm64 image)
-        run: |
-          docker run --rm \
-            -v "$IMG_VOLUME:/nodeapp/img" \
-            -v "$CERT_VOLUME:/nodeapp/cert" \
-            "$IMAGE_NAME" \
-            qseow create-sheet-thumbnails \
-            --host "$BSI_HOST" \
-            --appid "$BSI_APP_ID" \
-            --apiuserdir Internal \
-            --apiuserid sa_api \
-            --loglevel info \
-            --logonuserdir "$BSI_LOGON_USER_DIR" \
-            --logonuserid "$BSI_LOGON_USER_ID" \
-            --logonpwd "$BSI_LOGON_PWD" \
-            --contentlibrary "$BSI_CONTENT_LIBRARY" \
-            --pagewait 5 \
-            --secure true \
-            --headless true \
-            --imagedir ./img \
-            --certfile /nodeapp/cert/client.pem \
-            --certkeyfile /nodeapp/cert/client_key.pem \
-            --includesheetpart "$BSI_INCLUDE_SHEET_PART" \
-            --qliksensetag updateSheetThumbnail \
-            --prefix "$BSI_PREFIX" \
-            --log-level verbose
-
-      # Read the results back out of the volume rather than off the runner's filesystem: with the
-      # daemon potentially on another machine, the runner cannot see them any other way. busybox
-      # find takes -user, not GNU find's -uid - getting that wrong produced a silent false pass
-      # when this was first written.
-      - name: Assert the thumbnails are owned by the expected user
-        run: |
-          set -euo pipefail
-          docker run --rm -e EXPECTED_UID="$RUN_UID" -v "$IMG_VOLUME:/i" \
-            --entrypoint /bin/sh "$IMAGE_NAME" -c 'set -e; if [ -z "$(find /i -type f)" ]; then echo "::error::no files were written to the image volume"; exit 1; fi; WRONG=$(find /i -type f ! -user "$EXPECTED_UID"); if [ -n "$WRONG" ]; then echo "::error::files in the image volume are not owned by uid $EXPECTED_UID"; ls -ln $WRONG | head -5; exit 1; fi; find /i -type f -exec ls -ln {} + | head -10; echo "Every file in the image volume is owned by uid $EXPECTED_UID."'
-
-      # Unconditional: the certificate volume holds a private key, and a failed run is exactly when
-      # it would otherwise be left behind on a long-lived self-hosted runner.
-      - name: Remove the run's Docker volumes
-        if: always()
-        run: docker volume rm -f "$CERT_VOLUME" "$IMG_VOLUME" || true
-
-      - name: Remove local Docker image
-        run: docker image rm "$IMAGE_NAME" || true
-
-      - name: Prune dangling images
-        run: docker image prune -af || true
-
-  docker-qseow-amd64:
-    needs:
-      - docker-build-on-ubuntu-amd64
-      - docker-qseow-arm64
-    if: github.repository_owner == 'ptarmiganlabs'
-    concurrency:
-      group: bsi-qseow-${{ github.repository }}
-      cancel-in-progress: false
-    permissions:
-      actions: read
-      contents: read
-    # Same reasoning as docker-qseow-arm64 above: an untimed hang holds the pve101 runner for
-    # 6 hours and pins the bsi-qseow concurrency group behind it. 20 minutes is ~7x the slowest
-    # observed run (measured: 2-3 min), with headroom for a contended QSEoW lab.
-    timeout-minutes: 20
-    runs-on:
-      - self-hosted
-      - x64
-      - sp53
-      - linux
-      - pve101
-    env:
-      IMAGE_NAME: butler-sheet-icons:ci-amd64
-      IMAGE_TAR: butler-sheet-icons-ci-amd64.tar
-      # Per-run so two runs can never share state, and named so a leftover is obvious in
-      # `docker volume ls` on a self-hosted runner.
-      CERT_VOLUME: bsi-qseow-cert-amd64-${{ github.run_id }}
-      IMG_VOLUME: bsi-qseow-img-amd64-${{ github.run_id }}
-      # Any non-root uid will do; the container adopts whoever owns the mounted image directory.
-      RUN_UID: '1000'
-      RUN_GID: '1000'
-      BSI_CONTENT_LIBRARY: 'abc 123'
-      BSI_HOST: ${{ secrets.BSI_HOST }}
-      BSI_PREFIX: ${{ secrets.BSI_PREFIX }}
-      BSI_APP_ID: 'a3e0f5d2-000a-464f-998d-33d333b175d7'
-      BSI_LOGON_USER_DIR: ${{ secrets.BSI_LOGON_USER_DIR }}
-      BSI_LOGON_USER_ID: ${{ secrets.BSI_LOGON_USER_ID }}
-      BSI_LOGON_PWD: ${{ secrets.BSI_LOGON_PWD }}
-      BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
-    steps:
-      - name: Download Docker image artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: butler-sheet-icons-ci-amd64-image
-
-      - name: Load Docker image
-        run: docker load --input "$IMAGE_TAR"
-
-      - name: Remove downloaded tarball
-        run: rm -f "$IMAGE_TAR"
-
-      # Docker volumes rather than host bind mounts, and the reason is issue #922. The amd64
-      # runner is a self-hosted runner running *inside a container*, talking to the host's Docker
-      # daemon. Bind-mount source paths are resolved by the daemon, on the host - not inside the
-      # container that issued the command. So `-v "$HOME/bsi-bsi/cert:/nodeapp/cert"` mounted a
-      # different, empty directory that happened to exist on the host, and the certificates written
-      # moments earlier were invisible to the container. "Certificate file ... missing" was
-      # literally true. The job had never once passed.
-      #
-      # A volume is resolved by the daemon itself, so a runner inside a container and a runner on
-      # the host behave identically. Both QSEoW Docker jobs use them so the two cannot drift apart
-      # again - this one runs on macOS, where the bug is invisible.
-      - name: Prepare Docker volumes for the run
-        env:
-          QS_CLIENT_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_PEM }}
-          QS_CLIENT_KEY_PEM: ${{ secrets.PRO2WIN1_QS_CLIENT_KEY_PEM }}
-        run: |
-          set -euo pipefail
-          if [ -z "${QS_CLIENT_PEM:-}" ] || [ -z "${QS_CLIENT_KEY_PEM:-}" ]; then
-            echo 'Missing QSEoW client certificate secrets' >&2
-            exit 1
-          fi
-
-          docker volume create "$CERT_VOLUME" >/dev/null
-          docker volume create "$IMG_VOLUME" >/dev/null
-
-          # Secrets travel on stdin, never in argv, so they cannot surface in a process listing.
-          # The Butler Sheet Icons image is its own helper: already loaded, and it carries busybox,
-          # so no second image has to be pulled or pinned.
-          printf '%s\n' "$QS_CLIENT_PEM" | docker run --rm -i \
-            -v "$CERT_VOLUME:/c" --entrypoint /bin/sh "$IMAGE_NAME" -c 'cat > /c/client.pem'
-          printf '%s\n' "$QS_CLIENT_KEY_PEM" | docker run --rm -i \
-            -v "$CERT_VOLUME:/c" --entrypoint /bin/sh "$IMAGE_NAME" -c 'cat > /c/client_key.pem'
-
-          # The mkdir is load-bearing. Docker copies the image's directory contents - and their
-          # ownership - into a volume only for as long as that volume is EMPTY, and chown alone
-          # does not make it non-empty. Without an entry here, mounting at /nodeapp/img silently
-          # resets the volume to the image's own uid and the run cannot write. Both outcomes were
-          # reproduced before settling on this.
-          docker run --rm -e OWNER="$RUN_UID:$RUN_GID" \
-            -v "$CERT_VOLUME:/c" -v "$IMG_VOLUME:/i" \
-            --entrypoint /bin/sh "$IMAGE_NAME" -c 'set -e; chmod 600 /c/client.pem /c/client_key.pem; mkdir -p /i/qseow; chown -R "$OWNER" /c /i'
-
-      - name: Report volume ownership as the container sees it
-        run: |
-          echo "runner user : $(id)"
-          docker run --rm -v "$IMG_VOLUME:/nodeapp/img" -v "$CERT_VOLUME:/nodeapp/cert" \
-            --entrypoint /bin/sh "$IMAGE_NAME" -c 'echo "image dir : $(stat -c "%u:%g %a" /nodeapp/img)"; echo "cert dir  : $(stat -c "%u:%g %a" /nodeapp/cert)"; ls -ln /nodeapp/cert'
-
-      - name: Run QSEoW Docker command (amd64 image)
-        run: |
-          docker run --rm \
-            -v "$IMG_VOLUME:/nodeapp/img" \
-            -v "$CERT_VOLUME:/nodeapp/cert" \
-            "$IMAGE_NAME" \
-            qseow create-sheet-thumbnails \
-            --host "$BSI_HOST" \
-            --appid "$BSI_APP_ID" \
-            --apiuserdir Internal \
-            --apiuserid sa_api \
-            --loglevel info \
-            --logonuserdir "$BSI_LOGON_USER_DIR" \
-            --logonuserid "$BSI_LOGON_USER_ID" \
-            --logonpwd "$BSI_LOGON_PWD" \
-            --contentlibrary "$BSI_CONTENT_LIBRARY" \
-            --pagewait 5 \
-            --secure true \
-            --headless true \
-            --imagedir ./img \
-            --certfile /nodeapp/cert/client.pem \
-            --certkeyfile /nodeapp/cert/client_key.pem \
-            --includesheetpart "$BSI_INCLUDE_SHEET_PART" \
-            --qliksensetag updateSheetThumbnail \
-            --prefix "$BSI_PREFIX" \
-            --log-level verbose
-
-      # Read the results back out of the volume rather than off the runner's filesystem: with the
-      # daemon potentially on another machine, the runner cannot see them any other way. busybox
-      # find takes -user, not GNU find's -uid - getting that wrong produced a silent false pass
-      # when this was first written.
-      - name: Assert the thumbnails are owned by the expected user
-        run: |
-          set -euo pipefail
-          docker run --rm -e EXPECTED_UID="$RUN_UID" -v "$IMG_VOLUME:/i" \
-            --entrypoint /bin/sh "$IMAGE_NAME" -c 'set -e; if [ -z "$(find /i -type f)" ]; then echo "::error::no files were written to the image volume"; exit 1; fi; WRONG=$(find /i -type f ! -user "$EXPECTED_UID"); if [ -n "$WRONG" ]; then echo "::error::files in the image volume are not owned by uid $EXPECTED_UID"; ls -ln $WRONG | head -5; exit 1; fi; find /i -type f -exec ls -ln {} + | head -10; echo "Every file in the image volume is owned by uid $EXPECTED_UID."'
-
-      # Unconditional: the certificate volume holds a private key, and a failed run is exactly when
-      # it would otherwise be left behind on a long-lived self-hosted runner.
-      - name: Remove the run's Docker volumes
-        if: always()
-        run: docker volume rm -f "$CERT_VOLUME" "$IMG_VOLUME" || true
-
-      - name: Remove local Docker image
-        run: docker image rm "$IMAGE_NAME" || true
-
-      - name: Prune dangling images
-        run: docker image prune -af || true
-
   release-please:
-    # The tail of each back-end chain, plus both browser jobs - together these transitively
-    # require every test and build job, so nothing is released that has not been exercised.
+    # The tail of the QS Cloud chain, plus both browser jobs - together these transitively
+    # require every test and build job in this workflow, so nothing is released that has not been
+    # exercised here.
+    #
+    # The QSEoW tests are not in this workflow. They need the homelab Qlik Sense server, which a
+    # public repository's GitHub-hosted runners cannot reach, so they run nightly in the private
+    # ptarmiganlabs/butler-sheet-icons-e2e. Before merging a release-please PR, run them by hand
+    # on its head commit:
+    #   gh workflow run qseow-e2e.yaml -R ptarmiganlabs/butler-sheet-icons-e2e -f ref=<sha>
     needs:
       - test-browser-macos
       - test-browser-win
       - docker-qscloud-amd64
-      - docker-qseow-amd64
     # release-please targets main, so it must not run for a workflow_dispatch fired from a
     # feature branch. Skipping it here also skips every release-* job, since they gate on its
     # releases_created output - which is what makes the pipeline safe to dry-run from a branch.
-    if: github.ref == 'refs/heads/main'
+    #
+    # A signing rehearsal must not cut a release either, whichever branch it is dispatched from.
+    if: github.ref == 'refs/heads/main' && !inputs.rehearse_signing
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1176,6 +732,12 @@ jobs:
     # notarizes via xcrun notarytool, so signing needs no on-premise state. Pinned rather than
     # macos-latest because the artifact must be arm64.
     runs-on: macos-15
+    # In the release-signing environment, which admits main alone, like sign-win64 (and like
+    # butler-sos's macOS release). The Apple signing secrets are organisation secrets today,
+    # readable by a workflow on any branch. This lets them move into the environment, where only
+    # main's macOS jobs can read them; a job that does not name the environment would lose them
+    # then.
+    environment: release-signing
     # timeout-minutes: 15
     permissions:
       contents: write
@@ -1271,115 +833,261 @@ jobs:
           pwd
           ls -la
 
-  release-win64:
+  # ---------------------------------------------------------------------------------------------
+  # Windows release: build, sign and publish, as three jobs, so that the one holding the signing
+  # identity runs no repository code.
+  #
+  # build-win64 builds the unsigned binary and checks it (scripts/release-win.ps1). sign-win64 signs
+  # it through Azure Artifact Signing and verifies the signature; it checks nothing out and runs no
+  # npm and no repository scripts, so a compromised dependency cannot reach the OIDC token that
+  # unlocks signing. publish-win64 zips the signed binary and attaches it to the release.
+  #
+  # All three are GitHub-hosted: this repository is public, and no self-hosted runner group admits
+  # a public repository (plabs-house-rules, rules/ci/public-repositories.md). butler-sos, magpie-cli
+  # and persona sign the same way.
+  #
+  # A rehearsal (workflow_dispatch with rehearse_signing) runs build-win64 and sign-win64 on the
+  # dispatched commit and releases nothing. The signed binary is kept as the win64-signed artifact,
+  # for anyone who wants to try it on a real machine.
+  # ---------------------------------------------------------------------------------------------
+  build-win64:
     needs: release-please
-    runs-on:
-      - self-hosted
-      - x64
-      - windows
-      - sp53
-      - win-code-sign
-    # Not optional. A lapsed SimplySign session can leave signtool waiting on a graphical prompt
-    # that nothing on a runner will answer; the scripts kill signtool themselves, and this is the
-    # backstop if anything else wedges. Without it the default is six hours.
+    # !cancelled() in place of the implicit success(): a rehearsal skips release-please, and a
+    # skipped dependency would otherwise skip this job too. A release still needs releases_created,
+    # which a failed or skipped release-please never sets.
+    if: >-
+      !cancelled()
+      && (needs.release-please.outputs.releases_created == 'true'
+          || (github.event_name == 'workflow_dispatch' && inputs.rehearse_signing))
+    runs-on: windows-latest
     timeout-minutes: 30
-    if: needs.release-please.outputs.releases_created == 'true'
     permissions:
-      contents: write
+      contents: read
     env:
       DIST_FILE_NAME: butler-sheet-icons
-      GITHUB_TOKEN: ${{ secrets.PAT }}
-      # The certificate is a Certum cloud certificate, reached through SimplySign Desktop on the
-      # win-code-sign runner. It only exists in that machine's certificate store while a SimplySign
-      # session is open, and a session lasts about two hours - so somebody has to log in to
-      # SimplySign Desktop before merging a release-please PR.
-      #
-      # Forgetting is not a disaster: the preflight step below fails this job in seconds, and
-      # re-running it after logging in is all that is needed. See scripts/lib/win-signing.ps1.
-      CODESIGN_WIN_THUMBPRINT: ${{ secrets.WIN_CODESIGN_THUMBPRINT }}
     steps:
-      - name: Release tag and upload url from previous job
-        shell: powershell
-        run: |
-          Write-Output 'tag_name        : ${{ needs.release-please.outputs.release_tag_name }}'
-          Write-Output 'upload_url      : ${{ needs.release-please.outputs.release_upload_url }}'
-
-      - name: Checkout the released tag
+      - name: Checkout the commit being built
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # Load-bearing. Without `ref`, checkout takes `github.sha` - the commit that triggered
-          # this run - and release-please cuts the release from main's HEAD, which is a
-          # different commit whenever an unrelated push is what started the run. On 2026-08-10
-          # that shipped all three 4.1.0 binaries built from the commit before the version bump,
-          # so they reported "App version: 4.0.0": the SEA build embeds package.json as an asset
-          # and globals.js reads the version straight out of it.
-          #
-          # The sha rather than the tag, because release-please is configured to cut a *draft*
-          # release and a draft has no tag ref - GitHub creates it at publication. Checking out
-          # the tag name failed all four release jobs on 5.0.0. Issue #1145.
-          ref: ${{ needs.release-please.outputs.release_sha }}
+          # Load-bearing. A release builds the commit release-please released, never github.sha:
+          # release-please cuts from main's HEAD, a different commit whenever an unrelated push
+          # started the run, and that is how all three 4.1.0 binaries came to report 4.0.0. The sha
+          # rather than the tag, because a draft release has no tag ref yet (issue #1145). A
+          # rehearsal has no release, so it builds the commit it was dispatched on.
+          ref: ${{ needs.release-please.outputs.releases_created == 'true' && needs.release-please.outputs.release_sha || github.sha }}
           persist-credentials: false
 
-      # Fail before spending ten minutes on a build that cannot be signed.
-      #
-      # The Certum certificate is only in this machine's store while a SimplySign session is open,
-      # and a session lasts about two hours - so "no certificate" is a routine state, not an exotic
-      # one. Checking here means the answer arrives in seconds and the fix is to log in to
-      # SimplySign Desktop on the runner and re-run this job.
-      #
-      # -ProveSigning actually signs a few-kilobyte scratch file rather than trusting the
-      # certificate store. That is not belt and braces: SimplySign leaves certificates registered
-      # after a session ends, so a store lookup would pass with an expired session and this step
-      # would wave through a build that cannot possibly be signed - which is the whole thing it
-      # exists to prevent.
-      #
-      # Written for `shell: powershell` for the same reason as the version check below - it is the
-      # shell this self-hosted runner is known to have. In fact it is the *only* one: the runner has
-      # no PowerShell 7 at all, so a `run:` step that names no shell resolves to Windows PowerShell
-      # too. Every signing script therefore has to work under 5.1, this one no more than the rest.
-      - name: Preflight the Windows signing certificate
-        shell: powershell
-        run: ./scripts/diag/win-signing-check.ps1 -RequireSigning -ProveSigning
-
+      # No npm cache: what this job builds gets signed, so it starts from nothing an earlier run
+      # left behind.
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
+          cache: ''
+
       # See the note on the other jobs: pins npm so the install is identical on every runner.
       - name: Pin npm
-        shell: powershell
+        shell: pwsh
         # zizmor: ignore[adhoc-packages] - setup-node has no npm-version input, so npm 12
         # cannot arrive any other way. Pinned to an exact version rather than a range.
         run: | # zizmor: ignore[adhoc-packages]
           npm install -g npm@12.0.2
           npm --version
 
-      # Same check as the other release jobs, written in powershell because that is the shell
-      # this self-hosted runner is known to have - every other run step in this job uses it,
-      # while bash would depend on Git for Windows being on PATH. A guard that fails spuriously
-      # would block a release, which is worse than the defect it guards against.
       - name: Verify the checkout is the version being released
-        shell: powershell
+        if: needs.release-please.outputs.releases_created == 'true'
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ needs.release-please.outputs.release_version }}
         run: |
-          $expected = "${{ needs.release-please.outputs.release_version }}"
           $actual = node -p "require('./package.json').version"
-          Write-Host "release-please version : $expected"
+          Write-Host "release-please version : $env:RELEASE_VERSION"
           Write-Host "package.json version   : $actual"
-          if ($actual -ne $expected) {
-            Write-Host "::error::Refusing to build: package.json says $actual, but the release is $expected. The binary embeds package.json and would report the wrong version."
+          if ($actual -ne $env:RELEASE_VERSION) {
+            Write-Host "::error::Refusing to build: package.json says $actual, but the release is $env:RELEASE_VERSION. The binary embeds package.json and would report the wrong version."
             exit 1
           }
 
       - name: Install dependencies
-        shell: powershell
-        run: |
-          pwd
-          npm ci --include=dev --include=prod
+        shell: pwsh
+        run: npm ci --include=dev --include=prod
 
-      - name: Build binaries
+      # scripts/release-win.ps1 builds the binary unsigned, smoke-tests it, checks it carries no
+      # signature, and records the digest sign-win64 checks the artifact against.
+      - name: Build the unsigned binary
+        shell: pwsh
+        run: |
+          ./scripts/release-win.ps1
+          $hash = Get-Content -LiteralPath ./butler-sheet-icons.exe.sha256
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value "Unsigned Windows binary SHA-256: ``$hash``"
+
+      # 30 days asked for a release, which is as long as GitHub lets a job be re-run: a failed
+      # sign-win64 or publish-win64 is recovered with "Re-run failed jobs", which needs this
+      # artifact to still exist. The repository's retention setting caps what is asked for (3 days
+      # in October 2026; upload-artifact warns and uses the cap), and past it, the fix ships in the
+      # next release, since a re-run of build-win64 rebuilds the released commit. A rehearsal needs
+      # three days.
+      - name: Upload the unsigned binary
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: win64-unsigned
+          path: |
+            butler-sheet-icons.exe
+            butler-sheet-icons.exe.sha256
+          retention-days: ${{ inputs.rehearse_signing && 3 || 30 }}
+          if-no-files-found: error
+
+  sign-win64:
+    needs: build-win64
+    # Explicit, because the implicit success() fails when anything further up the chain was
+    # skipped. A rehearsal skips release-please on purpose, so without this, signing would be
+    # skipped while the run still went green - a rehearsal that proved everything except signing.
+    if: ${{ !cancelled() && needs.build-win64.result == 'success' }}
+    # INVARIANT: no actions/checkout, no npm and no ./scripts in this job. A compromised dependency
+    # must not be able to reach the OIDC token; a step that needs repository content belongs in
+    # build-win64 or publish-win64.
+    runs-on: windows-latest
+    timeout-minutes: 15
+    # This line is what binds the OIDC subject, and the subject is not the obvious string. With the
+    # immutable subject switched on, GitHub presents the owner and repository ids:
+    #
+    #   repo:ptarmiganlabs@6304190/butler-sheet-icons@381155354:environment:release-signing
+    #
+    # The Azure app must carry a federated credential matching that exactly, or the login fails with
+    # AADSTS700213, "no matching federated identity record found for presented assertion subject".
+    # Regenerate the string rather than retyping it, then append ":environment:release-signing":
+    #
+    #   gh api repos/ptarmiganlabs/butler-sheet-icons/actions/oidc/customization/sub --jq .sub_claim_prefix
+    environment: release-signing
+    permissions:
+      id-token: write # the OIDC token azure/login exchanges for the signing credential
+      contents: read # nothing is checked out; downloading this run's artifact needs no more
+    outputs:
+      # The SHA-256 of the executable the verify step found signed. publish-win64 checks the
+      # executable in the zip it attaches against this.
+      signed_sha256: ${{ steps.verify.outputs.sha256 }}
+    steps:
+      - name: Download the unsigned binary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: win64-unsigned
+          path: to-sign
+
+      # Belt and braces. GitHub already integrity-protects artifacts, so this cannot currently fail,
+      # but it states what the job assumes, and it would catch a future change that re-uploads or
+      # rebuilds between build and sign.
+      - name: Verify the artifact is what build-win64 produced
+        shell: pwsh
+        run: |
+          $expected = (Get-Content to-sign/butler-sheet-icons.exe.sha256 -Raw).Trim()
+          $actual = (Get-FileHash to-sign/butler-sheet-icons.exe -Algorithm SHA256).Hash
+          Write-Host "built  : $expected"
+          Write-Host "to sign: $actual"
+          if ($actual -ne $expected) {
+            throw "Refusing to sign: the artifact does not match the digest build-win64 recorded."
+          }
+          Remove-Item to-sign/butler-sheet-icons.exe.sha256
+
+      - name: Azure login via OIDC
+        uses: azure/login@7ddb5af1ef8758cf1353cf3b42f940aee27ba21c # v3.0.2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign with Azure Artifact Signing
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          endpoint: ${{ vars.SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ vars.SIGNING_CERT_PROFILE_NAME }}
+          files-folder: ${{ github.workspace }}\to-sign
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      # A hard failure, deliberately: if signing fails, the release fails, rather than quietly
+      # shipping something unsigned. Two readings of the same signature - signtool's chain and
+      # timestamp check, and the one Windows itself makes - and the signer pinned to Ptarmigan Labs
+      # AB, so variables pointed at another certificate profile fail here rather than shipping a
+      # binary somebody else signed. The executable's hash, taken once all of that has held, becomes
+      # the job's output, which nothing after this job can change.
+      - name: Verify the signature
+        id: verify
+        shell: pwsh
+        run: |
+          $st = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
+                Sort-Object FullName -Descending | Select-Object -First 1
+          if (-not $st) { throw "signtool.exe not found on this runner." }
+          & $st.FullName verify /pa /v to-sign\butler-sheet-icons.exe
+          if ($LASTEXITCODE -ne 0) { throw "Signature verification failed." }
+          $sig = Get-AuthenticodeSignature -LiteralPath to-sign\butler-sheet-icons.exe
+          if ($sig.Status -ne 'Valid') { throw "Windows reads the signature as $($sig.Status): $($sig.StatusMessage)" }
+          $signer = $sig.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+          if ($signer -cne 'Ptarmigan Labs AB') {
+            throw "Signed by an unexpected certificate: '$signer' ($($sig.SignerCertificate.Subject))"
+          }
+          $hash = (Get-FileHash -LiteralPath to-sign\butler-sheet-icons.exe -Algorithm SHA256).Hash
+          Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "sha256=$hash"
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value @(
+            "Signed by: ``$($sig.SignerCertificate.Subject)``",
+            "Timestamped by: ``$($sig.TimeStamperCertificate.Subject)``",
+            "Signed Windows binary SHA-256: ``$hash``"
+          )
+
+      - name: Upload the signed binary
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: win64-signed
+          path: to-sign/butler-sheet-icons.exe
+          retention-days: ${{ inputs.rehearse_signing && 3 || 30 }}
+          if-no-files-found: error
+
+  publish-win64:
+    needs:
+      - release-please
+      - sign-win64
+    # Never on a rehearsal, which has no release to attach to. Written out in full for the reason on
+    # sign-win64: it depends on exactly these, and no skipped job further up should get a say.
+    if: >-
+      !cancelled()
+      && needs.release-please.outputs.releases_created == 'true'
+      && needs.sign-win64.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download the signed binary
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: win64-signed
+          path: package
+
+      # The same asset as before the signing moved: <tag>-win.zip, holding butler-sheet-icons.exe
+      # and nothing else. And the executable in it is the one sign-win64 found signed, byte for
+      # byte, read back out of the finished zip, so nothing between the two jobs can swap it.
+      - name: Zip it, and check it holds the binary sign-win64 verified
         env:
-          RELEASE_VERSION: ${{ needs.release-please.outputs.release_tag_name }}
-        run: ./scripts/release-win.ps1
+          RELEASE_TAG: ${{ needs.release-please.outputs.release_tag_name }}
+          SIGNED_SHA256: ${{ needs.sign-win64.outputs.signed_sha256 }}
+        run: |
+          set -euo pipefail
+          if [ -z "$SIGNED_SHA256" ]; then
+            echo "::error::sign-win64 recorded no hash of the executable it verified. Refusing to publish."
+            exit 1
+          fi
+          test -f package/butler-sheet-icons.exe || { echo "::error::butler-sheet-icons.exe is missing from what sign-win64 produced"; exit 1; }
+          ZIP="${RELEASE_TAG}-win.zip"
+          (cd package && zip -9 "../$ZIP" butler-sheet-icons.exe)
+          unzip -l "$ZIP"
+          ZIPPED=$(unzip -p "$ZIP" butler-sheet-icons.exe | sha256sum | cut -d' ' -f1 | tr '[:lower:]' '[:upper:]')
+          if [ "$ZIPPED" != "$SIGNED_SHA256" ]; then
+            echo "::error::The butler-sheet-icons.exe in $ZIP is not the executable sign-win64 verified ($SIGNED_SHA256 signed, $ZIPPED zipped). Refusing to publish."
+            exit 1
+          fi
+          echo "The butler-sheet-icons.exe in $ZIP is the one sign-win64 verified: $ZIPPED"
 
       - name: Upload to existing release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
@@ -1392,11 +1100,6 @@ jobs:
           tag: ${{ needs.release-please.outputs.release_tag_name }}
           artifacts: ./${{ needs.release-please.outputs.release_tag_name }}-win.zip
           token: ${{ github.token }}
-
-      - name: Tidy up before existing
-        shell: powershell
-        run: |
-          dir
 
   release-linux:
     needs: release-please
