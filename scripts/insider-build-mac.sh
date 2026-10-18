@@ -61,6 +61,7 @@ security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI
 
 # --keychain names where the signing identity must come from. The certificate chain is still built
 # from the full search list, which is why the keychain is on it - see the library for the details.
+# The entitlements are the two V8 needs; scripts/release-macos.sh says why no more.
 codesign --force -s "$MACOS_CERTIFICATE_NAME" --keychain "$BSI_KEYCHAIN_PATH" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
 
 # Verify code signature

@@ -44,6 +44,13 @@ security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI
 
 # --keychain names where the signing identity must come from. The certificate chain is still built
 # from the full search list, which is why the keychain is on it - see the library for the details.
+#
+# The entitlements are the two V8 needs under the hardened runtime, for memory that is writable and
+# executable. Two of the six the official node binary is signed with: the other four let a process
+# of the same user debug Butler Sheet Icons or inject a library into it, which is not BSI's to
+# grant on a customer's Mac. The file carries no comment: codesign parses it with AMFI's XML
+# parser, stricter than plutil, and a `--` in a comment fails there while `plutil -lint` passes it
+# (src/__tests__/release-entitlements.test.js).
 codesign --force -s "$MACOS_CERTIFICATE_NAME" --keychain "$BSI_KEYCHAIN_PATH" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
 
 # -------------------
