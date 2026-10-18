@@ -10,6 +10,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/macos-signing-keychain.sh
 . "${SCRIPT_DIR}/lib/macos-signing-keychain.sh"
 
+# The release's identifier, so that macOS sees an insider build as the same program as a release:
+# release-macos.sh says why there is one, and src/__tests__/binary.test.js pins it.
+IDENTIFIER="com.ptarmiganlabs.butler-sheet-icons"
+
 # Inject git SHA into package.json
 GIT_SHA=$(git rev-parse --short HEAD)
 CURRENT_VERSION=$(node -p "require('./package.json').version")
@@ -63,7 +67,7 @@ security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI
 # --keychain names where the signing identity must come from. The certificate chain is still built
 # from the full search list, which is why the keychain is on it - see the library for the details.
 # The entitlements are the two V8 needs; scripts/release-macos.sh says why no more.
-codesign --force -s "$MACOS_CERTIFICATE_NAME" --keychain "$BSI_KEYCHAIN_PATH" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
+codesign --force -s "$MACOS_CERTIFICATE_NAME" --keychain "$BSI_KEYCHAIN_PATH" --identifier "$IDENTIFIER" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
 
 # Verify code signature
 codesign -vvv --deep --strict "./${DIST_FILE_NAME}"

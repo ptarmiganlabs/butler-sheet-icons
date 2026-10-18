@@ -135,6 +135,7 @@ The section above is about the browser BSI drives. This one is about the browser
 - `scripts/release-*.sh` / `scripts/release-*.ps1` build the release binaries: macOS signed and notarized, Linux unsigned, and Windows **unsigned** — `sign-win64` in `ci.yaml` signs it (see below)
 - `scripts/insider-build-*.sh` / `scripts/insider-build-*.ps1` produce insider builds — signed and notarized on macOS, unsigned on Windows and Linux
 - The macOS binary is tested after it is signed, by `npm run test:binary`, in the release job, the insider build and the signing canary; the macOS leg of `pr-unit-tests` builds one, signs it ad hoc with the hardened runtime and `release-config/butler-sheet-icons.entitlements`, and tests that. A missing JIT entitlement makes the binary die at start (exit 133). Where a job holds the Apple secrets in its `env`, the test runs under `env -i`, because it runs the binary and its dependency code
+- The macOS binary is signed with the identifier `com.ptarmiganlabs.butler-sheet-icons`, releases and insider builds alike, as homing and xray sign with theirs. It goes into the designated requirement, which is how macOS recognises a later build as the same program, so it never changes. `src/__tests__/binary.test.js` pins it, and under a Developer ID signature the whole requirement, team included. Builds up to 5.2.0 were named after the file
 - In SEA binaries, `__dirname`/`__filename` are unavailable; use the helpers in `src/lib/util/import-meta-url.js` (injected at build time)
 - Always clean up `build.cjs` and `sea-prep.blob` after builds
 

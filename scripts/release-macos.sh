@@ -8,6 +8,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/lib/macos-signing-keychain.sh
 . "${SCRIPT_DIR}/lib/macos-signing-keychain.sh"
 
+# Without an identifier, codesign names the code after its file, and "butler-sheet-icons" is not a
+# name anybody owns. The identifier goes into the designated requirement, which is how macOS
+# recognises a later build as the same program, so it is chosen once and kept: insider-build-mac.sh
+# signs with the same one, and src/__tests__/binary.test.js pins it, the designated requirement
+# with the team included. Change them together. Builds up to 5.2.0 were signed without it.
+IDENTIFIER="com.ptarmiganlabs.butler-sheet-icons"
+
 # Create build directory if it doesn't exist
 mkdir -p ./build
 
@@ -51,7 +58,7 @@ security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI
 # grant on a customer's Mac. The file carries no comment: codesign parses it with AMFI's XML
 # parser, stricter than plutil, and a `--` in a comment fails there while `plutil -lint` passes it
 # (src/__tests__/release-entitlements.test.js).
-codesign --force -s "$MACOS_CERTIFICATE_NAME" --keychain "$BSI_KEYCHAIN_PATH" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
+codesign --force -s "$MACOS_CERTIFICATE_NAME" --keychain "$BSI_KEYCHAIN_PATH" --identifier "$IDENTIFIER" -v "./${DIST_FILE_NAME}" --deep --strict --options=runtime --timestamp --entitlements ./release-config/${DIST_FILE_NAME}.entitlements
 
 # -------------------
 # We can't notarize an app bundle directly, but we need to compress it as an archive.
