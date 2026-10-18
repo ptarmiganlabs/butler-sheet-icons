@@ -23,6 +23,14 @@ const ENTITLEMENTS = [
     'com.apple.security.cs.allow-unsigned-executable-memory',
 ];
 
+// The identifier scripts/release-macos.sh and scripts/insider-build-mac.sh sign with, and the
+// designated requirement codesign writes for it under a Developer ID signature, team included. macOS
+// recognises a later build as the same program by that requirement, so it is pinned: a script that
+// drops or changes the identifier, or a signing secret swapped for another team's identity, fails
+// here rather than shipping. homing and xray pin theirs the same way.
+const IDENTIFIER = 'com.ptarmiganlabs.butler-sheet-icons';
+const REQUIREMENT = `identifier "${IDENTIFIER}" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] exists and certificate leaf[field.1.2.840.113635.100.6.1.13] exists and certificate leaf[subject.OU] = "8DSHWRDQ8C"`;
+
 if (!BINARY && process.env.REQUIRE_BINARY === '1') {
     throw new Error('REQUIRE_BINARY=1, but BSI_BINARY names no binary to test');
 }
@@ -55,19 +63,23 @@ const run = (which, args) => {
 };
 
 /**
- * What codesign says of the binary: its flags, and the keys of its entitlements.
+ * What codesign says of the binary: its identifier, its flags, whether a Developer ID signed it,
+ * and the keys of its entitlements.
  *
- * @returns {{flags: string, entitlements: string[]}} The flags line's value, and the entitlement
- * keys, sorted.
+ * @returns {{identifier: string, flags: string, developerId: boolean, entitlements: string[]}} The
+ * Identifier and flags lines' values, whether an Authority line names a Developer ID Application
+ * certificate, and the entitlement keys, sorted.
  */
 const signature = () => {
-    const details = spawnSync('/usr/bin/codesign', ['-dv', BINARY], { encoding: 'utf8' });
+    const details = spawnSync('/usr/bin/codesign', ['-dvv', BINARY], { encoding: 'utf8' });
     const shown = spawnSync('/usr/bin/codesign', ['-d', '--entitlements', '-', '--xml', BINARY], {
         encoding: 'utf8',
     });
 
     return {
+        identifier: /^Identifier=(.*)$/m.exec(details.stderr)?.[1] ?? '',
         flags: /flags=(\S+)/.exec(details.stderr)?.[1] ?? '',
+        developerId: /^Authority=Developer ID Application: /m.test(details.stderr),
         entitlements: [...(shown.stdout ?? '').matchAll(/<key>([^<]+)<\/key>/g)]
             .map((match) => match[1])
             .sort(),
@@ -75,7 +87,9 @@ const signature = () => {
 };
 
 const onMac = BINARY && process.platform === 'darwin';
-const hardened = onMac && signature().flags.includes('runtime');
+const signed = onMac ? signature() : undefined;
+const hardened = signed?.flags.includes('runtime') ?? false;
+const developerId = signed?.developerId ?? false;
 
 (BINARY ? describe : describe.skip)('the built binary', () => {
     test('is there', () => {
@@ -130,11 +144,31 @@ const hardened = onMac && signature().flags.includes('runtime');
     });
 
     // Only for a binary signed as the release signs it. `npm run build:macos` alone signs ad hoc
-    // without the runtime, and then carries no entitlements at all.
+    // without the runtime, and then carries no entitlements and is named after its file.
     (hardened ? test : test.skip)(
         'signed with the hardened runtime, carries the two entitlements V8 needs and no others',
         () => {
-            expect(signature().entitlements).toEqual(ENTITLEMENTS);
+            expect(signed.entitlements).toEqual(ENTITLEMENTS);
+        }
+    );
+
+    (hardened ? test : test.skip)(`signed with the hardened runtime, is ${IDENTIFIER}`, () => {
+        expect(signed.identifier).toBe(IDENTIFIER);
+    });
+
+    // An ad hoc signature has no certificate to pin, so this runs only where a Developer ID signed
+    // the binary: the release, the insider build and the signing canary.
+    (developerId ? test : test.skip)(
+        'signed with the Developer ID, satisfies the pinned designated requirement',
+        () => {
+            const verified = spawnSync(
+                '/usr/bin/codesign',
+                ['--verify', '--strict', `--test-requirement==${REQUIREMENT}`, BINARY],
+                { encoding: 'utf8' }
+            );
+
+            expect(verified.stderr).toBe('');
+            expect(verified.status).toBe(0);
         }
     );
 });

@@ -78,14 +78,15 @@ jobs:
         run: npm run test:unit
 
       # The macOS binary, signed as the release signs it short of the identity: ad hoc, with the
-      # hardened runtime and release-config's entitlements. An entitlement short of what V8 needs
-      # makes it die at start, and so does anything the bundle cannot carry; either fails here,
-      # before merge, rather than in a signed release that nothing ran. No secret is involved.
+      # release's identifier, the hardened runtime and release-config's entitlements. An entitlement
+      # short of what V8 needs makes it die at start, and so does anything the bundle cannot carry;
+      # either fails here, before merge, rather than in a signed release that nothing ran. No secret
+      # is involved.
       - name: Build the macOS binary, and sign it ad hoc as the release does
         if: matrix.os == 'macos-15'
         run: |
           npm run build:macos
-          codesign --force -s - --options=runtime \
+          codesign --force -s - --identifier com.ptarmiganlabs.butler-sheet-icons --options=runtime \
             --entitlements release-config/butler-sheet-icons.entitlements build/butler-sheet-icons
 
       - name: Test the macOS binary
