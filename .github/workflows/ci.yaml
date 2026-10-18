@@ -815,6 +815,16 @@ jobs:
           RELEASE_VERSION: ${{ needs.release-please.outputs.release_tag_name }}
         run: bash ./scripts/release-macos.sh
 
+      # The signed binary, run beside the source before it is attached, so that a hardened runtime
+      # or an entitlement that stops it starting fails here rather than in somebody's download. It
+      # runs the binary, which carries dependency code, so env -i keeps this job's Apple secrets
+      # and token out of its environment: it gets only what npm and node need.
+      - name: Test the signed binary
+        run: >-
+          env -i PATH="$PATH" HOME="$HOME" TMPDIR="$RUNNER_TEMP"
+          BSI_BINARY="./${DIST_FILE_NAME}" REQUIRE_BINARY=1
+          npm run test:binary
+
       - name: Upload to existing release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
         with:

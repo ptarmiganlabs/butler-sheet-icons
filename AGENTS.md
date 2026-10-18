@@ -81,6 +81,7 @@ Most work here happens in a worktree under `.claude/worktrees/`. Three things be
 - Single test: `node --experimental-vm-modules node_modules/jest/bin/jest.js src/path/to/file.test.js`
 - `npm run format` — Prettier
 - `npm run build:macos` — produce a macOS SEA binary
+- `BSI_BINARY=build/butler-sheet-icons npm run test:binary` — run a built binary beside the source (`src/__tests__/binary.test.js`); it skips without `BSI_BINARY`, and `REQUIRE_BINARY=1` makes that a failure
 
 ## Architecture
 
@@ -133,6 +134,7 @@ The section above is about the browser BSI drives. This one is about the browser
 - SEA config: `build-script/sea-config.json` — bundles `build.cjs` and enigma.js JSON schemas as assets
 - `scripts/release-*.sh` / `scripts/release-*.ps1` build the release binaries: macOS signed and notarized, Linux unsigned, and Windows **unsigned** — `sign-win64` in `ci.yaml` signs it (see below)
 - `scripts/insider-build-*.sh` / `scripts/insider-build-*.ps1` produce insider builds — signed and notarized on macOS, unsigned on Windows and Linux
+- The macOS binary is tested after it is signed, by `npm run test:binary`, in the release job, the insider build and the signing canary; the macOS leg of `pr-unit-tests` builds one, signs it ad hoc with the hardened runtime and `release-config/butler-sheet-icons.entitlements`, and tests that. A missing JIT entitlement makes the binary die at start (exit 133). Where a job holds the Apple secrets in its `env`, the test runs under `env -i`, because it runs the binary and its dependency code
 - In SEA binaries, `__dirname`/`__filename` are unavailable; use the helpers in `src/lib/util/import-meta-url.js` (injected at build time)
 - Always clean up `build.cjs` and `sea-prep.blob` after builds
 

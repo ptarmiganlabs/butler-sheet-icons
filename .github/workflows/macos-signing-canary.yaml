@@ -126,6 +126,14 @@ jobs:
           echo "Signature OK. Check the notarization status printed by notarytool in the"
           echo "'Build, sign and notarize' step above - it must read 'status: Accepted'."
 
+      # The same test as the release job's, on the binary this run signed. env -i keeps the Apple
+      # secrets in this job's env out of the binary's environment, as there.
+      - name: Test the signed binary
+        run: >-
+          env -i PATH="$PATH" HOME="$HOME" TMPDIR="$RUNNER_TEMP"
+          BSI_BINARY="./${DIST_FILE_NAME}" REQUIRE_BINARY=1
+          npm run test:binary
+
       # Unconditional: a failed or cancelled signing run is exactly the case where the keychain is
       # most likely to have been left behind, so that is when the assertion matters most.
       - name: Assert the keychain state was restored
