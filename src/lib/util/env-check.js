@@ -1,3 +1,5 @@
+import { hostOptionParser } from './host-option.js';
+
 /**
  * @typedef {Record<string, (string|undefined)>} ProcessEnvLike
  */
@@ -224,4 +226,38 @@ export const getTestTimeout = (env, defaultMs = 1200000) => {
     const value = Number.isFinite(parsed) && parsed > 0 ? parsed : defaultMs;
     console.log(`Jest timeout: ${value}`);
     return value;
+};
+
+/**
+ * The parser `--tenanturl` uses, with the same example (see `src/lib/commands/helpers.js`), so the
+ * integration tests accept exactly the values the command line accepts.
+ */
+const parseTenantHost = hostOptionParser({ example: 'tenant.eu.qlikcloud.com' });
+
+/**
+ * Resolve the Qlik Cloud tenant for the integration tests from `BSI_CLOUD_TENANT_URL`, reduced to
+ * the bare host the way `--tenanturl` reduces it.
+ *
+ * The tests hand the value straight to the cloud functions, so it never passes through the option
+ * parser that normalises it on the command line. The engine connection builds `wss://<value>/...`,
+ * so a value with `https://` in front failed every engine call with `getaddrinfo ENOTFOUND https`
+ * while the REST calls, which tolerate the scheme, still passed. That is how a CI secret holding the
+ * tenant's URL rather than its host failed the QS Cloud suite on 2026-10-18.
+ *
+ * @param {ProcessEnvLike} env - Env-var source, typically `process.env`.
+ *
+ * @returns {string|undefined} The bare host. A missing or blank value is returned as it is, so that
+ *     `assertEnv` still reports it as missing.
+ *
+ * @throws {Error} When the value is set but is not a single host - a port, a path or credentials
+ *     in it, or another scheme. The message names the variable.
+ */
+export const getCloudTenantHost = (env) => {
+    const raw = env && env.BSI_CLOUD_TENANT_URL;
+    if (isMissing(raw)) return raw;
+    try {
+        return parseTenantHost(raw);
+    } catch (err) {
+        throw new Error(`BSI_CLOUD_TENANT_URL: ${err.message}`, { cause: err });
+    }
 };

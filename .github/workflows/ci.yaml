@@ -165,8 +165,8 @@ jobs:
       cancel-in-progress: false
     # The tenant credentials live in the qscloud-tests environment, which admits only main, so a
     # workflow_dispatch from any other branch cannot reach them (plabs-house-rules,
-    # rules/ci/public-repositories.md). Until they have been moved there, the job still reads the
-    # repository-level secrets of the same names.
+    # rules/ci/public-repositories.md). BSI_CLOUD_TENANT_URL may hold the bare host or a pasted
+    # URL: the tests reduce it to the host the way --tenanturl does (getCloudTenantHost).
     environment: qscloud-tests
     runs-on: macos-15
     steps:

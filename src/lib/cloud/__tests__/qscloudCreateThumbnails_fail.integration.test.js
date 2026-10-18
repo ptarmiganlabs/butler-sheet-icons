@@ -2,7 +2,7 @@ import { test, expect, describe, beforeAll } from '@jest/globals';
 import 'dotenv/config';
 
 import { qscloudCreateThumbnails } from '../cloud-create-thumbnails.js';
-import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { assertEnv, getTestTimeout, getCloudTenantHost } from '../../util/env-check.js';
 import { collectAppIds } from '../../commands/helpers.js';
 
 // Failure paths for Qlik Sense Cloud. QSEoW has had a failure integration test since early on
@@ -25,7 +25,7 @@ const defaultTestTimeout = getTestTimeout(process.env);
  */
 const buildOptions = (overrides = {}) => ({
     loglevel: process.env.BSI_LOG_LEVEL || 'verbose',
-    tenanturl: process.env.BSI_CLOUD_TENANT_URL,
+    tenanturl: getCloudTenantHost(process.env),
     apikey: process.env.BSI_CLOUD_API_KEY,
     logonuserid: process.env.BSI_CLOUD_LOGON_USERID,
     logonpwd: process.env.BSI_CLOUD_LOGON_PWD,
