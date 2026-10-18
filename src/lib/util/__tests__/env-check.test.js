@@ -6,6 +6,7 @@ import {
     checkEnv,
     assertEnv,
     getTestTimeout,
+    getCloudTenantHost,
 } from '../env-check.js';
 
 describe('env-check', () => {
@@ -251,6 +252,39 @@ describe('env-check', () => {
         test('logs the resolved value with the standard message', () => {
             getTestTimeout({ BSI_TEST_TIMEOUT: '5000' });
             expect(logSpy).toHaveBeenCalledWith('Jest timeout: 5000');
+        });
+    });
+
+    describe('getCloudTenantHost', () => {
+        test('passes a bare host through', () => {
+            expect(getCloudTenantHost({ BSI_CLOUD_TENANT_URL: 'tenant.eu.qlikcloud.com' })).toBe(
+                'tenant.eu.qlikcloud.com'
+            );
+        });
+
+        // The failure this exists for: with the scheme, the engine url became wss://https://...
+        test('reduces a pasted URL to the host', () => {
+            expect(
+                getCloudTenantHost({ BSI_CLOUD_TENANT_URL: 'https://tenant.eu.qlikcloud.com/' })
+            ).toBe('tenant.eu.qlikcloud.com');
+            expect(
+                getCloudTenantHost({ BSI_CLOUD_TENANT_URL: ' HTTPS://Tenant.EU.qlikcloud.com ' })
+            ).toBe('tenant.eu.qlikcloud.com');
+        });
+
+        test('returns a missing or blank value unchanged, for assertEnv to report', () => {
+            expect(getCloudTenantHost({})).toBeUndefined();
+            expect(getCloudTenantHost({ BSI_CLOUD_TENANT_URL: '' })).toBe('');
+            expect(getCloudTenantHost({ BSI_CLOUD_TENANT_URL: '   ' })).toBe('   ');
+        });
+
+        test('refuses a value that is not one host, naming the variable', () => {
+            expect(() =>
+                getCloudTenantHost({ BSI_CLOUD_TENANT_URL: 'https://tenant.eu.qlikcloud.com/hub' })
+            ).toThrow(/^BSI_CLOUD_TENANT_URL: /);
+            expect(() =>
+                getCloudTenantHost({ BSI_CLOUD_TENANT_URL: 'ftp://tenant.eu.qlikcloud.com' })
+            ).toThrow(/^BSI_CLOUD_TENANT_URL: /);
         });
     });
 });

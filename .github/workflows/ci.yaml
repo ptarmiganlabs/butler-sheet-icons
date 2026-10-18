@@ -104,7 +104,11 @@ jobs:
         run: npm run test:integration:browser
         env:
           BSI_LOG_LEVEL: 'info'
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          # A repository variable, not a secret, like BSI_INCLUDE_SHEET_PART in the QS Cloud jobs.
+          # Neither is confidential, and a secret holding a short number masks that number wherever
+          # it appears in the job's log: as secrets, every 1 in a timestamp, a commit hash or an exit
+          # code was printed as ***. Unset, the tests use their defaults (20 minutes, sheet part 1).
+          BSI_TEST_TIMEOUT: ${{ vars.BSI_TEST_TIMEOUT }}
 
   test-browser-win:
     needs:
@@ -146,7 +150,7 @@ jobs:
         run: npm run test:integration:browser
         env:
           BSI_LOG_LEVEL: 'info'
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
+          BSI_TEST_TIMEOUT: ${{ vars.BSI_TEST_TIMEOUT }} # a variable: see test-browser-macos
 
   # ---------------------------------------------------------------------------------------------
   # QS Cloud chain - every job here talks to the shared Qlik Sense Cloud tenant.
@@ -160,13 +164,20 @@ jobs:
       contents: read
     # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
     timeout-minutes: 30
+    # One run at a time against the shared tenant, across runs. queue: max lets the jobs that are
+    # waiting line up, up to 100, and start in turn. Without it a group holds one waiting job, and a
+    # third arrival cancels the one already waiting ("Canceling since a higher priority waiting
+    # request ... exists"). On 2026-10-18 that cancelled a merge's test-qscloud-macos after it had
+    # waited almost an hour, and skipped every job after it. queue: max needs cancel-in-progress
+    # false.
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+      queue: max
     # The tenant credentials live in the qscloud-tests environment, which admits only main, so a
     # workflow_dispatch from any other branch cannot reach them (plabs-house-rules,
-    # rules/ci/public-repositories.md). Until they have been moved there, the job still reads the
-    # repository-level secrets of the same names.
+    # rules/ci/public-repositories.md). BSI_CLOUD_TENANT_URL may hold the bare host or a pasted
+    # URL: the tests reduce it to the host the way --tenanturl does (getCloudTenantHost).
     environment: qscloud-tests
     runs-on: macos-15
     steps:
@@ -198,8 +209,8 @@ jobs:
         run: npm run test:integration:cloud
         env:
           BSI_LOG_LEVEL: 'info'
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_TEST_TIMEOUT: ${{ vars.BSI_TEST_TIMEOUT }} # a variable: see test-browser-macos
+          BSI_INCLUDE_SHEET_PART: ${{ vars.BSI_INCLUDE_SHEET_PART }}
           BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
           BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
           BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
@@ -219,6 +230,7 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+      queue: max # see test-qscloud-macos
     # Tenant credentials: see test-qscloud-macos.
     environment: qscloud-tests
     # GitHub-hosted: this repository is public, and no self-hosted runner group admits a public
@@ -254,8 +266,8 @@ jobs:
         run: npm run test:integration:cloud
         env:
           BSI_LOG_LEVEL: 'info'
-          BSI_TEST_TIMEOUT: ${{ secrets.BSI_TEST_TIMEOUT }}
-          BSI_INCLUDE_SHEET_PART: ${{ secrets.BSI_INCLUDE_SHEET_PART }}
+          BSI_TEST_TIMEOUT: ${{ vars.BSI_TEST_TIMEOUT }} # a variable: see test-browser-macos
+          BSI_INCLUDE_SHEET_PART: ${{ vars.BSI_INCLUDE_SHEET_PART }}
           BSI_CLOUD_TENANT_URL: ${{ secrets.BSI_CLOUD_TENANT_URL }}
           BSI_CLOUD_API_KEY: ${{ secrets.BSI_CLOUD_API_KEY }}
           BSI_CLOUD_LOGON_USERID: ${{ secrets.BSI_CLOUD_LOGON_USERID }}
@@ -396,6 +408,7 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+      queue: max # see test-qscloud-macos
     permissions:
       actions: read
       contents: read
@@ -487,6 +500,7 @@ jobs:
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
+      queue: max # see test-qscloud-macos
     permissions:
       actions: read
       contents: read

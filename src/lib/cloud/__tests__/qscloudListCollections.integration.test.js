@@ -2,7 +2,7 @@ import { test, expect, describe, beforeAll } from '@jest/globals';
 import 'dotenv/config';
 
 import { qscloudListCollections } from '../cloud-collections.js';
-import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { assertEnv, getTestTimeout, getCloudTenantHost } from '../../util/env-check.js';
 
 // `qscloud list-collections` had no integration coverage at all, despite being one of the four
 // commands Butler Sheet Icons exposes and the one administrators use to find the collection id
@@ -19,7 +19,7 @@ const defaultTestTimeout = getTestTimeout(process.env);
  */
 const buildOptions = (overrides = {}) => ({
     loglevel: process.env.BSI_LOG_LEVEL || 'info',
-    tenanturl: process.env.BSI_CLOUD_TENANT_URL,
+    tenanturl: getCloudTenantHost(process.env),
     apikey: process.env.BSI_CLOUD_API_KEY,
     outputformat: 'table',
     ...overrides,

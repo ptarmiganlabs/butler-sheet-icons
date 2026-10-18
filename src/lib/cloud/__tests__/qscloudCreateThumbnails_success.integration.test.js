@@ -4,14 +4,14 @@ import 'dotenv/config';
 import { qscloudCreateThumbnails } from '../cloud-create-thumbnails.js';
 import { browserInstalled } from '../../browser/browser-installed.js';
 import { browserUninstallAll } from '../../browser/browser-uninstall.js';
-import { assertEnv, getTestTimeout } from '../../util/env-check.js';
+import { assertEnv, getTestTimeout, getCloudTenantHost } from '../../util/env-check.js';
 import { collectAppIds } from '../../commands/helpers.js';
 
 const defaultTestTimeout = getTestTimeout(process.env);
 
 const options = {
     loglevel: process.env.BSI_LOG_LEVEL || 'verbose',
-    tenanturl: process.env.BSI_CLOUD_TENANT_URL,
+    tenanturl: getCloudTenantHost(process.env),
     apikey: process.env.BSI_CLOUD_API_KEY,
     logonuserid: process.env.BSI_CLOUD_LOGON_USERID,
     logonpwd: process.env.BSI_CLOUD_LOGON_PWD,
