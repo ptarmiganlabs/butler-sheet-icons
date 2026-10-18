@@ -17,6 +17,7 @@
         "test:integration:browser": "npm run jest -- --testPathPatterns=browser_.*\\.integration\\.test\\.js$",
         "test:integration:cloud": "npm run jest -- --testPathPatterns=qscloud.*\\.integration\\.test\\.js$",
         "test:integration:qseow": "npm run jest -- --testPathPatterns=qseow.*\\.integration\\.test\\.js$",
+        "test:binary": "npm run jest -- --testPathPatterns=__tests__/binary\\.test\\.js$ --coverage=false",
         "test:watch": "npm run jest:watch -- --testPathIgnorePatterns=\\.integration\\.test\\.js$ --watch",
         "lint": "npx eslint src/ --max-warnings 0",
         "lint:fix": "npx eslint --fix src/",

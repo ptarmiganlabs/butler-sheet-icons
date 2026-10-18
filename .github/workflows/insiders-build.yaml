@@ -201,6 +201,16 @@ jobs:
           PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
         run: bash ./scripts/insider-build-mac.sh
 
+      # The signed binary, run beside the source before it is uploaded, so that a hardened runtime
+      # or an entitlement that stops it starting fails here rather than in somebody's download. It
+      # runs the binary, which carries dependency code, and holds no secret: those are on the step
+      # above alone.
+      - name: Test the signed binary
+        run: npm run test:binary
+        env:
+          BSI_BINARY: butler-sheet-icons
+          REQUIRE_BINARY: '1'
+
       - name: Upload insider build artifacts to GitHub
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

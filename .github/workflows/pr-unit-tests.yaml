@@ -27,19 +27,20 @@ jobs:
   unit-tests:
     name: lint + unit tests (${{ matrix.os }})
     strategy:
-      # Report both platforms rather than cancelling the sibling on first failure - a Windows
+      # Report every platform rather than cancelling the siblings on first failure - a Windows
       # failure should not hide a Linux one, and vice versa.
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # macos-15, pinned like the release job's runner, because the macOS binary is arm64 only.
+        os: [ubuntu-latest, windows-latest, macos-15]
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
     # The jest scripts no longer pass --forceExit (issue #951), so a unit suite that genuinely
     # leaks a handle now hangs instead of exiting. This workflow runs on every pull request, which
-    # makes it the likeliest place a newly introduced leak shows up first. Both legs are hosted, so
+    # makes it the likeliest place a newly introduced leak shows up first. Every leg is hosted, so
     # the cost of an untimed hang is billed minutes rather than a blocked runner - but 6 hours of
-    # them, twice, with no signal. 15 minutes against a job that measures 2-4.
+    # them, per leg, with no signal. 15 minutes against a job that measures 2-4.
     timeout-minutes: 15
     steps:
       - name: Checkout repository
@@ -75,6 +76,24 @@ jobs:
 
       - name: Run unit tests
         run: npm run test:unit
+
+      # The macOS binary, signed as the release signs it short of the identity: ad hoc, with the
+      # hardened runtime and release-config's entitlements. An entitlement short of what V8 needs
+      # makes it die at start, and so does anything the bundle cannot carry; either fails here,
+      # before merge, rather than in a signed release that nothing ran. No secret is involved.
+      - name: Build the macOS binary, and sign it ad hoc as the release does
+        if: matrix.os == 'macos-15'
+        run: |
+          npm run build:macos
+          codesign --force -s - --options=runtime \
+            --entitlements release-config/butler-sheet-icons.entitlements build/butler-sheet-icons
+
+      - name: Test the macOS binary
+        if: matrix.os == 'macos-15'
+        run: npm run test:binary
+        env:
+          BSI_BINARY: build/butler-sheet-icons
+          REQUIRE_BINARY: '1'
 
       # The signature strip in scripts/lib/win-signing.ps1 is PowerShell, so jest never sees it, and
       # every Windows build depends on it: postject rewrites the binary, so the signature node.exe
