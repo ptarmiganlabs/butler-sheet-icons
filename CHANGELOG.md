@@ -1,5 +1,39 @@
 # Changelog
 
+## [5.2.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.2.0...butler-sheet-icons-v5.2.1) (2026-10-18)
+
+
+### Bug Fixes
+
+* date the build by its commit even when git shows signatures ([0e65655](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/0e65655135653fef50bc0bfa9fe1134c9ed41279)), closes [#1183](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1183)
+* sign Windows releases with Azure Artifact Signing on hosted runners ([8e0a900](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8e0a900e64c5938bcda1b8e7c2321dafb3f8cceb))
+
+
+### Miscellaneous
+
+* add timeout-minutes to the four untimed self-hosted jobs ([42399c5](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/42399c52057638bcda999615259e65498ebabf85))
+* drop the self-hosted canary legs and the SimplySign code ([8361790](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8361790cbf0388a762ad1943939279c8a42ad8f1))
+* move the QSEoW tests out to butler-sheet-icons-e2e ([04d607e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/04d607ed8d5d821bcaaa5e3a3b2127b37cddf5de))
+* queue the QS Cloud jobs instead of cancelling the waiting one ([12e108b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/12e108b963fa8a2bd3f0a581d90e367092717dd4))
+* read the Cloud tenant in the tests the way --tenanturl does ([4658fd2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4658fd206f6227ce668fa96dce295cbecddb66ba))
+* read the test timeout and sheet part from variables ([c3acd77](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c3acd7755c1cf57956c069d66cf4d9a603a0b732))
+* refuse a staged doc page that shows an option the CLI does not have ([731ea2b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/731ea2b991cd79b63c5a66e0cc2251f9d79fdd2f)), closes [#1179](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1179)
+* run the insiders builds on hosted runners ([e901fd7](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e901fd7e38cc5ccc1550639cd74397411d277a9d))
+* run the macOS release in the release-signing environment ([e98d002](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e98d00276e5e7ca3750d80ab996bbb78bf6343b2))
+* run the Windows browser and QS Cloud tests on hosted runners ([fb264b9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fb264b9ad385c111663a48b17b1cafa98a0d3889))
+* sign the macOS binary as com.ptarmiganlabs.butler-sheet-icons ([8000eaf](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8000eaff473420632d9b7427f210bf8011c9a2c5))
+* sign the macOS binary with only the entitlements V8's JIT needs ([70f0e8f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/70f0e8fa5a8df37a68430acb7d37a35fdbefc15d))
+* stop the signing scripts claiming butler's and ctrl-q's build.keychain ([e74f38a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e74f38aca0373f2b057e610357f3587d581e3e3a))
+* tag each release when release-please creates its draft ([a49f523](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a49f523d054d3e18087c96bdcc1fff3ead5c3969))
+* test the macOS binary after it is signed, and on every pull request ([1f6ba5e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/1f6ba5e8bdfb37b79fb94eccdd3cc3cdcfd48ac8))
+
+
+### Documentation
+
+* describe Azure signing and the hosted runners ([ce829a3](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ce829a3213cc81373f3096c7efcae740366ae6f0))
+* fill in the Windows certificate details from the signing rehearsal ([310d68a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/310d68a01a14d6b167e3297e7787e4b59aba9363))
+* name both issuing CAs seen so far in the Windows signing draft ([7fb932c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7fb932c3dcf4bbcb53b1ee33e6bb170aa2ddef07))
+
 ## [5.2.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.1.0...butler-sheet-icons-v5.2.0) (2026-08-23)
 
 
