@@ -1,0 +1,89 @@
+name: windows-signing-canary
+
+# Scheduled rehearsal of the Windows release signing path.
+#
+# build-win64 and sign-win64 in ci.yaml run only when release-please actually cuts a release, so
+# Azure Artifact Signing is otherwise exercised for the first time *during* a live release. ci.yaml
+# already has a rehearsal mode for this - `rehearse_signing`, which runs exactly those two jobs and
+# releases nothing - so this workflow does nothing but fire it on a schedule and fail if it fails.
+# There is deliberately no second copy of the signing steps here: a canary that drifts from the
+# thing it vouches for is worse than none, and "MUST stay in sync" comments do not enforce
+# themselves.
+#
+# Why this exists. The SimplySign path had a windows-signing-canary because a lapsed session broke
+# signing *silently*. Azure OIDC fails the same quiet way - an expired federated credential, a
+# rotated or deleted app registration, a lapsed Trusted Signing certificate profile - and none of
+# those announce themselves until something tries to sign. PR #1186 deleted the old canary along
+# with SimplySign; this replaces it for the Azure path. First proven on release 5.2.1, 2026-10-21.
+#
+# Weekly, not daily, and the distinction is the point: nothing in this path degrades on a clock.
+# Unlike a SimplySign session, a federated credential has no secret to expire. Every failure mode is
+# an administrative event, and releases run roughly two months apart - so a week's notice is well
+# inside the cadence that matters, at an eighth of the signing operations a daily run would spend.
+#
+# Its macOS counterpart, macos-signing-canary.yaml, is still dispatch-only and says to run it
+# "periodically". Same gap, same argument; scheduling it is a separate change.
+
+on:
+  schedule:
+    # Sundays 05:30 UTC, an hour before the homelab runner canaries, so a signing failure is not
+    # competing for attention with a runner one in the same inbox.
+    - cron: '30 5 * * 0'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  # Never two rehearsals at once: they would both sign, and the run-id discovery below assumes the
+  # newest ci.yaml dispatch on main is ours.
+  group: windows-signing-canary
+  cancel-in-progress: false
+
+jobs:
+  rehearse:
+    name: rehearse Windows signing on main
+    # Nothing is built here - this job dispatches and waits. The signing itself happens on the
+    # windows-latest runner inside ci.yaml, which is the whole point.
+    runs-on: ubuntu-latest
+    # The rehearsal measures about 2.5 minutes. 20 bounds a wedged run without being so tight that
+    # a slow Azure login fails the canary for no reason.
+    timeout-minutes: 20
+    permissions:
+      actions: write # dispatch ci.yaml, and read the run it creates
+    steps:
+      # ci.yaml's rehearsal is dispatch-only and sign-win64 lives in the release-signing
+      # environment, which admits main alone - so this must target main, not this workflow's ref.
+      - name: Fire the signing rehearsal on main and wait for it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          latest() {
+            gh run list -R "$REPO" --workflow=ci.yaml --event workflow_dispatch \
+              --branch main --limit 1 --json databaseId --jq '.[0].databaseId // 0'
+          }
+
+          # Remember the newest dispatch before ours, so we can tell our run apart from it rather
+          # than racing a `--limit 1` against GitHub registering the new one.
+          before=$(latest)
+          gh workflow run ci.yaml -R "$REPO" --ref main -f rehearse_signing=true
+
+          id=0
+          for _ in $(seq 1 30); do
+            id=$(latest)
+            [ "$id" != "$before" ] && break
+            sleep 5
+          done
+
+          if [ "$id" = "$before" ]; then
+            echo "::error::Dispatched the rehearsal but no new ci.yaml run appeared within 150s."
+            exit 1
+          fi
+
+          echo "Rehearsal run: https://github.com/$REPO/actions/runs/$id"
+          # --exit-status is what makes this canary red when signing breaks. Without it the job
+          # would pass whatever the rehearsal did, which is the failure mode this file exists to
+          # prevent.
+          gh run watch "$id" -R "$REPO" --exit-status
