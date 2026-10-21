@@ -7,9 +7,10 @@ name: macos-signing-canary
 # This job runs the very same script on the very same runner image, but stops short of publishing:
 # nothing is uploaded to a release and no tag is touched.
 #
-# Run it after changing scripts/release-macos.sh or scripts/lib/macos-signing-keychain.sh, after
-# changing the runner image in release-macos-arm64, or periodically to catch GitHub retiring the
-# pinned macOS image before a release does.
+# Run it after changing scripts/release-macos.sh or scripts/lib/macos-signing-keychain.sh, or after
+# changing the runner image in release-macos-arm64. It also runs weekly on its own, which is what
+# catches GitHub retiring the pinned macOS image - or the Developer ID certificate reaching expiry,
+# or the notarization app-specific password being revoked - before a release does.
 #
 # It runs on the hosted runner the release uses. It used to run on the self-hosted build Mac as
 # well, with a watchdog for the keychain bug that only a logged-in desktop shows: the signing script
@@ -22,6 +23,15 @@ name: macos-signing-canary
 # reach a person. The watchdog is in this file's history.
 
 on:
+  schedule:
+    # Sundays 04:30 UTC. An hour before windows-signing-canary at 05:30 so the two never overlap:
+    # notarization waits on Apple's service and this job is bounded at 30 minutes. Both run ahead of
+    # the homelab runner canaries at 06:30, so a signing failure arrives in its own slot.
+    #
+    # Weekly for the same reason as the Windows canary: nothing here degrades on a clock, so a daily
+    # run would spend seven times the notarization requests for no extra warning. Every failure mode
+    # is an external event - a retired runner image, an expired certificate, a revoked password.
+    - cron: '30 4 * * 0'
   workflow_dispatch:
 
 permissions: {}
