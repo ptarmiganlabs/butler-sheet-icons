@@ -18,6 +18,8 @@ import {
 import { restoreLiveTerminal } from '../util/run-live.js';
 import { CLOUD_SHEET_PARTS, CLOUD_SHEET_PART_LABELS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
+import { CloudError } from '../util/errors.js';
+import { checkLoginCredentials, CLOUD_LOGON_CREDENTIALS } from '../browser/login-credentials.js';
 
 /**
  * Create thumbnails for Qlik Sense Cloud (QSC).
@@ -106,6 +108,16 @@ export const qscloudCreateThumbnails = async (options) => {
             );
             throw Error('Invalid --includesheetpart paramater');
         }
+
+        // Before anything connects, and on dry runs too: a run that cannot sign in should say so
+        // now, not at the first app's login page. Credentials alongside --skip-login are warned
+        // about and dropped rather than refused - see checkLoginCredentials().
+        checkLoginCredentials(options, {
+            credentials: CLOUD_LOGON_CREDENTIALS,
+            logPrefix: 'CLOUD',
+            ErrorClass: CloudError,
+            logger,
+        });
 
         // Get array of all available collections
         const cloudConfig = {

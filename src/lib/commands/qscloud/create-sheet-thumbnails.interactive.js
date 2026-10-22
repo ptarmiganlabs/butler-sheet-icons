@@ -2,11 +2,13 @@ import QlikSaas from '../../cloud/cloud-repo.js';
 import { qscloudTestConnection } from '../../cloud/cloud-test-connection.js';
 import { listCollections, listApps, listAppsByCollection } from '../../cloud/cloud-apps.js';
 import { qscloudCreateThumbnails } from '../../cloud/cloud-create-thumbnails.js';
+import { CLOUD_LOGON_CREDENTIALS } from '../../browser/login-credentials.js';
 import {
     gate,
     gatedBy,
     inSections,
     openingOn,
+    askedUnlessSkipLogin,
     isSupplied,
     appSourceQuestion,
     appPickerQuestion,
@@ -32,8 +34,11 @@ const ADVANCED = '_advanced';
 /** What the collection route is called wherever it has to be named in a sentence. */
 const GROUPING_LABEL = 'a collection';
 
+/** The logon credentials, asked only without --skip-login. */
+const CLOUD_LOGON_KEYS = CLOUD_LOGON_CREDENTIALS.map(({ key }) => key);
+
 /** Questions asked before anything else, in this order. */
-const CONNECTION_KEYS = ['tenanturl', 'apikey', 'skipLogin', 'logonuserid', 'logonpwd'];
+const CONNECTION_KEYS = ['tenanturl', 'apikey', 'skipLogin', ...CLOUD_LOGON_KEYS];
 
 /** Options that only matter to someone who already knows they need them. */
 const ADVANCED_KEYS = [
@@ -121,7 +126,8 @@ export default {
                           },
                       }
                     : spec
-            );
+            )
+            .map((spec) => askedUnlessSkipLogin(spec, CLOUD_LOGON_KEYS));
 
         const appSource = appSourceQuestion({
             needs: ['apikey'],

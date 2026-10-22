@@ -19,3 +19,22 @@ export const toOptionValueList = (values) =>
     (Array.isArray(values) ? values : [values]).filter(
         (value) => value !== undefined && value !== null && value !== ''
     );
+
+/**
+ * Whether a value was actually supplied, as opposed to left at nothing.
+ *
+ * An empty string is how both `--qliksensetag` and `--collectionid` say "none" -
+ * it is their declared default - and a bare `BSI_..._LOGON_PWD=` line in a unit
+ * file or `.env` means "unset" throughout this codebase, so blank has to read as
+ * absent. Otherwise a wizard would offer to re-confirm a value nobody set, and
+ * the logon-credential check would see a credential where there is none.
+ *
+ * One copy for both of those callers, so the wizard and the worker cannot
+ * disagree about whether the same value was given.
+ *
+ * @param {unknown} value - The value to test.
+ *
+ * @returns {boolean} True when there is something there.
+ */
+export const isSupplied = (value) =>
+    Array.isArray(value) ? value.length > 0 : String(value ?? '').trim().length > 0;
