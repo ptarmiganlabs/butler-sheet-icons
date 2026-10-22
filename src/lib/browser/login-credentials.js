@@ -8,12 +8,24 @@ import { isSupplied } from '../util/option-values.js';
  */
 
 /**
- * The Qlik Sense Cloud login form's credentials, as `checkLoginCredentials()` names them.
+ * The QSEoW login form's credentials, as `checkLoginCredentials()` names them.
  *
- * Kept here rather than beside the session code that types them: the worker and the wizard both
- * read them, and test suites mock the worker and the session module wholesale - a constant exported
- * from either would be `undefined` wherever that happens. The variable names duplicate the command
- * declaration; `commands.test.js` pins the two together.
+ * Both platforms' lists live here, side by side, rather than beside the session code that types
+ * them: the workers and the wizards both read them, and test suites mock the workers and the
+ * session modules wholesale - a constant exported from either would be `undefined` wherever that
+ * happens. The variable names duplicate the command declarations; `commands.test.js` pins the two
+ * together.
+ *
+ * @type {LoginCredential[]}
+ */
+export const QSEOW_LOGON_CREDENTIALS = [
+    { key: 'logonuserdir', flag: '--logonuserdir', envVar: 'BSI_QSEOW_CST_LOGON_USER_DIR' },
+    { key: 'logonuserid', flag: '--logonuserid', envVar: 'BSI_QSEOW_CST_LOGON_USER_ID' },
+    { key: 'logonpwd', flag: '--logonpwd', envVar: 'BSI_QSEOW_CST_LOGON_PWD' },
+];
+
+/**
+ * The Qlik Sense Cloud login form's credentials. See {@link QSEOW_LOGON_CREDENTIALS}.
  *
  * @type {LoginCredential[]}
  */
@@ -26,14 +38,16 @@ export const CLOUD_LOGON_CREDENTIALS = [
  * The credentials that were actually given, in the list's order.
  *
  * Blank counts as not given - see `isSupplied` - so a bare `BSI_..._LOGON_PWD=` line neither
- * satisfies the requirement nor conflicts with `--skip-login`.
+ * satisfies the requirement nor conflicts with `--skip-login`. Exported because the QSEoW wizard
+ * asks the same question at its `--skip-login` prompt, and must answer it the same way the worker
+ * does.
  *
- * @param {object} options - Options keyed by option attribute.
+ * @param {object} options - Options, or wizard answers, keyed by option attribute.
  * @param {LoginCredential[]} credentials - The platform's logon credentials.
  *
  * @returns {LoginCredential[]} The ones with a value.
  */
-const suppliedCredentials = (options, credentials) =>
+export const suppliedCredentials = (options, credentials) =>
     credentials.filter(({ key }) => isSupplied(options[key]));
 
 /**
@@ -42,9 +56,9 @@ const suppliedCredentials = (options, credentials) =>
  *
  * @param {LoginCredential[]} credentials - The credentials to name.
  *
- * @returns {string} E.g. `--logonuserid (BSI_QSCLOUD_CST_LOGON_USER_ID)`.
+ * @returns {string} E.g. `--logonuserid (BSI_QSEOW_CST_LOGON_USER_ID)`.
  */
-const describeCredentials = (credentials) =>
+export const describeCredentials = (credentials) =>
     credentials.map(({ flag, envVar }) => `${flag} (${envVar})`).join(', ');
 
 /**
@@ -56,24 +70,29 @@ const describeCredentials = (credentials) =>
  * the wizard path start a run with no credentials and fail at the login page instead.
  *
  * - **Without `--skip-login`** every credential is required, as it was when Commander enforced it.
- * - **With `--skip-login`** nothing is typed into a login page, so a credential given anyway is
- *   unused. It is warned about and removed from `options`, so nothing downstream can use it by
- *   accident. Refusing it outright would be the stricter rule, but `--skip-login` accepted
- *   credentials alongside it until now, so refusing them is a breaking change that waits for a
- *   major release (#1198).
+ * - **With `--skip-login`** nothing is typed into a login page, so a credential is at best unused
+ *   and at worst a sign the operator expects a different identity than the one the browser will
+ *   sign in as. `onConflict` says which: `'reject'` stops the run, `'warn'` says so and removes the
+ *   values from `options`, so nothing downstream can use them by accident. Cloud warns rather than
+ *   rejects only because its `--skip-login` predates this check and accepted credentials alongside
+ *   it; refusing them there is a breaking change, which needs a major release (#1101).
  *
- * @param {object} options - Command options. Credentials given with `--skip-login` are removed.
+ * @param {object} options - Command options. Mutated only in `'warn'` mode, as described.
  * @param {object} params - Check parameters.
  * @param {LoginCredential[]} params.credentials - The platform's logon credentials.
- * @param {string} params.logPrefix - Log prefix, e.g. `'CLOUD'`.
+ * @param {'reject'|'warn'} params.onConflict - What a credential alongside `--skip-login` does.
+ * @param {string} params.logPrefix - Log prefix, e.g. `'QSEOW'`.
  * @param {Function} params.ErrorClass - Platform error class to throw.
  * @param {object} params.logger - Logger instance.
  *
  * @returns {void}
  *
- * @throws {Error} An instance of `ErrorClass` naming each missing flag and its variable.
+ * @throws {Error} An instance of `ErrorClass` naming each offending flag and its variable.
  */
-export const checkLoginCredentials = (options, { credentials, logPrefix, ErrorClass, logger }) => {
+export const checkLoginCredentials = (
+    options,
+    { credentials, onConflict, logPrefix, ErrorClass, logger }
+) => {
     if (options.skipLogin !== true) {
         const given = suppliedCredentials(options, credentials);
         const missing = credentials.filter((credential) => !given.includes(credential));
@@ -95,11 +114,20 @@ export const checkLoginCredentials = (options, { credentials, logPrefix, ErrorCl
         return;
     }
 
-    logger.warn(
+    const conflict =
         `${logPrefix}: --skip-login is set, so nothing is typed into a login page, but ` +
-            `${describeCredentials(supplied)} ${supplied.length === 1 ? 'is' : 'are'} set as well. ` +
-            `${supplied.length === 1 ? 'It is' : 'They are'} ignored. A future major release will ` +
-            'refuse this combination.'
+        `${describeCredentials(supplied)} ${supplied.length === 1 ? 'is' : 'are'} set as well.`;
+
+    if (onConflict === 'reject') {
+        throw new ErrorClass(
+            `${conflict} Remove ${supplied.length === 1 ? 'it' : 'them'} - from the environment ` +
+                'as well as the command line - or drop --skip-login.'
+        );
+    }
+
+    logger.warn(
+        `${conflict} ${supplied.length === 1 ? 'It is' : 'They are'} ignored. A future major ` +
+            'release will refuse this combination.'
     );
 
     for (const { key } of supplied) {

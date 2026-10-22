@@ -114,6 +114,9 @@ export const openCloudAppOverviewPage = async (
         logPrefix: 'CLOUD APP',
         ErrorClass: CloudError,
         logger,
+        noFormRemedy:
+            'If that page is the app itself, the browser profile is already signed in to Qlik ' +
+            'Sense Cloud, and --skip-login is how to run against it.',
     });
 
     return { page, appUrl, loginSkipped: false };

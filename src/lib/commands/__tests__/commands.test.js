@@ -4,7 +4,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_QSEOW_SENSE_VERSION, QSEOW_SENSE_VERSIONS } from '../../qseow/qseow-selectors.js';
-import { CLOUD_LOGON_CREDENTIALS } from '../../browser/login-credentials.js';
+import {
+    QSEOW_LOGON_CREDENTIALS,
+    CLOUD_LOGON_CREDENTIALS,
+} from '../../browser/login-credentials.js';
 
 // Root of the platform code that consumes CLI options, resolved from this file so the
 // option-name guard below does not depend on the working directory jest was started in.
@@ -1549,6 +1552,7 @@ describe('option keys match the property names the code reads (issue #890)', () 
     describe('--skip-login', () => {
         // Both platforms' create-sheet-thumbnails commands, which share one declaration.
         const SKIP_LOGIN_COMMANDS = [
+            ['qseow', () => buildQseowCommand(), 'BSI_QSEOW_CST_SKIP_LOGIN'],
             ['qscloud', () => buildQscloudCommand(), 'BSI_QSCLOUD_CST_SKIP_LOGIN'],
         ];
 
@@ -1674,33 +1678,33 @@ describe('option keys match the property names the code reads (issue #890)', () 
 
         // Required only without --skip-login, which Commander cannot express, so the worker
         // checks it - see checkLoginCredentials().
-        test.each([['qscloud', () => buildQscloudCommand(), CLOUD_LOGON_CREDENTIALS]])(
-            '%s does not make the logon credentials mandatory',
-            (_name, build, credentials) => {
-                const options = createCommand(build).options;
+        test.each([
+            ['qseow', () => buildQseowCommand(), QSEOW_LOGON_CREDENTIALS],
+            ['qscloud', () => buildQscloudCommand(), CLOUD_LOGON_CREDENTIALS],
+        ])('%s does not make the logon credentials mandatory', (_name, build, credentials) => {
+            const options = createCommand(build).options;
 
-                for (const { flag } of credentials) {
-                    expect(options.find((opt) => opt.long === flag).mandatory).toBe(false);
-                }
+            for (const { flag } of credentials) {
+                expect(options.find((opt) => opt.long === flag).mandatory).toBe(false);
             }
-        );
+        });
 
         // The credential lists name each flag's variable in their messages, so a value left in
         // a shared .env can be found. Those names must be the ones the options really read.
-        test.each([['qscloud', () => buildQscloudCommand(), CLOUD_LOGON_CREDENTIALS]])(
-            '%s credential list matches the declared options',
-            (_name, build, credentials) => {
-                const options = createCommand(build).options;
+        test.each([
+            ['qseow', () => buildQseowCommand(), QSEOW_LOGON_CREDENTIALS],
+            ['qscloud', () => buildQscloudCommand(), CLOUD_LOGON_CREDENTIALS],
+        ])('%s credential list matches the declared options', (_name, build, credentials) => {
+            const options = createCommand(build).options;
 
-                for (const { key, flag, envVar } of credentials) {
-                    const option = options.find((opt) => opt.long === flag);
+            for (const { key, flag, envVar } of credentials) {
+                const option = options.find((opt) => opt.long === flag);
 
-                    expect(option).toBeDefined();
-                    expect(option.attributeName()).toBe(key);
-                    expect(option.envVar).toBe(envVar);
-                }
+                expect(option).toBeDefined();
+                expect(option.attributeName()).toBe(key);
+                expect(option.envVar).toBe(envVar);
             }
-        );
+        });
     });
 
     describe('the log-level option', () => {

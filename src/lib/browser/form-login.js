@@ -1,6 +1,35 @@
 import { sleep } from '../../globals.js';
 
 /**
+ * Names the page the browser is on - its address and title - for a message about it.
+ *
+ * Best effort: a page that cannot be asked (crashed, closed) is named as such rather than turning
+ * the explanation of one failure into a second failure.
+ *
+ * @param {object} page - Puppeteer page instance.
+ *
+ * @returns {Promise<string>} E.g. `https://sense.example.com/sense/app/1 (title "Sales")`.
+ */
+const describePage = async (page) => {
+    try {
+        const title = await page.title();
+
+        return `${page.url()}${title ? ` (title "${title}")` : ' (no title)'}`;
+    } catch {
+        return 'the page the browser is on';
+    }
+};
+
+/**
+ * Upper-cases the first character, so a clause written to follow a colon can open a sentence.
+ *
+ * @param {string} text - The clause.
+ *
+ * @returns {string} The same text, starting with a capital.
+ */
+const capitalise = (text) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/**
  * Signs in through a Qlik Sense login form, then asserts that it worked.
  *
  * QSEoW and Cloud authenticate the browser channel the same way - click the username field, type,
@@ -23,10 +52,15 @@ import { sleep } from '../../globals.js';
  * @param {string} params.logPrefix - Log prefix, e.g. `'QSEOW APP'`.
  * @param {Function} params.ErrorClass - Platform error class to throw on failure.
  * @param {object} params.logger - Logger instance.
+ * @param {string} params.noFormRemedy - What to suggest when there is no login form to fill in,
+ *     worded as one possibility: it follows a statement of what the page actually was.
+ * @param {string|null} [params.pageFailure] - The caller's description of an HTTP error the
+ *     navigation ended on, if it did. Used only to explain a missing form.
  *
  * @returns {Promise<void>} Resolves once the page is authenticated.
  *
- * @throws {Error} An instance of `ErrorClass` when the page is still the login form afterwards.
+ * @throws {Error} An instance of `ErrorClass` when there is no login form to begin with, or the
+ *     page is still the login form afterwards.
  */
 export const formLogin = async (page, params) => {
     const {
@@ -39,7 +73,24 @@ export const formLogin = async (page, params) => {
         logPrefix,
         ErrorClass,
         logger,
+        noFormRemedy,
+        pageFailure = null,
     } = params;
+
+    // No form to fill in. Puppeteer's click looks the field up once and fails on the spot, so this
+    // costs no time - it replaces "No element found for selector: #username-input" with what the
+    // page actually was. Facts first: an already signed-in browser is one way to get here, but so
+    // are an HTTP error page and a proxy that does not recognise the host name, and advice that
+    // assumes the first would send the operator the wrong way for the others.
+    if ((await page.$(selectors.username)) === null) {
+        throw new ErrorClass(
+            `${logPrefix}: no login form on the page - the username field (${selectors.username}) ` +
+                `is not on ${await describePage(page)}, so there is nothing to type the ` +
+                // An HTTP error explains itself, with its own causes; the remedy assumes the
+                // page is the app, which an error page is not.
+                `credentials into. ${pageFailure ? capitalise(pageFailure) : noFormRemedy}`
+        );
+    }
 
     // Enter credentials
     // User
@@ -96,10 +147,12 @@ export const formLogin = async (page, params) => {
  * The check is deliberately the plainest thing that distinguishes the two states: if the username
  * field the strategy just typed into is still on the page, the login did not take.
  *
- * Callers that never typed a credential use it too - `--skip-login` on Cloud asserts that the
- * session it was told to rely on is actually signed in, which is the path where an unauthenticated
- * browser is most likely and the one where this check is most trustworthy: nothing here could have
- * left a login form behind, so finding one means the skipped login was not there to skip.
+ * Callers that never typed a credential use it too - `--skip-login`, on both platforms, asserts that
+ * the session it was told to rely on is actually signed in, which is the path where an
+ * unauthenticated browser is most likely and the one where this check is most trustworthy: nothing
+ * here could have left a login form behind, so finding one means the skipped login was not there to
+ * skip. On Cloud that session is a signed-in browser profile; on QSEoW it is a virtual proxy that
+ * signs the browser in with Windows authentication.
  *
  * @param {object} page - Puppeteer page instance.
  * @param {object} params - Assertion parameters.

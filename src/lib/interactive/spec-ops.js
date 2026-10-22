@@ -110,7 +110,9 @@ export const openingOn = (spec, supplied) =>
  * The credentials are not mandatory to Commander - they are required unless `--skip-login` is set,
  * which a declaration cannot express - so the derived question would treat them as optional. This
  * puts the rule back for the wizard: required when asked, and not asked at all with
- * `--skip-login`, where the worker would ignore them.
+ * `--skip-login`, where the worker would refuse them on QSEoW and ignore them on Cloud.
+ *
+ * Both wizards use it, so the two platforms' logon questions cannot disagree about when they apply.
  *
  * @param {object} spec - Any connection question.
  * @param {string[]} logonKeys - The keys that are logon credentials on this platform.

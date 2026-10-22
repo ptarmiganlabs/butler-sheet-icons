@@ -27,7 +27,12 @@ import { captureSheetImage, blurSheetImage } from './sheet-screenshot.js';
 import { qseowLogoutQuietly } from './qseow-logout.js';
 import { getQseowHubSelectors } from './qseow-selectors.js';
 import { logError, describeWithCauses } from '../util/log-error.js';
-import { openQseowAppOverviewPage, captureQseowOverviewAfter } from './qseow-app-session.js';
+import {
+    openQseowAppOverviewPage,
+    captureQseowOverviewAfter,
+    readQseowSessionUser,
+    ambientAuthHostFor,
+} from './qseow-app-session.js';
 import { parseTrueFalseOption } from '../util/true-false-option.js';
 import { extensions } from '#extensions';
 import { runImageTransform } from '../extensions/apply.js';
@@ -151,6 +156,7 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                         logPrefix: 'QSEOW',
                         appLabel: 'QSEoW app',
                         ErrorClass: QseowError,
+                        ambientAuthHost: ambientAuthHostFor(options),
                     });
 
                     // Declared outside the try so the `finally` can reach them even when the
@@ -169,24 +175,40 @@ export const qseowProcessApp = async (appId, options, report = null) => {
                         // the two logins cannot drift apart. `loginpage` is this session's
                         // screenshot stem; the after-capture uses `loginpage-after` so it
                         // cannot overwrite the evidence from this one.
-                        const { page, appUrl, hubUrl } = await openQseowAppOverviewPage(
-                            browser,
-                            options,
-                            appId,
-                            { imgDir, pageTimeout, loginPagePrefix: 'loginpage' }
-                        );
+                        const { page, appUrl, hubUrl, qpsUserPath, loginSkipped } =
+                            await openQseowAppOverviewPage(browser, options, appId, {
+                                imgDir,
+                                pageTimeout,
+                                loginPagePrefix: 'loginpage',
+                            });
 
                         // Held for the `finally` below, which has to log this session out
                         // however this block ends.
                         signedInPage = page;
                         signedInHubUrl = hubUrl;
 
+                        // With --skip-login the identity is Windows authentication's choice,
+                        // not an option's, and section access means it decides what the
+                        // thumbnails show - so it is read from the proxy and stated. Asked
+                        // here, not in the shared helper, so the after-capture session does
+                        // not announce it a second time.
+                        let signedInAs = `${options.logonuserdir}\\${options.logonuserid}`;
+                        if (loginSkipped) {
+                            const sessionUser = await readQseowSessionUser(page, qpsUserPath);
+
+                            signedInAs = sessionUser
+                                ? `${sessionUser} (--skip-login)`
+                                : 'Windows authentication (--skip-login)';
+                            logger.info(
+                                sessionUser
+                                    ? `Login skipped (--skip-login): the virtual proxy signed the browser in as ${sessionUser}`
+                                    : 'Login skipped (--skip-login): the virtual proxy signed the browser in'
+                            );
+                        }
+
                         // Only now is the session real: the login click has
                         // navigated and the page has settled.
-                        activeLiveView()?.stepDone(
-                            'signed in',
-                            `${options.logonuserdir}\\${options.logonuserid}`
-                        );
+                        activeLiveView()?.stepDone('signed in', signedInAs);
                         activeLiveView()?.appPhase('sheets');
 
                         // Take screenshot of app overview page

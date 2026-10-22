@@ -3,10 +3,16 @@ import { qseowVerifyContentLibraryExists } from '../../qseow/qseow-contentlibrar
 import { listAppsByTag, listAllApps } from '../../qseow/qseow-app-lookup.js';
 import { qseowCreateThumbnails } from '../../qseow/qseow-create-thumbnails.js';
 import {
+    QSEOW_LOGON_CREDENTIALS,
+    suppliedCredentials,
+    describeCredentials,
+} from '../../browser/login-credentials.js';
+import {
     gate,
     gatedBy,
     inSections,
     openingOn,
+    askedUnlessSkipLogin,
     isSupplied,
     appSourceQuestion,
     appPickerQuestion,
@@ -32,6 +38,9 @@ const ADVANCED = '_advanced';
 /** What the tag route is called wherever it has to be named in a sentence. */
 const GROUPING_LABEL = 'a tag';
 
+/** The logon credentials, asked only without --skip-login. */
+const QSEOW_LOGON_KEYS = QSEOW_LOGON_CREDENTIALS.map(({ key }) => key);
+
 /** Questions asked before anything else, in this order. */
 const CONNECTION_KEYS = [
     'host',
@@ -39,9 +48,8 @@ const CONNECTION_KEYS = [
     'certkeyfile',
     'apiuserdir',
     'apiuserid',
-    'logonuserdir',
-    'logonuserid',
-    'logonpwd',
+    'skipLogin',
+    ...QSEOW_LOGON_KEYS,
 ];
 
 /**
@@ -103,9 +111,9 @@ export default {
      * because a missing one aborts the run after every screenshot has already
      * been taken.
      *
-     * This command declares 36 options, the most in the CLI, which is what makes
+     * This command declares 42 options, the most in the CLI, which is what makes
      * the gating matter more here than anywhere else: both gates declined, it
-     * asks 14 questions.
+     * asks 15 questions.
      *
      * @param {import('../../interactive/option-introspect.js').QuestionSpec[]} specs - Derived questions.
      * @param {object} [context] - What the command line and environment already supplied.
@@ -144,6 +152,39 @@ export default {
                           },
                       }
                     : spec
+            )
+            .map((spec) =>
+                spec.key === 'skipLogin'
+                    ? {
+                          ...spec,
+                          // The option's description reads as an instruction; the
+                          // question has to be one the operator can answer.
+                          message:
+                              'Does the virtual proxy sign the browser in by itself, with no login page?',
+                          hint: 'Usually Windows authentication, as the Windows account running Butler Sheet Icons. If so, no logon user or password is asked for.',
+                          // A yes hides the logon questions, but a logon value already supplied -
+                          // on the command line, or left in .env from earlier form-login runs - is
+                          // not a question and would still reach the run, which refuses it after
+                          // every other answer has been given. Said here instead, where the
+                          // decision is made. The same rule as the worker's, from the same helper.
+                          probe: (ctx) => {
+                              if (ctx.answers.skipLogin !== true) {
+                                  return;
+                              }
+
+                              const supplied = suppliedCredentials(
+                                  ctx.answers,
+                                  QSEOW_LOGON_CREDENTIALS
+                              );
+
+                              if (supplied.length > 0) {
+                                  throw new Error(
+                                      `${describeCredentials(supplied)} ${supplied.length === 1 ? 'is' : 'are'} already set, on the command line or in the environment, and the run refuses logon credentials alongside --skip-login. Answer no, or remove ${supplied.length === 1 ? 'it' : 'them'} and start again.`
+                                  );
+                              }
+                          },
+                      }
+                    : askedUnlessSkipLogin(spec, QSEOW_LOGON_KEYS)
             );
 
         const appSource = appSourceQuestion({

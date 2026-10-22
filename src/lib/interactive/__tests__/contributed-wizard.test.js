@@ -60,6 +60,7 @@ const answers = (overrides = {}) => ({
     certkeyfile: './cert/client_key.pem',
     apiuserdir: 'INTERNAL',
     apiuserid: 'sa_api',
+    skipLogin: false,
     logonuserdir: 'ACME',
     logonuserid: 'goran',
     logonpwd: 'a-password',

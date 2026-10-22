@@ -408,6 +408,22 @@ describe('the plan block', () => {
         expect(dryPlan).toContain('would be overwritten');
     });
 
+    test('a QSEoW run with --skip-login shows the logon as skipped, not a logon user', () => {
+        const report = makeReport();
+        report.plan.auth = {
+            apiUser: { directory: 'Internal', userId: 'sa_api' },
+            certFile: './cert/client.pem',
+            logonUser: null,
+            skipLogin: true,
+        };
+
+        const plan = stripAnsi(renderBoardPlan(report, uniCtx()));
+
+        expect(plan).toContain('skipped (--skip-login)');
+        expect(plan).not.toContain('logon user');
+        expect(plan).not.toContain('undefined');
+    });
+
     test('a removal without media files renders an api user alone and the narrower warning', () => {
         // The qseow remove-sheet-icons shape: an API identity but no web UI
         // logon, and a removal that leaves the content library alone.

@@ -109,11 +109,12 @@ export const qscloudCreateThumbnails = async (options) => {
             throw Error('Invalid --includesheetpart paramater');
         }
 
-        // Before anything connects, and on dry runs too: a run that cannot sign in should say so
-        // now, not at the first app's login page. Credentials alongside --skip-login are warned
-        // about and dropped rather than refused - see checkLoginCredentials().
+        // Before anything connects - mirrors the QSEoW twin, except that credentials alongside
+        // --skip-login are warned about and dropped rather than refused. Cloud accepted them
+        // until now, so refusing them is a breaking change that waits for a major release.
         checkLoginCredentials(options, {
             credentials: CLOUD_LOGON_CREDENTIALS,
+            onConflict: 'warn',
             logPrefix: 'CLOUD',
             ErrorClass: CloudError,
             logger,

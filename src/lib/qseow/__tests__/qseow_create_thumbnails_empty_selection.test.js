@@ -50,6 +50,10 @@ describe('qseow-create-thumbnails.js — no app selection', () => {
                 qrsport: '4242',
                 certfile: '/test/cert.pem',
                 certkeyfile: '/test/key.pem',
+                // Present so the run gets as far as app selection, which is what this tests.
+                logonuserdir: 'ACME',
+                logonuserid: 'test-user',
+                logonpwd: 'test-password',
                 appid: '',
                 qliksensetag: '',
             },

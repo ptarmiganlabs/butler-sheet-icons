@@ -11,6 +11,8 @@ import {
     jest,
 } from '@jest/globals';
 
+import { withLoginForm } from '../../browser/test-helpers/login-page.js';
+
 // Mock every dependency of processCloudApp using the ESM-native
 // jest.unstable_mockModule + dynamic import pattern. This mirrors the pattern
 // used in src/lib/commands/__tests__/commands.test.js and stays compatible
@@ -227,27 +229,32 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
      * @returns {object} Mock page exposing every method invoked by processCloudApp.
      */
     function buildMockPage() {
-        return {
-            // Sheet-loading detection (#1119). Defaults to "not loading" so every
-            // existing test describes a sheet that had finished rendering.
-            evaluate: jest.fn().mockResolvedValue(false),
-            setViewport: jest.fn().mockResolvedValue(true),
-            setDefaultTimeout: jest.fn().mockResolvedValue(true),
-            goto: jest.fn().mockResolvedValue(true),
-            waitForNavigation: jest.fn().mockResolvedValue(true),
-            screenshot: jest.fn().mockResolvedValue(true),
-            click: jest.fn().mockResolvedValue(true),
-            keyboard: { type: jest.fn().mockResolvedValue(true) },
-            waitForSelector: jest.fn().mockResolvedValue(true),
-            // A successful form login leaves no login form behind, which is what the
-            // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
-            $: jest
-                .fn()
-                .mockImplementation((selector) =>
-                    Promise.resolve(selector === '[id="1-email"]' ? null : buildMockSheetMainPart())
-                ),
-            $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
-        };
+        return withLoginForm(
+            {
+                // Sheet-loading detection (#1119). Defaults to "not loading" so every
+                // existing test describes a sheet that had finished rendering.
+                evaluate: jest.fn().mockResolvedValue(false),
+                setViewport: jest.fn().mockResolvedValue(true),
+                setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                goto: jest.fn().mockResolvedValue(true),
+                waitForNavigation: jest.fn().mockResolvedValue(true),
+                screenshot: jest.fn().mockResolvedValue(true),
+                click: jest.fn().mockResolvedValue(true),
+                keyboard: { type: jest.fn().mockResolvedValue(true) },
+                waitForSelector: jest.fn().mockResolvedValue(true),
+                // A successful form login leaves no login form behind, which is what the
+                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                $: jest
+                    .fn()
+                    .mockImplementation((selector) =>
+                        Promise.resolve(
+                            selector === '[id="1-email"]' ? null : buildMockSheetMainPart()
+                        )
+                    ),
+                $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
+            },
+            '[id="1-email"]'
+        );
     }
 
     /**
@@ -426,6 +433,7 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
             // The flag was read as options.skiplogin, which Commander never sets, so this branch
             // was unreachable and credentials were typed even for an operator already signed in.
             const browser = setupHappyPath();
+            browser._page._signedInAlready = true;
 
             await processCloudApp('test-app-id', defaultSaasInstance, {
                 ...defaultOptions,
@@ -820,7 +828,8 @@ describe('process-cloud-app.js — puppeteer launch and click options', () => {
         });
 
         test('announces a skipped login once per app, not once per session', async () => {
-            setupHappyPath();
+            const browser = setupHappyPath();
+            browser._page._signedInAlready = true;
 
             await processCloudApp('test-app-id', defaultSaasInstance, {
                 ...defaultOptions,
@@ -979,18 +988,21 @@ describe('process-cloud-app.js — a sheet with no metadata does not abort the a
             on: jest.fn(),
         });
 
-        const page = {
-            setViewport: jest.fn().mockResolvedValue(true),
-            setDefaultTimeout: jest.fn().mockResolvedValue(true),
-            goto: jest.fn().mockResolvedValue(true),
-            waitForNavigation: jest.fn().mockResolvedValue(true),
-            screenshot: jest.fn().mockResolvedValue(true),
-            click: jest.fn().mockResolvedValue(true),
-            keyboard: { type: jest.fn().mockResolvedValue(true) },
-            // A successful form login leaves no login form behind, which is what the
-            // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
-            $: jest.fn().mockResolvedValue(null),
-        };
+        const page = withLoginForm(
+            {
+                setViewport: jest.fn().mockResolvedValue(true),
+                setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                goto: jest.fn().mockResolvedValue(true),
+                waitForNavigation: jest.fn().mockResolvedValue(true),
+                screenshot: jest.fn().mockResolvedValue(true),
+                click: jest.fn().mockResolvedValue(true),
+                keyboard: { type: jest.fn().mockResolvedValue(true) },
+                // A successful form login leaves no login form behind, which is what the
+                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                $: jest.fn().mockResolvedValue(null),
+            },
+            '[id="1-email"]'
+        );
         puppeteer.launch.mockResolvedValue({
             // launchBrowserForApp health checks the browser and watches for an unexpected
             // disconnect, so a browser-shaped mock has to answer both (issue #878).
@@ -1102,18 +1114,23 @@ describe('process-cloud-app.js — a failed upload must not update the sheets', 
             // disconnect, so a browser-shaped mock has to answer both (issue #878).
             version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
             on: jest.fn(),
-            newPage: jest.fn().mockResolvedValue({
-                setViewport: jest.fn().mockResolvedValue(true),
-                setDefaultTimeout: jest.fn().mockResolvedValue(true),
-                goto: jest.fn().mockResolvedValue(true),
-                waitForNavigation: jest.fn().mockResolvedValue(true),
-                screenshot: jest.fn().mockResolvedValue(true),
-                click: jest.fn().mockResolvedValue(true),
-                keyboard: { type: jest.fn().mockResolvedValue(true) },
-                // A successful form login leaves no login form behind, which is what the
-                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
-                $: jest.fn().mockResolvedValue(null),
-            }),
+            newPage: jest.fn().mockResolvedValue(
+                withLoginForm(
+                    {
+                        setViewport: jest.fn().mockResolvedValue(true),
+                        setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                        goto: jest.fn().mockResolvedValue(true),
+                        waitForNavigation: jest.fn().mockResolvedValue(true),
+                        screenshot: jest.fn().mockResolvedValue(true),
+                        click: jest.fn().mockResolvedValue(true),
+                        keyboard: { type: jest.fn().mockResolvedValue(true) },
+                        // A successful form login leaves no login form behind, which is what the
+                        // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                        $: jest.fn().mockResolvedValue(null),
+                    },
+                    '[id="1-email"]'
+                )
+            ),
             close: jest.fn().mockResolvedValue(true),
         });
 
@@ -1210,18 +1227,23 @@ describe('process-cloud-app.js — a sheet whose thumbnail cannot be produced', 
             // disconnect, so a browser-shaped mock has to answer both (issue #878).
             version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
             on: jest.fn(),
-            newPage: jest.fn().mockResolvedValue({
-                setViewport: jest.fn().mockResolvedValue(true),
-                setDefaultTimeout: jest.fn().mockResolvedValue(true),
-                goto: jest.fn().mockResolvedValue(true),
-                waitForNavigation: jest.fn().mockResolvedValue(true),
-                screenshot: jest.fn().mockResolvedValue(true),
-                click: jest.fn().mockResolvedValue(true),
-                keyboard: { type: jest.fn().mockResolvedValue(true) },
-                // A successful form login leaves no login form behind, which is what the
-                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
-                $: jest.fn().mockResolvedValue(null),
-            }),
+            newPage: jest.fn().mockResolvedValue(
+                withLoginForm(
+                    {
+                        setViewport: jest.fn().mockResolvedValue(true),
+                        setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                        goto: jest.fn().mockResolvedValue(true),
+                        waitForNavigation: jest.fn().mockResolvedValue(true),
+                        screenshot: jest.fn().mockResolvedValue(true),
+                        click: jest.fn().mockResolvedValue(true),
+                        keyboard: { type: jest.fn().mockResolvedValue(true) },
+                        // A successful form login leaves no login form behind, which is what the
+                        // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                        $: jest.fn().mockResolvedValue(null),
+                    },
+                    '[id="1-email"]'
+                )
+            ),
             close: jest.fn().mockResolvedValue(true),
         });
 
@@ -1351,18 +1373,23 @@ describe('process-cloud-app.js — the image transform hook (#1158)', () => {
             // disconnect, so a browser-shaped mock has to answer both (issue #878).
             version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
             on: jest.fn(),
-            newPage: jest.fn().mockResolvedValue({
-                setViewport: jest.fn().mockResolvedValue(true),
-                setDefaultTimeout: jest.fn().mockResolvedValue(true),
-                goto: jest.fn().mockResolvedValue(true),
-                waitForNavigation: jest.fn().mockResolvedValue(true),
-                screenshot: jest.fn().mockResolvedValue(true),
-                click: jest.fn().mockResolvedValue(true),
-                keyboard: { type: jest.fn().mockResolvedValue(true) },
-                // A successful form login leaves no login form behind, which is what the
-                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
-                $: jest.fn().mockResolvedValue(null),
-            }),
+            newPage: jest.fn().mockResolvedValue(
+                withLoginForm(
+                    {
+                        setViewport: jest.fn().mockResolvedValue(true),
+                        setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                        goto: jest.fn().mockResolvedValue(true),
+                        waitForNavigation: jest.fn().mockResolvedValue(true),
+                        screenshot: jest.fn().mockResolvedValue(true),
+                        click: jest.fn().mockResolvedValue(true),
+                        keyboard: { type: jest.fn().mockResolvedValue(true) },
+                        // A successful form login leaves no login form behind, which is what the
+                        // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                        $: jest.fn().mockResolvedValue(null),
+                    },
+                    '[id="1-email"]'
+                )
+            ),
             close: jest.fn().mockResolvedValue(true),
         };
         puppeteer.launch.mockResolvedValue(browser);

@@ -1,14 +1,22 @@
 import { logger, sleep } from '../../globals.js';
 import { launchBrowserForApp, closeBrowserQuietly } from '../browser/browser-launch.js';
 import { QseowError } from '../util/errors.js';
-import { formLogin } from '../browser/form-login.js';
+import { formLogin, assertAuthenticated } from '../browser/form-login.js';
 import { normalizeVirtualProxyPrefix } from './qseow-prefix.js';
 import { qseowLogoutQuietly } from './qseow-logout.js';
 import { removeStaleImage } from '../util/image-dir.js';
+import { currentAccount } from '../util/os-account.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
 const selectorLoginPageLoginButton = '#loginbtn';
+
+/** The login form, as one set, so the skip-login assertion and the form login cannot disagree. */
+const loginSelectors = {
+    username: selectorLoginPageUserName,
+    password: selectorLoginPageUserPwd,
+    submit: selectorLoginPageLoginButton,
+};
 
 /**
  * Builds the app and hub URLs for a QSEoW server.
@@ -20,7 +28,10 @@ const selectorLoginPageLoginButton = '#loginbtn';
  * @param {object} options - Command options (`host`, `port`, `secure`, `prefix`).
  * @param {string} appId - Qlik Sense app ID.
  *
- * @returns {{appUrl: string, hubUrl: string}} The two URLs.
+ * @returns {{appUrl: string, hubUrl: string, qpsUserPath: string}} The app and hub URLs, and the
+ *     path of the proxy's session-user endpoint on the same virtual proxy. A path, not a URL: it is
+ *     fetched from inside the signed-in page, and has to resolve against wherever the browser
+ *     actually ended up, which need not be the host `--host` names.
  */
 export const buildQseowAppUrls = (options, appId) => {
     const scheme = options.secure === 'true' || options.secure === true ? 'https://' : 'http://';
@@ -38,14 +49,186 @@ export const buildQseowAppUrls = (options, appId) => {
     // selector that says nothing about the prefix.
     const prefix = normalizeVirtualProxyPrefix(options.prefix);
 
-    if (prefix.length > 0) {
-        return {
-            appUrl: `${origin}/${prefix}/sense/app/${appId}`,
-            hubUrl: `${origin}/${prefix}/hub`,
-        };
+    const prefixPath = prefix.length > 0 ? `/${prefix}` : '';
+
+    return {
+        appUrl: `${origin}${prefixPath}/sense/app/${appId}`,
+        hubUrl: `${origin}${prefixPath}/hub`,
+        qpsUserPath: `${prefixPath}/qps/user`,
+    };
+};
+
+/**
+ * The one host the browser may offer the running account's Windows credentials to, if any.
+ *
+ * Decided here, by the QSEoW session code, and handed to the launcher explicitly: only a
+ * `--skip-login` run relies on Windows authentication, and only QSEoW has one. Both QSEoW browser
+ * sessions - the main one and the after-capture - launch through this.
+ *
+ * @param {object} options - Command options (`skipLogin`, `host`).
+ *
+ * @returns {string|undefined} `--host` with `--skip-login`, otherwise undefined.
+ */
+export const ambientAuthHostFor = (options) =>
+    options.skipLogin === true ? options.host : undefined;
+
+/**
+ * How long the best-effort session-user lookup may take before it is given up on.
+ *
+ * Without a limit a proxy that holds the request open would stall every app until Puppeteer's
+ * own protocol timeout - three minutes - for a fact the run does not need.
+ */
+export const QSEOW_SESSION_USER_TIMEOUT_MS = 5000;
+
+/**
+ * Turns Chromium's `net::ERR_INVALID_AUTH_CREDENTIALS` into what an operator can act on.
+ *
+ * Chromium raises it when the server asks for Windows authentication and the browser cannot
+ * complete it. Which advice applies depends on whether BSI was expecting Windows authentication
+ * at all: without `--skip-login` the proxy was expected to serve its login form, and the fix is
+ * usually a different proxy; with it, the account running BSI was refused.
+ *
+ * @param {Error} err - The error from `page.goto`.
+ * @param {string} appUrl - The URL that was being opened.
+ * @param {boolean} skipLogin - Whether `--skip-login` is set.
+ *
+ * @returns {Error} A `QseowError` explaining it, or `err` itself for any other failure.
+ */
+const explainNavigationError = (err, appUrl, skipLogin) => {
+    if (!String(err?.message).includes('ERR_INVALID_AUTH_CREDENTIALS')) {
+        return err;
     }
 
-    return { appUrl: `${origin}/sense/app/${appId}`, hubUrl: `${origin}/hub` };
+    const prefix = `QSEOW APP: the browser could not sign in at ${appUrl} (ERR_INVALID_AUTH_CREDENTIALS).`;
+
+    if (skipLogin) {
+        return new QseowError(
+            `${prefix} With --skip-login the virtual proxy signs the browser in with Windows ` +
+                `authentication, as the Windows account running Butler Sheet Icons ` +
+                `(${currentAccount({ withDomain: true })}), and it was refused. Check that this account can open the ` +
+                'app in Qlik Sense, and that it is the account you expect.',
+            { cause: err }
+        );
+    }
+
+    return new QseowError(
+        `${prefix} The virtual proxy asked for Windows authentication instead of serving its ` +
+            "login form. Qlik Sense decides this from the browser's User-Agent, and a browser on " +
+            'Windows matches the default pattern. Use --prefix with a virtual proxy whose Windows ' +
+            "authentication pattern does not match (the convention is 'Form'), or, if the Windows " +
+            'account running Butler Sheet Icons can open the app in Qlik Sense, use --skip-login.',
+        { cause: err }
+    );
+};
+
+/**
+ * Says what the page a navigation ended on actually is, when it is an HTTP error.
+ *
+ * `page.goto` throws for network failures but resolves for HTTP errors, so a 401 from the Windows
+ * authentication leg, a 400 from a proxy that does not recognise the host name, or a 500 all arrive
+ * as an ordinary page. None of them has a login form, so without this the `--skip-login` check
+ * would read "no login form" as "signed in", and the form path would read it as "already signed
+ * in". Facts first - the status and where the browser ended up - and only then the causes known to
+ * produce that status, worded as possibilities.
+ *
+ * @param {object|null} response - What `page.goto` resolved to. Null when Puppeteer had none.
+ * @param {object} context - What was being opened.
+ * @param {string} context.appUrl - The URL that was requested.
+ * @param {string} context.host - `--host`, for the host-name cause of a 400.
+ * @param {boolean} context.skipLogin - Whether `--skip-login` is set.
+ *
+ * @returns {string|null} A description of the failure, or null when the page is not an HTTP error.
+ */
+export const describeHttpFailure = (response, { appUrl, host, skipLogin }) => {
+    if (!response || response.ok()) {
+        return null;
+    }
+
+    const status = response.status();
+    const statusText = response.statusText();
+    const endedAt = response.url();
+
+    const facts =
+        `opening ${appUrl} ended on HTTP ${status}${statusText ? ` ${statusText}` : ''}` +
+        `${endedAt && endedAt !== appUrl ? ` at ${endedAt}` : ''} - not the app, and not a login page.`;
+
+    if (status === 401 || status === 403) {
+        return skipLogin
+            ? `${facts} With --skip-login the virtual proxy signs the browser in with Windows ` +
+                  'authentication, as the Windows account running Butler Sheet Icons ' +
+                  `(${currentAccount({ withDomain: true })}), and it was not accepted. Check that ` +
+                  'this account can open the app in Qlik Sense, and that it is the account you expect.'
+            : `${facts} The virtual proxy refused the browser before showing any login form. If it ` +
+                  'uses Windows authentication, use --prefix with a virtual proxy that serves its ' +
+                  'login form, or --skip-login if the Windows account running Butler Sheet Icons ' +
+                  'can open the app in Qlik Sense.';
+    }
+
+    if (status === 400) {
+        return (
+            `${facts} One known cause: Qlik Sense answers 400 when the host name in the address ` +
+            `("${host}", from --host) is not in the virtual proxy's host allow list. Compare --host ` +
+            "with that list in the QMC, or with the name on the server's certificate."
+        );
+    }
+
+    return `${facts} Check that the app opens in a browser on this machine, at the same address.`;
+};
+
+/**
+ * Asks the proxy who the browser is signed in as.
+ *
+ * With `--skip-login` that identity is decided by Windows authentication, not by any option BSI
+ * was given, and it decides what the thumbnails show: section access filters the data per user.
+ * So it is worth stating, and the proxy session is the authority on it.
+ *
+ * Best effort: a proxy that does not answer, answers slowly, or answers in a shape not seen before
+ * costs the run at most `timeoutMs` - the caller falls back to naming the mechanism instead of the
+ * user. The body is not logged, because it carries the session id.
+ *
+ * The path is resolved by the page, against wherever the browser actually is, so the request is
+ * same-origin and carries the session cookie even when the proxy moved the browser to a host name
+ * other than the one `--host` gave.
+ *
+ * @param {object} page - Puppeteer page, signed in.
+ * @param {string} qpsUserPath - Path of the proxy's `/qps/user` endpoint, from `buildQseowAppUrls`.
+ * @param {number} [timeoutMs] - How long to wait for the answer.
+ *
+ * @returns {Promise<string|null>} `DIRECTORY\userid`, or null when it could not be read.
+ */
+export const readQseowSessionUser = async (
+    page,
+    qpsUserPath,
+    timeoutMs = QSEOW_SESSION_USER_TIMEOUT_MS
+) => {
+    try {
+        const user = await page.evaluate(
+            async (path, limit) => {
+                const response = await fetch(path, {
+                    credentials: 'same-origin',
+                    signal: AbortSignal.timeout(limit),
+                });
+
+                return response.ok ? response.json() : null;
+            },
+            qpsUserPath,
+            timeoutMs
+        );
+
+        if (user?.userDirectory && user?.userId) {
+            return `${user.userDirectory}\\${user.userId}`;
+        }
+
+        logger.debug(
+            `QSEOW APP: ${qpsUserPath} did not name a session user (fields: ${Object.keys(user ?? {}).join(', ') || 'none'}).`
+        );
+    } catch (err) {
+        logger.debug(
+            `QSEOW APP: could not read the session user from ${qpsUserPath}: ${err.message}`
+        );
+    }
+
+    return null;
 };
 
 /**
@@ -69,7 +252,12 @@ export const buildQseowAppUrls = (options, appId) => {
  * @param {number} params.pageTimeout - Page operation timeout in milliseconds.
  * @param {string} params.loginPagePrefix - Basename stem for the login screenshots.
  *
- * @returns {Promise<{page: object, appUrl: string, hubUrl: string}>} The signed-in page.
+ * With `--skip-login` nothing is typed: the virtual proxy is expected to sign the browser in by
+ * itself - Windows authentication, as the account running BSI - and the page is asserted to be past
+ * the login form instead.
+ *
+ * @returns {Promise<{page: object, appUrl: string, hubUrl: string, qpsUserPath: string, loginSkipped: boolean}>}
+ *     The signed-in page, and whether login was skipped so the caller can report it.
  */
 export const openQseowAppOverviewPage = async (
     browser,
@@ -90,22 +278,63 @@ export const openQseowAppOverviewPage = async (
     // https://stackoverflow.com/questions/52163547/node-js-puppeteer-how-to-set-navigation-timeout
     await page.setDefaultTimeout(pageTimeout);
 
-    const { appUrl, hubUrl } = buildQseowAppUrls(options, appId);
+    const { appUrl, hubUrl, qpsUserPath } = buildQseowAppUrls(options, appId);
 
     logger.debug(`App URL: ${appUrl}`);
     logger.debug(`Hub URL: ${hubUrl}`);
 
-    await Promise.all([page.goto(appUrl, { waitUntil: 'networkidle2', timeout: pageTimeout })]);
+    // `skipLogin`, never `skiplogin` - see issue #890.
+    const skipLogin = options.skipLogin === true;
+
+    let response;
+    try {
+        response = await page.goto(appUrl, { waitUntil: 'networkidle2', timeout: pageTimeout });
+    } catch (err) {
+        throw explainNavigationError(err, appUrl, skipLogin);
+    }
 
     await sleep(options.pagewait * 1000);
     await page.screenshot({ path: `${imgDir}/qseow/${appId}/${loginPagePrefix}-1.png` });
 
+    const httpFailure = describeHttpFailure(response, {
+        appUrl,
+        host: options.host,
+        skipLogin,
+    });
+
+    if (skipLogin) {
+        // Skipped, not proven - the same reasoning as the Cloud twin. The virtual proxy was
+        // expected to sign the browser in by itself. An HTTP error page has no login form either,
+        // so the status is checked first: "no form" must not be read as "signed in" when the page
+        // is a 401 from the Windows authentication leg.
+        if (httpFailure) {
+            throw new QseowError(`QSEOW APP: not signed in with --skip-login: ${httpFailure}`);
+        }
+
+        // If the proxy served its login form instead, BSI would otherwise photograph that form
+        // once per sheet and report success.
+        await assertAuthenticated(page, {
+            selectors: loginSelectors,
+            logPrefix: 'QSEOW APP',
+            ErrorClass: QseowError,
+            logger,
+            situation: 'opening the app with --skip-login',
+            remedy:
+                'The virtual proxy served its login form instead of signing the browser in. Its ' +
+                "Windows authentication pattern does not match this browser's User-Agent, or it " +
+                'is not set up for Windows authentication. Use --prefix with a virtual proxy that ' +
+                'signs Windows users in, or drop --skip-login and supply credentials.',
+        });
+
+        return { page, appUrl, hubUrl, qpsUserPath, loginSkipped: true };
+    }
+
+    // Not gated on the status on this path: the login form is what decides whether a form login
+    // can proceed, and gating on the status as well would stake every working run on which status
+    // a given Sense release gives its login page. The status only matters when the form is
+    // missing, so it is handed over for that message.
     await formLogin(page, {
-        selectors: {
-            username: selectorLoginPageUserName,
-            password: selectorLoginPageUserPwd,
-            submit: selectorLoginPageLoginButton,
-        },
+        selectors: loginSelectors,
         username: `${options.logonuserdir}\\${options.logonuserid}`,
         password: options.logonpwd,
         pagewait: options.pagewait,
@@ -114,9 +343,14 @@ export const openQseowAppOverviewPage = async (
         logPrefix: 'QSEOW APP',
         ErrorClass: QseowError,
         logger,
+        pageFailure: httpFailure,
+        noFormRemedy:
+            'If that page is the app itself, the browser is already signed in - a virtual proxy ' +
+            'using Windows authentication does that - and --skip-login, without --logonuserdir, ' +
+            '--logonuserid and --logonpwd, is how to run against it.',
     });
 
-    return { page, appUrl, hubUrl };
+    return { page, appUrl, hubUrl, qpsUserPath, loginSkipped: false };
 };
 
 /**
@@ -156,6 +390,7 @@ export const captureQseowOverviewAfter = async (
         logPrefix: 'QSEOW',
         appLabel: 'QSEoW app',
         ErrorClass: QseowError,
+        ambientAuthHost: ambientAuthHostFor(options),
     });
 
     let signedInPage;

@@ -76,6 +76,7 @@ const fs = await import('node:fs');
 const {
     launchBrowserForApp,
     buildBrowserArgs,
+    isPlainHost,
     resolveBrowserExecutablePath,
     closeBrowserQuietly,
     BROWSER_LAUNCH_TIMEOUT_MS,
@@ -317,6 +318,69 @@ describe('resolveBrowserExecutablePath — invalid version input (issue #878 rev
         ).rejects.toBe(cause);
 
         expect(detectAvailableBrowser).not.toHaveBeenCalled();
+    });
+});
+
+describe('the Windows-authentication allowlist (--skip-login on QSEoW)', () => {
+    test('buildBrowserArgs adds exactly the host it is given', async () => {
+        const args = await buildBrowserArgs({ ambientAuthHost: 'sense.example.com' });
+
+        expect(args).toContain('--auth-server-allowlist=sense.example.com');
+        expect(args.filter((arg) => arg.startsWith('--auth-server-allowlist'))).toHaveLength(1);
+    });
+
+    test('buildBrowserArgs adds no allowlist when given no host', async () => {
+        const args = await buildBrowserArgs();
+
+        expect(args.some((arg) => arg.startsWith('--auth-server-allowlist'))).toBe(false);
+    });
+
+    test.each([
+        'sense.example.com',
+        'qs-2605-cn01.ad.ptarmiganlabs.net',
+        '192.168.100.165',
+        '[::1]',
+    ])('isPlainHost accepts %s', (host) => {
+        expect(isPlainHost(host)).toBe(true);
+    });
+
+    // Each of these would widen the list: a comma adds a host, '*' is Chromium's wildcard.
+    test.each(['*', '*.example.com', 'a.example.com,b.example.com', 'a b', '', undefined])(
+        'isPlainHost refuses %p',
+        (host) => {
+            expect(isPlainHost(host)).toBe(false);
+        }
+    );
+
+    test('launchBrowserForApp refuses a host that is not one plain name, before launching', async () => {
+        await expect(
+            launchBrowserForApp(OPTIONS, { ...CONTEXT, ambientAuthHost: '*.example.com' })
+        ).rejects.toThrow(TestError);
+        await expect(
+            launchBrowserForApp(OPTIONS, { ...CONTEXT, ambientAuthHost: '*.example.com' })
+        ).rejects.toThrow(/TEST: "\*\.example\.com" is not a single host name/);
+
+        expect(puppeteer.launch).not.toHaveBeenCalled();
+    });
+
+    test('launchBrowserForApp decides nothing from the options themselves', async () => {
+        // Cloud's --skip-login relies on a signed-in profile; only an explicit ambientAuthHost may
+        // turn the allowlist on, whatever the options happen to carry.
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/cached/chrome',
+            source: 'cache',
+            browser: 'chrome',
+            buildId: '138.0.0.1',
+        });
+        puppeteer.launch.mockResolvedValue(fakeBrowser());
+
+        await launchBrowserForApp(
+            { ...OPTIONS, skipLogin: true, host: 'sense.example.com' },
+            CONTEXT
+        );
+
+        const { args } = puppeteer.launch.mock.calls[0][0];
+        expect(args.some((arg) => arg.startsWith('--auth-server-allowlist'))).toBe(false);
     });
 });
 

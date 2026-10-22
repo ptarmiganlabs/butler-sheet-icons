@@ -11,6 +11,8 @@ import {
     jest,
 } from '@jest/globals';
 
+import { httpResponse, withLoginForm } from '../../browser/test-helpers/login-page.js';
+
 // Mock every dependency of qseowProcessApp using the ESM-native
 // jest.unstable_mockModule + dynamic import pattern. This mirrors the pattern
 // used in src/lib/commands/__tests__/commands.test.js and stays compatible
@@ -227,29 +229,32 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
      * @returns {object} Mock page exposing every method invoked by qseowProcessApp.
      */
     function buildMockPage() {
-        return {
-            // Sheet-loading detection (#1119). Defaults to "not loading" so every
-            // existing test describes a sheet that had finished rendering.
-            evaluate: jest.fn().mockResolvedValue(false),
-            setViewport: jest.fn().mockResolvedValue(true),
-            setDefaultTimeout: jest.fn().mockResolvedValue(true),
-            goto: jest.fn().mockResolvedValue(true),
-            waitForNavigation: jest.fn().mockResolvedValue(true),
-            screenshot: jest.fn().mockResolvedValue(true),
-            click: jest.fn().mockResolvedValue(true),
-            keyboard: { type: jest.fn().mockResolvedValue(true) },
-            waitForSelector: jest.fn().mockResolvedValue(true),
-            // A successful form login leaves no login form behind, which is what the
-            // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
-            $: jest
-                .fn()
-                .mockImplementation((selector) =>
-                    Promise.resolve(
-                        selector === '#username-input' ? null : buildMockSheetMainPart()
-                    )
-                ),
-            $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
-        };
+        return withLoginForm(
+            {
+                // Sheet-loading detection (#1119). Defaults to "not loading" so every
+                // existing test describes a sheet that had finished rendering.
+                evaluate: jest.fn().mockResolvedValue(false),
+                setViewport: jest.fn().mockResolvedValue(true),
+                setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                goto: jest.fn().mockResolvedValue(httpResponse()),
+                waitForNavigation: jest.fn().mockResolvedValue(true),
+                screenshot: jest.fn().mockResolvedValue(true),
+                click: jest.fn().mockResolvedValue(true),
+                keyboard: { type: jest.fn().mockResolvedValue(true) },
+                waitForSelector: jest.fn().mockResolvedValue(true),
+                // A successful form login leaves no login form behind, which is what the
+                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                $: jest
+                    .fn()
+                    .mockImplementation((selector) =>
+                        Promise.resolve(
+                            selector === '#username-input' ? null : buildMockSheetMainPart()
+                        )
+                    ),
+                $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
+            },
+            '#username-input'
+        );
     }
 
     /**
@@ -861,6 +866,99 @@ describe('qseow-process-app.js — puppeteer launch and click options', () => {
         });
     });
 
+    describe('--skip-login: the virtual proxy signs the browser in', () => {
+        /**
+         * Options for a run through a Windows authentication proxy: no logon credentials.
+         *
+         * @returns {object} The options bag.
+         */
+        const skipLoginOptions = () => {
+            const { logonuserdir: _d, logonuserid: _i, logonpwd: _p, ...rest } = defaultOptions;
+            return { ...rest, skipLogin: true };
+        };
+
+        /**
+         * A clean-run browser whose page is signed in before anything is typed, answering the
+         * proxy's session-user endpoint with `sessionUser`.
+         *
+         * @param {object|null} sessionUser - What `/qps/user` returns; null for no answer.
+         *
+         * @returns {object} The mock browser.
+         */
+        const signedInBrowser = (sessionUser) => {
+            const browser = setupHappyPath();
+            browser._page._signedInAlready = true;
+            browser._page.evaluate.mockImplementation((_fn, arg) =>
+                Promise.resolve(String(arg).endsWith('/qps/user') ? sessionUser : false)
+            );
+            return browser;
+        };
+
+        const infoLog = () => logger.info.mock.calls.map((call) => String(call[0])).join('\n');
+
+        test('types no credentials', async () => {
+            const browser = signedInBrowser({ userDirectory: 'ACME', userId: 'svc-bsi' });
+
+            await qseowProcessApp('test-app-id', skipLoginOptions());
+
+            expect(browser._page.keyboard.type).not.toHaveBeenCalled();
+        });
+
+        test('says who the proxy signed the browser in as', async () => {
+            // Section access filters what a sheet shows by user, so the identity that rendered
+            // the thumbnails is worth stating - and with --skip-login no option names it.
+            signedInBrowser({ userDirectory: 'ACME', userId: 'svc-bsi' });
+
+            await qseowProcessApp('test-app-id', skipLoginOptions());
+
+            expect(infoLog()).toContain('signed the browser in as ACME\\svc-bsi');
+        });
+
+        test('still runs when the proxy will not say who that is', async () => {
+            signedInBrowser(null);
+
+            await qseowProcessApp('test-app-id', skipLoginOptions());
+
+            expect(infoLog()).toContain('Login skipped (--skip-login)');
+            expect(infoLog()).not.toContain('signed the browser in as');
+        });
+
+        test('announces it once per app, not once per session', async () => {
+            signedInBrowser({ userDirectory: 'ACME', userId: 'svc-bsi' });
+
+            await qseowProcessApp('test-app-id', {
+                ...skipLoginOptions(),
+                captureOverviewAfter: true,
+            });
+
+            const notices = logger.info.mock.calls.filter((call) =>
+                String(call[0]).startsWith('Login skipped (--skip-login)')
+            );
+            expect(notices).toHaveLength(1);
+        });
+
+        test('lets the browser offer Windows credentials to the Sense host only', async () => {
+            // Chromium on Windows sends the running account's credentials without a prompt only
+            // to Local Intranet hosts, and a dotted host name is outside that zone by default.
+            signedInBrowser({ userDirectory: 'ACME', userId: 'svc-bsi' });
+
+            await qseowProcessApp('test-app-id', skipLoginOptions());
+
+            const { args } = puppeteer.launch.mock.calls[0][0];
+            expect(args).toContain('--auth-server-allowlist=test-server.example.com');
+            expect(args.filter((arg) => arg.startsWith('--auth-server-allowlist'))).toHaveLength(1);
+        });
+
+        test('adds no allowlist to a run that signs in through the form', async () => {
+            setupHappyPath();
+
+            await qseowProcessApp('test-app-id', defaultOptions);
+
+            const { args } = puppeteer.launch.mock.calls[0][0];
+            expect(args.some((arg) => arg.startsWith('--auth-server-allowlist'))).toBe(false);
+        });
+    });
+
     describe('the engine session is released when the app fails', () => {
         beforeEach(() => {
             // The enclosing describe has no beforeEach, so both call counts and mock
@@ -1305,28 +1403,31 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
             on: jest.fn(),
         });
 
-        const page = {
-            setViewport: jest.fn().mockResolvedValue(true),
-            setDefaultTimeout: jest.fn().mockResolvedValue(true),
-            goto: jest.fn().mockResolvedValue(true),
-            waitForNavigation: jest.fn().mockResolvedValue(true),
-            screenshot: jest.fn().mockResolvedValue(true),
-            click: jest.fn().mockResolvedValue(true),
-            keyboard: { type: jest.fn().mockResolvedValue(true) },
-            waitForSelector: jest.fn().mockResolvedValue(true),
-            // A successful form login leaves no login form behind, which is what the
-            // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
-            $: jest
-                .fn()
-                .mockImplementation((selector) =>
-                    Promise.resolve(
-                        selector === '#username-input'
-                            ? null
-                            : { screenshot: jest.fn().mockResolvedValue(true) }
-                    )
-                ),
-            $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
-        };
+        const page = withLoginForm(
+            {
+                setViewport: jest.fn().mockResolvedValue(true),
+                setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                goto: jest.fn().mockResolvedValue(httpResponse()),
+                waitForNavigation: jest.fn().mockResolvedValue(true),
+                screenshot: jest.fn().mockResolvedValue(true),
+                click: jest.fn().mockResolvedValue(true),
+                keyboard: { type: jest.fn().mockResolvedValue(true) },
+                waitForSelector: jest.fn().mockResolvedValue(true),
+                // A successful form login leaves no login form behind, which is what the
+                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                $: jest
+                    .fn()
+                    .mockImplementation((selector) =>
+                        Promise.resolve(
+                            selector === '#username-input'
+                                ? null
+                                : { screenshot: jest.fn().mockResolvedValue(true) }
+                        )
+                    ),
+                $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
+            },
+            '#username-input'
+        );
         puppeteer.launch.mockResolvedValue({
             // launchBrowserForApp health checks the browser and watches for an unexpected
             // disconnect, so a browser-shaped mock has to answer both (issue #878).
@@ -1394,6 +1495,9 @@ describe('qseow-process-app.js — a sheet with no metadata does not abort the a
                         : jest.fn().mockResolvedValue(true),
             });
         });
+        // Wrapped again, around the replacement: the login form is on the page until the
+        // credentials are submitted, as with every other mock page here.
+        withLoginForm(page, '#username-input');
 
         // The app is still reported as failed - one sheet never got its thumbnail.
         await expect(qseowProcessApp('test-app-id', options)).rejects.toThrow();
@@ -1503,28 +1607,35 @@ describe('qseow-process-app.js — a blurred thumbnail that cannot be created', 
             // disconnect, so a browser-shaped mock has to answer both (issue #878).
             version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
             on: jest.fn(),
-            newPage: jest.fn().mockResolvedValue({
-                setViewport: jest.fn().mockResolvedValue(true),
-                setDefaultTimeout: jest.fn().mockResolvedValue(true),
-                goto: jest.fn().mockResolvedValue(true),
-                waitForNavigation: jest.fn().mockResolvedValue(true),
-                screenshot: jest.fn().mockResolvedValue(true),
-                click: jest.fn().mockResolvedValue(true),
-                keyboard: { type: jest.fn().mockResolvedValue(true) },
-                waitForSelector: jest.fn().mockResolvedValue(true),
-                // A successful form login leaves no login form behind, which is what the
-                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
-                $: jest
-                    .fn()
-                    .mockImplementation((selector) =>
-                        Promise.resolve(
-                            selector === '#username-input'
-                                ? null
-                                : { screenshot: jest.fn().mockResolvedValue(true) }
-                        )
-                    ),
-                $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
-            }),
+            newPage: jest.fn().mockResolvedValue(
+                withLoginForm(
+                    {
+                        setViewport: jest.fn().mockResolvedValue(true),
+                        setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                        goto: jest.fn().mockResolvedValue(httpResponse()),
+                        waitForNavigation: jest.fn().mockResolvedValue(true),
+                        screenshot: jest.fn().mockResolvedValue(true),
+                        click: jest.fn().mockResolvedValue(true),
+                        keyboard: { type: jest.fn().mockResolvedValue(true) },
+                        waitForSelector: jest.fn().mockResolvedValue(true),
+                        // A successful form login leaves no login form behind, which is what the
+                        // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                        $: jest
+                            .fn()
+                            .mockImplementation((selector) =>
+                                Promise.resolve(
+                                    selector === '#username-input'
+                                        ? null
+                                        : { screenshot: jest.fn().mockResolvedValue(true) }
+                                )
+                            ),
+                        $$: jest
+                            .fn()
+                            .mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
+                    },
+                    '#username-input'
+                )
+            ),
             close: jest.fn().mockResolvedValue(true),
         });
     }
@@ -1799,28 +1910,35 @@ describe('qseow-process-app.js — the image transform hook (#1158)', () => {
             // disconnect, so a browser-shaped mock has to answer both (issue #878).
             version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
             on: jest.fn(),
-            newPage: jest.fn().mockResolvedValue({
-                setViewport: jest.fn().mockResolvedValue(true),
-                setDefaultTimeout: jest.fn().mockResolvedValue(true),
-                goto: jest.fn().mockResolvedValue(true),
-                waitForNavigation: jest.fn().mockResolvedValue(true),
-                screenshot: jest.fn().mockResolvedValue(true),
-                click: jest.fn().mockResolvedValue(true),
-                keyboard: { type: jest.fn().mockResolvedValue(true) },
-                waitForSelector: jest.fn().mockResolvedValue(true),
-                // A successful form login leaves no login form behind, which is what the
-                // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
-                $: jest
-                    .fn()
-                    .mockImplementation((selector) =>
-                        Promise.resolve(
-                            selector === '#username-input'
-                                ? null
-                                : { screenshot: jest.fn().mockResolvedValue(true) }
-                        )
-                    ),
-                $$: jest.fn().mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
-            }),
+            newPage: jest.fn().mockResolvedValue(
+                withLoginForm(
+                    {
+                        setViewport: jest.fn().mockResolvedValue(true),
+                        setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                        goto: jest.fn().mockResolvedValue(httpResponse()),
+                        waitForNavigation: jest.fn().mockResolvedValue(true),
+                        screenshot: jest.fn().mockResolvedValue(true),
+                        click: jest.fn().mockResolvedValue(true),
+                        keyboard: { type: jest.fn().mockResolvedValue(true) },
+                        waitForSelector: jest.fn().mockResolvedValue(true),
+                        // A successful form login leaves no login form behind, which is what the
+                        // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                        $: jest
+                            .fn()
+                            .mockImplementation((selector) =>
+                                Promise.resolve(
+                                    selector === '#username-input'
+                                        ? null
+                                        : { screenshot: jest.fn().mockResolvedValue(true) }
+                                )
+                            ),
+                        $$: jest
+                            .fn()
+                            .mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
+                    },
+                    '#username-input'
+                )
+            ),
             close: jest.fn().mockResolvedValue(true),
         };
         puppeteer.launch.mockResolvedValue(browser);
