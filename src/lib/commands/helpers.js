@@ -1,5 +1,6 @@
 import { InvalidArgumentError, Option } from 'commander';
 import { hostOptionParser } from '../util/host-option.js';
+import { booleanOptionParser } from '../util/boolean-option.js';
 
 /**
  * Validates that the provided CLI argument represents a non-negative integer within optional bounds.
@@ -238,6 +239,34 @@ const buildBrowserExecutablePathOption = () =>
         'Full path to a browser executable to use, for example a Microsoft Edge or Google Chrome already installed on this machine. Butler Sheet Icons then neither downloads nor manages a browser. Takes precedence over PUPPETEER_EXECUTABLE_PATH. If the file does not exist the run stops rather than downloading a browser instead.'
     ).env('BSI_BROWSER_EXECUTABLE_PATH');
 
+/**
+ * The `--skip-login` option, for the two create-sheet-thumbnails commands.
+ *
+ * A factory for the same reason as {@link buildTenantUrlOption}: each command binds its own
+ * environment variable, and Commander stores parsed values on the Option object.
+ *
+ * Declared once because the two platforms' copies had already drifted into the same bug. The
+ * argument is optional, not absent: declared as a bare flag, Commander sets it from the
+ * mere *presence* of the environment variable and never reads the value, so
+ * `BSI_QSCLOUD_CST_SKIP_LOGIN=false` turned skip-login **on** - the trap `--skip-launch` fell into
+ * first. With an optional argument the value reaches `argParser`, which Commander also runs on
+ * environment values, so the command line and the environment agree. A bare `--skip-login` still
+ * means true: Commander stores boolean `true` for an optional-argument option given without one.
+ *
+ * Stored under `skipLogin`, which is what every reader must use - see issue #890.
+ *
+ * @param {object} params - Per-command parts.
+ * @param {string} params.envVar - The command's own environment variable.
+ * @param {string} params.description - Help text, which says what signs the browser in instead.
+ *
+ * @returns {Option} A new `--skip-login` option.
+ */
+const buildSkipLoginOption = ({ envVar, description }) =>
+    new Option('--skip-login [true|false]', description)
+        .default(false)
+        .argParser(booleanOptionParser({ whenEmpty: false }))
+        .env(envVar);
+
 export {
     parsePositiveInteger,
     collectPositiveIntegers,
@@ -246,4 +275,5 @@ export {
     buildTenantUrlOption,
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
+    buildSkipLoginOption,
 };

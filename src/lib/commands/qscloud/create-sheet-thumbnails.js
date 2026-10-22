@@ -14,6 +14,7 @@ import {
     buildTenantUrlOption,
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
+    buildSkipLoginOption,
 } from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
@@ -95,13 +96,11 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 .env('BSI_QSCLOUD_CST_APIKEY')
         )
         .addOption(
-            new Option(
-                '--skip-login',
-                'Skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense'
-            )
-                .default(false)
-                .makeOptionMandatory()
-                .env('BSI_QSCLOUD_CST_SKIP_LOGIN')
+            buildSkipLoginOption({
+                envVar: 'BSI_QSCLOUD_CST_SKIP_LOGIN',
+                description:
+                    'Skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense',
+            })
         )
         .addOption(
             new Option(
