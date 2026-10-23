@@ -1,3 +1,20 @@
+<!--
+PUBLISHED 2026-10-23 to the doc site via ptarmiganlabs/butler-sheet-icons-docs#123 (into `next`,
+then to production with the 5.3.0 release merge). Shipped in BSI 5.3.0.
+
+Where it went:
+- guide/configuration/qseow.md - new section "Windows Authentication: `--skip-login`" (#skip-login).
+- guide/troubleshooting.md - ERR_INVALID_AUTH_CREDENTIALS section gains --skip-login as the second
+  fix, its "cannot use Windows authentication at all" text is gated to <= 5.2.x, and a new section
+  "`--skip-login` stops the run (QSEoW)" (#qseow-skip-login-errors) carries the messages.
+- guide/configuration/qlik-sense-cloud.md - SSO section: the Cloud changes and the upgrade note.
+- guide/quick-start.md, guide/concepts/environment-variables.md, reference/qseow.md and
+  reference/qscloud.md (regenerated option tables).
+
+No claims in this draft turned out to be wrong. The version gate (5.3.0) was confirmed against the
+release-please PR before publishing.
+-->
+
 # Creating thumbnails through a Windows authentication virtual proxy
 
 Some Qlik Sense environments never show a login page. Open the hub, the QMC or an app in a
