@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.3.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.3.0...butler-sheet-icons-v5.3.1) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** embed Node 24.22.1 in the binaries, for its security fixes ([60348c9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/60348c901b83da3c79ad3b75006373b247f429a3))
+
 ## [5.3.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.2.1...butler-sheet-icons-v5.3.0) (2026-10-23)
 
 
