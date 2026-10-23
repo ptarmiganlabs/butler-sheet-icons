@@ -810,3 +810,52 @@ describe('the labels', () => {
         expect(labelForCollection({ name: 'Empty', itemCount: 0 })).toBe('Empty  (0 items)');
     });
 });
+
+describe('--skip-login in the wizard', () => {
+    /**
+     * Answers for a run whose browser is signed in without a login page.
+     *
+     * @returns {object} Answers with no logon credentials queued.
+     */
+    const skipLoginAnswers = () => {
+        const answers = baseAnswers({ skipLogin: true });
+        delete answers.logonuserid;
+        delete answers.logonpwd;
+        return answers;
+    };
+
+    test('asks no logon questions once the operator says there is no login page', async () => {
+        // The scripted runtime throws for a question with no queued answer, so a logon question
+        // asked anyway fails this test rather than passing silently.
+        const runtime = scriptedRuntime(skipLoginAnswers());
+
+        await runInteractive({ path: PATH, runtime });
+
+        const asked = runtime.asked.map((entry) => entry.key);
+        expect(asked).toContain('skipLogin');
+        expect(asked).not.toContain('logonuserid');
+        expect(asked).not.toContain('logonpwd');
+    });
+
+    test('hands the run skipLogin and no credentials', async () => {
+        const runtime = scriptedRuntime({ ...skipLoginAnswers(), _review: 'run' });
+
+        await runInteractive({ path: PATH, runtime });
+
+        const bag = qscloudCreateThumbnails.mock.calls[0][0];
+        expect(bag.skipLogin).toBe(true);
+        expect(bag).not.toHaveProperty('logonuserid');
+        expect(bag).not.toHaveProperty('logonpwd');
+    });
+
+    test('still requires a password when there is a login page', async () => {
+        // Not mandatory to Commander any more, so the wizard has to say so itself: a blank
+        // answer is refused and the question asked again, rather than reaching the run.
+        const runtime = scriptedRuntime(baseAnswers({ logonpwd: ['', 'secret'] }));
+
+        await runInteractive({ path: PATH, runtime });
+
+        const attempts = runtime.asked.filter((entry) => entry.key === 'logonpwd');
+        expect(attempts).toHaveLength(2);
+    });
+});

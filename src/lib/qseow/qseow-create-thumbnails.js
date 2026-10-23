@@ -12,6 +12,8 @@ import { readQseowPlanFacts } from './qseow-tagged-sheets.js';
 import { toAppIdList } from '../util/app-ids.js';
 import { QSEOW_SHEET_PARTS, QSEOW_SHEET_PART_LABELS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
+import { QseowError } from '../util/errors.js';
+import { checkLoginCredentials, QSEOW_LOGON_CREDENTIALS } from '../browser/login-credentials.js';
 import {
     runOverAppsWithReport,
     announceDryRun,
@@ -92,6 +94,18 @@ export const qseowCreateThumbnails = async (options) => {
             );
             throw Error('Invalid --includesheetpart paramater');
         }
+
+        // Before anything connects, and on dry runs too: a run that cannot sign in should say so
+        // now, not at the first app's login page. Credentials alongside --skip-login are refused
+        // here - the browser signs in as the Windows account running BSI, and a logon user that
+        // is never used suggests the operator expects a different identity.
+        checkLoginCredentials(options, {
+            credentials: QSEOW_LOGON_CREDENTIALS,
+            onConflict: 'reject',
+            logPrefix: 'QSEOW',
+            ErrorClass: QseowError,
+            logger,
+        });
 
         // Verify QSEoW certificates exist. The live rows here and below are
         // bound to these awaits - each resolves only when its real call has
@@ -187,7 +201,13 @@ export const qseowCreateThumbnails = async (options) => {
                 auth: {
                     apiUser: { directory: options.apiuserdir, userId: options.apiuserid },
                     certFile: options.certfile,
-                    logonUser: { directory: options.logonuserdir, userId: options.logonuserid },
+                    // No logon user with --skip-login: none is typed, and the one the proxy
+                    // signs in is only known once the browser is in - the live view names it.
+                    logonUser:
+                        options.skipLogin === true
+                            ? null
+                            : { directory: options.logonuserdir, userId: options.logonuserid },
+                    skipLogin: options.skipLogin === true,
                 },
                 sheetPart: buildSheetPartSection(options.includesheetpart, QSEOW_SHEET_PART_LABELS),
                 rules: buildSheetRules(options, {

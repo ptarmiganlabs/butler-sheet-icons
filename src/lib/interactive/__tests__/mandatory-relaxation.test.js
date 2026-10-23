@@ -205,7 +205,9 @@ describe('the relaxation lasts only as long as the parse', () => {
         const { reached } = await run([...QSEOW, '-i']);
         const stillMandatory = reached.cmd.options.filter((option) => option.mandatory);
 
-        expect(stillMandatory).toHaveLength(18);
+        // 15: the three logon credentials are not mandatory to Commander, because they are
+        // required only without --skip-login - see checkLoginCredentials().
+        expect(stillMandatory).toHaveLength(15);
     });
 
     test('so the wizard still knows which questions are required', async () => {
@@ -214,14 +216,9 @@ describe('the relaxation lasts only as long as the parse', () => {
             .filter((spec) => spec.required)
             .map((spec) => spec.key);
 
-        expect(required).toEqual([
-            'host',
-            'apiuserdir',
-            'apiuserid',
-            'logonuserdir',
-            'logonuserid',
-            'logonpwd',
-        ]);
+        // The logon credentials are not here: the derived specs mirror Commander, and the
+        // QSEoW wizard marks them required itself, only when --skip-login is not chosen.
+        expect(required).toEqual(['host', 'apiuserdir', 'apiuserid']);
     });
 });
 

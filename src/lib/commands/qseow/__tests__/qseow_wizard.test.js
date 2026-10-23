@@ -43,6 +43,7 @@ const baseAnswers = (overrides = {}) => ({
     certkeyfile: './cert/client_key.pem',
     apiuserdir: 'INTERNAL',
     apiuserid: 'sa_api',
+    skipLogin: false,
     logonuserdir: 'ACME',
     logonuserid: 'goran',
     logonpwd: 'a-password',
@@ -874,7 +875,7 @@ describe('a tag supplied before the wizard starts', () => {
 
 describe('progressive disclosure', () => {
     test('declining both gates keeps the conversation short', async () => {
-        // This command declares 36 options, the most in the CLI, which is what
+        // This command declares 42 options, the most in the CLI, which is what
         // makes the gating matter more here than anywhere else.
         const runtime = scriptedRuntime(baseAnswers());
 
@@ -891,6 +892,7 @@ describe('progressive disclosure', () => {
             'certkeyfile',
             'apiuserdir',
             'apiuserid',
+            'skipLogin',
             'logonuserdir',
             'logonuserid',
             'logonpwd',
@@ -1112,6 +1114,75 @@ describe('a supplied value the parse refused', () => {
         }
 
         const attempts = runtime.asked.filter((entry) => entry.key === 'host');
+        expect(attempts).toHaveLength(2);
+    });
+});
+
+describe('--skip-login in the wizard', () => {
+    /**
+     * Answers for a run whose browser is signed in without a login page.
+     *
+     * @returns {object} Answers with no logon credentials queued.
+     */
+    const skipLoginAnswers = () => {
+        const answers = baseAnswers({ skipLogin: true });
+        delete answers.logonuserdir;
+        delete answers.logonuserid;
+        delete answers.logonpwd;
+        return answers;
+    };
+
+    test('asks no logon questions once the operator says there is no login page', async () => {
+        // The scripted runtime throws for a question with no queued answer, so a logon question
+        // asked anyway fails this test rather than passing silently.
+        const runtime = scriptedRuntime(skipLoginAnswers());
+
+        await runInteractive({ path: PATH, runtime });
+
+        const asked = runtime.asked.map((entry) => entry.key);
+        expect(asked).toContain('skipLogin');
+        expect(asked).not.toContain('logonuserdir');
+        expect(asked).not.toContain('logonuserid');
+        expect(asked).not.toContain('logonpwd');
+    });
+
+    test('hands the run skipLogin and no credentials', async () => {
+        const runtime = scriptedRuntime({ ...skipLoginAnswers(), _review: 'run' });
+
+        await runInteractive({ path: PATH, runtime });
+
+        const bag = qseowCreateThumbnails.mock.calls[0][0];
+        expect(bag.skipLogin).toBe(true);
+        expect(bag).not.toHaveProperty('logonuserdir');
+        expect(bag).not.toHaveProperty('logonuserid');
+        expect(bag).not.toHaveProperty('logonpwd');
+    });
+
+    test('refuses a yes at the question while logon values are already set', async () => {
+        // Left in .env from earlier form-login runs, they are not questions, so a yes would hide
+        // nothing and still pass them to the run - which refuses them only after every other
+        // answer and the confirmation. Said where the decision is made instead.
+        const supplied = { logonuserdir: 'ACME', logonuserid: 'goran', logonpwd: 'hunter2' };
+        const runtime = scriptedRuntime(baseAnswers({ skipLogin: [true, false], _review: 'run' }));
+
+        await runInteractive({ path: PATH, presetOptions: supplied, runtime });
+
+        expect(runtime.asked.filter((entry) => entry.key === 'skipLogin')).toHaveLength(2);
+        expect(runtime.output()).toContain(
+            '--logonuserdir (BSI_QSEOW_CST_LOGON_USER_DIR), --logonuserid (BSI_QSEOW_CST_LOGON_USER_ID), --logonpwd (BSI_QSEOW_CST_LOGON_PWD) are already set'
+        );
+        expect(runtime.output()).not.toContain('hunter2');
+        expect(qseowCreateThumbnails.mock.calls[0][0].skipLogin).toBe(false);
+    });
+
+    test('still requires a password when there is a login page', async () => {
+        // Not mandatory to Commander any more, so the wizard has to say so itself: a blank
+        // answer is refused and the question asked again, rather than reaching the run.
+        const runtime = scriptedRuntime(baseAnswers({ logonpwd: ['', 'a-password'] }));
+
+        await runInteractive({ path: PATH, runtime });
+
+        const attempts = runtime.asked.filter((entry) => entry.key === 'logonpwd');
         expect(attempts).toHaveLength(2);
     });
 });

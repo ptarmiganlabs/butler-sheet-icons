@@ -3,6 +3,7 @@ import { detectBrowserPlatform } from '@puppeteer/browsers';
 
 import { logger, isSea } from '../../globals.js';
 import { gatherBrowserFacts } from '../browser/browser-facts.js';
+import { currentAccount } from '../util/os-account.js';
 
 /**
  * The facts every diagnostic check starts from.
@@ -35,22 +36,6 @@ import { gatherBrowserFacts } from '../browser/browser-facts.js';
 const AREA_FACTS = Object.freeze({
     browser: gatherBrowserFacts,
 });
-
-/**
- * The account this process is running as.
- *
- * `os.userInfo()` throws when the effective uid has no passwd entry, which happens in slim
- * containers. The account is diagnostic information, not a reason to fail a diagnosis.
- *
- * @returns {string} The username, or a plain statement that it could not be determined.
- */
-const currentUser = () => {
-    try {
-        return os.userInfo().username;
-    } catch {
-        return 'unknown';
-    }
-};
 
 /**
  * Builds the context every check receives.
@@ -92,7 +77,7 @@ export const buildBaseContext = (options, { hostPlatform, command = 'browser che
         hostPlatform,
         nodePlatform: process.platform,
         arch: process.arch,
-        user: currentUser(),
+        user: currentAccount(),
         homeDir: os.homedir(),
         cwd: process.cwd(),
         isSea,

@@ -39,13 +39,19 @@ const CLOUD_SELECTORS = {
  * Order is the thing under test: the extraction is only behaviour-preserving if the
  * clicks, the typing, the screenshot and the submit still happen in the same sequence.
  *
+ * The username field behaves as on a real login page: there until the credentials are submitted,
+ * and gone once the navigation that follows has finished - unless the login did not take.
+ *
  * @param {object} [opts] - Stub behaviour.
  * @param {boolean} [opts.stillOnLoginPage] - Whether `page.$` finds the username field afterwards.
+ * @param {boolean} [opts.formShown] - Whether there is a login form before anything is submitted.
+ *     False models a browser that is already signed in.
  *
  * @returns {object} A page-shaped object with a `calls` array.
  */
-const createPage = ({ stillOnLoginPage = false } = {}) => {
+const createPage = ({ stillOnLoginPage = false, formShown = true } = {}) => {
     const calls = [];
+    let submitted = false;
 
     return {
         calls,
@@ -65,9 +71,12 @@ const createPage = ({ stillOnLoginPage = false } = {}) => {
         }),
         waitForNavigation: jest.fn((opts) => {
             calls.push(['waitForNavigation', opts]);
+            submitted = true;
             return Promise.resolve();
         }),
-        $: jest.fn(() => Promise.resolve(stillOnLoginPage ? {} : null)),
+        $: jest.fn(() => Promise.resolve((submitted ? stillOnLoginPage : formShown) ? {} : null)),
+        url: jest.fn(() => 'https://sense.example.com/sense/app/app-1'),
+        title: jest.fn(() => Promise.resolve('Sales dashboard')),
     };
 };
 
@@ -162,6 +171,66 @@ describe('formLogin', () => {
 
         await expect(run(page)).rejects.toThrow(TestError);
     });
+
+    describe('a page with no login form to fill in', () => {
+        // One way here is a virtual proxy using Windows authentication, which takes the browser
+        // straight to the app - but an HTTP error page and a proxy that does not recognise the
+        // host name have no form either. Puppeteer's own message for all of them was "No element
+        // found for selector: #username-input", which said nothing about any.
+        const NO_FORM_REMEDY = 'If that page is the app itself, run with --skip-login.';
+
+        test('rejects with the platform error class', async () => {
+            const page = createPage({ formShown: false });
+
+            await expect(run(page, { noFormRemedy: NO_FORM_REMEDY })).rejects.toThrow(TestError);
+        });
+
+        test('names the field it looked for, then what the page was, then the remedy', async () => {
+            const page = createPage({ formShown: false });
+
+            await expect(run(page, { noFormRemedy: NO_FORM_REMEDY })).rejects.toThrow(
+                /no login form.*#username-input.*https:\/\/sense\.example\.com\/sense\/app\/app-1 \(title "Sales dashboard"\).*If that page is the app itself/
+            );
+        });
+
+        test('gives an HTTP failure instead of the remedy, which assumes the page is the app', async () => {
+            const page = createPage({ formShown: false });
+
+            const attempt = run(page, {
+                noFormRemedy: NO_FORM_REMEDY,
+                pageFailure: 'opening the app ended on HTTP 400 Bad Request.',
+            });
+
+            await expect(attempt).rejects.toThrow(
+                /Opening the app ended on HTTP 400 Bad Request\.$/
+            );
+            await expect(
+                run(createPage({ formShown: false }), {
+                    noFormRemedy: NO_FORM_REMEDY,
+                    pageFailure: 'opening the app ended on HTTP 400 Bad Request.',
+                })
+            ).rejects.not.toThrow(/If that page is the app itself/);
+        });
+
+        test('still explains itself when the page cannot say what it is', async () => {
+            // A crashed page throws from title(); the explanation must not become a second failure.
+            const page = createPage({ formShown: false });
+            page.title.mockImplementation(() => Promise.reject(new Error('Target closed')));
+
+            await expect(run(page, { noFormRemedy: NO_FORM_REMEDY })).rejects.toThrow(
+                /is not on the page the browser is on/
+            );
+        });
+
+        test('types nothing, so no credential is sent to a page that did not ask for one', async () => {
+            const page = createPage({ formShown: false });
+
+            await expect(run(page, { noFormRemedy: NO_FORM_REMEDY })).rejects.toThrow();
+
+            expect(page.keyboard.type).not.toHaveBeenCalled();
+            expect(page.click).not.toHaveBeenCalled();
+        });
+    });
 });
 
 describe('assertAuthenticated', () => {
@@ -174,7 +243,8 @@ describe('assertAuthenticated', () => {
      * @returns {Promise<void>} Whatever the assertion resolves or rejects with.
      */
     const assertWith = (stillOnLoginPage, overrides = {}) =>
-        assertAuthenticated(createPage({ stillOnLoginPage }), {
+        // Nothing is submitted here, so the page is simply on the form or past it.
+        assertAuthenticated(createPage({ stillOnLoginPage, formShown: stillOnLoginPage }), {
             selectors: QSEOW_SELECTORS,
             logPrefix: 'QSEOW APP',
             ErrorClass: TestError,

@@ -192,6 +192,12 @@ describe('labels', () => {
 });
 
 describe('isSupplied', () => {
+    test('is the one copy in util/, which the logon-credential check uses too', async () => {
+        const { isSupplied: shared } = await import('../../util/option-values.js');
+
+        expect(isSupplied).toBe(shared);
+    });
+
     test('an empty string is not supplied, because that is how both say "none"', () => {
         // --qliksensetag and --collectionid both declare '' as their default, so
         // treating it as a value would offer to re-confirm something nobody set.

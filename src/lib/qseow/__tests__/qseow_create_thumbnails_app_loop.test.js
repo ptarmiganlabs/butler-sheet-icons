@@ -58,6 +58,10 @@ const { qseowPlanApp } = await import('../qseow-plan-app.js');
 
 const OPTIONS = {
     host: 'sense.example.com',
+    // Required by the worker since --skip-login made them optional to Commander.
+    logonuserdir: 'ACME',
+    logonuserid: 'test-user',
+    logonpwd: 'test-password',
     contentlibrary: 'test-library',
     appid: ['test-app-id'],
     includesheetpart: '1',

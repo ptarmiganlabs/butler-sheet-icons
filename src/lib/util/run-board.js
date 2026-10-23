@@ -394,7 +394,11 @@ export const renderBoardPlan = (report, ctx) => {
             // Only when the run actually logs into the web UI: qseow
             // remove-sheet-icons works over the engine session alone, so it
             // has no logon identity to report and must not render one.
-            if (plan.auth.logonUser) {
+            // With --skip-login the proxy signs the browser in, so there is no
+            // logon user to name - the same wording as the Cloud branch below.
+            if (plan.auth.skipLogin) {
+                rows.push(planRow(ctx, { label: 'logon', value: 'skipped (--skip-login)' }));
+            } else if (plan.auth.logonUser) {
                 rows.push(
                     planRow(ctx, {
                         label: 'logon user',

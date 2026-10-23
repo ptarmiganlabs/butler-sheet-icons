@@ -213,8 +213,11 @@ const renderAuth = (auth) => {
         ];
         // Only when the run actually logs into the web UI: qseow
         // remove-sheet-icons works over the engine session alone, so it has
-        // no logon identity to report and must not render one.
-        if (auth.logonUser) {
+        // no logon identity to report and must not render one. With
+        // --skip-login the proxy signs the browser in, so there is none to name.
+        if (auth.skipLogin) {
+            lines.push(row('logon', 'skipped (--skip-login)'));
+        } else if (auth.logonUser) {
             lines.push(row('logon user', `${auth.logonUser.directory}\\${auth.logonUser.userId}`));
         }
 

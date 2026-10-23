@@ -4,6 +4,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_QSEOW_SENSE_VERSION, QSEOW_SENSE_VERSIONS } from '../../qseow/qseow-selectors.js';
+import {
+    QSEOW_LOGON_CREDENTIALS,
+    CLOUD_LOGON_CREDENTIALS,
+} from '../../browser/login-credentials.js';
 
 // Root of the platform code that consumes CLI options, resolved from this file so the
 // option-name guard below does not depend on the working directory jest was started in.
@@ -1546,35 +1550,160 @@ describe('option keys match the property names the code reads (issue #890)', () 
         command.options.find((opt) => opt.long === '--loglevel' || opt.short === '--loglevel');
 
     describe('--skip-login', () => {
+        // Both platforms' create-sheet-thumbnails commands, which share one declaration.
+        const SKIP_LOGIN_COMMANDS = [
+            ['qseow', () => buildQseowCommand(), 'BSI_QSEOW_CST_SKIP_LOGIN'],
+            ['qscloud', () => buildQscloudCommand(), 'BSI_QSCLOUD_CST_SKIP_LOGIN'],
+        ];
+
         /**
-         * The declared `--skip-login` option, taken from the real command builder.
+         * The declared create-sheet-thumbnails command, taken from the real command builder.
+         *
+         * @param {Function} build - Builds the platform's root command.
+         *
+         * @returns {import('commander').Command} The leaf command.
+         */
+        const createCommand = (build) =>
+            build().commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails');
+
+        /**
+         * The declared `--skip-login` option.
+         *
+         * @param {Function} build - Builds the platform's root command.
          *
          * @returns {import('commander').Option} The declared option.
          */
-        const skipLoginOption = () =>
-            buildQscloudCommand()
-                .commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails')
-                .options.find((opt) => opt.long === '--skip-login');
+        const skipLoginOption = (build) =>
+            createCommand(build).options.find((opt) => opt.long === '--skip-login');
 
-        test('is stored under skipLogin, which is what process-cloud-app.js reads', () => {
-            // The bug in #890: the flag was read as `options.skiplogin`, which Commander never
-            // sets, so the skip branch was unreachable and login was always attempted. Asserted
-            // against the real declared Option rather than a hand-built options object - a mock
-            // would happily carry whichever spelling the test author chose.
-            expect(skipLoginOption().attributeName()).toBe('skipLogin');
+        /**
+         * Parse `--skip-login` in isolation, from argv words and an environment value.
+         *
+         * @param {Function} build - Builds the platform's root command.
+         * @param {string[]} argv - Words after the program name.
+         * @param {string} [envValue] - What the environment variable holds; unset when omitted.
+         *
+         * @returns {{ value: unknown, error: Error|undefined }} The parsed value, or the error.
+         */
+        const parseSkipLogin = (build, argv, envValue) => {
+            const option = skipLoginOption(build);
+            const saved = process.env[option.envVar];
+
+            if (envValue === undefined) {
+                delete process.env[option.envVar];
+            } else {
+                process.env[option.envVar] = envValue;
+            }
+
+            try {
+                const parent = new Command();
+                parent.exitOverride().configureOutput({ writeErr: () => {} });
+                parent.addOption(option);
+                parent.parse(['node', 'test', ...argv]);
+
+                return { value: parent.opts().skipLogin, error: undefined };
+            } catch (error) {
+                return { value: undefined, error };
+            } finally {
+                if (saved === undefined) {
+                    delete process.env[option.envVar];
+                } else {
+                    process.env[option.envVar] = saved;
+                }
+            }
+        };
+
+        test.each(SKIP_LOGIN_COMMANDS)(
+            '%s stores it under skipLogin, which is what the session code reads',
+            (_name, build) => {
+                // The bug in #890: the flag was read as `options.skiplogin`, which Commander never
+                // sets, so the skip branch was unreachable and login was always attempted. Asserted
+                // against the real declared Option rather than a hand-built options object - a mock
+                // would happily carry whichever spelling the test author chose.
+                expect(skipLoginOption(build).attributeName()).toBe('skipLogin');
+            }
+        );
+
+        test.each(SKIP_LOGIN_COMMANDS)('%s reads it from %s', (_name, build, envVar) => {
+            expect(skipLoginOption(build).envVar).toBe(envVar);
         });
 
-        test('parses to a real boolean, so the === true check is right', () => {
-            const parent = new Command();
-            parent.exitOverride();
-            parent.addOption(skipLoginOption());
-            parent.parse(['node', 'test', '--skip-login']);
+        test.each(SKIP_LOGIN_COMMANDS)(
+            '%s defaults it to false rather than undefined',
+            (_n, build) => {
+                expect(parseSkipLogin(build, []).value).toBe(false);
+            }
+        );
 
-            expect(parent.opts().skipLogin).toBe(true);
+        test.each(SKIP_LOGIN_COMMANDS)('%s takes a bare flag as true', (_name, build) => {
+            // A real boolean, so the `=== true` checks in the session code are right.
+            expect(parseSkipLogin(build, ['--skip-login']).value).toBe(true);
         });
 
-        test('defaults to false rather than undefined', () => {
-            expect(skipLoginOption().defaultValue).toBe(false);
+        test.each(SKIP_LOGIN_COMMANDS)('%s takes an explicit false as false', (_name, build) => {
+            expect(parseSkipLogin(build, ['--skip-login', 'false']).value).toBe(false);
+        });
+
+        // Declared as a bare flag, Commander set it from the mere presence of the variable, so
+        // BSI_QSCLOUD_CST_SKIP_LOGIN=false turned skip-login on.
+        test.each(
+            SKIP_LOGIN_COMMANDS.flatMap(([name, build]) =>
+                ['false', '0', 'off', 'no', ''].map((value) => [
+                    name,
+                    JSON.stringify(value),
+                    build,
+                    value,
+                ])
+            )
+        )('%s reads %s from the environment as off', (_name, _label, build, value) => {
+            expect(parseSkipLogin(build, [], value).value).toBe(false);
+        });
+
+        test.each(SKIP_LOGIN_COMMANDS)(
+            '%s reads "true" from the environment as on',
+            (_n, build) => {
+                expect(parseSkipLogin(build, [], 'true').value).toBe(true);
+            }
+        );
+
+        test.each(SKIP_LOGIN_COMMANDS)(
+            '%s refuses a value that is not true or false',
+            (_n, build) => {
+                const { error } = parseSkipLogin(build, [], 'oops');
+
+                expect(error).toBeDefined();
+                expect(error.code).toBe('commander.invalidArgument');
+            }
+        );
+
+        // Required only without --skip-login, which Commander cannot express, so the worker
+        // checks it - see checkLoginCredentials().
+        test.each([
+            ['qseow', () => buildQseowCommand(), QSEOW_LOGON_CREDENTIALS],
+            ['qscloud', () => buildQscloudCommand(), CLOUD_LOGON_CREDENTIALS],
+        ])('%s does not make the logon credentials mandatory', (_name, build, credentials) => {
+            const options = createCommand(build).options;
+
+            for (const { flag } of credentials) {
+                expect(options.find((opt) => opt.long === flag).mandatory).toBe(false);
+            }
+        });
+
+        // The credential lists name each flag's variable in their messages, so a value left in
+        // a shared .env can be found. Those names must be the ones the options really read.
+        test.each([
+            ['qseow', () => buildQseowCommand(), QSEOW_LOGON_CREDENTIALS],
+            ['qscloud', () => buildQscloudCommand(), CLOUD_LOGON_CREDENTIALS],
+        ])('%s credential list matches the declared options', (_name, build, credentials) => {
+            const options = createCommand(build).options;
+
+            for (const { key, flag, envVar } of credentials) {
+                const option = options.find((opt) => opt.long === flag);
+
+                expect(option).toBeDefined();
+                expect(option.attributeName()).toBe(key);
+                expect(option.envVar).toBe(envVar);
+            }
         });
     });
 

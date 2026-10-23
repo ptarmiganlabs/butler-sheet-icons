@@ -91,17 +91,52 @@ const detectDocker = async () => {
 };
 
 /**
+ * Whether a value is one host name or IP literal and nothing else.
+ *
+ * `--auth-server-allowlist` takes a comma-separated list in which `*` is a wildcard, and the
+ * `--host` parser returns whatever `URL.hostname` accepts - which includes both characters. A host
+ * spliced in unchecked could therefore offer the running account's Windows credentials to more
+ * servers than the one this run talks to, or to all of them.
+ *
+ * @param {unknown} host - Candidate host.
+ *
+ * @returns {boolean} True for a plain host name, IPv4 address or bracketed IPv6 address.
+ */
+export const isPlainHost = (host) =>
+    typeof host === 'string' &&
+    /^(?:\[[0-9A-Fa-f:.]+\]|[A-Za-z0-9](?:[A-Za-z0-9.-]*[A-Za-z0-9])?)$/.test(host);
+
+/**
  * Builds the Chromium argument list for the given platform.
  *
  * @param {object} [options] - Overrides for values normally read from the running process.
  * @param {string} [options.platform] - Node platform identifier, e.g. `win32` or `linux`.
  * Defaults to `process.platform`; tests pass it explicitly so every branch is exercised
  * regardless of which host runs the suite.
+ * @param {string} [options.ambientAuthHost] - The one host the browser may sign in to as the
+ * account running BSI, for `--skip-login` on QSEoW. Omitted everywhere else.
  *
  * @returns {Promise<string[]>} Browser arguments, including `--single-process` where safe.
  */
-export const buildBrowserArgs = async ({ platform = process.platform } = {}) => {
+export const buildBrowserArgs = async ({ platform = process.platform, ambientAuthHost } = {}) => {
     const browserArgs = [...BASE_BROWSER_ARGS];
+
+    // Windows authentication without a prompt needs Chromium's permission to offer the running
+    // account's credentials. Without an allowlist, Chromium on Windows decides by security zone,
+    // and a host name containing a dot - which is how Sense servers are normally addressed - is
+    // outside the Local Intranet zone by default, so the browser would want to prompt instead,
+    // which a headless browser cannot.
+    //
+    // Scoped to the one Sense host. The trade-off is real: an allowlist *replaces* the zone check,
+    // so any other server a sheet loads content from - an image or extension asset on an intranet
+    // server that also uses Windows authentication - no longer gets the account's credentials and
+    // renders as it would for an anonymous visitor. Widening the list would offer the account to
+    // every server a sheet happens to reference, which is the worse failure. The host itself is
+    // checked by launchBrowserForApp before it gets here; see isPlainHost.
+    if (ambientAuthHost) {
+        browserArgs.push(`--auth-server-allowlist=${ambientAuthHost}`);
+        logger.verbose(`Allowing Windows authentication to ${ambientAuthHost} (--skip-login)`);
+    }
 
     const isDocker = await detectDocker();
 
@@ -386,13 +421,29 @@ const reportSlowLaunch = (elapsedMs, logPrefix, { timedOut = false } = {}) => {
  *     or `'CLOUD APP'`. The colon is added here, so both platforms render the same shape.
  * @param {string} context.appLabel - Human-readable app description, e.g. `QSEoW app`.
  * @param {Function} context.ErrorClass - Typed error to throw, e.g. `QseowError` or `CloudError`.
+ * @param {string} [context.ambientAuthHost] - The one host the browser may offer the running
+ *     account's Windows credentials to. Passed by the QSEoW callers for `--skip-login`, and by
+ *     nobody else: whether the browser signs in with Windows authentication is a decision about
+ *     the session, so the caller makes it rather than this launcher inferring it from the options.
  *
  * @returns {Promise<object>} The launched Puppeteer browser instance.
  *
  * @throws {Error} An instance of `context.ErrorClass` if the browser cannot be installed or
- * launched, with the original error attached as `cause`.
+ * launched, with the original error attached as `cause`, or if `ambientAuthHost` is not a plain
+ * host name.
  */
-export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel, ErrorClass }) => {
+export const launchBrowserForApp = async (
+    options,
+    { appId, logPrefix, appLabel, ErrorClass, ambientAuthHost }
+) => {
+    if (ambientAuthHost !== undefined && !isPlainHost(ambientAuthHost)) {
+        throw new ErrorClass(
+            `${logPrefix}: "${ambientAuthHost}" is not a single host name, so it cannot be the one ` +
+                'server the browser offers the Windows account running Butler Sheet Icons to. ' +
+                'Give --host as one host name or IP address, with no commas or wildcards.'
+        );
+    }
+
     // The live `browser` row (issue #1075) is bound to this resolve-and-launch
     // sequence. Living here rather than in the processors keeps the two
     // platform twins wired identically by construction. No-op off rung C.
@@ -418,7 +469,7 @@ export const launchBrowserForApp = async (options, { appId, logPrefix, appLabel,
     logger.verbose(`Using browser at ${executablePath}`);
 
     const headless = parseHeadlessOption(options.headless);
-    const browserArgs = await buildBrowserArgs();
+    const browserArgs = await buildBrowserArgs({ ambientAuthHost });
 
     let browser;
     // performance.now() rather than Date.now(): this measures a duration, and the machines the

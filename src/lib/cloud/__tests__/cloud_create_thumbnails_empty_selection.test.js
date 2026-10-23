@@ -44,6 +44,9 @@ describe('cloud-create-thumbnails.js — no app selection', () => {
                 loglevel: 'info',
                 tenanturl: 'test.eu.qlikcloud.com',
                 apikey: 'test-key',
+                // Present so the run gets as far as app selection, which is what this tests.
+                logonuserid: 'test-user',
+                logonpwd: 'test-password',
                 appid: '',
                 collectionid: '',
             },

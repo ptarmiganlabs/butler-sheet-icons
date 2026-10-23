@@ -14,6 +14,7 @@ import {
     collectAppIds,
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
+    buildSkipLoginOption,
 } from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
@@ -104,25 +105,32 @@ const buildQseowCommand = () => {
         .addOption(connection.apiuserdir)
         .addOption(connection.apiuserid)
         .addOption(
+            buildSkipLoginOption({
+                envVar: 'BSI_QSEOW_CST_SKIP_LOGIN',
+                description:
+                    'Do not type credentials into a login page: the virtual proxy signs the browser in by itself, for example with Windows authentication as the Windows account running Butler Sheet Icons.\nWith this set, --logonuserdir, --logonuserid and --logonpwd must not be given.',
+            })
+        )
+        // Not mandatory to Commander: they are required only without --skip-login, which a
+        // declaration cannot express. checkLoginCredentials() in the worker enforces it, for the
+        // wizard as well as the command line.
+        .addOption(
             new Option(
                 '--logonuserdir <directory>',
-                'User directory for user to connect with when logging into web UI'
-            )
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_LOGON_USER_DIR')
+                'User directory for user to connect with when logging into web UI. Required unless --skip-login is set.'
+            ).env('BSI_QSEOW_CST_LOGON_USER_DIR')
         )
         .addOption(
             new Option(
                 '--logonuserid <userid>',
-                'User ID for user to connect with when logging into web UI'
-            )
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_LOGON_USER_ID')
+                'User ID for user to connect with when logging into web UI. Required unless --skip-login is set.'
+            ).env('BSI_QSEOW_CST_LOGON_USER_ID')
         )
         .addOption(
-            new Option('--logonpwd <password>', 'password for user to connect with')
-                .makeOptionMandatory()
-                .env('BSI_QSEOW_CST_LOGON_PWD')
+            new Option(
+                '--logonpwd <password>',
+                'password for user to connect with. Required unless --skip-login is set.'
+            ).env('BSI_QSEOW_CST_LOGON_PWD')
         )
         .addOption(
             new Option(

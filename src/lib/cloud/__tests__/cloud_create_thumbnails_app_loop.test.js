@@ -52,6 +52,9 @@ const { cloudPlanApp } = await import('../cloud-plan-app.js');
 const OPTIONS = {
     tenanturl: 'tenant.eu.qlikcloud.com',
     apikey: 'api-key',
+    // Required by the worker since --skip-login made them optional to Commander.
+    logonuserid: 'test-user',
+    logonpwd: 'test-password',
     appid: ['test-app-id'],
     includesheetpart: '1',
     loglevel: 'info',

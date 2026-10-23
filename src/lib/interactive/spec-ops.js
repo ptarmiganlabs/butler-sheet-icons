@@ -14,6 +14,7 @@
  */
 
 import { splitEntries } from './validators.js';
+import { isSupplied } from '../util/option-values.js';
 
 /**
  * The sheet exclude and blur options, which are identical on both platforms.
@@ -84,19 +85,9 @@ export const PER_RUN_KEYS = Object.freeze([
 export const markPerRun = (spec) =>
     PER_RUN_KEYS.includes(spec.key) ? { ...spec, perRun: true } : spec;
 
-/**
- * Whether a value was actually supplied, as opposed to left at nothing.
- *
- * An empty string is how both `--qliksensetag` and `--collectionid` say "none" -
- * it is their declared default - so it has to read as absent here, or a wizard
- * would offer to re-confirm a value nobody set.
- *
- * @param {unknown} value - The value to test.
- *
- * @returns {boolean} True when there is something there.
- */
-export const isSupplied = (value) =>
-    Array.isArray(value) ? value.length > 0 : String(value ?? '').trim().length > 0;
+// Re-exported so the wizards keep importing their helpers from one place; the
+// worker's logon-credential check uses the same function from util/.
+export { isSupplied };
 
 /**
  * Open a question on a value that was already supplied.
@@ -112,6 +103,26 @@ export const isSupplied = (value) =>
  */
 export const openingOn = (spec, supplied) =>
     isSupplied(supplied) ? { ...spec, default: supplied } : spec;
+
+/**
+ * Ask a logon credential only when the run will type it into a login page.
+ *
+ * The credentials are not mandatory to Commander - they are required unless `--skip-login` is set,
+ * which a declaration cannot express - so the derived question would treat them as optional. This
+ * puts the rule back for the wizard: required when asked, and not asked at all with
+ * `--skip-login`, where the worker would refuse them on QSEoW and ignore them on Cloud.
+ *
+ * Both wizards use it, so the two platforms' logon questions cannot disagree about when they apply.
+ *
+ * @param {object} spec - Any connection question.
+ * @param {string[]} logonKeys - The keys that are logon credentials on this platform.
+ *
+ * @returns {object} The question, made conditional when it is a logon credential.
+ */
+export const askedUnlessSkipLogin = (spec, logonKeys) =>
+    logonKeys.includes(spec.key)
+        ? { ...spec, required: true, when: (ctx) => ctx.answers.skipLogin !== true }
+        : spec;
 
 /**
  * Refuse to go on when the run would have no apps to process.

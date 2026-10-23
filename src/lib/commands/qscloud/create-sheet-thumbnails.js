@@ -14,6 +14,7 @@ import {
     buildTenantUrlOption,
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
+    buildSkipLoginOption,
 } from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
@@ -95,26 +96,26 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 .env('BSI_QSCLOUD_CST_APIKEY')
         )
         .addOption(
-            new Option(
-                '--skip-login',
-                'Skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense'
-            )
-                .default(false)
-                .makeOptionMandatory()
-                .env('BSI_QSCLOUD_CST_SKIP_LOGIN')
+            buildSkipLoginOption({
+                envVar: 'BSI_QSCLOUD_CST_SKIP_LOGIN',
+                description:
+                    'Skip QS login page, go directly to the tenant URL. Use this if you are automatically logged in to Qlik Sense.\nWith this set, --logonuserid and --logonpwd are not needed.',
+            })
         )
+        // Not mandatory to Commander: they are required only without --skip-login, which a
+        // declaration cannot express. checkLoginCredentials() in the worker enforces it, for the
+        // wizard as well as the command line.
         .addOption(
             new Option(
                 '--logonuserid <userid>',
-                'User ID for user to connect with when logging into web UI'
-            )
-                .makeOptionMandatory()
-                .env('BSI_QSCLOUD_CST_LOGON_USER_ID')
+                'User ID for user to connect with when logging into web UI. Required unless --skip-login is set.'
+            ).env('BSI_QSCLOUD_CST_LOGON_USER_ID')
         )
         .addOption(
-            new Option('--logonpwd <password>', 'password for user to connect with')
-                .makeOptionMandatory()
-                .env('BSI_QSCLOUD_CST_LOGON_PWD')
+            new Option(
+                '--logonpwd <password>',
+                'password for user to connect with. Required unless --skip-login is set.'
+            ).env('BSI_QSCLOUD_CST_LOGON_PWD')
         )
         .addOption(
             new Option('--headless <true|false>', 'Headless (=not visible) browser (true, false)')

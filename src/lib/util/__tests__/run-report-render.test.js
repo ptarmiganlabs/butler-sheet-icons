@@ -311,6 +311,26 @@ describe('renderRunPlanLines - Cloud', () => {
         expect(text).toContain('Internal\\sa_api via ./cert/client.pem');
         expect(text).not.toContain('logon user');
     });
+
+    test('a QSEoW run with --skip-login says so instead of naming a logon user', () => {
+        // The virtual proxy signs the browser in, so no option names the identity - and
+        // rendering the absent one gave "undefined\\undefined".
+        const report = createRunReport({ command: 'qseow create-sheet-thumbnails', dryRun: true });
+        recordSelection(report, { namedAppIds: ['a'], selectorAppIds: [], selector: null });
+        report.plan = {
+            auth: {
+                apiUser: { directory: 'Internal', userId: 'sa_api' },
+                certFile: './cert/client.pem',
+                logonUser: null,
+                skipLogin: true,
+            },
+        };
+
+        const text = renderRunPlanLines(report).join('\n');
+        expect(text).toContain('skipped (--skip-login)');
+        expect(text).not.toContain('logon user');
+        expect(text).not.toContain('undefined');
+    });
 });
 
 describe('renderRunVerdictLines', () => {
