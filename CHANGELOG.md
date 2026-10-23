@@ -1,5 +1,30 @@
 # Changelog
 
+## [5.3.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.2.1...butler-sheet-icons-v5.3.0) (2026-10-23)
+
+
+### Features
+
+* **qseow:** --skip-login for virtual proxies that use Windows authentication ([4333dfe](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4333dfe383b0adbb8d23e7fe2b83e04009dadf39))
+
+
+### Bug Fixes
+
+* **qscloud:** do not require logon credentials with --skip-login ([d45304b](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d45304b089142c9f1f8839f4f08900c2699f6b60))
+* **qscloud:** read BSI_QSCLOUD_CST_SKIP_LOGIN=false as off ([2842b31](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/2842b310e0286c65aab7375abd7c268981e135aa))
+
+
+### Miscellaneous
+
+* add a weekly Windows signing canary for the Azure path ([206d9df](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/206d9df931fb821cb9cf941a91898078760e5647))
+* run the macOS signing canary weekly ([8fd01ed](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8fd01ed958f42fdb6926a4e85552158550de5f80))
+
+
+### Documentation
+
+* record the live --skip-login check ([f425f2f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f425f2f2a6deb84c87d0e7855de336b992e70ea8))
+* stage the --skip-login page for the doc site ([62c9d4f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/62c9d4f2a424d143669a1f0196b6beb7be92eef4))
+
 ## [5.2.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.2.0...butler-sheet-icons-v5.2.1) (2026-10-18)
 
 
