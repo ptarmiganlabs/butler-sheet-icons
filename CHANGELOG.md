@@ -1,5 +1,14 @@
 # Changelog
 
+## [5.3.2](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.3.1...butler-sheet-icons-v5.3.2) (2026-10-24)
+
+
+### Miscellaneous
+
+* **deps-dev:** bump prettier from 3.8.4 to 3.9.6 ([83463b2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/83463b218b6f5786483d17b1cf0585e75206e52d))
+* remove the inert .codeclimate.yml ([32c30cf](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/32c30cf9fcfab3bece69a4f0e91f2a120e86845a)), closes [#1204](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1204)
+* remove the inert renovate.json ([e4292be](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e4292be53486da1a0bf84609810a832040fcf711)), closes [#1204](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1204)
+
 ## [5.3.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.3.0...butler-sheet-icons-v5.3.1) (2026-10-23)
 
 
