@@ -19,7 +19,6 @@ src/.prettierrc export-ignore
 src/.snyk export-ignore
 src/Dockerfile export-ignore
 
-.codeclimate.yml export-ignore
 .jshintrc export-ignore
 .release-please-manifest.json export-ignore
 release-please-config.json export-ignore
