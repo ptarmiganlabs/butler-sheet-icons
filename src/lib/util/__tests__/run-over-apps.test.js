@@ -283,3 +283,59 @@ describe('runOverApps when the run is interrupted (issue #1107)', () => {
         await expect(runOverApps(['a', 'b'], CTX, worker)).resolves.toBe(true);
     });
 });
+
+describe('runOverApps when a failure makes going on unsafe (issue #1209)', () => {
+    /**
+     * The error a failed owner restore throws: an app failure, marked to stop the run.
+     *
+     * @returns {Error} The error.
+     */
+    const stoppingError = () =>
+        Object.assign(new Error('Could not give app b back to its original owner LAB\\anna'), {
+            stopsRun: true,
+            stopReason:
+                'BSI could not give an app back to its original owner, so it changes no further owners',
+        });
+
+    test('does not start another app after it', async () => {
+        const worker = jest.fn(async (appId) => {
+            if (appId === 'b') {
+                throw stoppingError();
+            }
+        });
+
+        await expect(runOverApps(['a', 'b', 'c', 'd'], CTX, worker)).resolves.toBe(false);
+
+        expect(worker.mock.calls.map(([appId]) => appId)).toEqual(['a', 'b']);
+    });
+
+    test('counts the app as failed and says why the rest were not started', async () => {
+        const worker = jest.fn(async (appId) => {
+            if (appId === 'b') {
+                throw stoppingError();
+            }
+        });
+
+        await runOverApps(['a', 'b', 'c', 'd'], CTX, worker);
+
+        expect(errorLog()).toContain('TEST PREFIX: Failed to process app b');
+        expect(errorLog()).toContain(
+            'Stopping the run: BSI could not give an app back to its original owner'
+        );
+        expect(errorLog()).toContain('2 of 4 app(s) were not started');
+        expect(errorLog()).toContain('Failed to process 1 of 4 app(s)');
+    });
+
+    test('an ordinary failure still lets the run go on', async () => {
+        const worker = jest.fn(async (appId) => {
+            if (appId === 'b') {
+                throw new Error('Failed to create a thumbnail for 1 of 9 sheet(s)');
+            }
+        });
+
+        await runOverApps(['a', 'b', 'c'], CTX, worker);
+
+        expect(worker).toHaveBeenCalledTimes(3);
+        expect(errorLog()).not.toContain('Stopping the run');
+    });
+});

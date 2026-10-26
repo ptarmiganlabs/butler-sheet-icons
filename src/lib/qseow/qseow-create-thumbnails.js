@@ -23,7 +23,10 @@ import {
     buildSheetRules,
     buildSheetPartSection,
     buildBrowserPlanSection,
+    buildAppOwnerPlanSection,
 } from '../util/run-report.js';
+import { withAppOwnerChange } from '../util/temporary-app-owner.js';
+import { qseowAppOwners, resolveQseowOwnerTarget } from './qseow-app-owner.js';
 
 /**
  * Create thumbnails for Qlik Sense Enterprise on Windows (QSEoW).
@@ -179,6 +182,36 @@ export const qseowCreateThumbnails = async (options) => {
             }
         }
 
+        // --change-app-owner (issue #1209): who owns each app while it is processed, decided once
+        // and before any app is touched, so a run that cannot tell stops here having changed
+        // nothing. Skipped for an empty selection: the run is about to stop with "No apps to
+        // process", and with --skip-login finding out costs a browser sign-in.
+        let ownerTarget = null;
+        if (options.changeAppOwner === true && appIdsToProcess.length > 0) {
+            live?.beginStep('app owner');
+            try {
+                ownerTarget = await resolveQseowOwnerTarget(options, { dryRun });
+            } catch (err) {
+                live?.stepFailed('app owner');
+                throw err;
+            }
+            live?.stepDone('app owner', ownerTarget?.label ?? 'browser login user');
+        }
+
+        const { planApp, processApp } = withAppOwnerChange(
+            {
+                options,
+                owners: qseowAppOwners(options),
+                target: ownerTarget,
+                logPrefix: 'QSEOW APP OWNER',
+                ErrorClass: QseowError,
+            },
+            {
+                planApp: (appId, report) => qseowPlanApp(appId, options, report),
+                processApp: (appId, report) => qseowProcessApp(appId, options, report),
+            }
+        );
+
         return await runOverAppsWithReport({
             command: 'qseow create-sheet-thumbnails',
             dryRun,
@@ -209,6 +242,7 @@ export const qseowCreateThumbnails = async (options) => {
                             : { directory: options.logonuserdir, userId: options.logonuserid },
                     skipLogin: options.skipLogin === true,
                 },
+                appOwner: buildAppOwnerPlanSection(options, ownerTarget),
                 sheetPart: buildSheetPartSection(options.includesheetpart, QSEOW_SHEET_PART_LABELS),
                 rules: buildSheetRules(options, {
                     includeTagRules: true,
@@ -225,8 +259,8 @@ export const qseowCreateThumbnails = async (options) => {
             },
             logPrefix: { plan: 'QSEOW PLAN APP', process: 'QSEOW PROCESS APP' },
             emptySelectionHint: 'Check the --appid and --qliksensetag options.',
-            planApp: (appId, report) => qseowPlanApp(appId, options, report),
-            processApp: (appId, report) => qseowProcessApp(appId, options, report),
+            planApp,
+            processApp,
         });
     } catch (err) {
         // First, unconditionally: a throw mid-animation must hand the cursor

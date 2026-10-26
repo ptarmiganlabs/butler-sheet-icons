@@ -12,6 +12,7 @@ import {
     isOptionEnabled,
     verdictFacts,
     appCountSummary,
+    dryRunOwnerLine,
 } from '../run-report-render.js';
 import {
     createRunReport,
@@ -636,5 +637,135 @@ describe('the verdict of an interrupted run (issue #1107)', () => {
         expect(facts.interruptedApps).toBe(0);
         expect(facts.notStartedApps).toBe(0);
         expect(renderRunVerdictLines(report).join('\n')).toContain('RESULT  ok');
+    });
+});
+
+describe('--change-app-owner in the plan and the verdict (issue #1209)', () => {
+    /**
+     * A finished create run that changed app owners.
+     *
+     * @param {object[]} owners - The report's `appOwners` entries.
+     *
+     * @returns {object} The report.
+     */
+    const ownerReport = (owners) => {
+        const report = qseowReport();
+        report.plan.appOwner = { target: 'LAB\\joe', waitSeconds: 3 };
+        report.startedAt = 1_000_000;
+        report.finishedAt = 1_000_000 + 65_000;
+        report.succeeded = true;
+        addAppToReport(report, { id: 'app-1', name: 'Sales', sheetCount: 1 });
+        report.appOwners = owners;
+
+        return report;
+    };
+
+    const RESTORED = {
+        appId: 'app-1',
+        appName: 'Sales',
+        from: 'LAB\\anna',
+        to: 'LAB\\joe',
+        state: 'restored',
+    };
+
+    test('the plan names the temporary owner and the wait', () => {
+        expect(renderRunPlanLines(ownerReport([]))).toContain(
+            '  app owner     temporarily LAB\\joe for each app, restored after (3s wait)'
+        );
+    });
+
+    test('a dry run says would, and names the browser login user when it cannot be known yet', () => {
+        const report = ownerReport([]);
+        report.dryRun = true;
+        report.plan.appOwner.target = null;
+
+        expect(renderRunPlanLines(report)).toContain(
+            '  app owner     would be temporarily the browser login user (known once a real run signs in) for each app, restored after (3s wait)'
+        );
+    });
+
+    test('no owner line without the option', () => {
+        expect(renderRunPlanLines(qseowReport()).some((line) => line.includes('app owner'))).toBe(
+            false
+        );
+    });
+
+    test('the verdict counts what was done with the owners', () => {
+        const lines = renderRunVerdictLines(
+            ownerReport([
+                RESTORED,
+                { ...RESTORED, appId: 'app-2', state: 'unchanged' },
+                { ...RESTORED, appId: 'app-3', state: 'kept' },
+            ])
+        );
+
+        expect(lines).toContain('  app owner     1 changed and restored, 1 already owned, 1 kept');
+        expect(lines.some((line) => line.includes('NOT RESTORED'))).toBe(false);
+    });
+
+    test.each(['restore-failed', 'changed', 'changing'])(
+        'names an app left in state %s as possibly still owned by the temporary owner',
+        (state) => {
+            // `changed` and `changing` are what a verdict rendered by a second signal or the
+            // watchdog finds for the app that was in flight.
+            const lines = renderRunVerdictLines(ownerReport([{ ...RESTORED, state }]));
+
+            expect(lines).toContain('  app owner     0 changed and restored, 1 NOT RESTORED');
+            expect(lines).toContain(
+                '  NOT RESTORED  app app-1 "Sales" may still be owned by LAB\\joe - its owner was LAB\\anna'
+            );
+        }
+    );
+
+    test('a stopped run says why the remaining apps were not started', () => {
+        const report = ownerReport([{ ...RESTORED, state: 'restore-failed' }]);
+        report.succeeded = false;
+        report.stopped = { appId: 'app-1' };
+        report.appsNotStarted = 4;
+
+        const lines = renderRunVerdictLines(report);
+
+        expect(lines).toContain('RESULT  FAILED');
+        expect(lines).toContain('  apps          1 ok, 0 failed, 4 not started');
+        expect(lines).toContain(
+            '  stopped       an app owner could not be restored, so no further app was started'
+        );
+        expect(verdictFacts(report).stopped).toBe(true);
+    });
+
+    test('stays pure ASCII', () => {
+        const report = ownerReport([{ ...RESTORED, state: 'restore-failed' }]);
+        report.stopped = { appId: 'app-1' };
+
+        expect(
+            [...renderRunPlanLines(report), ...renderRunVerdictLines(report)].join('\n')
+        ).toMatch(PURE_ASCII);
+    });
+});
+
+describe('dryRunOwnerLine (issue #1209)', () => {
+    test.each([
+        [
+            { state: 'planned', from: 'LAB\\anna', to: 'LAB\\joe' },
+            'Owner: LAB\\anna would be changed to LAB\\joe while the app is processed, then restored',
+        ],
+        [
+            { state: 'planned', from: 'LAB\\anna', to: null },
+            'Owner: LAB\\anna would be changed to the browser login user while the app is processed, then restored',
+        ],
+        [
+            { state: 'unchanged', from: 'LAB\\joe', to: 'LAB\\joe' },
+            'Owner: already LAB\\joe, so it would be left as it is',
+        ],
+        [
+            { state: 'kept', from: 'Anna', to: null, reason: 'the app is in a personal space' },
+            'Owner: Anna would be kept - the app is in a personal space',
+        ],
+    ])('%o reads %s', (owner, line) => {
+        expect(dryRunOwnerLine(owner)).toBe(line);
+    });
+
+    test('says nothing for an app with no owner entry', () => {
+        expect(dryRunOwnerLine({})).toBeNull();
     });
 });

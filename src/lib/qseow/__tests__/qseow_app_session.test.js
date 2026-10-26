@@ -33,9 +33,14 @@ const {
     describeHttpFailure,
     openQseowAppOverviewPage,
     readQseowSessionUser,
+    readQseowSessionUserParts,
+    readQseowBrowserUser,
     QSEOW_SESSION_USER_TIMEOUT_MS,
 } = await import('../qseow-app-session.js');
 const { QseowError } = await import('../../util/errors.js');
+const { launchBrowserForApp, closeBrowserQuietly } =
+    await import('../../browser/browser-launch.js');
+const { qseowLogoutQuietly } = await import('../qseow-logout.js');
 
 const USERNAME_SELECTOR = '#username-input';
 const APP_URL = 'https://sense.example.com/sense/app/app-1';
@@ -421,5 +426,95 @@ describe('readQseowSessionUser', () => {
         page.evaluate.mockResolvedValue(null);
 
         await expect(readQseowSessionUser(page, PATH)).resolves.toBeNull();
+    });
+});
+
+describe('readQseowSessionUserParts', () => {
+    test('answers the directory and the id separately', async () => {
+        const page = buildPage();
+        page.evaluate.mockResolvedValue({ userDirectory: 'ACME', userId: 'goran', session: 'x' });
+
+        await expect(readQseowSessionUserParts(page, '/qps/user')).resolves.toEqual({
+            userDirectory: 'ACME',
+            userId: 'goran',
+        });
+    });
+
+    test('is null when the proxy names no one', async () => {
+        const page = buildPage();
+        page.evaluate.mockResolvedValue({ session: 'inactive' });
+
+        await expect(readQseowSessionUserParts(page, '/qps/user')).resolves.toBeNull();
+    });
+});
+
+describe('readQseowBrowserUser (issue #1209)', () => {
+    const HUB_URL = 'https://sense.example.com/windows/hub';
+    const SKIP = { ...OPTIONS, skipLogin: true, prefix: 'windows', senseVersion: '2026-May' };
+
+    /**
+     * A browser whose one page is the given page.
+     *
+     * @param {object} page - The page.
+     *
+     * @returns {object} The browser.
+     */
+    const browserWith = (page) => {
+        const browser = { newPage: jest.fn().mockResolvedValue(page) };
+        launchBrowserForApp.mockResolvedValue(browser);
+
+        return browser;
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('signs in on the hub and returns who the proxy signed in, then signs out', async () => {
+        const page = buildPage(httpResponse(200, HUB_URL));
+        page.evaluate.mockResolvedValue({ userDirectory: 'ACME', userId: 'goran' });
+        const browser = browserWith(page);
+
+        await expect(readQseowBrowserUser(SKIP)).resolves.toEqual({
+            userDirectory: 'ACME',
+            userId: 'goran',
+        });
+
+        expect(page.goto.mock.calls[0][0]).toBe(HUB_URL);
+        // The same Windows-authentication allowance as an app's own session.
+        expect(launchBrowserForApp.mock.calls[0][1].ambientAuthHost).toBe('sense.example.com');
+        expect(page.keyboard.type).not.toHaveBeenCalled();
+        expect(qseowLogoutQuietly).toHaveBeenCalledTimes(1);
+        expect(closeBrowserQuietly).toHaveBeenCalledWith(browser, 'QSEOW');
+    });
+
+    test('refuses when the proxy does not say who it signed in, and still signs out', async () => {
+        const page = buildPage(httpResponse(200, HUB_URL));
+        page.evaluate.mockResolvedValue(null);
+        browserWith(page);
+
+        const err = await readQseowBrowserUser(SKIP).catch((e) => e);
+
+        expect(err).toBeInstanceOf(QseowError);
+        expect(err.message).toContain('cannot tell which account should own the apps');
+        expect(qseowLogoutQuietly).toHaveBeenCalledTimes(1);
+        expect(closeBrowserQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    test('refuses an HTTP error page rather than reading it as signed in', async () => {
+        browserWith(buildPage(httpResponse(401, HUB_URL, 'Unauthorized')));
+
+        const err = await readQseowBrowserUser(SKIP).catch((e) => e);
+
+        expect(err.message).toContain('could not sign in to find the app owner');
+        expect(err.message).toContain('HTTP 401');
+        expect(closeBrowserQuietly).toHaveBeenCalledTimes(1);
+    });
+
+    test('refuses when the proxy served its login form instead', async () => {
+        browserWith(withLoginForm(buildPage(httpResponse(200, HUB_URL)), USERNAME_SELECTOR));
+
+        await expect(readQseowBrowserUser(SKIP)).rejects.toBeInstanceOf(QseowError);
+        expect(closeBrowserQuietly).toHaveBeenCalledTimes(1);
     });
 });

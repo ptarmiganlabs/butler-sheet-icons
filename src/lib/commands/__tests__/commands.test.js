@@ -1707,6 +1707,165 @@ describe('option keys match the property names the code reads (issue #890)', () 
         });
     });
 
+    describe('--change-app-owner and --change-app-owner-wait (issue #1209)', () => {
+        const CHANGE_OWNER_COMMANDS = [
+            ['qseow', () => buildQseowCommand(), 'BSI_QSEOW_CST_CHANGE_APP_OWNER'],
+            ['qscloud', () => buildQscloudCommand(), 'BSI_QSCLOUD_CST_CHANGE_APP_OWNER'],
+        ];
+
+        /**
+         * One declared option of a create-sheet-thumbnails command.
+         *
+         * @param {Function} build - Builds the platform's root command.
+         * @param {string} long - The option's long flag.
+         *
+         * @returns {import('commander').Option} The declared option.
+         */
+        const declared = (build, long) =>
+            build()
+                .commands.find((cmd) => cmd.name() === 'create-sheet-thumbnails')
+                .options.find((opt) => opt.long === long);
+
+        /**
+         * Parse one declared option in isolation, from argv words and an environment value.
+         *
+         * @param {Function} build - Builds the platform's root command.
+         * @param {string} long - The option's long flag.
+         * @param {string[]} argv - Words after the program name.
+         * @param {string} [envValue] - What the environment variable holds; unset when omitted.
+         *
+         * @returns {{ value: unknown, error: Error|undefined }} The parsed value, or the error.
+         */
+        const parse = (build, long, argv, envValue) => {
+            const option = declared(build, long);
+            const saved = process.env[option.envVar];
+
+            if (envValue === undefined) {
+                delete process.env[option.envVar];
+            } else {
+                process.env[option.envVar] = envValue;
+            }
+
+            try {
+                const parent = new Command();
+                parent.exitOverride().configureOutput({ writeErr: () => {} });
+                parent.addOption(option);
+                parent.parse(['node', 'test', ...argv]);
+
+                return { value: parent.opts()[option.attributeName()], error: undefined };
+            } catch (error) {
+                return { value: undefined, error };
+            } finally {
+                if (saved === undefined) {
+                    delete process.env[option.envVar];
+                } else {
+                    process.env[option.envVar] = saved;
+                }
+            }
+        };
+
+        test.each(CHANGE_OWNER_COMMANDS)(
+            '%s stores the switch under changeAppOwner and the wait under changeAppOwnerWait',
+            (_name, build) => {
+                expect(declared(build, '--change-app-owner').attributeName()).toBe(
+                    'changeAppOwner'
+                );
+                expect(declared(build, '--change-app-owner-wait').attributeName()).toBe(
+                    'changeAppOwnerWait'
+                );
+            }
+        );
+
+        test.each(CHANGE_OWNER_COMMANDS)(
+            '%s reads them from %s and its _WAIT twin',
+            (_n, build, envVar) => {
+                expect(declared(build, '--change-app-owner').envVar).toBe(envVar);
+                expect(declared(build, '--change-app-owner-wait').envVar).toBe(`${envVar}_WAIT`);
+            }
+        );
+
+        test.each(CHANGE_OWNER_COMMANDS)('%s leaves owners alone unless asked', (_n, build) => {
+            expect(parse(build, '--change-app-owner', []).value).toBe(false);
+        });
+
+        test.each(CHANGE_OWNER_COMMANDS)('%s takes a bare flag as true', (_n, build) => {
+            expect(parse(build, '--change-app-owner', ['--change-app-owner']).value).toBe(true);
+        });
+
+        // The switch changes who owns the apps, so the bare-flag trap #890's fix closed for
+        // --skip-login - the variable's mere presence turning it on - must not reopen here.
+        test.each(
+            CHANGE_OWNER_COMMANDS.flatMap(([name, build]) =>
+                ['false', '0', 'off', 'no', ''].map((value) => [
+                    name,
+                    JSON.stringify(value),
+                    build,
+                    value,
+                ])
+            )
+        )('%s reads %s from the environment as off', (_name, _label, build, value) => {
+            expect(parse(build, '--change-app-owner', [], value).value).toBe(false);
+        });
+
+        test.each(CHANGE_OWNER_COMMANDS)(
+            '%s reads "true" from the environment as on',
+            (_n, build) => {
+                expect(parse(build, '--change-app-owner', [], 'true').value).toBe(true);
+            }
+        );
+
+        test.each(CHANGE_OWNER_COMMANDS)(
+            '%s refuses a switch value that is not a boolean',
+            (_n, build) => {
+                const { error } = parse(build, '--change-app-owner', [], 'oops');
+
+                expect(error?.code).toBe('commander.invalidArgument');
+            }
+        );
+
+        test.each(CHANGE_OWNER_COMMANDS)(
+            '%s waits 3 seconds by default, as a number',
+            (_n, build) => {
+                expect(parse(build, '--change-app-owner-wait', []).value).toBe(3);
+            }
+        );
+
+        test.each(CHANGE_OWNER_COMMANDS)(
+            '%s parses a supplied wait to a number, from either source',
+            (_n, build) => {
+                // A number whatever its source, unlike --pagewait, whose supplied value stays a
+                // string: the wait is multiplied into milliseconds.
+                expect(
+                    parse(build, '--change-app-owner-wait', ['--change-app-owner-wait', '10']).value
+                ).toBe(10);
+                expect(parse(build, '--change-app-owner-wait', [], '0').value).toBe(0);
+                expect(parse(build, '--change-app-owner-wait', [], '300').value).toBe(300);
+            }
+        );
+
+        test.each(
+            CHANGE_OWNER_COMMANDS.flatMap(([name, build]) =>
+                ['301', '3000', '-1', '2.5', 'soon'].map((value) => [name, value, build])
+            )
+        )('%s refuses a wait of %s', (_name, value, build) => {
+            const { error } = parse(build, '--change-app-owner-wait', [
+                '--change-app-owner-wait',
+                value,
+            ]);
+
+            expect(error?.code).toBe('commander.invalidArgument');
+            expect(error?.message).toContain('from 0 to 300');
+        });
+
+        test.each(CHANGE_OWNER_COMMANDS)(
+            '%s makes neither option mandatory, so the wizard asks them behind its Advanced gate',
+            (_n, build) => {
+                expect(declared(build, '--change-app-owner').mandatory).toBe(false);
+                expect(declared(build, '--change-app-owner-wait').mandatory).toBe(false);
+            }
+        );
+    });
+
     describe('the log-level option', () => {
         // Declared `--log-level, --loglevel <level>`. Commander takes the *second* long form as
         // the attribute name, so this stores `loglevel` - the spelling ~40 reads already use.

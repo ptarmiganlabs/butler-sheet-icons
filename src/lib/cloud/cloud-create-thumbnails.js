@@ -14,8 +14,11 @@ import {
     buildSheetRules,
     buildSheetPartSection,
     buildBrowserPlanSection,
+    buildAppOwnerPlanSection,
 } from '../util/run-report.js';
 import { restoreLiveTerminal } from '../util/run-live.js';
+import { withAppOwnerChange } from '../util/temporary-app-owner.js';
+import { cloudAppOwners, resolveCloudOwnerTarget } from './cloud-app-owner.js';
 import { CLOUD_SHEET_PARTS, CLOUD_SHEET_PART_LABELS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
 import { CloudError } from '../util/errors.js';
@@ -171,6 +174,36 @@ export const qscloudCreateThumbnails = async (options) => {
             }
         }
 
+        // --change-app-owner (issue #1209): who owns each app while it is processed, decided once
+        // and before any app is touched - the same rule as the QSEoW twin. On Cloud finding out
+        // always costs a browser sign-in, so not for an empty selection.
+        let ownerTarget = null;
+        if (options.changeAppOwner === true && selection.appIds.length > 0) {
+            live?.beginStep('app owner');
+            try {
+                ownerTarget = await resolveCloudOwnerTarget(options, saasInstance, { dryRun });
+            } catch (err) {
+                live?.stepFailed('app owner');
+                throw err;
+            }
+            live?.stepDone('app owner', ownerTarget?.label ?? 'browser login user');
+        }
+
+        const { planApp, processApp } = withAppOwnerChange(
+            {
+                options,
+                owners: cloudAppOwners(saasInstance),
+                target: ownerTarget,
+                logPrefix: 'CLOUD APP OWNER',
+                ErrorClass: CloudError,
+            },
+            {
+                planApp: (appId, report) => cloudPlanApp(appId, saasInstance, options, report),
+                processApp: (appId, report) =>
+                    processCloudApp(appId, saasInstance, options, report),
+            }
+        );
+
         return await runOverAppsWithReport({
             command: 'qscloud create-sheet-thumbnails',
             dryRun,
@@ -183,6 +216,7 @@ export const qscloudCreateThumbnails = async (options) => {
                     logonUserId: options.logonuserid ?? null,
                     skipLogin: options.skipLogin === true,
                 },
+                appOwner: buildAppOwnerPlanSection(options, ownerTarget),
                 sheetPart: buildSheetPartSection(options.includesheetpart, CLOUD_SHEET_PART_LABELS),
                 // No tag rules: Cloud cannot tag individual sheets, and the
                 // warning above already covers a tag option that was supplied.
@@ -193,8 +227,8 @@ export const qscloudCreateThumbnails = async (options) => {
             },
             logPrefix: { plan: 'CLOUD PLAN APP', process: 'CLOUD PROCESS APP' },
             emptySelectionHint: 'Check the --appid and --collectionid options.',
-            planApp: (appId, report) => cloudPlanApp(appId, saasInstance, options, report),
-            processApp: (appId, report) => processCloudApp(appId, saasInstance, options, report),
+            planApp,
+            processApp,
         });
     } catch (err) {
         // First, unconditionally: a throw mid-animation must hand the cursor

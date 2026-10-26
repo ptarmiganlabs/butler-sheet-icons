@@ -267,6 +267,64 @@ const buildSkipLoginOption = ({ envVar, description }) =>
         .argParser(booleanOptionParser({ whenEmpty: false }))
         .env(envVar);
 
+/**
+ * The `--change-app-owner` option, for the two create-sheet-thumbnails commands (issue #1209).
+ *
+ * Declared exactly like {@link buildSkipLoginOption}, and for the same reason: with an optional
+ * argument Commander hands the environment value to `argParser`, so
+ * `BSI_QSEOW_CST_CHANGE_APP_OWNER=false` is off. As a bare flag, the variable's mere presence
+ * would have turned it on - and this switch changes who owns the apps.
+ *
+ * Stored under `changeAppOwner`.
+ *
+ * @param {object} params - Per-command parts.
+ * @param {string} params.envVar - The command's own environment variable.
+ * @param {string} params.description - Help text, which names the account that becomes the owner.
+ *
+ * @returns {Option} A new `--change-app-owner` option.
+ */
+const buildChangeAppOwnerOption = ({ envVar, description }) =>
+    new Option('--change-app-owner [true|false]', description)
+        .default(false)
+        .argParser(booleanOptionParser({ whenEmpty: false }))
+        .env(envVar);
+
+/**
+ * The longest `--change-app-owner-wait` accepted, in seconds.
+ *
+ * The wait runs once per app while the app has a temporary owner, so a mistyped value - 3000
+ * for 3 - would leave every app in the run with the wrong owner for most of an hour.
+ */
+const CHANGE_APP_OWNER_WAIT_MAX_SECONDS = 300;
+
+/**
+ * The `--change-app-owner-wait` option, for the two create-sheet-thumbnails commands.
+ *
+ * Parsed to a number whatever its source, unlike `--pagewait`, whose supplied value stays a
+ * string while its default is a number.
+ *
+ * Stored under `changeAppOwnerWait`.
+ *
+ * @param {object} params - Per-command parts.
+ * @param {string} params.envVar - The command's own environment variable.
+ *
+ * @returns {Option} A new `--change-app-owner-wait` option.
+ */
+const buildChangeAppOwnerWaitOption = ({ envVar }) =>
+    new Option(
+        '--change-app-owner-wait <seconds>',
+        `Seconds to wait after changing an app's owner before processing the app, so the change has reached every Qlik Sense service. Used only with --change-app-owner. 0 to ${CHANGE_APP_OWNER_WAIT_MAX_SECONDS}`
+    )
+        .argParser((value) =>
+            parsePositiveInteger(value, {
+                max: CHANGE_APP_OWNER_WAIT_MAX_SECONDS,
+                returnNumber: true,
+                errorMessage: `The owner change wait must be a whole number of seconds from 0 to ${CHANGE_APP_OWNER_WAIT_MAX_SECONDS}.`,
+            })
+        )
+        .default(3)
+        .env(envVar);
+
 export {
     parsePositiveInteger,
     collectPositiveIntegers,
@@ -276,4 +334,6 @@ export {
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
     buildSkipLoginOption,
+    buildChangeAppOwnerOption,
+    buildChangeAppOwnerWaitOption,
 };

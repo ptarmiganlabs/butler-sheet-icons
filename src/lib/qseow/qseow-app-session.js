@@ -6,6 +6,7 @@ import { normalizeVirtualProxyPrefix } from './qseow-prefix.js';
 import { qseowLogoutQuietly } from './qseow-logout.js';
 import { removeStaleImage } from '../util/image-dir.js';
 import { currentAccount } from '../util/os-account.js';
+import { getQseowHubSelectors } from './qseow-selectors.js';
 
 const selectorLoginPageUserName = '#username-input';
 const selectorLoginPageUserPwd = '#password-input';
@@ -201,6 +202,29 @@ export const readQseowSessionUser = async (
     qpsUserPath,
     timeoutMs = QSEOW_SESSION_USER_TIMEOUT_MS
 ) => {
+    const user = await readQseowSessionUserParts(page, qpsUserPath, timeoutMs);
+
+    return user ? `${user.userDirectory}\\${user.userId}` : null;
+};
+
+/**
+ * The same question as {@link readQseowSessionUser}, answered as its two parts.
+ *
+ * The owner change needs the directory and the id separately, to find the user in QRS (issue
+ * #1209); splitting the joined form back apart would only be guessing where one ends.
+ *
+ * @param {object} page - Puppeteer page, signed in.
+ * @param {string} qpsUserPath - Path of the proxy's `/qps/user` endpoint, from `buildQseowAppUrls`.
+ * @param {number} [timeoutMs] - How long to wait for the answer.
+ *
+ * @returns {Promise<{userDirectory: string, userId: string}|null>} The session user, or null when
+ *     it could not be read.
+ */
+export const readQseowSessionUserParts = async (
+    page,
+    qpsUserPath,
+    timeoutMs = QSEOW_SESSION_USER_TIMEOUT_MS
+) => {
     try {
         const user = await page.evaluate(
             async (path, limit) => {
@@ -216,7 +240,7 @@ export const readQseowSessionUser = async (
         );
 
         if (user?.userDirectory && user?.userId) {
-            return `${user.userDirectory}\\${user.userId}`;
+            return { userDirectory: user.userDirectory, userId: user.userId };
         }
 
         logger.debug(
@@ -428,4 +452,104 @@ export const captureQseowOverviewAfter = async (
     }
 
     return imagePath;
+};
+
+/**
+ * Signs in once, before the first app, to learn which account the virtual proxy signs the
+ * browser in as (issue #1209).
+ *
+ * `--change-app-owner` makes the browser login user each app's owner while the app is processed.
+ * With `--skip-login` that account is chosen by Windows authentication, not by any option, and it
+ * has to be known before anything is changed: by the time an app's own session has signed in, the
+ * app is already open. So this spends one extra session up front, signed out and closed again
+ * before any app is touched - and a browser that cannot sign in stops the run here, before any
+ * owner has changed.
+ *
+ * Strict where {@link readQseowSessionUser} is lenient: there the answer only names the account in
+ * the log, here it decides who the apps are handed to, so not knowing it is a failure.
+ *
+ * @param {object} options - Command options; `skipLogin` is expected to be set.
+ *
+ * @returns {Promise<{userDirectory: string, userId: string}>} The account the browser signs in as.
+ *
+ * @throws {QseowError} When the browser cannot sign in, or the proxy does not say who it signed in.
+ */
+export const readQseowBrowserUser = async (options) => {
+    const pageTimeout =
+        options.browserPageTimeout && options.browserPageTimeout > 0
+            ? options.browserPageTimeout * 1000
+            : 90000;
+    const hubSelectors = getQseowHubSelectors(options.senseVersion) ?? {};
+    const skipLogin = options.skipLogin === true;
+
+    // An app URL is not wanted here - no app has been chosen to open - so the hub is where the
+    // browser signs in; the proxy asks for credentials on the hub exactly as on an app.
+    const { hubUrl, qpsUserPath } = buildQseowAppUrls(options, '');
+
+    const browser = await launchBrowserForApp(options, {
+        appId: 'to learn who the browser signs in as',
+        logPrefix: 'QSEOW',
+        appLabel: '--change-app-owner',
+        ErrorClass: QseowError,
+        ambientAuthHost: ambientAuthHostFor(options),
+    });
+
+    let page;
+    try {
+        page = await browser.newPage();
+        await page.setDefaultTimeout(pageTimeout);
+
+        let response;
+        try {
+            response = await page.goto(hubUrl, { waitUntil: 'networkidle2', timeout: pageTimeout });
+        } catch (err) {
+            throw explainNavigationError(err, hubUrl, skipLogin);
+        }
+
+        const httpFailure = describeHttpFailure(response, {
+            appUrl: hubUrl,
+            host: options.host,
+            skipLogin,
+        });
+        if (httpFailure) {
+            throw new QseowError(`QSEOW: could not sign in to find the app owner: ${httpFailure}`);
+        }
+
+        await assertAuthenticated(page, {
+            selectors: loginSelectors,
+            logPrefix: 'QSEOW',
+            ErrorClass: QseowError,
+            logger,
+            situation: 'opening the hub with --skip-login, to find out who should own the apps',
+            remedy:
+                'The virtual proxy served its login form instead of signing the browser in, so ' +
+                '--skip-login cannot work with it. Use --prefix with a virtual proxy that signs ' +
+                'Windows users in, or drop --skip-login and supply credentials.',
+        });
+
+        const user = await readQseowSessionUserParts(page, qpsUserPath);
+        if (!user) {
+            throw new QseowError(
+                `QSEOW: signed in, but ${qpsUserPath} did not say as whom, so --change-app-owner ` +
+                    'cannot tell which account should own the apps.'
+            );
+        }
+
+        return user;
+    } finally {
+        await qseowLogoutQuietly(
+            page,
+            {
+                prefix: options.prefix,
+                hubUrl,
+                pageTimeout,
+                pagewait: options.pagewait,
+                senseVersion: options.senseVersion,
+            },
+            hubSelectors.userMenuButton,
+            hubSelectors.legacyLogoutButton
+        );
+
+        await closeBrowserQuietly(browser, 'QSEOW');
+    }
 };

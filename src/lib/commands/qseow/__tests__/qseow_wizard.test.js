@@ -924,6 +924,7 @@ describe('progressive disclosure', () => {
                 pagewait: '5',
                 imagedir: './img',
                 captureOverviewAfter: true,
+                changeAppOwner: false,
                 senseVersion: '2025-Nov',
                 browser: 'chrome',
                 browserVersion: 'recommended',
@@ -942,6 +943,49 @@ describe('progressive disclosure', () => {
         // browser cache directory, and an unplaced key would be asked last and ungated.
         expect(asked).toContain('browserCacheDir');
         expect(asked).toContain('browserExecutablePath');
+        // Owner changes are rare enough to sit behind the same gate (issue #1209), and the wait
+        // means nothing while the owner is left alone.
+        expect(asked).toContain('changeAppOwner');
+        expect(asked).not.toContain('changeAppOwnerWait');
+    });
+
+    test('asks how long to wait after an owner change only when the owner will be changed', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({
+                _advanced: true,
+                loglevel: 'info',
+                engineport: '4747',
+                qrsport: '4242',
+                port: '',
+                schemaversion: '12.612.0',
+                rejectUnauthorized: false,
+                secure: true,
+                prefix: '',
+                headless: true,
+                pagewait: '5',
+                imagedir: './img',
+                captureOverviewAfter: true,
+                _review: 'run',
+                changeAppOwner: true,
+                changeAppOwnerWait: '10',
+                senseVersion: '2025-Nov',
+                browser: 'chrome',
+                browserVersion: 'recommended',
+                browserPageTimeout: '90',
+                browserCacheDir: '',
+                browserExecutablePath: '',
+            })
+        );
+
+        await runInteractive({ path: PATH, runtime });
+
+        const asked = runtime.asked.map((a) => a.key);
+        // Asked straight after the switch it belongs to.
+        expect(asked.indexOf('changeAppOwnerWait')).toBe(asked.indexOf('changeAppOwner') + 1);
+
+        const options = qseowCreateThumbnails.mock.calls[0][0];
+        expect(options.changeAppOwner).toBe(true);
+        expect(options.changeAppOwnerWait).toBe(10);
     });
 });
 

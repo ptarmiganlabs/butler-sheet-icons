@@ -697,6 +697,7 @@ describe('progressive disclosure', () => {
                 pagewait: '5',
                 imagedir: './img',
                 captureOverviewAfter: true,
+                changeAppOwner: false,
                 browser: 'chrome',
                 browserVersion: 'recommended',
                 browserPageTimeout: '90',
@@ -714,6 +715,42 @@ describe('progressive disclosure', () => {
         // browser cache directory, and an unplaced key would be asked last and ungated.
         expect(runtime.asked.map((a) => a.key)).toContain('browserCacheDir');
         expect(runtime.asked.map((a) => a.key)).toContain('browserExecutablePath');
+        // Owner changes sit behind the same gate (issue #1209), and the wait means nothing
+        // while the owner is left alone.
+        expect(runtime.asked.map((a) => a.key)).toContain('changeAppOwner');
+        expect(runtime.asked.map((a) => a.key)).not.toContain('changeAppOwnerWait');
+    });
+
+    test('asks how long to wait after an owner change only when the owner will be changed', async () => {
+        const runtime = scriptedRuntime(
+            baseAnswers({
+                _advanced: true,
+                loglevel: 'info',
+                schemaversion: '12.612.0',
+                pagewait: '5',
+                imagedir: './img',
+                captureOverviewAfter: true,
+                _review: 'run',
+                changeAppOwner: true,
+                changeAppOwnerWait: '10',
+                browser: 'chrome',
+                browserVersion: 'recommended',
+                browserPageTimeout: '90',
+                browserCacheDir: '',
+                browserExecutablePath: '',
+                headless: true,
+            })
+        );
+
+        await runInteractive({ path: PATH, runtime });
+
+        const asked = runtime.asked.map((a) => a.key);
+        // Asked straight after the switch it belongs to.
+        expect(asked.indexOf('changeAppOwnerWait')).toBe(asked.indexOf('changeAppOwner') + 1);
+
+        const options = qscloudCreateThumbnails.mock.calls[0][0];
+        expect(options.changeAppOwner).toBe(true);
+        expect(options.changeAppOwnerWait).toBe(10);
     });
 
     test('never asks for the log level up front', async () => {

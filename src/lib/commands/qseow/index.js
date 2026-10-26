@@ -15,6 +15,8 @@ import {
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
     buildSkipLoginOption,
+    buildChangeAppOwnerOption,
+    buildChangeAppOwnerWaitOption,
 } from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
@@ -190,6 +192,14 @@ const buildQseowCommand = () => {
                 .default(true)
                 .env('BSI_QSEOW_CST_CAPTURE_OVERVIEW_AFTER')
         )
+        .addOption(
+            buildChangeAppOwnerOption({
+                envVar: 'BSI_QSEOW_CST_CHANGE_APP_OWNER',
+                description:
+                    'Make the browser login user the owner of each app while the app is processed, then give the app back to its original owner.\nFor apps that account cannot otherwise open. The API user makes the change, so it must be allowed to change app owners, and it still makes every write.',
+            })
+        )
+        .addOption(buildChangeAppOwnerWaitOption({ envVar: 'BSI_QSEOW_CST_CHANGE_APP_OWNER_WAIT' }))
         .addOption(
             new Option(
                 '--contentlibrary <library-name>',

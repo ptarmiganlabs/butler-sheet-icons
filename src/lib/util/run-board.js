@@ -13,6 +13,9 @@ import {
     isOptionEnabled,
     formatElapsed,
     formatBytes,
+    describeAppOwnerPlan,
+    appOwnerSummary,
+    notRestoredOwnerLine,
 } from './run-report-render.js';
 
 /**
@@ -415,6 +418,18 @@ export const renderBoardPlan = (report, ctx) => {
             }
             rows.push(planRow(ctx, { label: 'auth', value: 'API key', detail }));
         }
+    }
+
+    // The same facts as the plain plan block's line (issue #1209).
+    const appOwner = describeAppOwnerPlan(report);
+    if (appOwner) {
+        rows.push(
+            planRow(ctx, {
+                label: 'app owner',
+                value: appOwner.target ?? 'browser login user',
+                detail: `${appOwner.would ? 'would be ' : ''}temporary, restored after each app${sep}${appOwner.waitSeconds}s wait`,
+            })
+        );
     }
 
     if (selection) {
@@ -832,6 +847,24 @@ export const renderBoardVerdict = (report, ctx) => {
         lines.push(
             `    ${palette.dim(`${facts.mediaFilesDeleted} thumbnail media file(s) deleted from app media libraries`)}`
         );
+    }
+
+    if (facts.stopped) {
+        lines.push(
+            `    ${palette.red('stopped: an app owner could not be restored, so no further app was started')}`
+        );
+    }
+
+    // Each app that may still have the temporary owner gets a red line of its own, as in the
+    // plain verdict (issue #1209).
+    if (facts.appOwners) {
+        lines.push(
+            `    ${palette.dim(`app owner${dotSep(ctx)}${appOwnerSummary(facts.appOwners)}`)}`
+        );
+
+        for (const owner of facts.appOwners.notRestored) {
+            lines.push(`    ${palette.red(`NOT RESTORED: ${notRestoredOwnerLine(owner)}`)}`);
+        }
     }
 
     lines.push('');

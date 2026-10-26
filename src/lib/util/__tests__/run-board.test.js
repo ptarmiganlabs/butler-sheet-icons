@@ -746,3 +746,78 @@ describe('the board on an interrupted run (issue #1107)', () => {
         expect(cells.filter((cell) => cell.kind === 'failed')).toHaveLength(0);
     });
 });
+
+describe('--change-app-owner on the board (issue #1209)', () => {
+    /**
+     * A finished create run whose owners were changed.
+     *
+     * @param {object[]} owners - The report's `appOwners` entries.
+     *
+     * @returns {object} The report.
+     */
+    const ownerReport = (owners) => {
+        const report = makeReport();
+        report.plan.appOwner = { target: 'LAB\\joe', waitSeconds: 3 };
+        report.apps = [{ id: 'app-1', name: 'Sales', sheetCount: 0, sheets: [], failed: false }];
+        report.startedAt = 0;
+        report.finishedAt = 9000;
+        report.succeeded = true;
+        report.appOwners = owners;
+
+        return report;
+    };
+
+    const RESTORED = {
+        appId: 'app-1',
+        appName: 'Sales',
+        from: 'LAB\\anna',
+        to: 'LAB\\joe',
+        state: 'restored',
+    };
+
+    test('the plan names the temporary owner, as the plain plan block does', () => {
+        const plan = stripAnsi(renderBoardPlan(ownerReport([]), uniCtx()));
+
+        expect(plan).toContain('app owner');
+        expect(plan).toContain('LAB\\joe');
+        expect(plan).toContain('temporary, restored after each app');
+        expect(plan).toContain('3s wait');
+    });
+
+    test('a dry run says would', () => {
+        const report = ownerReport([]);
+        report.dryRun = true;
+
+        expect(stripAnsi(renderBoardPlan(report, uniCtx()))).toContain('would be temporary');
+    });
+
+    test('the verdict counts what was done with the owners', () => {
+        const verdict = stripAnsi(renderBoardVerdict(ownerReport([RESTORED]), uniCtx()));
+
+        expect(verdict).toContain('app owner');
+        expect(verdict).toContain('1 changed and restored');
+        expect(verdict).not.toContain('NOT RESTORED');
+    });
+
+    test('an app that may still have the temporary owner gets a red line of its own', () => {
+        const report = ownerReport([{ ...RESTORED, state: 'restore-failed' }]);
+        report.stopped = { appId: 'app-1' };
+        report.succeeded = false;
+
+        const coloured = renderBoardVerdict(report, uniCtx(true));
+        const verdict = stripAnsi(coloured);
+
+        expect(verdict).toContain(
+            'NOT RESTORED: app app-1 "Sales" may still be owned by LAB\\joe - its owner was LAB\\anna'
+        );
+        expect(verdict).toContain('stopped: an app owner could not be restored');
+        expect(coloured).toMatch(ANSI);
+    });
+
+    test('renders in ASCII mode too', () => {
+        const report = ownerReport([{ ...RESTORED, state: 'restore-failed' }]);
+
+        expect(stripAnsi(renderBoardVerdict(report, asciiCtx()))).toContain('NOT RESTORED');
+        expect(stripAnsi(renderBoardPlan(report, asciiCtx()))).toContain('app owner');
+    });
+});

@@ -50,6 +50,25 @@ jest.unstable_mockModule('../../util/redact-secrets.js', () => ({
 const runOverApps = jest.fn();
 jest.unstable_mockModule('../../util/run-over-apps.js', () => ({ runOverApps }));
 
+// The platform half of --change-app-owner (issue #1209). The fake adapter keeps one owner per
+// app in memory, so the tests can see the order of changes around the processor.
+const ownerEvents = [];
+const fakeOwners = {
+    inspect: jest.fn(async (appId) => ({
+        appName: `App ${appId}`,
+        owner: { id: 'u-anna', label: 'LAB\\anna' },
+        keepReason: null,
+    })),
+    currentOwnerId: jest.fn(async () => 'u-joe'),
+    change: jest.fn(async (appId, owner) => ownerEvents.push(`CHANGE ${appId} ${owner.label}`)),
+    manualFix: jest.fn(() => 'fix it by hand'),
+};
+const resolveQseowOwnerTarget = jest.fn();
+jest.unstable_mockModule('../qseow-app-owner.js', () => ({
+    qseowAppOwners: jest.fn(() => fakeOwners),
+    resolveQseowOwnerTarget,
+}));
+
 const { logger } = await import('../../../globals.js');
 const qrsInteract = (await import('qrs-interact')).default;
 const { qseowCreateThumbnails } = await import('../qseow-create-thumbnails.js');
@@ -274,5 +293,84 @@ describe('qseowCreateThumbnails app loop', () => {
             );
             expect(qseowPlanApp).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('qseowCreateThumbnails with --change-app-owner (issue #1209)', () => {
+    const JOE = { id: 'u-joe', label: 'LAB\\joe', reference: { id: 'u-joe' } };
+
+    /**
+     * Has the mocked app loop call the per-app worker it is given, as the real one does.
+     *
+     * @returns {void}
+     */
+    const loopRunsEachApp = () =>
+        runOverApps.mockImplementation(async (appIds, ctx, worker) => {
+            for (const [i, appId] of appIds.entries()) {
+                await worker(appId, { n: i + 1, total: appIds.length });
+            }
+            return true;
+        });
+
+    beforeEach(() => {
+        ownerEvents.length = 0;
+        resolveQseowOwnerTarget.mockResolvedValue(JOE);
+        qseowProcessApp.mockImplementation(async (appId) => ownerEvents.push(`PROCESS ${appId}`));
+        loopRunsEachApp();
+    });
+
+    test('leaves owners alone without the option', async () => {
+        await qseowCreateThumbnails({ ...OPTIONS });
+
+        expect(resolveQseowOwnerTarget).not.toHaveBeenCalled();
+        expect(fakeOwners.change).not.toHaveBeenCalled();
+        expect(ownerEvents).toEqual(['PROCESS test-app-id']);
+    });
+
+    test('finds the owner once, then processes each app as its owner and gives it back', async () => {
+        await expect(
+            qseowCreateThumbnails({
+                ...OPTIONS,
+                appid: ['app-1', 'app-2'],
+                changeAppOwner: true,
+                changeAppOwnerWait: 0,
+            })
+        ).resolves.toBe(true);
+
+        expect(resolveQseowOwnerTarget).toHaveBeenCalledTimes(1);
+        expect(resolveQseowOwnerTarget.mock.calls[0][1]).toEqual({ dryRun: false });
+        expect(ownerEvents).toEqual([
+            'CHANGE app-1 LAB\\joe',
+            'PROCESS app-1',
+            'CHANGE app-1 LAB\\anna',
+            'CHANGE app-2 LAB\\joe',
+            'PROCESS app-2',
+            'CHANGE app-2 LAB\\anna',
+        ]);
+    });
+
+    test('a dry run reads owners and changes none', async () => {
+        resolveQseowOwnerTarget.mockResolvedValue(null);
+
+        await qseowCreateThumbnails({ ...OPTIONS, changeAppOwner: true, dryRun: true });
+
+        expect(resolveQseowOwnerTarget.mock.calls[0][1]).toEqual({ dryRun: true });
+        expect(fakeOwners.inspect).toHaveBeenCalledWith('test-app-id');
+        expect(fakeOwners.change).not.toHaveBeenCalled();
+        expect(qseowPlanApp).toHaveBeenCalledTimes(1);
+    });
+
+    test('a run that cannot tell who should own the apps stops before any app', async () => {
+        resolveQseowOwnerTarget.mockRejectedValue(
+            new Error('--change-app-owner: Qlik Sense has no user ACME\\test-user')
+        );
+
+        await expect(qseowCreateThumbnails({ ...OPTIONS, changeAppOwner: true })).resolves.toBe(
+            false
+        );
+
+        expect(runOverApps).not.toHaveBeenCalled();
+        expect(fakeOwners.change).not.toHaveBeenCalled();
+        expect(errorLog()).toContain('Qlik Sense has no user ACME\\test-user');
     });
 });
