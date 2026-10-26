@@ -48,16 +48,18 @@ afterAll(() => rmSync(workDir, { recursive: true, force: true }));
  *
  * @returns {{status: number|null, signal: string|null, output: string}} The exit status, the
  * signal that ended it, and stdout then stderr, with the timestamps the logger puts on each line
- * taken out.
+ * taken out, and a version stamp cut back to its headline.
  */
 const run = (which, args) => {
     const [file, argv] =
         which === 'binary' ? [BINARY, args] : [process.execPath, [SOURCE, ...args]];
     const result = spawnSync(file, argv, { cwd: workDir, encoding: 'utf8', timeout: 60_000 });
-    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`.replace(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z /gm,
-        ''
-    );
+    const output = `${result.stdout ?? ''}${result.stderr ?? ''}`
+        .replace(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z /gm, '')
+        // A run that stops before its header opens with a version stamp, and the binary's carries
+        // the build date a source run cannot know - the same reason the `--version` test below
+        // compares headlines only. Issue #1207.
+        .replace(/^(butler-sheet-icons \S+(?: \([^)]*\))?) - .*$/m, '$1');
 
     return { status: result.status, signal: result.signal, output };
 };
