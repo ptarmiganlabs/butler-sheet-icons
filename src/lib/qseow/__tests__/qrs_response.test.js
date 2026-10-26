@@ -1,6 +1,6 @@
 import { jest, describe, test, expect } from '@jest/globals';
 
-import { qrsGetList } from '../qrs-response.js';
+import { qrsGetList, qrsGetEntity, qrsPut } from '../qrs-response.js';
 import { QseowError } from '../../util/errors.js';
 
 /**
@@ -90,6 +90,55 @@ describe('qrsGetList', () => {
 
         await expect(qrsGetList({ Get: jest.fn().mockRejectedValue(failure) }, 'app')).rejects.toBe(
             failure
+        );
+    });
+});
+
+describe('qrsGetEntity (issue #1209)', () => {
+    test('returns the entity when QRS answers with one', async () => {
+        const app = { id: 'app-1', name: 'Sales', owner: { id: 'u-1' } };
+
+        await expect(
+            qrsGetEntity(respondingWith({ statusCode: 200, body: app }), 'app/app-1')
+        ).resolves.toBe(app);
+    });
+
+    test.each([
+        ['a list', [{ id: 'app-1' }], 'array'],
+        ['null', null, 'null'],
+        ['a string', 'Service unavailable', 'string'],
+        ['an object with no id', { message: 'not found' }, 'object'],
+    ])('refuses %s rather than reading it as an entity', async (_label, body, shape) => {
+        const err = await qrsGetEntity(respondingWith({ statusCode: 200, body }), 'app/x').catch(
+            (e) => e
+        );
+
+        expect(err).toBeInstanceOf(QseowError);
+        expect(err.message).toContain(`expected one entity, got ${shape}`);
+    });
+
+    test('refuses a status that is not a success', async () => {
+        await expect(
+            qrsGetEntity(respondingWith({ statusCode: 403, body: { id: 'x' } }), 'app/x')
+        ).rejects.toThrow('QRS returned status 403 for "app/x"');
+    });
+});
+
+describe('qrsPut (issue #1209)', () => {
+    test('sends the body to the path and returns what QRS answered', async () => {
+        const answered = { id: 'app-1', modifiedDate: 'later' };
+        const instance = { Put: jest.fn().mockResolvedValue({ statusCode: 200, body: answered }) };
+        const body = { id: 'app-1', modifiedDate: 'now', owner: { id: 'u-2' } };
+
+        await expect(qrsPut(instance, 'app/app-1', body)).resolves.toBe(answered);
+        expect(instance.Put).toHaveBeenCalledWith('app/app-1', body);
+    });
+
+    test('refuses a status that is not a success', async () => {
+        const instance = { Put: jest.fn().mockResolvedValue({ statusCode: 409, body: '' }) };
+
+        await expect(qrsPut(instance, 'app/x', {})).rejects.toThrow(
+            'QRS returned status 409 for PUT "app/x"'
         );
     });
 });

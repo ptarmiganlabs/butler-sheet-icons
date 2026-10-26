@@ -11,10 +11,15 @@ import { logger, bsiExecutablePath } from '../../globals.js';
  * @param {string} options.certkeyfile - Path to the certificate key file.
  * @param {string} options.apiuserdir - User directory for the API user.
  * @param {string} options.apiuserid - User ID for the API user.
+ * @param {object} [request] - Per-request settings.
+ * @param {string} [request.contentType] - The `Content-Type` header. `png` by default, which is
+ *     what every caller sent before there was a choice: reads ignore it, and the upload overrides
+ *     it per request. A JSON body - the app owner change, issue #1209 - needs
+ *     `application/json`, because `qrs-interact`'s `Put` sends whatever is configured here.
  *
  * @returns {object} QRS connection object consumable by `qrs-interact`.
  */
-export const setupQseowQrsConnection = (options) => {
+export const setupQseowQrsConnection = (options, { contentType = 'png' } = {}) => {
     logger.debug('Setting up connection to QSEoW QRS...');
 
     const certFile = upath.isAbsolute(options.certfile)
@@ -43,7 +48,7 @@ export const setupQseowQrsConnection = (options) => {
             keyFile,
         },
         headers: {
-            'Content-Type': 'png',
+            'Content-Type': contentType,
             'X-Qlik-User': `UserDirectory=${options.apiuserdir};UserId=${options.apiuserid}`,
         },
     };
