@@ -18,6 +18,7 @@ import { relaxMandatoryOptionsIfInteractive } from './lib/interactive/mandatory-
 import { extensions } from '#extensions';
 import { BUILD_DATE, EXTENSIONS_VERSION, describeVersion } from './lib/util/version-report.js';
 import { applyExtensions } from './lib/extensions/apply.js';
+import { announceEarlyStop, stampCommandErrors, versionStampLine } from './lib/util/early-stop.js';
 
 // Process-level safety net: catch any error that escapes all try/catch blocks,
 // write a crash dump, and exit with code 1. Installed before anything else so
@@ -32,6 +33,17 @@ installSignalHandlers();
 
 const program = new Command();
 
+// What `--version` prints, and - folded onto one line - what a run that stops before its header
+// prints ahead of its error. Issue #1207.
+const versionReport = describeVersion({
+    name: 'butler-sheet-icons',
+    version: appVersion,
+    variant: extensions?.variant,
+    variantVersion: EXTENSIONS_VERSION,
+    buildDate: BUILD_DATE,
+});
+const versionStamp = versionStampLine(versionReport);
+
 /**
  * Top level async function.
  * Workaround to deal with the fact that Node.js doesn't currently support top level async functions.
@@ -40,15 +52,7 @@ const program = new Command();
     program
         // Reports which build this is and when it was made, not just what version of core it
         // bundles - a variant build was otherwise indistinguishable from a stock one. Issue #1152.
-        .version(
-            describeVersion({
-                name: 'butler-sheet-icons',
-                version: appVersion,
-                variant: extensions?.variant,
-                variantVersion: EXTENSIONS_VERSION,
-                buildDate: BUILD_DATE,
-            })
-        )
+        .version(versionReport)
         .name('butler-sheet-icons')
         .description(
             'This is a tool that creates thumbnail images based on the actual layout of sheets in Qlik Sense applications.\nQlik Sense Cloud and Qlik Sense Enterprise on Windows are both supported.\nThe created thumbnails are saved to disk and uploaded to the Sense app as new sheet thumbnail images.\n\nNew to Butler Sheet Icons? Run "butler-sheet-icons interactive" to be asked for what is needed instead of assembling a command line.'
@@ -73,6 +77,11 @@ const program = new Command();
     // and restores what it changed before any handler runs.
     relaxMandatoryOptionsIfInteractive(program, process.argv);
 
+    // Commander's own refusals - a missing mandatory option, an unknown option, an invalid value -
+    // stop the run before any header, so they carry the version themselves. After everything above,
+    // because it walks the finished command tree. Issue #1207.
+    stampCommandErrors(program, { stamp: versionStamp });
+
     // A run that stops deliberately is reported as a failed command line, not as a crash.
     //
     // Without this, anything thrown between the parse and the end of the action handler became a
@@ -92,10 +101,23 @@ const program = new Command();
     // instrumented by the test suite - it is reached by spawning a process, not by importing one -
     // and untestable logic is how this bug survived as long as it did. Exit code set rather than
     // exited on, following the rule the note below records.
+    //
+    // A refusal from a `beforeAction` hook lands here before any header has been logged, so it is
+    // given the version first. Inside the callback rather than ahead of it: a fault is re-thrown
+    // before the callback runs, and goes to the crash report, which carries the version already.
+    // Issue #1207.
     try {
         await program.parseAsync(process.argv);
     } catch (err) {
-        process.exitCode = reportExpectedFailure(err, (message) => logger.error(message));
+        process.exitCode = reportExpectedFailure(err, (message) => {
+            announceEarlyStop({
+                stamp: versionStamp,
+                isTerminal: Boolean(process.stdout.isTTY),
+                writeRaw: (text) => process.stdout.write(text),
+                writeLine: (line) => logger.info(line),
+            });
+            logger.error(message);
+        });
     }
 
     // The one place the interrupted run is allowed to end the process, and the

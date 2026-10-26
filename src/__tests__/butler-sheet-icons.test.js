@@ -95,6 +95,23 @@ describe('butler-sheet-icons CLI', () => {
         expect(result.status).toBe(0);
     });
 
+    // Issue #1207. A run Commander refuses never reaches a command's header, so the version has to
+    // arrive with the error. Spawned, because the wiring lives in the entry point; not on a
+    // terminal, so no blank line ahead of it.
+    test('a refused command line still reports which version refused it', () => {
+        const result = execCLI(['qseow', 'create-sheet-thumbnails']);
+
+        expect(result.status).toBe(1);
+        expect(result.stderr).toMatch(/^butler-sheet-icons \S+\nerror: required option /);
+    });
+
+    test('a run that reaches its header carries no stamp', () => {
+        const result = execCLI(['browser', 'list-installed'], { timeout: 20000 });
+
+        expect(result.stdout).toContain('BUTLER SHEET ICONS ');
+        expect(`${result.stdout}${result.stderr}`).not.toMatch(/butler-sheet-icons \d/);
+    });
+
     test('should show help info', () => {
         const result = execCLI(['--help']);
         expect(result.status).toBe(0);

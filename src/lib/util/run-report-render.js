@@ -1,5 +1,6 @@
 import { CLEAR_REASON } from './sheet-decision-reasons.js';
 import { parseHeadlessOption } from './headless-option.js';
+import { noteVersionShown } from './early-stop.js';
 
 /**
  * Rung A of the run-output ladder (issue #1073): the plain renderer.
@@ -73,6 +74,11 @@ export const logRunHeader = (log, version, jobLabel) => {
     for (const line of renderRunHeaderLines(version, jobLabel)) {
         log.info(line);
     }
+
+    // The version is out, so a failure from here on is not stamped with it again (issue #1207).
+    // Here rather than at the callers: every header goes through this function, the board rung's
+    // included, so no command can show a header and leave this unset.
+    noteVersionShown();
 };
 
 /**
