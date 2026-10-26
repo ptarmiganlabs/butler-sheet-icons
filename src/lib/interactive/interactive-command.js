@@ -8,6 +8,7 @@ import { runMenu } from './menu.js';
 import { runInteractive } from './index.js';
 import { leafCommandIn } from './command-tree.js';
 import { withQuietLogging } from './quiet.js';
+import { noteVersionShown } from '../util/early-stop.js';
 
 /**
  * Run the self-test, treating a cancelled prompt as a normal way to leave.
@@ -90,6 +91,7 @@ const handleInteractive = async (options = {}, cmd) => {
     // version stays, because a wizard session that never runs a command is
     // still a support artefact.
     logger.info(`Butler Sheet Icons ${appVersion} - interactive wizard`);
+    noteVersionShown();
 
     return runCommand(
         'INTERACTIVE MAIN 11',
