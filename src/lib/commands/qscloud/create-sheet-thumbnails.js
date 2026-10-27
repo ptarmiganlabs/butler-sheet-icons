@@ -15,8 +15,6 @@ import {
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
     buildSkipLoginOption,
-    buildChangeAppOwnerOption,
-    buildChangeAppOwnerWaitOption,
 } from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
 import { addInteractiveOption } from '../../interactive/interactive-option.js';
@@ -159,16 +157,6 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 // guided run should have to answer.
                 .default(true)
                 .env('BSI_QSCLOUD_CST_CAPTURE_OVERVIEW_AFTER')
-        )
-        .addOption(
-            buildChangeAppOwnerOption({
-                envVar: 'BSI_QSCLOUD_CST_CHANGE_APP_OWNER',
-                description:
-                    "Make the account the browser signs in as the owner of each app while the app is processed, then give the app back to its original owner.\nPublished apps and apps in personal spaces keep their owner. The API key's user makes the change, so it must be allowed to change app owners, and it still makes every write.",
-            })
-        )
-        .addOption(
-            buildChangeAppOwnerWaitOption({ envVar: 'BSI_QSCLOUD_CST_CHANGE_APP_OWNER_WAIT' })
         )
         .addOption(
             new Option(

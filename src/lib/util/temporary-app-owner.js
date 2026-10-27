@@ -10,9 +10,12 @@ import { describeObjects } from './run-report-render.js';
  * `--change-app-owner`: give an app to another user while it is processed, then give it back
  * (issue #1209).
  *
- * The platform-neutral half. Each platform supplies how to read and change an owner - QRS on
- * QSEoW, the REST API on Qlik Cloud - as `owners`; everything that decides whether an app can end
- * up with the wrong owner is here, once, so the two platforms cannot drift on it:
+ * The platform-neutral half. The platform supplies how to read and change an owner - QRS on
+ * QSEoW - as `owners`; everything that decides whether an app can end up with the wrong owner is
+ * here. Only QSEoW has the option: on Qlik Cloud, owning a shared-space app did not let BSI update
+ * its public sheets, so the change helped nothing there (issue #1209). The hooks a platform may
+ * leave out - a reason to keep an owner, objects that move with it - stay, for whichever platform
+ * needs them next:
  *
  * - The original owner is read fresh, immediately before the change, and **logged before the
  *   change is made**. If the process dies before the restore - a second Ctrl-C, the shutdown
@@ -246,8 +249,8 @@ const giveObjectsBack = async ({ appId, owners, objects, target, report, logPref
  *
  * 1. Read who owns the app now. A read that fails fails the app, before anything has changed.
  * 2. Leave the owner alone when `target` already owns the app, or when the platform says this
- *    app's owner must not be changed (Qlik Cloud published and personal-space apps) - and process
- *    the app as it would be without the option.
+ *    app's owner must not be changed (none does on QSEoW, where a published app is re-owned like
+ *    any other) - and process the app as it would be without the option.
  * 3. Where an owner change moves objects (QSEoW), list the objects `target` already owns in the
  *    app. A list that cannot be read fails the app, before anything has changed: without it there
  *    is no telling afterwards which objects were `target`'s.

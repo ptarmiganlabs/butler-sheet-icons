@@ -1708,9 +1708,9 @@ describe('option keys match the property names the code reads (issue #890)', () 
     });
 
     describe('--change-app-owner and --change-app-owner-wait (issue #1209)', () => {
+        // QSEoW only: on Qlik Cloud the owner change did not make public sheets updatable.
         const CHANGE_OWNER_COMMANDS = [
             ['qseow', () => buildQseowCommand(), 'BSI_QSEOW_CST_CHANGE_APP_OWNER'],
-            ['qscloud', () => buildQscloudCommand(), 'BSI_QSCLOUD_CST_CHANGE_APP_OWNER'],
         ];
 
         /**
@@ -1864,6 +1864,14 @@ describe('option keys match the property names the code reads (issue #890)', () 
                 expect(declared(build, '--change-app-owner-wait').mandatory).toBe(false);
             }
         );
+
+        // Left out on purpose, not forgotten: making the browser login user a shared-space app's
+        // owner did not give BSI `update` on the app's public sheets, so the change only moved
+        // someone's app for nothing. Adding it back is a decision for #1209, not a twin fix.
+        test('qscloud declares neither option', () => {
+            expect(declared(buildQscloudCommand, '--change-app-owner')).toBeUndefined();
+            expect(declared(buildQscloudCommand, '--change-app-owner-wait')).toBeUndefined();
+        });
     });
 
     describe('the log-level option', () => {

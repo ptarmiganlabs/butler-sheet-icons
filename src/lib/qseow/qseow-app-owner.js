@@ -12,9 +12,9 @@ import { logger } from '../../globals.js';
  *
  * The platform half of the owner change only: who owns an app, and how to give it to someone
  * else. Everything about *when* - the order of the steps, the wait, the restore and its retries,
- * what is logged and reported - lives in `util/temporary-app-owner.js`, shared with the Cloud
- * twin, so the two platforms cannot drift on the part that decides whether an app is left with
- * the wrong owner.
+ * what is logged and reported - lives in `util/temporary-app-owner.js`, which is
+ * platform-neutral. There is no Qlik Cloud counterpart: there the owner change did not make
+ * public sheets updatable (issue #1209).
  *
  * Every call goes through QRS as the API user, which therefore needs the right to change app
  * owners - INTERNAL\sa_api has it, as does a RootAdmin.

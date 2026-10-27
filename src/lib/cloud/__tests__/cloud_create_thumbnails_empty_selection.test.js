@@ -13,9 +13,6 @@ jest.unstable_mockModule('../../../globals.js', () => ({
     getLoggingLevel: jest.fn(() => 'info'),
     bsiExecutablePath: '/test/path',
     isSea: false,
-    // The worker loads the browser session module through --change-app-owner's sign-in (issue
-    // #1209), and that module imports sleep - as the QSEoW twin's mock already provides.
-    sleep: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.unstable_mockModule('../cloud-test-connection.js', () => ({

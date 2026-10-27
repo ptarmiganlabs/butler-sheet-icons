@@ -17,9 +17,6 @@ jest.unstable_mockModule('../../../globals.js', () => ({
     getLoggingLevel: jest.fn(() => 'info'),
     bsiExecutablePath: '/test/path',
     isSea: false,
-    // The worker loads the browser session module through --change-app-owner's sign-in (issue
-    // #1209), and that module imports sleep - as the QSEoW twin's mock already provides.
-    sleep: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.unstable_mockModule('../cloud-test-connection.js', () => ({
@@ -46,24 +43,6 @@ jest.unstable_mockModule('../../util/redact-secrets.js', () => ({
 
 const runOverApps = jest.fn();
 jest.unstable_mockModule('../../util/run-over-apps.js', () => ({ runOverApps }));
-
-// The platform half of --change-app-owner (issue #1209), as in the QSEoW twin's suite.
-const ownerEvents = [];
-const fakeOwners = {
-    inspect: jest.fn(async (appId) => ({
-        appName: `App ${appId}`,
-        owner: { id: 'u-anna', label: 'Anna <anna@example.com>' },
-        keepReason: null,
-    })),
-    currentOwnerId: jest.fn(async () => 'u-joe'),
-    change: jest.fn(async (appId, owner) => ownerEvents.push(`CHANGE ${appId} ${owner.label}`)),
-    manualFix: jest.fn(() => 'fix it by hand'),
-};
-const resolveCloudOwnerTarget = jest.fn();
-jest.unstable_mockModule('../cloud-app-owner.js', () => ({
-    cloudAppOwners: jest.fn(() => fakeOwners),
-    resolveCloudOwnerTarget,
-}));
 
 const { logger } = await import('../../../globals.js');
 const { qscloudCreateThumbnails } = await import('../cloud-create-thumbnails.js');
@@ -322,84 +301,5 @@ describe('qscloudCreateThumbnails app loop', () => {
             );
             expect(cloudPlanApp).not.toHaveBeenCalled();
         });
-    });
-});
-
-describe('qscloudCreateThumbnails with --change-app-owner (issue #1209)', () => {
-    const JOE = { id: 'u-joe', label: 'Joe <joe@example.com>' };
-
-    /**
-     * Has the mocked app loop call the per-app worker it is given, as the real one does.
-     *
-     * @returns {void}
-     */
-    const loopRunsEachApp = () =>
-        runOverApps.mockImplementation(async (appIds, ctx, worker) => {
-            for (const [i, appId] of appIds.entries()) {
-                await worker(appId, { n: i + 1, total: appIds.length });
-            }
-            return true;
-        });
-
-    beforeEach(() => {
-        ownerEvents.length = 0;
-        resolveCloudOwnerTarget.mockResolvedValue(JOE);
-        processCloudApp.mockImplementation(async (appId) => ownerEvents.push(`PROCESS ${appId}`));
-        loopRunsEachApp();
-    });
-
-    test('leaves owners alone without the option', async () => {
-        await qscloudCreateThumbnails({ ...OPTIONS });
-
-        expect(resolveCloudOwnerTarget).not.toHaveBeenCalled();
-        expect(fakeOwners.change).not.toHaveBeenCalled();
-        expect(ownerEvents).toEqual(['PROCESS test-app-id']);
-    });
-
-    test('finds the owner once, then processes each app as its owner and gives it back', async () => {
-        await expect(
-            qscloudCreateThumbnails({
-                ...OPTIONS,
-                appid: ['app-1', 'app-2'],
-                changeAppOwner: true,
-                changeAppOwnerWait: 0,
-            })
-        ).resolves.toBe(true);
-
-        expect(resolveCloudOwnerTarget).toHaveBeenCalledTimes(1);
-        expect(resolveCloudOwnerTarget.mock.calls[0][2]).toEqual({ dryRun: false });
-        expect(ownerEvents).toEqual([
-            'CHANGE app-1 Joe <joe@example.com>',
-            'PROCESS app-1',
-            'CHANGE app-1 Anna <anna@example.com>',
-            'CHANGE app-2 Joe <joe@example.com>',
-            'PROCESS app-2',
-            'CHANGE app-2 Anna <anna@example.com>',
-        ]);
-    });
-
-    test('a dry run reads owners and changes none', async () => {
-        resolveCloudOwnerTarget.mockResolvedValue(null);
-
-        await qscloudCreateThumbnails({ ...OPTIONS, changeAppOwner: true, dryRun: true });
-
-        expect(resolveCloudOwnerTarget.mock.calls[0][2]).toEqual({ dryRun: true });
-        expect(fakeOwners.inspect).toHaveBeenCalledWith('test-app-id');
-        expect(fakeOwners.change).not.toHaveBeenCalled();
-        expect(cloudPlanApp).toHaveBeenCalledTimes(1);
-    });
-
-    test('a run that cannot tell who should own the apps stops before any app', async () => {
-        resolveCloudOwnerTarget.mockRejectedValue(
-            new Error('CLOUD: signed in, but the tenant did not say as whom')
-        );
-
-        await expect(qscloudCreateThumbnails({ ...OPTIONS, changeAppOwner: true })).resolves.toBe(
-            false
-        );
-
-        expect(runOverApps).not.toHaveBeenCalled();
-        expect(fakeOwners.change).not.toHaveBeenCalled();
-        expect(errorLog()).toContain('the tenant did not say as whom');
     });
 });

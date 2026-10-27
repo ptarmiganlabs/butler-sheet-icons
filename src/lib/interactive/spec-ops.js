@@ -134,7 +134,7 @@ export const askedUnlessSkipLogin = (spec, logonKeys) =>
  * after {@link gatedBy}: that one replaces any `when` it finds, and applied the other way round
  * it would drop this condition without a trace.
  *
- * Both wizards use it, so the two platforms cannot disagree about when the wait applies.
+ * Only the QSEoW wizard asks either question: Qlik Cloud has no `--change-app-owner`.
  *
  * @param {object} spec - A question.
  *

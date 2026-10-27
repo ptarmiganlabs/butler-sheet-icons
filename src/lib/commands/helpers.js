@@ -268,7 +268,8 @@ const buildSkipLoginOption = ({ envVar, description }) =>
         .env(envVar);
 
 /**
- * The `--change-app-owner` option, for the two create-sheet-thumbnails commands (issue #1209).
+ * The `--change-app-owner` option, for `qseow create-sheet-thumbnails` (issue #1209). Qlik Cloud
+ * does not have it: there the owner change did not make public sheets updatable.
  *
  * Declared exactly like {@link buildSkipLoginOption}, and for the same reason: with an optional
  * argument Commander hands the environment value to `argParser`, so
@@ -298,7 +299,7 @@ const buildChangeAppOwnerOption = ({ envVar, description }) =>
 const CHANGE_APP_OWNER_WAIT_MAX_SECONDS = 300;
 
 /**
- * The `--change-app-owner-wait` option, for the two create-sheet-thumbnails commands.
+ * The `--change-app-owner-wait` option, for `qseow create-sheet-thumbnails`.
  *
  * Parsed to a number whatever its source, unlike `--pagewait`, whose supplied value stays a
  * string while its default is a number.
