@@ -1,8 +1,9 @@
 # Shared Windows helpers for the SEA builds, dot-sourced by the release build, the insider build and
-# variant builds. Two of them are meant to be called: Get-BsiSigntoolPath finds signtool.exe, and
+# variant builds. Three of them are meant to be called: Get-BsiSigntoolPath finds signtool.exe,
 # Invoke-BsiStripSignature removes the Authenticode signature a copied node.exe carries, which
-# every Windows build needs before postject rewrites the binary. The rest are what those two are
-# built from.
+# every Windows build needs before postject rewrites the binary, and Test-BsiVersionReport decides
+# whether a built binary's --version says it is the version being built. The rest are what those
+# are built from.
 #
 # Nothing here signs. Releases are signed through Azure Artifact Signing by sign-win64 in ci.yaml, a
 # job that runs no repository code - this file included - and insiders builds are not signed at all
@@ -12,7 +13,7 @@
 #
 # This file must keep working under Windows PowerShell 5.1 as well as PowerShell 7: a variant
 # build may dot-source it under 5.1, and pr-unit-tests.yaml checks it under both
-# (scripts/diag/win-strip-check.ps1).
+# (scripts/diag/win-strip-check.ps1 and scripts/diag/win-version-check.ps1).
 
 # Deliberately no Set-StrictMode here. Dot-sourcing runs this in the caller's scope, so a strict
 # mode set here would silently change the semantics of every script that includes it - including
@@ -231,4 +232,26 @@ function Invoke-BsiStripSignature {
     if ($result.ExitCode -ne 0) {
         throw "signtool remove failed with exit code $($result.ExitCode) on '$Path'."
     }
+}
+
+# Whether a binary's --version report says it is the version being built.
+#
+# One line has to be exactly "butler-sheet-icons <version>", so that a substring match cannot
+# accept 5.1.10 for 5.1.1, or an error message that mentions the version. A variant build names
+# its variant on that same line, as "butler-sheet-icons <version> (<variant>)"
+# (src/lib/util/version-report.js), and is the version being built all the same. The labelled
+# detail lines under it - core, the variant's own version, the build date - never stand in for the
+# headline.
+function Test-BsiVersionReport {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
+        [string] $Report,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Version
+    )
+
+    return $Report -match "(?m)^\s*butler-sheet-icons $([regex]::Escape($Version))( \([^)\r\n]+\))?\s*$"
 }
