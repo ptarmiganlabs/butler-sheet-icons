@@ -377,6 +377,9 @@ export const createRunReport = ({ command, dryRun }) => ({
     appOwners: [],
     // Set when the run stopped early on purpose rather than by a signal: `{ appId }`.
     stopped: null,
+    // The app the loop is inside, so a verdict rendered mid-app - by a second signal or the
+    // shutdown watchdog - counts it as interrupted rather than ok (issue #1211).
+    inFlightAppId: null,
     startedAt: Date.now(),
     finishedAt: null,
     succeeded: null,
@@ -567,9 +570,10 @@ const markAppInterrupted = (report, appId) => {
  * timing field is what this replaced, and that inference was wrong for dry
  * runs and one refactor away from being wrong for real ones (issue #1107).
  *
- * A no-op until the processor has created the entry. That is not a gap: an app
- * abandoned before it recorded anything has nothing to report about either, and
- * `appsNotStarted` accounts for it.
+ * Kept on the report, not on the app's entry. The loop marks the app before
+ * the worker runs, but the processors create the entry themselves, once the
+ * app is open - so a mark on the entry was set on nothing, and a forced exit
+ * counted the app it caught mid-flight as `ok` (issue #1211).
  *
  * @param {object} report - The report.
  * @param {string} appId - The app now being processed.
@@ -577,11 +581,7 @@ const markAppInterrupted = (report, appId) => {
  * @returns {void}
  */
 const markAppInFlight = (report, appId) => {
-    const entry = report.apps.find((app) => app.id === appId);
-
-    if (entry) {
-        entry.inFlight = true;
-    }
+    report.inFlightAppId = appId;
 };
 
 /**
@@ -593,10 +593,8 @@ const markAppInFlight = (report, appId) => {
  * @returns {void}
  */
 const clearAppInFlight = (report, appId) => {
-    const entry = report.apps.find((app) => app.id === appId);
-
-    if (entry) {
-        entry.inFlight = false;
+    if (report.inFlightAppId === appId) {
+        report.inFlightAppId = null;
     }
 };
 
@@ -680,7 +678,6 @@ export const addAppToReport = (report, { id, name, sheetCount }) => {
         mediaFilesToDelete: null,
         failed: false,
         interrupted: false,
-        inFlight: false,
     };
     report.apps.push(entry);
 
@@ -1022,18 +1019,23 @@ const stampInterruptOutcome = (report, totalApps) => {
         return;
     }
 
-    // Read from the flag the loop sets and clears around each app, not
+    // Read from the mark the loop sets and clears around each app, not
     // inferred. This used to test `typeof app.durationMs !== 'number'`, which
     // was wrong for dry runs - only the real-run worker stamps a duration, so
     // every fully-planned app looked like it was still in flight and an
     // interrupted dry run reported `0 ok, N interrupted`. It was fragile for
     // real runs too: the day anyone stamps `durationMs` at app *start* for a
     // live elapsed timer, every abandoned app would silently become `ok`.
-    // The loop knows which app it is in; asking it is one line and cannot rot.
-    for (const app of report.apps) {
-        if (app.inFlight && !app.failed) {
-            app.interrupted = true;
-        }
+    //
+    // Through `markAppInterrupted`, so an app the processor has not recorded
+    // yet still gets an entry - the one the normal unwind would create for it.
+    // Left to `appsNotStarted` instead, it was reported as never touched,
+    // when on Qlik Cloud its old thumbnails may already be deleted by then and
+    // under --change-app-owner its owner changed (issue #1211).
+    const inFlightAppId = report.inFlightAppId;
+    const inFlightEntry = report.apps.find((app) => app.id === inFlightAppId);
+    if (inFlightAppId && !inFlightEntry?.failed) {
+        markAppInterrupted(report, inFlightAppId);
     }
 
     report.interrupted = { signal: interruptSignal() };
@@ -1301,12 +1303,13 @@ export const runOverAppsWithReport = async ({
                           }
                           throw err;
                       } finally {
+                          clearAppInFlight(report, appId);
+
                           // Both paths above guarantee the entry exists by now.
                           // Stamped by the loop, not the processors: one clock
                           // for both platform twins.
                           const entry = report.apps.find((app) => app.id === appId);
                           if (entry) {
-                              entry.inFlight = false;
                               entry.durationMs = Date.now() - appStartedAt;
                               if (board) {
                                   // Appended as each app finishes. With a live
