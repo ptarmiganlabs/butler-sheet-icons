@@ -111,3 +111,16 @@ jobs:
         if: matrix.os == 'windows-latest'
         shell: powershell
         run: ./scripts/diag/win-strip-check.ps1
+
+      # The --version match that scripts/release-win.ps1 applies to every binary it builds lives in
+      # the same library, and otherwise runs only once a release is being built. Under both shells,
+      # for the reason on the step above.
+      - name: Check the release smoke test's version match
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: ./scripts/diag/win-version-check.ps1
+
+      - name: Check the release smoke test's version match under Windows PowerShell 5.1
+        if: matrix.os == 'windows-latest'
+        shell: powershell
+        run: ./scripts/diag/win-version-check.ps1
