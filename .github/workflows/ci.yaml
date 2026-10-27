@@ -611,7 +611,6 @@ jobs:
       release_upload_url: ${{ steps.release.outputs['upload_url'] }}
     env:
       GITHUB_REF: ${{ github.ref }}
-      GITHUB_TOKEN: ${{ secrets.PAT }}
       DIST_FILE_NAME: butler-sheet-icons
     steps:
       - name: Show github.ref
@@ -1135,7 +1134,6 @@ jobs:
       contents: write
     env:
       DIST_FILE_NAME: butler-sheet-icons
-      GITHUB_TOKEN: ${{ secrets.PAT }}
     steps:
       - name: Release tag and upload url from previous job
         run: |
