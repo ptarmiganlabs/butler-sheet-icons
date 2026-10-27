@@ -344,6 +344,27 @@ export const renderRunPlanLines = (report) => {
     if (plan.auth) {
         lines.push(...renderAuth(plan.auth));
     }
+
+    const appOwner = describeAppOwnerPlan(report);
+    if (appOwner) {
+        const who = appOwner.target ?? 'the browser login user (known once a real run signs in)';
+        lines.push(
+            row(
+                'app owner',
+                `${appOwner.would ? 'would be ' : ''}temporarily ${who} for each app, restored after (${appOwner.waitSeconds}s wait)`
+            )
+        );
+
+        if (appOwner.givesObjectsBack) {
+            lines.push(
+                row(
+                    '',
+                    `${appOwner.target ?? 'that user'}'s own objects in an app ${appOwner.would ? 'would be' : 'are'} given back after`
+                )
+            );
+        }
+    }
+
     if (selection) {
         lines.push(row('apps', `${selection.total}   ${selectionParts(selection).join(', ')}`));
     }
@@ -557,8 +578,10 @@ export const verdictCounts = (report) => {
  * @param {object} report - The report.
  *
  * @returns {{okApps: number, failedApps: number, emptySelection: boolean,
+ *     stopped: boolean, stopReason: string|null, appOwners: object|null,
  *     sheetsUpdated: number|null, imagesKeptFiles: number|null,
  *     imagesKeptBytes: number|null, mediaFilesDeleted: number|null}} The facts.
+ *     `appOwners` comes from {@link appOwnerFacts}.
  */
 export const verdictFacts = (report) => {
     const failedApps = report.apps.filter((app) => app.failed).length;
@@ -573,7 +596,14 @@ export const verdictFacts = (report) => {
         failedApps,
         interruptedApps,
         interrupted: Boolean(report.interrupted),
+        // A run stopped on purpose - a failed owner restore, issue #1209 - not by a signal.
+        stopped: Boolean(report.stopped),
+        stopReason: report.stopped
+            ? (report.stopped.reason ??
+              'an app owner could not be restored, so no further app was started')
+            : null,
         notStartedApps: report.appsNotStarted ?? 0,
+        appOwners: appOwnerFacts(report),
         emptySelection: (report.selection?.total ?? 0) === 0 && report.apps.length === 0,
         sheetsUpdated: sumAppField(report, 'sheetsUpdated'),
         imagesKeptFiles: sumAppField(report, 'imagesKeptFiles'),
@@ -621,6 +651,199 @@ export const appCountSummary = (facts) => {
 };
 
 /**
+ * The plan's owner-change facts, shared by the plain plan block and the board (issue #1209).
+ *
+ * @param {object} report - The report.
+ *
+ * @returns {{target: string|null, would: boolean, waitSeconds: number,
+ *     givesObjectsBack: boolean}|null} Who becomes each app's owner - null when only a real
+ *     run's sign-in can tell - or null when `--change-app-owner` is off.
+ */
+export const describeAppOwnerPlan = (report) => {
+    const appOwner = report.plan?.appOwner;
+
+    if (!appOwner) {
+        return null;
+    }
+
+    return {
+        target: appOwner.target ?? null,
+        would: Boolean(report.dryRun),
+        waitSeconds: appOwner.waitSeconds,
+        givesObjectsBack: Boolean(appOwner.givesObjectsBack),
+    };
+};
+
+/** Owner states in which an app may still have the temporary owner. */
+const OWNER_NOT_RESTORED = new Set(['changing', 'changed', 'restore-failed']);
+
+/** Owner states in which the app is back with its owner. */
+const OWNER_RESTORED = new Set(['restored', 'giving-back', 'give-back-failed']);
+
+/** Owner states in which the temporary owner may still be missing some of its own objects. */
+const OWNER_NOT_RETURNED = new Set(['giving-back', 'give-back-failed']);
+
+/**
+ * App objects as the log, the dry run and the verdict name them (issue #1209).
+ *
+ * @param {Array<{id: string, name: string, objectType: string}>} objects - The objects.
+ * @param {object} [how] - How to list them.
+ * @param {boolean} [how.ids] - Add each object's id, which the QMC can search for.
+ * @param {number} [how.max] - Name at most this many, and count the rest.
+ *
+ * @returns {string} e.g. `sheet "Joe's notes", bookmark "Q3" and 2 more`. Load script, data model
+ *     and similar objects have no name, and are listed by type alone.
+ */
+export const describeObjects = (objects, { ids = false, max = Infinity } = {}) => {
+    const named = objects
+        .slice(0, max)
+        .map(
+            ({ id, name, objectType }) =>
+                `${objectType}${name ? ` "${name}"` : ''}${ids ? ` (${id})` : ''}`
+        );
+    const more = objects.length - named.length;
+
+    return more > 0 ? `${named.join(', ')} and ${more} more` : named.join(', ');
+};
+
+/**
+ * What `--change-app-owner` did, for both verdicts (issue #1209).
+ *
+ * `notRestored` and `notReturned` are the parts that matter: every app that may still have the
+ * temporary owner, and every app where objects the temporary owner had before the run may still
+ * be with the app's owner - because the restore or the give-back failed, or because the verdict
+ * is being rendered by a second signal or the shutdown watchdog halfway through either.
+ *
+ * @param {object} report - The report.
+ *
+ * @returns {{restored: number, unchanged: number, kept: number, changeFailed: number,
+ *     changedElsewhere: number, notRestored: object[], objectsGivenBack: number,
+ *     objectOwner: string|null, notReturned: object[]}|null} The facts, or null when no owner
+ *     was looked at.
+ */
+export const appOwnerFacts = (report) => {
+    const owners = report.appOwners ?? [];
+
+    if (owners.length === 0) {
+        return null;
+    }
+
+    const count = (state) => owners.filter((owner) => owner.state === state).length;
+
+    return {
+        restored: owners.filter((owner) => OWNER_RESTORED.has(owner.state)).length,
+        unchanged: count('unchanged'),
+        kept: count('kept'),
+        changeFailed: count('change-failed'),
+        changedElsewhere: count('changed-elsewhere'),
+        notRestored: owners.filter((owner) => OWNER_NOT_RESTORED.has(owner.state)),
+        objectsGivenBack: owners.reduce((sum, owner) => sum + (owner.givenBack ?? 0), 0),
+        objectOwner: owners.find((owner) => owner.to)?.to ?? null,
+        notReturned: owners.filter(
+            (owner) => OWNER_NOT_RETURNED.has(owner.state) && owner.notGivenBack?.length > 0
+        ),
+    };
+};
+
+/**
+ * The verdict's owner summary, as one string.
+ *
+ * @param {object} facts - From {@link appOwnerFacts}.
+ *
+ * @returns {string} e.g. `3 changed and restored, 2 object(s) given back to ACME\joe, 1 kept`.
+ */
+export const appOwnerSummary = (facts) => {
+    const parts = [`${facts.restored} changed and restored`];
+
+    if (facts.objectsGivenBack > 0) {
+        parts.push(`${facts.objectsGivenBack} object(s) given back to ${facts.objectOwner}`);
+    }
+    if (facts.unchanged > 0) {
+        parts.push(`${facts.unchanged} already owned`);
+    }
+    if (facts.kept > 0) {
+        parts.push(`${facts.kept} kept`);
+    }
+    if (facts.changeFailed > 0) {
+        parts.push(`${facts.changeFailed} could not be changed`);
+    }
+    if (facts.changedElsewhere > 0) {
+        parts.push(`${facts.changedElsewhere} changed by someone else meanwhile`);
+    }
+    if (facts.notRestored.length > 0) {
+        parts.push(`${facts.notRestored.length} NOT RESTORED`);
+    }
+    if (facts.notReturned.length > 0) {
+        const objects = facts.notReturned.reduce(
+            (sum, owner) => sum + owner.notGivenBack.length,
+            0
+        );
+        parts.push(`${objects} object(s) NOT RETURNED`);
+    }
+
+    return parts.join(', ');
+};
+
+/**
+ * One app that may still have the temporary owner, as the verdict names it.
+ *
+ * Giving such an app back by hand moves the temporary owner's own objects in it to the original
+ * owner as well, so the line says when there are any; the log lists them.
+ *
+ * @param {object} owner - An entry from `report.appOwners`.
+ *
+ * @returns {string} e.g. `app 2d3f… "Sales" may still be owned by ACME\joe - its owner was ACME\anna`.
+ */
+export const notRestoredOwnerLine = (owner) => {
+    const line = `app ${owner.appId}${owner.appName ? ` "${owner.appName}"` : ''} may still be owned by ${owner.to} - its owner was ${owner.from}`;
+    const own = owner.ownObjects?.length ?? 0;
+
+    return own > 0
+        ? `${line}. Giving it back also hands ${owner.to}'s own ${own} object(s) in it to ${owner.from}; give those back afterwards (listed in the log)`
+        : line;
+};
+
+/**
+ * One app where objects the temporary owner had before the run may still be with the app's
+ * owner, as the verdict names it.
+ *
+ * @param {object} owner - An entry from `report.appOwners`, with `notGivenBack`.
+ *
+ * @returns {string} e.g. `app 2d3f… "Sales": 1 object(s) ACME\joe owned before the run may now be
+ *     owned by the app's owner - sheet "Joe's notes"`.
+ */
+export const notReturnedLine = (owner) =>
+    `app ${owner.appId}${owner.appName ? ` "${owner.appName}"` : ''}: ${owner.notGivenBack.length} object(s) ${owner.to} owned before the run may now be owned by the app's owner - ${describeObjects(owner.notGivenBack, { max: 5 })}`;
+
+/**
+ * What a real run would do with one app's owner, as the dry-run report says it.
+ *
+ * @param {object} owner - An entry from `report.appOwners`, recorded by the planner.
+ *
+ * @returns {string|null} The line, or null for a state a dry run does not record.
+ */
+export const dryRunOwnerLine = (owner) => {
+    if (owner.state === 'unchanged') {
+        return `Owner: already ${owner.to}, so it would be left as it is`;
+    }
+
+    if (owner.state === 'kept') {
+        return `Owner: ${owner.from} would be kept - ${owner.reason}`;
+    }
+
+    if (owner.state === 'planned') {
+        const line = `Owner: ${owner.from} would be changed to ${owner.to ?? 'the browser login user'} while the app is processed, then restored`;
+        const own = owner.ownObjects ?? [];
+
+        return own.length > 0
+            ? `${line}. ${owner.to} already owns ${own.length} object(s) in the app, which the change back would move to ${owner.from}; they would be given back to ${owner.to} after: ${describeObjects(own, { max: 10 })}`
+            : line;
+    }
+
+    return null;
+};
+
+/**
  * The verdict block: what actually changed, and whether the run worked.
  *
  * This is the part that does not exist at all today - a run in which 66
@@ -651,6 +874,10 @@ export const renderRunVerdictLines = (report) => {
     }
 
     lines.push(row('apps', appCountSummary(facts)));
+
+    if (facts.stopped) {
+        lines.push(row('stopped', facts.stopReason));
+    }
 
     const { seen, captured, blurred, excluded, cleared, noIcon } = verdictCounts(report);
 
@@ -694,6 +921,21 @@ export const renderRunVerdictLines = (report) => {
                     `${report.plan.output.imageDir}/${report.plan.output.platformDir}   ${facts.imagesKeptFiles} file(s), ${formatBytes(facts.imagesKeptBytes ?? 0)}`
                 )
             );
+        }
+    }
+
+    // Every app that may still have the temporary owner, or whose temporary owner may still be
+    // missing objects, gets a line of its own: the summary count alone would leave the operator
+    // to find which apps in the log.
+    if (facts.appOwners) {
+        lines.push(row('app owner', appOwnerSummary(facts.appOwners)));
+
+        for (const owner of facts.appOwners.notRestored) {
+            lines.push(row('NOT RESTORED', notRestoredOwnerLine(owner)));
+        }
+
+        for (const owner of facts.appOwners.notReturned) {
+            lines.push(row('NOT RETURNED', notReturnedLine(owner)));
         }
     }
 

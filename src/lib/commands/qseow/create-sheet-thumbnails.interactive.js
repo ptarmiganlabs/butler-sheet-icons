@@ -13,6 +13,7 @@ import {
     inSections,
     openingOn,
     askedUnlessSkipLogin,
+    askedOnlyWithChangeAppOwner,
     isSupplied,
     appSourceQuestion,
     appPickerQuestion,
@@ -73,6 +74,8 @@ const ADVANCED_KEYS = [
     'pagewait',
     'imagedir',
     'captureOverviewAfter',
+    'changeAppOwner',
+    'changeAppOwnerWait',
     'senseVersion',
     'browser',
     'browserVersion',
@@ -281,7 +284,9 @@ export default {
             // rewritten to remove, re-armed by nothing more than moving a key
             // into PER_RUN_KEYS.
             .map(gatedBy(ADVANCED, ADVANCED_KEYS, answers))
-            .map(gatedBy(FILTERING, SHEET_FILTER_KEYS, answers));
+            .map(gatedBy(FILTERING, SHEET_FILTER_KEYS, answers))
+            // After the gates, never before: gatedBy replaces a question's `when`.
+            .map(askedOnlyWithChangeAppOwner);
 
         // markPerRun last, over everything: PER_RUN_KEYS in spec-ops.js is the
         // one statement of which options describe this run rather than this

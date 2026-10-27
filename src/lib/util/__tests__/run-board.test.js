@@ -746,3 +746,111 @@ describe('the board on an interrupted run (issue #1107)', () => {
         expect(cells.filter((cell) => cell.kind === 'failed')).toHaveLength(0);
     });
 });
+
+describe('--change-app-owner on the board (issue #1209)', () => {
+    /**
+     * A finished create run whose owners were changed.
+     *
+     * @param {object[]} owners - The report's `appOwners` entries.
+     *
+     * @returns {object} The report.
+     */
+    const ownerReport = (owners) => {
+        const report = makeReport();
+        report.plan.appOwner = { target: 'ACME\\joe', waitSeconds: 3 };
+        report.apps = [{ id: 'app-1', name: 'Sales', sheetCount: 0, sheets: [], failed: false }];
+        report.startedAt = 0;
+        report.finishedAt = 9000;
+        report.succeeded = true;
+        report.appOwners = owners;
+
+        return report;
+    };
+
+    const RESTORED = {
+        appId: 'app-1',
+        appName: 'Sales',
+        from: 'ACME\\anna',
+        to: 'ACME\\joe',
+        state: 'restored',
+    };
+
+    test('the plan names the temporary owner, as the plain plan block does', () => {
+        const plan = stripAnsi(renderBoardPlan(ownerReport([]), uniCtx()));
+
+        expect(plan).toContain('app owner');
+        expect(plan).toContain('ACME\\joe');
+        expect(plan).toContain('temporary, restored after each app');
+        expect(plan).toContain('3s wait');
+    });
+
+    test('a dry run says would', () => {
+        const report = ownerReport([]);
+        report.dryRun = true;
+
+        expect(stripAnsi(renderBoardPlan(report, uniCtx()))).toContain('would be temporary');
+    });
+
+    test('the verdict counts what was done with the owners', () => {
+        const verdict = stripAnsi(renderBoardVerdict(ownerReport([RESTORED]), uniCtx()));
+
+        expect(verdict).toContain('app owner');
+        expect(verdict).toContain('1 changed and restored');
+        expect(verdict).not.toContain('NOT RESTORED');
+    });
+
+    test('an app that may still have the temporary owner gets a red line of its own', () => {
+        const report = ownerReport([{ ...RESTORED, state: 'restore-failed' }]);
+        report.stopped = { appId: 'app-1' };
+        report.succeeded = false;
+
+        const coloured = renderBoardVerdict(report, uniCtx(true));
+        const verdict = stripAnsi(coloured);
+
+        expect(verdict).toContain(
+            'NOT RESTORED: app app-1 "Sales" may still be owned by ACME\\joe - its owner was ACME\\anna'
+        );
+        expect(verdict).toContain('stopped: an app owner could not be restored');
+        expect(coloured).toMatch(ANSI);
+    });
+
+    test('renders in ASCII mode too', () => {
+        const report = ownerReport([{ ...RESTORED, state: 'restore-failed' }]);
+
+        expect(stripAnsi(renderBoardVerdict(report, asciiCtx()))).toContain('NOT RESTORED');
+        expect(stripAnsi(renderBoardPlan(report, asciiCtx()))).toContain('app owner');
+    });
+
+    test('the plan says the own objects are given back, where an owner change moves them', () => {
+        const report = ownerReport([]);
+        report.plan.appOwner.givesObjectsBack = true;
+
+        expect(stripAnsi(renderBoardPlan(report, uniCtx()))).toContain('own objects given back');
+        expect(stripAnsi(renderBoardPlan(ownerReport([]), uniCtx()))).not.toContain('own objects');
+    });
+
+    test('objects that may not have been returned get a red line of their own', () => {
+        const report = ownerReport([
+            {
+                ...RESTORED,
+                state: 'give-back-failed',
+                notGivenBack: [{ id: 'o-1', name: "Joe's notes", objectType: 'sheet' }],
+            },
+        ]);
+        report.stopped = {
+            appId: 'app-1',
+            reason: 'objects in an app could not be given back to their owner, so no further app was started',
+        };
+        report.succeeded = false;
+
+        const coloured = renderBoardVerdict(report, uniCtx(true));
+        const verdict = stripAnsi(coloured);
+
+        expect(verdict).toContain(
+            `NOT RETURNED: app app-1 "Sales": 1 object(s) ACME\\joe owned before the run may now be owned by the app's owner - sheet "Joe's notes"`
+        );
+        expect(verdict).toContain('stopped: objects in an app could not be given back');
+        expect(verdict).toContain('1 object(s) NOT RETURNED');
+        expect(coloured).toMatch(ANSI);
+    });
+});

@@ -13,6 +13,10 @@ import {
     isOptionEnabled,
     formatElapsed,
     formatBytes,
+    describeAppOwnerPlan,
+    appOwnerSummary,
+    notRestoredOwnerLine,
+    notReturnedLine,
 } from './run-report-render.js';
 
 /**
@@ -415,6 +419,18 @@ export const renderBoardPlan = (report, ctx) => {
             }
             rows.push(planRow(ctx, { label: 'auth', value: 'API key', detail }));
         }
+    }
+
+    // The same facts as the plain plan block's line (issue #1209).
+    const appOwner = describeAppOwnerPlan(report);
+    if (appOwner) {
+        rows.push(
+            planRow(ctx, {
+                label: 'app owner',
+                value: appOwner.target ?? 'browser login user',
+                detail: `${appOwner.would ? 'would be ' : ''}temporary, restored after each app${appOwner.givesObjectsBack ? `${sep}own objects given back` : ''}${sep}${appOwner.waitSeconds}s wait`,
+            })
+        );
     }
 
     if (selection) {
@@ -832,6 +848,26 @@ export const renderBoardVerdict = (report, ctx) => {
         lines.push(
             `    ${palette.dim(`${facts.mediaFilesDeleted} thumbnail media file(s) deleted from app media libraries`)}`
         );
+    }
+
+    if (facts.stopped) {
+        lines.push(`    ${palette.red(`stopped: ${facts.stopReason}`)}`);
+    }
+
+    // Each app that may still have the temporary owner, or whose temporary owner may still be
+    // missing objects, gets a red line of its own, as in the plain verdict (issue #1209).
+    if (facts.appOwners) {
+        lines.push(
+            `    ${palette.dim(`app owner${dotSep(ctx)}${appOwnerSummary(facts.appOwners)}`)}`
+        );
+
+        for (const owner of facts.appOwners.notRestored) {
+            lines.push(`    ${palette.red(`NOT RESTORED: ${notRestoredOwnerLine(owner)}`)}`);
+        }
+
+        for (const owner of facts.appOwners.notReturned) {
+            lines.push(`    ${palette.red(`NOT RETURNED: ${notReturnedLine(owner)}`)}`);
+        }
     }
 
     lines.push('');

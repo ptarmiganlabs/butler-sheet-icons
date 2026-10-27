@@ -125,6 +125,35 @@ export const askedUnlessSkipLogin = (spec, logonKeys) =>
         : spec;
 
 /**
+ * Ask how long to wait after an owner change only when the owner will be changed (issue #1209).
+ *
+ * The wait means nothing without `--change-app-owner`, so it is not asked about then - not even
+ * when a value for it was supplied, which would only be shown to be ignored.
+ *
+ * Combined with the `when` already on the question rather than replacing it, so it must run
+ * after {@link gatedBy}: that one replaces any `when` it finds, and applied the other way round
+ * it would drop this condition without a trace.
+ *
+ * Only the QSEoW wizard asks either question: Qlik Cloud has no `--change-app-owner`.
+ *
+ * @param {object} spec - A question.
+ *
+ * @returns {object} The question, made conditional when it is the owner-change wait.
+ */
+export const askedOnlyWithChangeAppOwner = (spec) => {
+    if (spec.key !== 'changeAppOwnerWait') {
+        return spec;
+    }
+
+    const gateWhen = spec.when;
+
+    return {
+        ...spec,
+        when: (ctx) => ctx.answers.changeAppOwner === true && (gateWhen ? gateWhen(ctx) : true),
+    };
+};
+
+/**
  * Refuse to go on when the run would have no apps to process.
  *
  * `runOverApps` already treats an empty selection as a failure rather than a

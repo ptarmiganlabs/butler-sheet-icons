@@ -125,6 +125,18 @@ export const runOverApps = async (
 
             failed += 1;
             logger.error(`${logPrefix}: Failed to process app ${appId}: ${err?.message ?? err}`);
+
+            // The one exception to "one bad app does not stop the rest": a failure that makes
+            // going on unsafe. Today that is only a failed owner restore under
+            // --change-app-owner (issue #1209) - whatever broke it would most likely break the
+            // next app's restore too, leaving another app with the wrong owner.
+            if (err?.stopsRun) {
+                const notStarted = uniqueAppIds.length - appNumber;
+                logger.error(
+                    `Stopping the run: ${err.stopReason ?? 'an app failed in a way that makes going on unsafe'}. ${notStarted} of ${uniqueAppIds.length} app(s) were not started.`
+                );
+                break;
+            }
         }
     }
 

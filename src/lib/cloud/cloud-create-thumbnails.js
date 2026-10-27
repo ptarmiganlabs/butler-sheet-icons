@@ -193,6 +193,9 @@ export const qscloudCreateThumbnails = async (options) => {
             },
             logPrefix: { plan: 'CLOUD PLAN APP', process: 'CLOUD PROCESS APP' },
             emptySelectionHint: 'Check the --appid and --collectionid options.',
+            // Deliberately not wrapped in withAppOwnerChange, unlike the QSEoW twin: Qlik Cloud has
+            // no --change-app-owner. Owning a shared-space app did not give the API key's user
+            // `update` on its public sheets, so the owner change did not help (issue #1209).
             planApp: (appId, report) => cloudPlanApp(appId, saasInstance, options, report),
             processApp: (appId, report) => processCloudApp(appId, saasInstance, options, report),
         });

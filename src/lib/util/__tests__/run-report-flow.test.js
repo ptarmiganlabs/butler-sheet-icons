@@ -30,6 +30,8 @@ const { getLoggingLevel, setLoggingLevel } = await import('../../../globals.js')
 const { emitRunVerdictOnce } = await import('../run-report.js');
 const { markInterrupted, resetInterruptState, hasInterruptibleWork } =
     await import('../interrupt.js');
+const { withTemporaryAppOwner, planTemporaryAppOwner } = await import('../temporary-app-owner.js');
+const { QseowError } = await import('../errors.js');
 
 /**
  * A minimal but complete run argument bag.
@@ -308,5 +310,248 @@ describe('runOverAppsWithReport - an interrupted run (issue #1107)', () => {
 
         expect(logged()).toContain('RESULT  ok');
         expect(logged()).not.toContain('not started');
+    });
+});
+
+describe('runOverAppsWithReport - --change-app-owner (issue #1209)', () => {
+    const ANNA = { id: 'u-anna', label: 'ACME\\anna' };
+    const JOE = { id: 'u-joe', label: 'ACME\\joe' };
+
+    /**
+     * A platform half whose restores always fail, keeping each app's owner in memory.
+     *
+     * @param {object} [behaviour] - How it behaves.
+     * @param {boolean} [behaviour.restoreFails] - Whether giving an app back fails.
+     *
+     * @returns {object} The fake.
+     */
+    const fakeOwners = ({ restoreFails = false } = {}) => {
+        const owners = new Map();
+
+        return {
+            inspect: async (appId) => ({
+                appName: `App ${appId}`,
+                owner: owners.get(appId) ?? ANNA,
+                keepReason: null,
+            }),
+            currentOwnerId: async (appId) => (owners.get(appId) ?? ANNA).id,
+            change: async (appId, owner) => {
+                if (restoreFails && owner === ANNA) {
+                    throw new Error('Received error code: 500::boom');
+                }
+                owners.set(appId, owner);
+            },
+            manualFix: (appId, owner) => `give ${appId} back to ${owner.label}`,
+        };
+    };
+
+    /**
+     * A platform half whose owner change moves objects, as QRS does, with one sheet of Joe's in
+     * every app.
+     *
+     * @param {object} [behaviour] - How it behaves.
+     * @param {boolean} [behaviour.giveBackFails] - Whether giving an object back fails.
+     *
+     * @returns {object} The fake.
+     */
+    const fakeObjectOwners = ({ giveBackFails = false } = {}) => {
+        const base = fakeOwners();
+        const sheetOwners = new Map();
+        const sheetOwner = (appId) => sheetOwners.get(appId) ?? JOE;
+
+        return {
+            ...base,
+            change: async (appId, owner) => {
+                if (sheetOwner(appId) === (await base.inspect(appId)).owner) {
+                    sheetOwners.set(appId, owner);
+                }
+                await base.change(appId, owner);
+            },
+            objectsOwnedBy: async (appId, ownerId) =>
+                sheetOwner(appId).id === ownerId
+                    ? [{ id: `${appId}-sheet`, name: "Joe's notes", objectType: 'sheet' }]
+                    : [],
+            changeObjectOwner: async (objectId, owner) => {
+                if (giveBackFails) {
+                    throw new Error('Received error code: 500::boom');
+                }
+                sheetOwners.set(objectId.replace(/-sheet$/, ''), owner);
+            },
+            manualObjectFix: (objectList, owner) => `give ${objectList} back to ${owner.label}`,
+        };
+    };
+
+    const waits = { settle: async () => {}, pause: async () => {} };
+
+    /**
+     * The processApp a worker builds with the option on.
+     *
+     * @param {object} owners - The platform half.
+     *
+     * @returns {Function} processApp.
+     */
+    const processWithOwner = (owners) =>
+        jest.fn((appId, report) =>
+            withTemporaryAppOwner(
+                {
+                    appId,
+                    owners,
+                    target: JOE,
+                    waitSeconds: 0,
+                    report,
+                    logPrefix: 'TEST OWNER',
+                    ErrorClass: QseowError,
+                },
+                async () => timeline.push(`PROCESS ${appId}`),
+                waits
+            )
+        );
+
+    test('a failed restore stops the run, and the verdict says what was left undone', async () => {
+        const processApp = processWithOwner(fakeOwners({ restoreFails: true }));
+
+        const result = await runOverAppsWithReport(
+            runArgs({
+                appIds: ['app-1', 'app-2', 'app-3'],
+                namedAppIds: ['app-1', 'app-2', 'app-3'],
+                processApp,
+            })
+        );
+
+        expect(result).toBe(false);
+        expect(processApp).toHaveBeenCalledTimes(1);
+
+        const log = timeline.join('\n');
+        expect(log).toContain('RESULT  FAILED');
+        expect(log).toContain('apps          0 ok, 1 failed, 2 not started');
+        expect(log).toContain('stopped       an app owner could not be restored');
+        expect(log).toContain(
+            'NOT RESTORED  app app-1 "App app-1" may still be owned by ACME\\joe - its owner was ACME\\anna'
+        );
+    });
+
+    test('a failed give-back of objects stops the run, and the verdict names them', async () => {
+        const processApp = processWithOwner(fakeObjectOwners({ giveBackFails: true }));
+
+        const result = await runOverAppsWithReport(
+            runArgs({
+                appIds: ['app-1', 'app-2'],
+                namedAppIds: ['app-1', 'app-2'],
+                processApp,
+            })
+        );
+
+        expect(result).toBe(false);
+        expect(processApp).toHaveBeenCalledTimes(1);
+
+        const log = timeline.join('\n');
+        expect(log).toContain('apps          0 ok, 1 failed, 1 not started');
+        expect(log).toContain(
+            'stopped       objects in an app could not be given back to their owner'
+        );
+        expect(log).toContain(
+            `NOT RETURNED  app app-1 "App app-1": 1 object(s) ACME\\joe owned before the run may now be owned by the app's owner - sheet "Joe's notes"`
+        );
+    });
+
+    test('a run that gave objects back counts them in the verdict', async () => {
+        const result = await runOverAppsWithReport(
+            runArgs({ processApp: processWithOwner(fakeObjectOwners()) })
+        );
+
+        expect(result).toBe(true);
+        expect(timeline.join('\n')).toContain(
+            'app owner     2 changed and restored, 2 object(s) given back to ACME\\joe'
+        );
+    });
+
+    test('a dry run names the objects a real run would give back', async () => {
+        const owners = fakeObjectOwners();
+        const planApp = jest.fn((appId, report) =>
+            planTemporaryAppOwner(
+                { appId, owners, target: JOE, report, ErrorClass: QseowError },
+                async () => {
+                    report.apps.push({
+                        id: appId,
+                        name: `App ${appId}`,
+                        sheetCount: null,
+                        sheets: [],
+                    });
+                }
+            )
+        );
+
+        await runOverAppsWithReport(runArgs({ dryRun: true, planApp }));
+
+        expect(timeline.join('\n')).toContain(
+            `ACME\\joe already owns 1 object(s) in the app, which the change back would move to ACME\\anna; they would be given back to ACME\\joe after: sheet "Joe's notes"`
+        );
+    });
+
+    test('a run whose owners all came back says so and stays ok', async () => {
+        const result = await runOverAppsWithReport(
+            runArgs({ processApp: processWithOwner(fakeOwners()) })
+        );
+
+        expect(result).toBe(true);
+
+        const log = timeline.join('\n');
+        expect(log).toContain('RESULT  ok');
+        expect(log).toContain('app owner     2 changed and restored');
+    });
+
+    test('a dry run shows each app owner and what would happen to it', async () => {
+        const owners = fakeOwners();
+        const planApp = jest.fn((appId, report) =>
+            planTemporaryAppOwner(
+                { appId, owners, target: JOE, report, ErrorClass: QseowError },
+                async () => {
+                    report.apps.push({
+                        id: appId,
+                        name: `App ${appId}`,
+                        sheetCount: null,
+                        sheets: [],
+                    });
+                }
+            )
+        );
+
+        await runOverAppsWithReport(runArgs({ dryRun: true, planApp }));
+
+        expect(timeline.join('\n')).toContain(
+            'Owner: ACME\\anna would be changed to ACME\\joe while the app is processed, then restored'
+        );
+    });
+
+    test('a second Ctrl-C mid-app still names the app left with the temporary owner', async () => {
+        const owners = fakeOwners();
+        const processApp = jest.fn((appId, report) =>
+            withTemporaryAppOwner(
+                {
+                    appId,
+                    owners,
+                    target: JOE,
+                    waitSeconds: 0,
+                    report,
+                    logPrefix: 'TEST OWNER',
+                    ErrorClass: QseowError,
+                },
+                async () => {
+                    // The process is about to be force-exited: the signal path renders the
+                    // verdict while the app is still between its change and its restore.
+                    markInterrupted('SIGINT');
+                    emitRunVerdictOnce();
+                },
+                waits
+            )
+        );
+
+        await runOverAppsWithReport(
+            runArgs({ appIds: ['app-1'], namedAppIds: ['app-1'], processApp })
+        );
+
+        expect(timeline.join('\n')).toContain(
+            'NOT RESTORED  app app-1 "App app-1" may still be owned by ACME\\joe - its owner was ACME\\anna'
+        );
     });
 });

@@ -118,6 +118,15 @@ describe('setupQseowQrsConnection', () => {
         expect(config.headers['Content-Type']).toBe('png');
     });
 
+    test('sends JSON when asked to, for a write with a body (issue #1209)', () => {
+        // qrs-interact's Put sends whatever is configured here, so a JSON body sent as png
+        // would reach QRS mislabelled.
+        const config = setupQseowQrsConnection(BASE_OPTIONS, { contentType: 'application/json' });
+
+        expect(config.headers['Content-Type']).toBe('application/json');
+        expect(config.headers['X-Qlik-User']).toBe('UserDirectory=INTERNAL;UserId=sa_api');
+    });
+
     test('returns only the keys qrs-interact consumes', () => {
         const config = setupQseowQrsConnection(BASE_OPTIONS);
 

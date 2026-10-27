@@ -12,6 +12,8 @@ import {
     isOptionEnabled,
     verdictFacts,
     appCountSummary,
+    dryRunOwnerLine,
+    describeObjects,
 } from '../run-report-render.js';
 import {
     createRunReport,
@@ -636,5 +638,251 @@ describe('the verdict of an interrupted run (issue #1107)', () => {
         expect(facts.interruptedApps).toBe(0);
         expect(facts.notStartedApps).toBe(0);
         expect(renderRunVerdictLines(report).join('\n')).toContain('RESULT  ok');
+    });
+});
+
+describe('--change-app-owner in the plan and the verdict (issue #1209)', () => {
+    /**
+     * A finished create run that changed app owners.
+     *
+     * @param {object[]} owners - The report's `appOwners` entries.
+     *
+     * @returns {object} The report.
+     */
+    const ownerReport = (owners) => {
+        const report = qseowReport();
+        report.plan.appOwner = { target: 'ACME\\joe', waitSeconds: 3 };
+        report.startedAt = 1_000_000;
+        report.finishedAt = 1_000_000 + 65_000;
+        report.succeeded = true;
+        addAppToReport(report, { id: 'app-1', name: 'Sales', sheetCount: 1 });
+        report.appOwners = owners;
+
+        return report;
+    };
+
+    const RESTORED = {
+        appId: 'app-1',
+        appName: 'Sales',
+        from: 'ACME\\anna',
+        to: 'ACME\\joe',
+        state: 'restored',
+    };
+
+    test('the plan names the temporary owner and the wait', () => {
+        expect(renderRunPlanLines(ownerReport([]))).toContain(
+            '  app owner     temporarily ACME\\joe for each app, restored after (3s wait)'
+        );
+    });
+
+    test('a dry run says would, and names the browser login user when it cannot be known yet', () => {
+        const report = ownerReport([]);
+        report.dryRun = true;
+        report.plan.appOwner.target = null;
+
+        expect(renderRunPlanLines(report)).toContain(
+            '  app owner     would be temporarily the browser login user (known once a real run signs in) for each app, restored after (3s wait)'
+        );
+    });
+
+    test('no owner line without the option', () => {
+        expect(renderRunPlanLines(qseowReport()).some((line) => line.includes('app owner'))).toBe(
+            false
+        );
+    });
+
+    test('the verdict counts what was done with the owners', () => {
+        const lines = renderRunVerdictLines(
+            ownerReport([
+                RESTORED,
+                { ...RESTORED, appId: 'app-2', state: 'unchanged' },
+                { ...RESTORED, appId: 'app-3', state: 'kept' },
+            ])
+        );
+
+        expect(lines).toContain('  app owner     1 changed and restored, 1 already owned, 1 kept');
+        expect(lines.some((line) => line.includes('NOT RESTORED'))).toBe(false);
+    });
+
+    test.each(['restore-failed', 'changed', 'changing'])(
+        'names an app left in state %s as possibly still owned by the temporary owner',
+        (state) => {
+            // `changed` and `changing` are what a verdict rendered by a second signal or the
+            // watchdog finds for the app that was in flight.
+            const lines = renderRunVerdictLines(ownerReport([{ ...RESTORED, state }]));
+
+            expect(lines).toContain('  app owner     0 changed and restored, 1 NOT RESTORED');
+            expect(lines).toContain(
+                '  NOT RESTORED  app app-1 "Sales" may still be owned by ACME\\joe - its owner was ACME\\anna'
+            );
+        }
+    );
+
+    test('a stopped run says why the remaining apps were not started', () => {
+        const report = ownerReport([{ ...RESTORED, state: 'restore-failed' }]);
+        report.succeeded = false;
+        report.stopped = { appId: 'app-1' };
+        report.appsNotStarted = 4;
+
+        const lines = renderRunVerdictLines(report);
+
+        expect(lines).toContain('RESULT  FAILED');
+        expect(lines).toContain('  apps          1 ok, 0 failed, 4 not started');
+        expect(lines).toContain(
+            '  stopped       an app owner could not be restored, so no further app was started'
+        );
+        expect(verdictFacts(report).stopped).toBe(true);
+    });
+
+    test('stays pure ASCII', () => {
+        const report = ownerReport([{ ...RESTORED, state: 'restore-failed' }]);
+        report.stopped = { appId: 'app-1' };
+
+        expect(
+            [...renderRunPlanLines(report), ...renderRunVerdictLines(report)].join('\n')
+        ).toMatch(PURE_ASCII);
+    });
+
+    const JOES_SHEET = { id: 'o-1', name: "Joe's notes", objectType: 'sheet' };
+    const JOES_BOOKMARK = { id: 'o-2', name: 'Mine', objectType: 'bookmark' };
+
+    test('on a platform whose owner change moves objects, the plan says they are given back', () => {
+        const report = ownerReport([]);
+        report.plan.appOwner.givesObjectsBack = true;
+
+        const lines = renderRunPlanLines(report);
+        const at = lines.indexOf(
+            '  app owner     temporarily ACME\\joe for each app, restored after (3s wait)'
+        );
+
+        expect(lines[at + 1]).toBe(
+            "                ACME\\joe's own objects in an app are given back after"
+        );
+    });
+
+    test('the verdict counts the objects given back', () => {
+        const lines = renderRunVerdictLines(
+            ownerReport([
+                { ...RESTORED, ownObjects: [JOES_SHEET, JOES_BOOKMARK], givenBack: 2 },
+                { ...RESTORED, appId: 'app-2', state: 'kept' },
+            ])
+        );
+
+        expect(lines).toContain(
+            '  app owner     1 changed and restored, 2 object(s) given back to ACME\\joe, 1 kept'
+        );
+        expect(lines.some((line) => line.includes('NOT RETURNED'))).toBe(false);
+    });
+
+    test.each(['give-back-failed', 'giving-back'])(
+        'names the objects of an app left in state %s as possibly not returned',
+        (state) => {
+            // `giving-back` is what a verdict rendered by a second signal finds mid-give-back.
+            const report = ownerReport([
+                {
+                    ...RESTORED,
+                    state,
+                    ownObjects: [JOES_SHEET, JOES_BOOKMARK],
+                    notGivenBack: [JOES_SHEET],
+                },
+            ]);
+
+            const lines = renderRunVerdictLines(report);
+
+            // The app itself is back with its owner.
+            expect(lines).toContain(
+                '  app owner     1 changed and restored, 1 object(s) NOT RETURNED'
+            );
+            expect(lines).toContain(
+                `  NOT RETURNED  app app-1 "Sales": 1 object(s) ACME\\joe owned before the run may now be owned by the app's owner - sheet "Joe's notes"`
+            );
+        }
+    );
+
+    test('an app not restored says its temporary owner has objects in it to give back too', () => {
+        const lines = renderRunVerdictLines(
+            ownerReport([{ ...RESTORED, state: 'changed', ownObjects: [JOES_SHEET] }])
+        );
+
+        expect(lines).toContain(
+            `  NOT RESTORED  app app-1 "Sales" may still be owned by ACME\\joe - its owner was ACME\\anna. Giving it back also hands ACME\\joe's own 1 object(s) in it to ACME\\anna; give those back afterwards (listed in the log)`
+        );
+    });
+
+    test('a run stopped by a failed give-back says so', () => {
+        const report = ownerReport([
+            { ...RESTORED, state: 'give-back-failed', notGivenBack: [JOES_SHEET] },
+        ]);
+        report.succeeded = false;
+        report.stopped = {
+            appId: 'app-1',
+            reason: 'objects in an app could not be given back to their owner, so no further app was started',
+        };
+
+        expect(renderRunVerdictLines(report)).toContain(
+            '  stopped       objects in an app could not be given back to their owner, so no further app was started'
+        );
+    });
+});
+
+describe('describeObjects (issue #1209)', () => {
+    const OBJECTS = [
+        { id: 'o-1', name: "Joe's notes", objectType: 'sheet' },
+        { id: 'o-2', name: '', objectType: 'app_appscript' },
+        { id: 'o-3', name: 'Q3', objectType: 'bookmark' },
+    ];
+
+    test('names each object by type and name, and an unnamed one by type alone', () => {
+        expect(describeObjects(OBJECTS)).toBe(`sheet "Joe's notes", app_appscript, bookmark "Q3"`);
+    });
+
+    test('adds the ids the QMC can search for', () => {
+        expect(describeObjects(OBJECTS, { ids: true })).toBe(
+            `sheet "Joe's notes" (o-1), app_appscript (o-2), bookmark "Q3" (o-3)`
+        );
+    });
+
+    test('counts what it does not name', () => {
+        expect(describeObjects(OBJECTS, { max: 1 })).toBe(`sheet "Joe's notes" and 2 more`);
+    });
+});
+
+describe('dryRunOwnerLine (issue #1209)', () => {
+    test.each([
+        [
+            { state: 'planned', from: 'ACME\\anna', to: 'ACME\\joe' },
+            'Owner: ACME\\anna would be changed to ACME\\joe while the app is processed, then restored',
+        ],
+        [
+            { state: 'planned', from: 'ACME\\anna', to: null },
+            'Owner: ACME\\anna would be changed to the browser login user while the app is processed, then restored',
+        ],
+        [
+            { state: 'unchanged', from: 'ACME\\joe', to: 'ACME\\joe' },
+            'Owner: already ACME\\joe, so it would be left as it is',
+        ],
+        [
+            { state: 'kept', from: 'Anna', to: null, reason: 'the app is in a personal space' },
+            'Owner: Anna would be kept - the app is in a personal space',
+        ],
+    ])('%o reads %s', (owner, line) => {
+        expect(dryRunOwnerLine(owner)).toBe(line);
+    });
+
+    test('says nothing for an app with no owner entry', () => {
+        expect(dryRunOwnerLine({})).toBeNull();
+    });
+
+    test('names the objects the change back would move, and that they would be given back', () => {
+        expect(
+            dryRunOwnerLine({
+                state: 'planned',
+                from: 'ACME\\anna',
+                to: 'ACME\\joe',
+                ownObjects: [{ id: 'o-1', name: "Joe's notes", objectType: 'sheet' }],
+            })
+        ).toBe(
+            `Owner: ACME\\anna would be changed to ACME\\joe while the app is processed, then restored. ACME\\joe already owns 1 object(s) in the app, which the change back would move to ACME\\anna; they would be given back to ACME\\joe after: sheet "Joe's notes"`
+        );
     });
 });

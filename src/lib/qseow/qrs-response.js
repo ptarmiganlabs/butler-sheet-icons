@@ -88,3 +88,78 @@ export const qrsGetCount = async (qrsInteractInstance, apiUrl) => {
 
     return value;
 };
+
+/**
+ * Describes a parsed response body for an error message.
+ *
+ * @param {unknown} body - What `qrs-interact` resolved with.
+ *
+ * @returns {string} `null`, `array`, or the `typeof`.
+ */
+const shapeOf = (body) => {
+    if (body === null) {
+        return 'null';
+    }
+
+    return Array.isArray(body) ? 'array' : typeof body;
+};
+
+/**
+ * Reads one QRS entity (`app/<id>`, `user/<id>`) and returns it.
+ *
+ * The single-entity twin of {@link qrsGetList}, with the same discipline: an answer that parses
+ * but is not an entity - a list, a quoted string, `null` - throws rather than being read as one.
+ * `qrsGetList` cannot serve here, because it rightly refuses anything that is not a list.
+ *
+ * @param {object} qrsInteractInstance - A configured `qrs-interact` instance.
+ * @param {string} apiUrl - QRS API path, e.g. `app/<id>`.
+ *
+ * @returns {Promise<object>} The entity.
+ *
+ * @throws {QseowError} When the status is not a success, or the body is not a single object
+ *   carrying an `id`.
+ */
+export const qrsGetEntity = async (qrsInteractInstance, apiUrl) => {
+    const result = await qrsInteractInstance.Get(apiUrl);
+
+    const status = result?.statusCode;
+    if (status !== undefined && (status < 200 || status > 299)) {
+        throw new QseowError(`QRS returned status ${status} for "${apiUrl}"`);
+    }
+
+    const body = result?.body;
+    if (body === null || typeof body !== 'object' || Array.isArray(body) || !body.id) {
+        throw new QseowError(
+            `QRS returned an unusable response for "${apiUrl}": expected one entity, got ${shapeOf(body)}`
+        );
+    }
+
+    return body;
+};
+
+/**
+ * Writes one QRS entity with `PUT` and returns what QRS answered.
+ *
+ * `qrs-interact` already rejects anything but 200 and 204; the status is checked again here so
+ * the guarantee does not rest on a dependency's internals, as {@link qrsGetList} does for reads.
+ * The instance must be configured for a JSON body - see `setupQseowQrsConnection`'s
+ * `contentType`.
+ *
+ * @param {object} qrsInteractInstance - A configured `qrs-interact` instance.
+ * @param {string} apiUrl - QRS API path, e.g. `app/<id>`.
+ * @param {object} body - The entity to write, including its current `modifiedDate`.
+ *
+ * @returns {Promise<object|string>} The body QRS answered with; empty for a 204.
+ *
+ * @throws {QseowError} When the status is not a success.
+ */
+export const qrsPut = async (qrsInteractInstance, apiUrl, body) => {
+    const result = await qrsInteractInstance.Put(apiUrl, body);
+
+    const status = result?.statusCode;
+    if (status !== undefined && (status < 200 || status > 299)) {
+        throw new QseowError(`QRS returned status ${status} for PUT "${apiUrl}"`);
+    }
+
+    return result?.body;
+};

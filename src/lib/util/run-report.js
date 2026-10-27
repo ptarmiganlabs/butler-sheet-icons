@@ -7,6 +7,7 @@ import {
     verdictCounts,
     isRemovalReport,
     logRunHeader,
+    dryRunOwnerLine,
 } from './run-report-render.js';
 import { selectRung, rendersAsBoard, RUNG } from './select-rung.js';
 import {
@@ -371,6 +372,11 @@ export const createRunReport = ({ command, dryRun }) => ({
     selection: null,
     plan: null,
     apps: [],
+    // What --change-app-owner did with each app's owner, one entry per app (issue #1209). Kept
+    // apart from `apps` because the owner changes before the processor creates the app's entry.
+    appOwners: [],
+    // Set when the run stopped early on purpose rather than by a signal: `{ appId }`.
+    stopped: null,
     startedAt: Date.now(),
     finishedAt: null,
     succeeded: null,
@@ -469,6 +475,30 @@ export const buildBrowserPlanSection = (options) => ({
     headless: options.headless,
     pageWaitSeconds: options.pagewait,
 });
+
+/**
+ * Build the plan's `appOwner` section, for `--change-app-owner` (issue #1209).
+ *
+ * One builder for both platform twins, like the sections above.
+ *
+ * @param {object} options - The command's options bag.
+ * @param {{label: string}|null} target - Who owns each app while it is processed, or null when
+ *     only a real run's sign-in can tell.
+ * @param {object} [platform] - What the platform's owner change does.
+ * @param {boolean} [platform.givesObjectsBack] - Whether an owner change moves the objects in
+ *     the app, so the temporary owner's own objects are given back after each app (QSEoW).
+ *
+ * @returns {{target: string|null, waitSeconds: number, givesObjectsBack: boolean}|null} The
+ *     section, or null when the option is off.
+ */
+export const buildAppOwnerPlanSection = (options, target, { givesObjectsBack = false } = {}) =>
+    options.changeAppOwner === true
+        ? {
+              target: target?.label ?? null,
+              waitSeconds: options.changeAppOwnerWait,
+              givesObjectsBack,
+          }
+        : null;
 
 /**
  * Mark an app as failed on the report.
@@ -714,6 +744,68 @@ export const recordAppOutcome = (appEntry, { sheetsUpdated, imagesDir, imageFile
     appEntry.imagesKeptBytes = kept.bytes;
 };
 
+/**
+ * Record what `--change-app-owner` did, or is doing, with one app's owner (issue #1209).
+ *
+ * Called at every step, not only at the end: the verdict is also rendered by the second-signal
+ * and watchdog paths while an app is still in flight, and an entry that says `changing` or
+ * `changed` there is how the operator learns which app may have been left with the temporary
+ * owner. One recorder for both platform twins, like {@link recordAppOutcome}.
+ *
+ * States: `unchanged` (already owned by the target), `kept` (owner must not change; `reason`
+ * says why), `changing` (the change was sent), `changed` (the app is being processed with the
+ * temporary owner), `giving-back` (the app's owner is restored and the target's own objects are
+ * being given back), `restored`, `changed-elsewhere` (someone else changed it meanwhile and BSI
+ * left it), `change-failed` (the app was not processed), `restore-failed`, `give-back-failed`,
+ * and on a dry run `planned`.
+ *
+ * @param {object|null} report - The report; nothing is recorded without one.
+ * @param {string} appId - The app.
+ * @param {object} fields - Fields to set: `appName`, `from` and `to` (owner labels), `state`,
+ *     `reason`, `manualFix`; and where an owner change moves objects, `ownObjects` (what the
+ *     target owned in the app beforehand), `givenBack` (how many were given back) and
+ *     `notGivenBack` (what may still be with the app's owner).
+ *
+ * @returns {object|null} The app's owner entry.
+ */
+export const recordAppOwner = (report, appId, fields) => {
+    if (!report) {
+        return null;
+    }
+
+    if (!Array.isArray(report.appOwners)) {
+        report.appOwners = [];
+    }
+
+    let entry = report.appOwners.find((owner) => owner.appId === appId);
+    if (!entry) {
+        entry = { appId };
+        report.appOwners.push(entry);
+    }
+
+    Object.assign(entry, fields);
+
+    return entry;
+};
+
+/**
+ * Record that the run is stopping early on purpose, and at which app.
+ *
+ * Read after the app loop to count the apps that were never started, as an interrupt does.
+ *
+ * @param {object|null} report - The report.
+ * @param {object} stop - The stop.
+ * @param {string} stop.appId - The app whose failure stopped the run.
+ * @param {string} [stop.reason] - Why, as the verdict says it.
+ *
+ * @returns {void}
+ */
+export const recordRunStop = (report, { appId, reason }) => {
+    if (report) {
+        report.stopped = reason ? { appId, reason } : { appId };
+    }
+};
+
 const ACTION_LABEL = Object.freeze({
     update: 'update',
     blur: 'update, blurred',
@@ -804,6 +896,14 @@ export const renderDryRunReport = (report, log = logger) => {
                 log.info(
                     `  ${app.mediaFilesToDelete} thumbnail media file(s) would also be deleted from the app media library`
                 );
+            }
+
+            // What --change-app-owner would do with this app's owner (issue #1209).
+            const ownerLine = dryRunOwnerLine(
+                (report.appOwners ?? []).find((owner) => owner.appId === app.id) ?? {}
+            );
+            if (ownerLine) {
+                log.info(`  ${ownerLine}`);
             }
             log.info('');
         });
@@ -1241,6 +1341,12 @@ export const runOverAppsWithReport = async ({
         stampInterruptOutcome(report, totalApps);
     } else {
         report.succeeded = result;
+
+        // A run the loop stopped on purpose (issue #1209) left apps unstarted
+        // just as an interrupt does, and the verdict says how many the same way.
+        if (report.stopped) {
+            report.appsNotStarted = Math.max(0, totalApps - report.apps.length);
+        }
     }
 
     // The collapse (issue #1075): the animated region is erased and the
