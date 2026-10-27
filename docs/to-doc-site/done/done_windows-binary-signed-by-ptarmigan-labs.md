@@ -1,3 +1,28 @@
+<!--
+PUBLISHED 2026-10-27 to the doc site via ptarmiganlabs/butler-sheet-icons-docs#127 (into `next`;
+production follows when `next` is next merged to the doc site's `main`). The version gate is
+5.2.1, the first release signed through Azure Artifact Signing. It supersedes this draft's X.Y.Z
+placeholder and its "6.0.0" guess.
+
+Where it went:
+- reference/security.md - the Windows section (#windows-code-signing) is rewritten. It covers
+  who signed which release, what the signature does and does not do, how to check it
+  (#checking-the-signature-yourself), the certificate table, and how to build an application
+  control rule (#building-an-application-control-rule).
+- guide/installation.md - the Windows bullets.
+- guide/troubleshooting.md - #windows-publisher-warning gains a row for a publisher rule that
+  stopped matching after an upgrade. The thumbprint advice is removed.
+
+Changed on the way:
+- The certificate details were re-checked against the 5.4.0 release's sign-win64 log: issued by
+  AOC CA 03, under Code Signing PCA 2021. "About three days" became Microsoft's documented
+  72 hours.
+- One claim was not carried over: that a WDAC Publisher-level rule pairs the publisher with PCA
+  2021. Which certificate such a rule anchors on depends on the chain embedded in the signature,
+  and that was not checked against a release binary. The page points instead to Microsoft's
+  documented durable identifier, the profile EKU starting 1.3.6.1.4.1.311.97.
+-->
+
 # The Windows download is now signed by Ptarmigan Labs AB
 
 **Applies to:** the Windows download of Butler Sheet Icons. The macOS and Linux downloads, and the Docker image, are unaffected.
