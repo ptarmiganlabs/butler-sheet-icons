@@ -291,7 +291,7 @@ describe('runOverApps when a failure makes going on unsafe (issue #1209)', () =>
      * @returns {Error} The error.
      */
     const stoppingError = () =>
-        Object.assign(new Error('Could not give app b back to its original owner LAB\\anna'), {
+        Object.assign(new Error('Could not give app b back to its original owner ACME\\anna'), {
             stopsRun: true,
             stopReason:
                 'BSI could not give an app back to its original owner, so it changes no further owners',

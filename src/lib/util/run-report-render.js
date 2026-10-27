@@ -723,7 +723,7 @@ export const appOwnerSummary = (facts) => {
  *
  * @param {object} owner - An entry from `report.appOwners`.
  *
- * @returns {string} e.g. `app 2d3f… "Sales" may still be owned by LAB\joe - its owner was LAB\anna`.
+ * @returns {string} e.g. `app 2d3f… "Sales" may still be owned by ACME\joe - its owner was ACME\anna`.
  */
 export const notRestoredOwnerLine = (owner) =>
     `app ${owner.appId}${owner.appName ? ` "${owner.appName}"` : ''} may still be owned by ${owner.to} - its owner was ${owner.from}`;

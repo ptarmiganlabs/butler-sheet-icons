@@ -757,7 +757,7 @@ describe('--change-app-owner on the board (issue #1209)', () => {
      */
     const ownerReport = (owners) => {
         const report = makeReport();
-        report.plan.appOwner = { target: 'LAB\\joe', waitSeconds: 3 };
+        report.plan.appOwner = { target: 'ACME\\joe', waitSeconds: 3 };
         report.apps = [{ id: 'app-1', name: 'Sales', sheetCount: 0, sheets: [], failed: false }];
         report.startedAt = 0;
         report.finishedAt = 9000;
@@ -770,8 +770,8 @@ describe('--change-app-owner on the board (issue #1209)', () => {
     const RESTORED = {
         appId: 'app-1',
         appName: 'Sales',
-        from: 'LAB\\anna',
-        to: 'LAB\\joe',
+        from: 'ACME\\anna',
+        to: 'ACME\\joe',
         state: 'restored',
     };
 
@@ -779,7 +779,7 @@ describe('--change-app-owner on the board (issue #1209)', () => {
         const plan = stripAnsi(renderBoardPlan(ownerReport([]), uniCtx()));
 
         expect(plan).toContain('app owner');
-        expect(plan).toContain('LAB\\joe');
+        expect(plan).toContain('ACME\\joe');
         expect(plan).toContain('temporary, restored after each app');
         expect(plan).toContain('3s wait');
     });
@@ -808,7 +808,7 @@ describe('--change-app-owner on the board (issue #1209)', () => {
         const verdict = stripAnsi(coloured);
 
         expect(verdict).toContain(
-            'NOT RESTORED: app app-1 "Sales" may still be owned by LAB\\joe - its owner was LAB\\anna'
+            'NOT RESTORED: app app-1 "Sales" may still be owned by ACME\\joe - its owner was ACME\\anna'
         );
         expect(verdict).toContain('stopped: an app owner could not be restored');
         expect(coloured).toMatch(ANSI);

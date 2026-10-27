@@ -650,7 +650,7 @@ describe('--change-app-owner in the plan and the verdict (issue #1209)', () => {
      */
     const ownerReport = (owners) => {
         const report = qseowReport();
-        report.plan.appOwner = { target: 'LAB\\joe', waitSeconds: 3 };
+        report.plan.appOwner = { target: 'ACME\\joe', waitSeconds: 3 };
         report.startedAt = 1_000_000;
         report.finishedAt = 1_000_000 + 65_000;
         report.succeeded = true;
@@ -663,14 +663,14 @@ describe('--change-app-owner in the plan and the verdict (issue #1209)', () => {
     const RESTORED = {
         appId: 'app-1',
         appName: 'Sales',
-        from: 'LAB\\anna',
-        to: 'LAB\\joe',
+        from: 'ACME\\anna',
+        to: 'ACME\\joe',
         state: 'restored',
     };
 
     test('the plan names the temporary owner and the wait', () => {
         expect(renderRunPlanLines(ownerReport([]))).toContain(
-            '  app owner     temporarily LAB\\joe for each app, restored after (3s wait)'
+            '  app owner     temporarily ACME\\joe for each app, restored after (3s wait)'
         );
     });
 
@@ -712,7 +712,7 @@ describe('--change-app-owner in the plan and the verdict (issue #1209)', () => {
 
             expect(lines).toContain('  app owner     0 changed and restored, 1 NOT RESTORED');
             expect(lines).toContain(
-                '  NOT RESTORED  app app-1 "Sales" may still be owned by LAB\\joe - its owner was LAB\\anna'
+                '  NOT RESTORED  app app-1 "Sales" may still be owned by ACME\\joe - its owner was ACME\\anna'
             );
         }
     );
@@ -746,16 +746,16 @@ describe('--change-app-owner in the plan and the verdict (issue #1209)', () => {
 describe('dryRunOwnerLine (issue #1209)', () => {
     test.each([
         [
-            { state: 'planned', from: 'LAB\\anna', to: 'LAB\\joe' },
-            'Owner: LAB\\anna would be changed to LAB\\joe while the app is processed, then restored',
+            { state: 'planned', from: 'ACME\\anna', to: 'ACME\\joe' },
+            'Owner: ACME\\anna would be changed to ACME\\joe while the app is processed, then restored',
         ],
         [
-            { state: 'planned', from: 'LAB\\anna', to: null },
-            'Owner: LAB\\anna would be changed to the browser login user while the app is processed, then restored',
+            { state: 'planned', from: 'ACME\\anna', to: null },
+            'Owner: ACME\\anna would be changed to the browser login user while the app is processed, then restored',
         ],
         [
-            { state: 'unchanged', from: 'LAB\\joe', to: 'LAB\\joe' },
-            'Owner: already LAB\\joe, so it would be left as it is',
+            { state: 'unchanged', from: 'ACME\\joe', to: 'ACME\\joe' },
+            'Owner: already ACME\\joe, so it would be left as it is',
         ],
         [
             { state: 'kept', from: 'Anna', to: null, reason: 'the app is in a personal space' },

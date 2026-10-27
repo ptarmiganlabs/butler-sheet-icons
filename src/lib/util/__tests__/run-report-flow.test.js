@@ -314,8 +314,8 @@ describe('runOverAppsWithReport - an interrupted run (issue #1107)', () => {
 });
 
 describe('runOverAppsWithReport - --change-app-owner (issue #1209)', () => {
-    const ANNA = { id: 'u-anna', label: 'LAB\\anna' };
-    const JOE = { id: 'u-joe', label: 'LAB\\joe' };
+    const ANNA = { id: 'u-anna', label: 'ACME\\anna' };
+    const JOE = { id: 'u-joe', label: 'ACME\\joe' };
 
     /**
      * A platform half whose restores always fail, keeping each app's owner in memory.
@@ -390,7 +390,7 @@ describe('runOverAppsWithReport - --change-app-owner (issue #1209)', () => {
         expect(log).toContain('apps          0 ok, 1 failed, 2 not started');
         expect(log).toContain('stopped       an app owner could not be restored');
         expect(log).toContain(
-            'NOT RESTORED  app app-1 "App app-1" may still be owned by LAB\\joe - its owner was LAB\\anna'
+            'NOT RESTORED  app app-1 "App app-1" may still be owned by ACME\\joe - its owner was ACME\\anna'
         );
     });
 
@@ -425,7 +425,7 @@ describe('runOverAppsWithReport - --change-app-owner (issue #1209)', () => {
         await runOverAppsWithReport(runArgs({ dryRun: true, planApp }));
 
         expect(timeline.join('\n')).toContain(
-            'Owner: LAB\\anna would be changed to LAB\\joe while the app is processed, then restored'
+            'Owner: ACME\\anna would be changed to ACME\\joe while the app is processed, then restored'
         );
     });
 
@@ -457,7 +457,7 @@ describe('runOverAppsWithReport - --change-app-owner (issue #1209)', () => {
         );
 
         expect(timeline.join('\n')).toContain(
-            'NOT RESTORED  app app-1 "App app-1" may still be owned by LAB\\joe - its owner was LAB\\anna'
+            'NOT RESTORED  app app-1 "App app-1" may still be owned by ACME\\joe - its owner was ACME\\anna'
         );
     });
 });

@@ -56,7 +56,7 @@ const ownerEvents = [];
 const fakeOwners = {
     inspect: jest.fn(async (appId) => ({
         appName: `App ${appId}`,
-        owner: { id: 'u-anna', label: 'LAB\\anna' },
+        owner: { id: 'u-anna', label: 'ACME\\anna' },
         keepReason: null,
     })),
     currentOwnerId: jest.fn(async () => 'u-joe'),
@@ -297,7 +297,7 @@ describe('qseowCreateThumbnails app loop', () => {
 });
 
 describe('qseowCreateThumbnails with --change-app-owner (issue #1209)', () => {
-    const JOE = { id: 'u-joe', label: 'LAB\\joe', reference: { id: 'u-joe' } };
+    const JOE = { id: 'u-joe', label: 'ACME\\joe', reference: { id: 'u-joe' } };
 
     /**
      * Has the mocked app loop call the per-app worker it is given, as the real one does.
@@ -340,12 +340,12 @@ describe('qseowCreateThumbnails with --change-app-owner (issue #1209)', () => {
         expect(resolveQseowOwnerTarget).toHaveBeenCalledTimes(1);
         expect(resolveQseowOwnerTarget.mock.calls[0][1]).toEqual({ dryRun: false });
         expect(ownerEvents).toEqual([
-            'CHANGE app-1 LAB\\joe',
+            'CHANGE app-1 ACME\\joe',
             'PROCESS app-1',
-            'CHANGE app-1 LAB\\anna',
-            'CHANGE app-2 LAB\\joe',
+            'CHANGE app-1 ACME\\anna',
+            'CHANGE app-2 ACME\\joe',
             'PROCESS app-2',
-            'CHANGE app-2 LAB\\anna',
+            'CHANGE app-2 ACME\\anna',
         ]);
     });
 

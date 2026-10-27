@@ -29,9 +29,9 @@ const { isAbortArtifact } = await import('../abort-artifact.js');
 const { QseowError } = await import('../errors.js');
 
 const APP = '2d3f0000-0000-4000-8000-000000000001';
-const ANNA = { id: 'u-anna', label: 'LAB\\anna' };
-const JOE = { id: 'u-joe', label: 'LAB\\joe' };
-const OTHER = { id: 'u-other', label: 'LAB\\other' };
+const ANNA = { id: 'u-anna', label: 'ACME\\anna' };
+const JOE = { id: 'u-joe', label: 'ACME\\joe' };
+const OTHER = { id: 'u-other', label: 'ACME\\other' };
 
 /**
  * A platform half keeping one app's owner in memory.
@@ -137,8 +137,8 @@ describe('withTemporaryAppOwner', () => {
         expect(waits.settle).toHaveBeenCalledWith(3000);
         expect(ownerEntry(report)).toMatchObject({
             appName: 'Sales',
-            from: 'LAB\\anna',
-            to: 'LAB\\joe',
+            from: 'ACME\\anna',
+            to: 'ACME\\joe',
             state: 'restored',
         });
     });
@@ -150,10 +150,10 @@ describe('withTemporaryAppOwner', () => {
 
         // The line is the only record left if the process dies before the restore, so it has
         // to exist before the change does.
-        const logged = indexOf('from LAB\\anna to LAB\\joe');
+        const logged = indexOf('from ACME\\anna to ACME\\joe');
         expect(logged).toBeGreaterThanOrEqual(0);
-        expect(timeline[logged]).toContain(`give app ${APP} back to LAB\\anna by hand`);
-        expect(logged).toBeLessThan(indexOf('CHANGE LAB\\joe'));
+        expect(timeline[logged]).toContain(`give app ${APP} back to ACME\\anna by hand`);
+        expect(logged).toBeLessThan(indexOf('CHANGE ACME\\joe'));
     });
 
     test('records the change as in progress before sending it', async () => {
@@ -194,7 +194,7 @@ describe('withTemporaryAppOwner', () => {
         expect(work).toHaveBeenCalledTimes(1);
         expect(state.owner).toBe(ANNA);
         expect(ownerEntry(report)).toMatchObject({ state: 'kept', reason: 'the app is published' });
-        expect(timeline[indexOf('left as LAB\\anna')]).toContain('the app is published');
+        expect(timeline[indexOf('left as ACME\\anna')]).toContain('the app is published');
     });
 
     test('fails the app without processing it when the owner cannot be read', async () => {
@@ -228,7 +228,7 @@ describe('withTemporaryAppOwner', () => {
             instantWaits()
         ).catch((e) => e);
 
-        expect(err.message).toContain(`Could not make LAB\\joe the owner of app ${APP}`);
+        expect(err.message).toContain(`Could not make ACME\\joe the owner of app ${APP}`);
         expect(err.stopsRun).toBeUndefined();
         expect(work).not.toHaveBeenCalled();
         expect(state.owner).toBe(ANNA);
@@ -245,7 +245,7 @@ describe('withTemporaryAppOwner', () => {
 
         await expect(
             withTemporaryAppOwner(paramsFor(owners, report), jest.fn(), instantWaits())
-        ).rejects.toThrow('Could not make LAB\\joe the owner');
+        ).rejects.toThrow('Could not make ACME\\joe the owner');
 
         expect(state.owner).toBe(ANNA);
         expect(ownerEntry(report).state).toBe('change-failed');
@@ -323,14 +323,14 @@ describe('withTemporaryAppOwner', () => {
 
         expect(err.stopsRun).toBe(true);
         expect(err.stopReason).toContain('no further owners');
-        expect(err.message).toContain('LAB\\anna');
+        expect(err.message).toContain('ACME\\anna');
         expect(state.owner).toBe(JOE);
         expect(ownerEntry(report).state).toBe('restore-failed');
         expect(report.stopped).toEqual({ appId: APP });
 
         const errors = timeline.filter((line) => line.startsWith('ERROR')).join('\n');
-        expect(errors).toContain('may still be owned by LAB\\joe');
-        expect(errors).toContain(`give app ${APP} back to LAB\\anna by hand`);
+        expect(errors).toContain('may still be owned by ACME\\joe');
+        expect(errors).toContain(`give app ${APP} back to ACME\\anna by hand`);
     });
 
     test('keeps the processing failure on a stopping error, but never as its cause', async () => {
@@ -373,7 +373,7 @@ describe('withTemporaryAppOwner', () => {
 
         expect(state.owner).toBe(OTHER);
         expect(ownerEntry(report).state).toBe('changed-elsewhere');
-        expect(timeline[indexOf('changed by someone else')]).toContain('LAB\\anna');
+        expect(timeline[indexOf('changed by someone else')]).toContain('ACME\\anna');
     });
 
     test('does not change anything once the run has been interrupted', async () => {
@@ -430,8 +430,8 @@ describe('planTemporaryAppOwner', () => {
 
         expect(owners.change).not.toHaveBeenCalled();
         expect(ownerEntry(report)).toMatchObject({
-            from: 'LAB\\anna',
-            to: 'LAB\\joe',
+            from: 'ACME\\anna',
+            to: 'ACME\\joe',
             state: 'planned',
         });
     });
@@ -444,7 +444,11 @@ describe('planTemporaryAppOwner', () => {
             jest.fn()
         );
 
-        expect(ownerEntry(report)).toMatchObject({ from: 'LAB\\anna', to: null, state: 'planned' });
+        expect(ownerEntry(report)).toMatchObject({
+            from: 'ACME\\anna',
+            to: null,
+            state: 'planned',
+        });
     });
 
     test.each([
