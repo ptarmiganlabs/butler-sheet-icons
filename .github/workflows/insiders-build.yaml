@@ -95,14 +95,12 @@ jobs:
         shell: pwsh
         env:
           DIST_FILE_NAME: butler-sheet-icons
-          GITHUB_TOKEN: ${{ secrets.PAT }}
         run: ./scripts/insider-build-win.ps1
 
       - name: Create binaries (Linux)
         if: matrix.target == 'linux'
         env:
           DIST_FILE_NAME: butler-sheet-icons
-          GITHUB_TOKEN: ${{ secrets.PAT }}
         run: bash ./scripts/insider-build-linux.sh
 
       - name: Generate SBOM (linux only)
