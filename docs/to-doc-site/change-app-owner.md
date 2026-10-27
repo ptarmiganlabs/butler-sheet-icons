@@ -306,11 +306,14 @@ left out.
   captured as the temporary owner, owner restored, exit code 0); with the QRS calls Butler Sheet
   Icons makes, that an app owner change moves every object of the previous owner - sheets, load
   script, data model, master items - and leaves other users' objects alone; a run in which the
-  login user owned a sheet in the app (given back, every owner afterwards as before); and a run
+  login user owned a sheet in the app (given back, every owner afterwards as before); a run
   stopped with Ctrl-C (owner restored and the sheet given back 0.6 s after the signal, exit code
-  130). The "What moves shows as modified" section is from the same runs, in which every object in
-  the app moved; whether an object that does not move is stamped too was not checked.
-- **Still to verify before publishing:** `--skip-login`, and a published app.
+  130); a published app (re-owned like any other, the sheet given back); and a `--skip-login` run
+  with Windows authentication, from the Windows build (the temporary owner learned from the
+  sign-in at the start of the run, the sheet given back). The "What moves shows as modified"
+  section is from the same runs, in which every object in the app moved; whether an object that
+  does not move is stamped too was not checked.
+- **Nothing is left to verify live** for this page.
 - **Pages to update:** regenerate the option table on `/reference/qseow`
   (`npm run docs:cli-tables -- --command "qseow create-sheet-thumbnails"`). Add a short paragraph
   with a link to this page to `/guide/configuration/qseow`, and troubleshooting entries for
