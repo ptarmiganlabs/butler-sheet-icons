@@ -1,5 +1,47 @@
 # Changelog
 
+## [5.4.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.3.1...butler-sheet-icons-v5.4.0) (2026-10-27)
+
+
+### Features
+
+* --change-app-owner gives the login user's own objects back after each app ([11bbeab](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/11bbeaba946adfefbdb8e4e47f3486d726a9695e))
+* --change-app-owner makes each app the browser login user's while it is processed ([610c57e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/610c57e22e4e2e91eee85486065ab2811a11b2ee))
+* show the version when a run stops before its header ([abfe485](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/abfe485b2e1fdbc7a386e1fe7190c9da1d870035)), closes [#1207](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1207)
+
+
+### Bug Fixes
+
+* a forced exit counts the app in flight as interrupted, not ok ([aab7d19](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/aab7d19faf4e275add63654cb7c46f16e7134c83))
+* accept a variant build's version headline in the Windows release smoke test ([9f43bee](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9f43bee3e0c16a3fc046f6669e9f99bc211cc016)), closes [#1223](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1223)
+* an app interrupted in its sheet loop is reported as interrupted, not failed ([5bf680e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/5bf680eaaf76ca050d8e6a6ce9f062f7015eeae1))
+
+
+### Miscellaneous
+
+* check the release smoke test's version match on every pull request ([cedfe58](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/cedfe58259633134c4bd9aaf4abe1409c19e9b7e))
+* commit Apple's CA certificates for the macOS signing keychain ([7b15b97](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7b15b977daacf7af5414e17012a12dd2904f676b))
+* **deps-dev:** bump prettier from 3.8.4 to 3.9.6 ([83463b2](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/83463b218b6f5786483d17b1cf0585e75206e52d))
+* **deps:** bump axios from 1.18.1 to 1.20.0 ([ade7d13](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ade7d1378988ef65d1c9e98b5ec54b0e14e8d058))
+* **deps:** bump fast-uri from 3.1.2 to 3.1.9 ([ff07564](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ff075649ecddbe658a3291dc692d54639d6b91be))
+* give the Apple secrets to the macOS signing step alone ([9c40105](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9c40105232395fd3e28a3623bc602d60f94d2bcd))
+* remove the inert .codeclimate.yml ([32c30cf](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/32c30cf9fcfab3bece69a4f0e91f2a120e86845a)), closes [#1204](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1204)
+* remove the inert renovate.json ([e4292be](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e4292be53486da1a0bf84609810a832040fcf711)), closes [#1204](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1204)
+* sign the macOS binary in a step of its own, leaving the keychain as found ([066f120](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/066f1203c8cd3d8083cb5f8845f168ed49b460ac))
+* stop setting GITHUB_TOKEN from a secret nothing reads ([076a3f4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/076a3f47bf3f93e97aa5d307afb5c62878645944)), closes [#1221](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1221)
+
+
+### Documentation
+
+* correct the interrupt draft's claim about Qlik Cloud apps ([c1f93cc](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/c1f93cc9ffe4acb3907683ddd2525a6c1ccfa044))
+* describe macOS signing as a build step and a signing step ([6691798](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/66917982eb4fef3958c4f5a15cfe09d2a2d0ffff))
+* mark the --change-app-owner draft as published ([96e7ce6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/96e7ce6b33188fe51f18b2a64fb0de00ec7decb4))
+* present --change-app-owner as the risky operation it is ([4a9774c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4a9774c2105fd30714036f193a2e4bb00ed117ba))
+* record the last --change-app-owner live checks ([aa68a46](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/aa68a46cc63513dd46511052f24d262b0944c335))
+* stage the --change-app-owner page for the doc site ([28d8234](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/28d823490bf6fcb34d48eeb92be66d67c897cd03))
+* state the Windows helpers' PowerShell 5.1 requirement in terms of variant builds ([945d6b6](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/945d6b68f929651eb342bfc816a66b4b784055b4)), closes [#1212](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1212)
+* the --change-app-owner page covers QSEoW only ([fb02689](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/fb02689f7eb525f8375a1b4a09ba3226f61bc2bc))
+
 ## [5.3.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.3.0...butler-sheet-icons-v5.3.1) (2026-10-23)
 
 
