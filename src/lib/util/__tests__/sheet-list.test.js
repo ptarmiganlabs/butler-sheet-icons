@@ -23,6 +23,7 @@ const {
     SHEET_LIST_FIELDS_EXTENDED,
 } = await import('../sheet-list.js');
 const { markInterrupted, resetInterruptState } = await import('../interrupt.js');
+const { isAbortArtifact } = await import('../abort-artifact.js');
 
 /**
  * Joins everything logged at error level, for substring assertions.
@@ -750,5 +751,72 @@ describe('runOverSheets when the run is interrupted (issue #1107)', () => {
 
         expect(result.interrupted).toBe(false);
         expect(() => result.assertAllProcessed()).not.toThrow();
+    });
+});
+
+describe('the error an interrupted app unwinds with (issue #1210)', () => {
+    const CTX = {
+        logPrefix: 'TEST PREFIX',
+        appId: 'app-1',
+        action: 'create a thumbnail for',
+        ErrorClass: class TestError extends Error {},
+    };
+
+    /**
+     * Runs the end-of-app check and hands back what it threw.
+     *
+     * @param {object} result - From `runOverSheets`.
+     *
+     * @returns {Error|undefined} The thrown error, or undefined when nothing was thrown.
+     */
+    const thrownBy = (result) => {
+        try {
+            result.assertAllProcessed();
+        } catch (err) {
+            return err;
+        }
+        return undefined;
+    };
+
+    // Both places the loop stops. The first carries no error at all, which is why the abort
+    // cannot be read off the sheet that was in flight: often there is none.
+    test.each([
+        [
+            'between two sheets',
+            async (s, n) => {
+                if (n === 1) markInterrupted('SIGINT');
+            },
+        ],
+        [
+            'while a sheet was in flight',
+            async (s, n) => {
+                if (n !== 2) return undefined;
+                markInterrupted('SIGINT');
+                throw new Error('Protocol error (Page.captureScreenshot): Target closed');
+            },
+        ],
+    ])('stopped %s, it is recognised as the shutdown’s own doing', async (_label, worker) => {
+        const result = await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+        const err = thrownBy(result);
+
+        expect(err).toBeInstanceOf(CTX.ErrorClass);
+        expect(err.message).toMatch(/abandoned when the run was interrupted/);
+        // What both app loops and the processors' own logging ask before calling an app
+        // interrupted rather than failed. Answered `false`, an app whose capture the operator
+        // stopped was counted - and logged at error level - as a failure.
+        expect(isAbortArtifact(err)).toBe(true);
+    });
+
+    test('a real sheet failure that outranks the interrupt is still a failure', async () => {
+        const worker = jest.fn(async (s, n) => {
+            if (n === 1) throw new Error('sheet is broken');
+            markInterrupted('SIGINT');
+        });
+
+        const result = await runOverSheets([sheet('a'), sheet('b'), sheet('c')], CTX, worker);
+        const err = thrownBy(result);
+
+        expect(err.message).toMatch(/Failed to create a thumbnail for 1 of/);
+        expect(isAbortArtifact(err)).toBe(false);
     });
 });

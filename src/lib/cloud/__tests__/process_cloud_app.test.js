@@ -142,6 +142,7 @@ let processCloudApp;
 let IMAGE_TRANSFORM_CONTEXT_KEYS;
 let markInterrupted;
 let resetInterruptState;
+let runOverAppsWithReport;
 let puppeteer;
 let enigma;
 let logger;
@@ -181,6 +182,7 @@ beforeAll(async () => {
     ({ processCloudApp } = await import('../process-cloud-app.js'));
     ({ IMAGE_TRANSFORM_CONTEXT_KEYS } = await import('../../extensions/apply.js'));
     ({ markInterrupted, resetInterruptState } = await import('../../util/interrupt.js'));
+    ({ runOverAppsWithReport } = await import('../../util/run-report.js'));
 });
 
 describe('process-cloud-app.js — puppeteer launch and click options', () => {
@@ -1578,5 +1580,172 @@ describe('process-cloud-app.js — the image transform hook (#1158)', () => {
             'thumbnail-1.png',
             'thumbnail-2.png',
         ]);
+    });
+});
+
+describe('process-cloud-app.js — an interrupt inside the sheet loop (#1210)', () => {
+    const OPTIONS = {
+        tenanturl: 'test-tenant.eu.qlikcloud.com',
+        apikey: 'test-api-key',
+        imagedir: './img',
+        logonuserid: 'u',
+        logonpwd: 'p',
+        appid: 'test-app-id',
+        includesheetpart: '1',
+        schemaversion: '12.612.0',
+        browser: 'chrome',
+        browserVersion: 'recommended',
+        headless: true,
+        pagewait: 0,
+        loglevel: 'info',
+        excludeSheetStatus: [],
+        excludeSheetNumber: [],
+        excludeSheetTitle: [],
+        captureOverviewAfter: false,
+    };
+
+    /**
+     * Wires the stack with two processable sheets. What a sheet capture does is left to the
+     * test, through the `takeSheetScreenshot` mock.
+     *
+     * @returns {object} The mock SaaS instance.
+     */
+    function setupTwoSheets() {
+        jest.clearAllMocks();
+
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/test/browser',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+        qscloudUploadToApp.mockResolvedValue(true);
+        qscloudUpdateSheetThumbnails.mockResolvedValue(1);
+
+        const mockApp = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({
+                    qAppObjectList: {
+                        qItems: ['sheet-a', 'sheet-b'].map((id, i) => ({
+                            qInfo: { qId: id },
+                            qMeta: {
+                                title: id,
+                                description: '',
+                                approved: false,
+                                published: false,
+                            },
+                            qData: { rank: i + 1, showCondition: null },
+                        })),
+                    },
+                }),
+            }),
+            evaluateEx: jest.fn().mockResolvedValue({ qIsNumeric: false, qNumber: 1 }),
+        };
+        enigma.create.mockResolvedValue({
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '1.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(mockApp),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        });
+        puppeteer.launch.mockResolvedValue({
+            // launchBrowserForApp health checks the browser and watches for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
+            newPage: jest.fn().mockResolvedValue(
+                withLoginForm(
+                    {
+                        setViewport: jest.fn().mockResolvedValue(true),
+                        setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                        goto: jest.fn().mockResolvedValue(true),
+                        waitForNavigation: jest.fn().mockResolvedValue(true),
+                        screenshot: jest.fn().mockResolvedValue(true),
+                        click: jest.fn().mockResolvedValue(true),
+                        keyboard: { type: jest.fn().mockResolvedValue(true) },
+                        // A successful form login leaves no login form behind, which is what the
+                        // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                        $: jest.fn().mockResolvedValue(null),
+                    },
+                    '[id="1-email"]'
+                )
+            ),
+            close: jest.fn().mockResolvedValue(true),
+        });
+
+        const saasInstance = { Get: jest.fn() };
+        saasInstance.Get.mockImplementation((p2) => {
+            if (p2.includes('media/list')) return Promise.resolve([]);
+            return Promise.resolve({
+                attributes: { name: 'Test App', published: false, publishTime: null },
+            });
+        });
+        return saasInstance;
+    }
+
+    /**
+     * Runs the app through the real report loop, the way the create-sheet-thumbnails worker does,
+     * so the verdict is decided by the same code an operator's run goes through.
+     *
+     * @param {object} saasInstance - From {@link setupTwoSheets}.
+     *
+     * @returns {Promise<boolean>} The run's result.
+     */
+    const runApp = (saasInstance) =>
+        runOverAppsWithReport({
+            command: 'qscloud create-sheet-thumbnails',
+            dryRun: false,
+            appIds: ['test-app-id'],
+            namedAppIds: ['test-app-id'],
+            selectorAppIds: [],
+            selector: null,
+            rung: 'plain',
+            plan: { writes: { kind: 'thumbnails', publishedAppCount: 0 } },
+            logPrefix: { plan: 'CLOUD PLAN APP', process: 'CLOUD PROCESS APP' },
+            emptySelectionHint: '',
+            planApp: jest.fn(),
+            processApp: (appId, report) => processCloudApp(appId, saasInstance, OPTIONS, report),
+        });
+
+    afterEach(() => {
+        resetInterruptState();
+        takeSheetScreenshot.mockResolvedValue(capturedFile(1));
+    });
+
+    test.each([
+        [
+            'while a sheet is being captured',
+            async () => {
+                // What closing the browser under the run does to the capture in flight.
+                markInterrupted('SIGINT');
+                throw new Error('Protocol error (Page.captureScreenshot): Target closed');
+            },
+        ],
+        [
+            'between two sheets',
+            async (page, url, dir, appId, sheet, iSheetNum) => {
+                // The capture finishes; the loop stops at the next sheet's boundary instead.
+                markInterrupted('SIGINT');
+                return capturedFile(iSheetNum);
+            },
+        ],
+    ])('an app stopped %s is reported as interrupted, not failed', async (_label, capture) => {
+        const saasInstance = setupTwoSheets();
+        takeSheetScreenshot.mockImplementation(capture);
+
+        await expect(runApp(saasInstance)).resolves.toBe(false);
+
+        // The verdict's `apps` line - the plan block has one of its own.
+        const verdict = logger.info.mock.calls
+            .map(([line]) => String(line))
+            .filter((line) => /^ {2}apps +\d+ ok/.test(line));
+        expect(verdict).toEqual(['  apps          0 ok, 1 interrupted']);
+        // Nothing went wrong, so nothing may say it did - neither the processor's own catch nor
+        // the app loop.
+        expect(logger.error).not.toHaveBeenCalled();
+        // And nothing was written: no upload, no sheet repointed.
+        expect(qscloudUploadToApp).not.toHaveBeenCalled();
+        expect(qscloudUpdateSheetThumbnails).not.toHaveBeenCalled();
     });
 });

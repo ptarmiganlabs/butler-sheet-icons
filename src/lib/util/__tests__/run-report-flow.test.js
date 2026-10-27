@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events';
+
 import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globals';
 
 /**
@@ -27,9 +29,10 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 
 const { runOverAppsWithReport } = await import('../run-report.js');
 const { getLoggingLevel, setLoggingLevel } = await import('../../../globals.js');
-const { emitRunVerdictOnce } = await import('../run-report.js');
+const { emitRunVerdictOnce, addAppToReport } = await import('../run-report.js');
 const { markInterrupted, resetInterruptState, hasInterruptibleWork } =
     await import('../interrupt.js');
+const { installSignalHandlers, resetSignalHandlerState } = await import('../signal-handlers.js');
 const { withTemporaryAppOwner, planTemporaryAppOwner } = await import('../temporary-app-owner.js');
 const { QseowError } = await import('../errors.js');
 
@@ -553,5 +556,103 @@ describe('runOverAppsWithReport - --change-app-owner (issue #1209)', () => {
         expect(timeline.join('\n')).toContain(
             'NOT RESTORED  app app-1 "App app-1" may still be owned by ACME\\joe - its owner was ACME\\anna'
         );
+        // The app that line names was in flight, not untouched. Before issue #1211 the counts
+        // beside it said `0 ok, 1 not started`.
+        expect(timeline).toContain('LOG   apps          0 ok, 1 interrupted');
+    });
+});
+
+describe('runOverAppsWithReport - a forced exit mid-app (issue #1211)', () => {
+    /**
+     * Installs the real signal handlers on a stand-in for `process`, so a test sends the signals
+     * an operator would and the force-exit paths run for real - everything but the exit itself.
+     *
+     * @param {object} [overrides] - Dependency overrides, e.g. a short `watchdogMs`.
+     *
+     * @returns {{target: EventEmitter, flushAndExit: Function}} The emitter to signal, and the
+     *     stand-in for the exit.
+     */
+    const installHandlers = (overrides = {}) => {
+        const target = new EventEmitter();
+        const flushAndExit = jest.fn();
+        installSignalHandlers({
+            target,
+            flushAndExit,
+            exit: jest.fn(),
+            restoreTerminal: jest.fn(),
+            stdout: { isTTY: false, write: jest.fn() },
+            logger: { warn: jest.fn(), info: jest.fn(), error: jest.fn() },
+            ...overrides,
+        });
+
+        return { target, flushAndExit };
+    };
+
+    /**
+     * The `apps` line of every verdict printed - not the plan block's, which has one of its own -
+     * so the counts and "exactly once" are asserted together.
+     *
+     * @returns {string[]} The lines.
+     */
+    const appsLines = () => timeline.filter((entry) => /^LOG {3}apps +\d+ ok/.test(entry));
+
+    afterEach(() => {
+        resetSignalHandlerState();
+    });
+
+    test.each([
+        ['a second Ctrl-C', {}, (target) => target.emit('SIGINT')],
+        [
+            'the shutdown watchdog',
+            { watchdogMs: 5 },
+            () => new Promise((resolve) => setTimeout(resolve, 50)),
+        ],
+    ])(
+        '%s counts the app in flight as interrupted, not ok',
+        async (_label, overrides, forceExit) => {
+            const { target, flushAndExit } = installHandlers(overrides);
+            const processApp = jest.fn(async (appId, report) => {
+                // Recorded the way the processors record it: after the app is open, well after the
+                // loop marked it in flight.
+                addAppToReport(report, { id: appId, name: `App ${appId}`, sheetCount: 3 });
+                target.emit('SIGINT');
+                await forceExit(target);
+            });
+
+            await runOverAppsWithReport(runArgs({ appIds: ['app-1', 'app-2'], processApp }));
+
+            expect(appsLines()).toEqual(['LOG   apps          0 ok, 1 interrupted, 1 not started']);
+            expect(flushAndExit.mock.calls[0][0]).toBe(130);
+        }
+    );
+
+    test('an app caught before it recorded anything is counted as interrupted too', async () => {
+        // Still reading the repository or opening the app - but on Qlik Cloud the app's old
+        // thumbnails may already be deleted by then, and under --change-app-owner its owner
+        // changed. `not started` would tell the operator it was never touched.
+        const { target } = installHandlers();
+        const processApp = jest.fn(async () => {
+            target.emit('SIGINT');
+            target.emit('SIGINT');
+        });
+
+        await runOverAppsWithReport(runArgs({ appIds: ['app-1', 'app-2'], processApp }));
+
+        expect(appsLines()).toEqual(['LOG   apps          0 ok, 1 interrupted, 1 not started']);
+    });
+
+    test('an app that finished before the forced exit stays ok', async () => {
+        const { target } = installHandlers();
+        const processApp = jest.fn(async (appId, report) => {
+            addAppToReport(report, { id: appId, name: `App ${appId}`, sheetCount: 1 });
+            if (appId === 'app-2') {
+                target.emit('SIGINT');
+                target.emit('SIGINT');
+            }
+        });
+
+        await runOverAppsWithReport(runArgs({ appIds: ['app-1', 'app-2', 'app-3'], processApp }));
+
+        expect(appsLines()).toEqual(['LOG   apps          1 ok, 1 interrupted, 1 not started']);
     });
 });

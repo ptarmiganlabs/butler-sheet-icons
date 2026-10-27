@@ -132,6 +132,7 @@ let qseowProcessApp;
 let IMAGE_TRANSFORM_CONTEXT_KEYS;
 let markInterrupted;
 let resetInterruptState;
+let runOverAppsWithReport;
 let puppeteer;
 let enigma;
 let qrsInteract;
@@ -180,6 +181,7 @@ beforeAll(async () => {
     ({ qseowProcessApp } = await import('../qseow-process-app.js'));
     ({ IMAGE_TRANSFORM_CONTEXT_KEYS } = await import('../../extensions/apply.js'));
     ({ markInterrupted, resetInterruptState } = await import('../../util/interrupt.js'));
+    ({ runOverAppsWithReport } = await import('../../util/run-report.js'));
 });
 
 describe('qseow-process-app.js — puppeteer launch and click options', () => {
@@ -2118,5 +2120,188 @@ describe('qseow-process-app.js — the image transform hook (#1158)', () => {
             'thumbnail-test-app-id-2.png',
             'thumbnail-test-app-id-2-blurred.png',
         ]);
+    });
+});
+
+describe('qseow-process-app.js — an interrupt inside the sheet loop (#1210)', () => {
+    const options = {
+        senseVersion: '2023-Nov',
+        browser: 'chrome',
+        browserVersion: 'recommended',
+        imagedir: './img',
+        host: 'test-server.example.com',
+        logonuserdir: 'INTERNAL',
+        logonuserid: 'sa_api',
+        logonpwd: 'password',
+        excludeSheetNumber: [],
+        excludeSheetTitle: [],
+        excludeSheetStatus: [],
+        includesheetpart: '1',
+        pagewait: 0,
+        secure: true,
+        prefix: '',
+        headless: true,
+        blurFactor: 5,
+        loglevel: 'info',
+        captureOverviewAfter: false,
+    };
+
+    /**
+     * Wires the stack with two processable sheets, handing the caller what a sheet capture does.
+     *
+     * @param {() => Promise<unknown>} captureSheet - Stands in for the screenshot of a sheet's
+     *     main part, the step a real shutdown most often lands in.
+     *
+     * @returns {void}
+     */
+    function setupTwoSheets(captureSheet) {
+        jest.clearAllMocks();
+
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/test/browser',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+        determineSheetExcludeStatus.mockResolvedValue({
+            excludeSheet: false,
+            sheetIsHidden: false,
+        });
+        qseowUploadToContentLibrary.mockResolvedValue(true);
+        qseowUpdateSheetThumbnails.mockResolvedValue(1);
+        Jimp.read.mockResolvedValue({
+            blur: jest.fn().mockReturnThis(),
+            write: jest.fn().mockResolvedValue(true),
+        });
+
+        const mockGet = jest.fn().mockImplementation((encodedPath) => {
+            const p2 = decodeURIComponent(encodedPath);
+            if (p2.includes('app?filter=id eq')) {
+                return Promise.resolve({
+                    body: [{ id: 'test-app-id', name: 'Test App', published: true }],
+                });
+            }
+            return Promise.resolve({ body: [] });
+        });
+        qrsInteract.mockImplementation(() => ({ Get: mockGet }));
+
+        const sheets = ['sheet-a', 'sheet-b'].map((id, i) => ({
+            qInfo: { qId: id },
+            qMeta: { title: `Title ${id}`, description: '', approved: false, published: false },
+            qData: { rank: i + 1, showCondition: null },
+        }));
+        const mockApp = {
+            createSessionObject: jest.fn().mockResolvedValue({
+                getLayout: jest.fn().mockResolvedValue({ qAppObjectList: { qItems: sheets } }),
+            }),
+            getObject: jest.fn().mockResolvedValue({ screenshot: jest.fn() }),
+            evaluateEx: jest.fn().mockResolvedValue({ qIsNumeric: false, qNumber: 1 }),
+        };
+        enigma.create.mockResolvedValue({
+            open: jest.fn().mockResolvedValue({
+                engineVersion: jest.fn().mockResolvedValue({ qComponentVersion: '1.0.0' }),
+                openDoc: jest.fn().mockResolvedValue(mockApp),
+            }),
+            close: jest.fn().mockResolvedValue(true),
+            on: jest.fn(),
+        });
+
+        puppeteer.launch.mockResolvedValue({
+            // launchBrowserForApp health checks the browser and watches for an unexpected
+            // disconnect, so a browser-shaped mock has to answer both (issue #878).
+            version: jest.fn().mockResolvedValue('Chrome/150.0.7871.24'),
+            on: jest.fn(),
+            newPage: jest.fn().mockResolvedValue(
+                withLoginForm(
+                    {
+                        setViewport: jest.fn().mockResolvedValue(true),
+                        setDefaultTimeout: jest.fn().mockResolvedValue(true),
+                        goto: jest.fn().mockResolvedValue(httpResponse()),
+                        waitForNavigation: jest.fn().mockResolvedValue(true),
+                        screenshot: jest.fn().mockResolvedValue(true),
+                        click: jest.fn().mockResolvedValue(true),
+                        keyboard: { type: jest.fn().mockResolvedValue(true) },
+                        waitForSelector: jest.fn().mockResolvedValue(true),
+                        // A successful form login leaves no login form behind, which is what the
+                        // post-login assertion in browser/form-login.js checks for (#1087 phase 1).
+                        $: jest
+                            .fn()
+                            .mockImplementation((selector) =>
+                                Promise.resolve(
+                                    selector === '#username-input'
+                                        ? null
+                                        : { screenshot: jest.fn(captureSheet) }
+                                )
+                            ),
+                        $$: jest
+                            .fn()
+                            .mockResolvedValue([{ click: jest.fn().mockResolvedValue(true) }]),
+                    },
+                    '#username-input'
+                )
+            ),
+            close: jest.fn().mockResolvedValue(true),
+        });
+    }
+
+    /**
+     * Runs the app through the real report loop, the way the create-sheet-thumbnails worker does,
+     * so the verdict is decided by the same code an operator's run goes through.
+     *
+     * @returns {Promise<boolean>} The run's result.
+     */
+    const runApp = () =>
+        runOverAppsWithReport({
+            command: 'qseow create-sheet-thumbnails',
+            dryRun: false,
+            appIds: ['test-app-id'],
+            namedAppIds: ['test-app-id'],
+            selectorAppIds: [],
+            selector: null,
+            rung: 'plain',
+            plan: { writes: { kind: 'thumbnails', contentLibrary: 'lib', publishedAppCount: 1 } },
+            logPrefix: { plan: 'QSEOW PLAN APP', process: 'QSEOW PROCESS APP' },
+            emptySelectionHint: '',
+            planApp: jest.fn(),
+            processApp: (appId, report) => qseowProcessApp(appId, options, report),
+        });
+
+    afterEach(() => {
+        resetInterruptState();
+    });
+
+    test.each([
+        [
+            'while a sheet is being captured',
+            async () => {
+                // What closing the browser under the run does to the capture in flight.
+                markInterrupted('SIGINT');
+                throw new Error('Protocol error (Page.captureScreenshot): Target closed');
+            },
+        ],
+        [
+            'between two sheets',
+            async () => {
+                // The capture finishes; the loop stops at the next sheet's boundary instead.
+                markInterrupted('SIGINT');
+                return true;
+            },
+        ],
+    ])('an app stopped %s is reported as interrupted, not failed', async (_label, captureSheet) => {
+        setupTwoSheets(captureSheet);
+
+        await expect(runApp()).resolves.toBe(false);
+
+        // The verdict's `apps` line - the plan block has one of its own.
+        const verdict = logger.info.mock.calls
+            .map(([line]) => String(line))
+            .filter((line) => /^ {2}apps +\d+ ok/.test(line));
+        expect(verdict).toEqual(['  apps          0 ok, 1 interrupted']);
+        // Nothing went wrong, so nothing may say it did - neither the processor's own catch nor
+        // the app loop.
+        expect(logger.error).not.toHaveBeenCalled();
+        // And the app was left as it was: no upload, no sheet repointed.
+        expect(qseowUploadToContentLibrary).not.toHaveBeenCalled();
+        expect(qseowUpdateSheetThumbnails).not.toHaveBeenCalled();
     });
 });

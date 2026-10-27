@@ -17,15 +17,13 @@ import {
     SHEET_LIST_FIELDS_WITH_SHOW_CONDITION,
 } from '../util/sheet-list.js';
 import { withEngineSession } from '../util/engine-session.js';
-import { isInterrupted } from '../util/interrupt.js';
-import { isAbortArtifact } from '../util/abort-artifact.js';
 import { createAppImageDir } from '../util/image-dir.js';
 import { activeLiveView } from '../util/run-live.js';
 import { determineSheetExcludeStatus } from './determine-sheet-exclude-status.js';
 import { determineSheetBlurStatus } from './determine-sheet-blur-status.js';
 import { addAppToReport, recordPlannedSheet, recordAppOutcome } from '../util/run-report.js';
 import { appProgressLine, sheetProgressLine } from '../util/run-report-render.js';
-import { logError, describeWithCauses } from '../util/log-error.js';
+import { logAppFailure, describeWithCauses } from '../util/log-error.js';
 import { openCloudAppOverviewPage, captureCloudOverviewAfter } from './cloud-app-session.js';
 import { parseTrueFalseOption } from '../util/true-false-option.js';
 import { extensions } from '#extensions';
@@ -382,21 +380,10 @@ export const processCloudApp = async (appId, saasInstance, options, report = nul
         // anyone debugging at verbose.
         logger.verbose(`Done processing app ${appId}`);
     } catch (err) {
-        // An interrupted app is not a failed one, and this line is the
-        // only thing on the shutdown path that says otherwise: the abort
-        // that unwound the run arrives here as an ordinary error, and
-        // `logError` prints it at error level with its cause chain. The app
-        // loop already reports the abandonment at info, so this would be a
-        // second, louder account of a Ctrl-C the operator asked for
-        // (issue #1107).
-        //
-        // Narrowed to errors the teardown itself produced. Keyed on the flag
-        // alone, a genuine failure that happened to be unwinding when the
-        // signal landed lost its error line AND its cause chain - the run
-        // could end with a real defect and no record of it anywhere.
-        if (!isInterrupted() || !isAbortArtifact(err)) {
-            logError('CLOUD APP', err);
-        }
+        // Not logged when the shutdown itself caused it: an interrupted app
+        // is abandoned, not failed, and the app loop says so at info. The
+        // rule is shared by all four processors (issue #1210).
+        logAppFailure('CLOUD APP', err);
         // Rethrow so the app loop can count this app as failed. Logging and returning
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;
