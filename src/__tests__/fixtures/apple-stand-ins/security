@@ -1,0 +1,37 @@
+#!/bin/bash
+# security: keeps the keychain search list in $FAKE_KEYCHAINS, one path a line, and logs every call.
+printf 'security %s\n' "$*" >> "$LOG"
+case "$1" in
+  list-keychains)
+    # security list-keychains -d user [-s keychain...]
+    if [ "$4" = "-s" ]; then
+      shift 4
+      : > "$FAKE_KEYCHAINS"
+      for keychain in "$@"; do printf '%s\n' "$keychain" >> "$FAKE_KEYCHAINS"; done
+    elif [ -n "${FAKE_LIST_KEYCHAINS_FAILS:-}" ]; then
+      # As the real one answers when it cannot reach securityd.
+      echo 'security: SecKeychainCopyDomainSearchList: User interaction is not allowed.' >&2
+      exit 1
+    else
+      while IFS= read -r keychain; do printf '    "%s"\n' "$keychain"; done < "$FAKE_KEYCHAINS"
+    fi
+    ;;
+  default-keychain)
+    # security default-keychain -d user [-s keychain]. The default is the login keychain unless
+    # $FAKE_DEFAULT_KEYCHAIN names another. Writing it changes nothing here: the log is what the
+    # tests read.
+    [ "$4" = "-s" ] || printf '    "%s"\n' "${FAKE_DEFAULT_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}"
+    ;;
+  create-keychain)
+    for keychain in "$@"; do :; done
+    : > "$keychain"
+    ;;
+  delete-keychain)
+    # A bare name is a keychain in ~/Library/Keychains, as the real one reads it.
+    case "$2" in
+      */*) rm -f "$2" ;;
+      *) rm -f "$HOME/Library/Keychains/$2-db" ;;
+    esac
+    ;;
+esac
+exit 0

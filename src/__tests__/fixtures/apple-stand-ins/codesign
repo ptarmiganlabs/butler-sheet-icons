@@ -1,0 +1,14 @@
+#!/bin/bash
+# codesign: signs nothing, and says yes. While the file $FAKE_CODESIGN_FAILURES names holds a count
+# above zero, a signing call fails instead and counts it down, as a codesign that stalls with
+# errSecInternalComponent does.
+printf 'codesign %s\n' "$*" >> "$LOG"
+if [ "$1" = "--force" ] && [ -n "${FAKE_CODESIGN_FAILURES:-}" ]; then
+  left=$(cat "$FAKE_CODESIGN_FAILURES")
+  if [ "$left" -gt 0 ]; then
+    echo $((left - 1)) > "$FAKE_CODESIGN_FAILURES"
+    echo 'butler-sheet-icons: errSecInternalComponent' >&2
+    exit 1
+  fi
+fi
+exit 0

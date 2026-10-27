@@ -23,7 +23,7 @@ const ENTITLEMENTS = [
     'com.apple.security.cs.allow-unsigned-executable-memory',
 ];
 
-// The identifier scripts/release-macos.sh and scripts/insider-build-mac.sh sign with, and the
+// The identifier scripts/sign-macos.sh signs release and insider builds with, and the
 // designated requirement codesign writes for it under a Developer ID signature, team included. macOS
 // recognises a later build as the same program by that requirement, so it is pinned: a script that
 // drops or changes the identifier, or a signing secret swapped for another team's identity, fails

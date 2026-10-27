@@ -1,0 +1,7 @@
+#!/bin/bash
+# plutil -extract <key> raw -o - <file>: the key's string value in a flat JSON object, or a failure
+# when it has none.
+printf 'plutil %s\n' "$*" >> "$LOG"
+value=$(sed -n "s/.*\"$2\":\"\([^\"]*\)\".*/\1/p" "$6" 2>/dev/null)
+[ -n "$value" ] || exit 1
+printf '%s\n' "$value"
