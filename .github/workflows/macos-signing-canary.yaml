@@ -4,13 +4,14 @@ name: macos-signing-canary
 #
 # release-macos-arm64 in ci.yaml only runs when release-please actually cuts a release, so the
 # signing and notarization path is otherwise exercised for the first time during a live release.
-# This job runs the very same script on the very same runner image, but stops short of publishing:
-# nothing is uploaded to a release and no tag is touched.
+# This job runs the very same scripts, in the same two steps, on the very same runner image, but
+# stops short of publishing: nothing is uploaded to a release and no tag is touched.
 #
-# Run it after changing scripts/release-macos.sh or scripts/lib/macos-signing-keychain.sh, or after
-# changing the runner image in release-macos-arm64. It also runs weekly on its own, which is what
-# catches GitHub retiring the pinned macOS image - or the Developer ID certificate reaching expiry,
-# or the notarization app-specific password being revoked - before a release does.
+# Run it after changing scripts/release-macos.sh, scripts/sign-macos.sh,
+# scripts/lib/macos-signing-keychain.sh or release-config/apple-ca/, or after changing the runner
+# image in release-macos-arm64. It also runs weekly on its own, which is what catches GitHub
+# retiring the pinned macOS image - or the Developer ID certificate reaching expiry, or the
+# notarization app-specific password being revoked - before a release does.
 #
 # It runs on the hosted runner the release uses. It used to run on the self-hosted build Mac as
 # well, with a watchdog for the keychain bug that only a logged-in desktop shows: the signing script
@@ -48,22 +49,25 @@ jobs:
     environment: release-signing
     permissions:
       contents: read
+    # No secret at job level, as in release-macos-arm64: the Apple secrets are on the signing step.
     env:
       DIST_FILE_NAME: butler-sheet-icons
-      # scripts/release-macos.sh names the archive "${RELEASE_VERSION}-macos-arm64.zip".
-      RELEASE_VERSION: canary-${{ github.run_id }}
-      MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
-      MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
-      MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
-      MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
-      PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
-      PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
-      PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      # As in release-macos-arm64: before any dependency runs, so that the signing step can refuse
+      # a kit that npm ci's install scripts rewrote.
+      - name: Record the signing kit before any dependency runs
+        id: kit
+        run: |
+          digest=$(/usr/bin/shasum -a 256 scripts/sign-macos.sh scripts/lib/macos-signing-keychain.sh \
+                       release-config/butler-sheet-icons.entitlements release-config/apple-ca/*.cer \
+                   | /usr/bin/shasum -a 256 | /usr/bin/cut -d ' ' -f 1)
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+          echo "signing kit: $digest"
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -108,8 +112,46 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev --include=prod
 
-      - name: Build, sign and notarize
+      - name: Build the binary
         run: bash ./scripts/release-macos.sh
+
+      # The signing step of release-macos-arm64, which says why it runs as it does. Change the three
+      # signing steps together. The zip is named as a release's is, with the run in place of the tag.
+      - name: Sign with the Developer ID and notarize
+        shell: /bin/bash --noprofile --norc -p -e -o pipefail {0}
+        env:
+          ZIP: ./canary-${{ github.run_id }}-macos-arm64.zip
+          KIT_SHA256: ${{ steps.kit.outputs.sha256 }}
+          SIGNING_TEMP: ${{ runner.temp }}
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
+          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
+          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
+          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
+        run: |
+          IFS=$' \t\n'
+          keep=" ZIP KIT_SHA256 SIGNING_TEMP MACOS_CERTIFICATE MACOS_CERTIFICATE_PWD MACOS_CERTIFICATE_NAME PROD_MACOS_NOTARIZATION_APPLE_ID PROD_MACOS_NOTARIZATION_TEAM_ID PROD_MACOS_NOTARIZATION_PWD "
+          for name in $(compgen -e); do
+            case "$keep" in *" $name "*) ;; *) unset "$name" 2>/dev/null || true ;; esac
+          done
+          for name in $(compgen -e); do
+            case "$keep" in *" $name "*) ;; *) echo "::error::$name could not be cleared from the environment. Refusing to sign."; exit 1 ;; esac
+          done
+          export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+          export RUNNER_TEMP="$SIGNING_TEMP" TMPDIR="$SIGNING_TEMP"
+          USER=$(id -un); LOGNAME="$USER"; export USER LOGNAME
+          HOME=$(dscl . -read "/Users/$USER" NFSHomeDirectory | awk '{print $2}'); export HOME
+
+          actual=$(shasum -a 256 scripts/sign-macos.sh scripts/lib/macos-signing-keychain.sh \
+                       release-config/butler-sheet-icons.entitlements release-config/apple-ca/*.cer \
+                   | shasum -a 256 | cut -d ' ' -f 1)
+          if [ "$actual" != "$KIT_SHA256" ]; then
+            echo "::error::The signing kit changed after the checkout ($KIT_SHA256 then, $actual now). Refusing to sign."
+            exit 1
+          fi
+
+          exec /bin/bash --noprofile --norc -p ./scripts/sign-macos.sh ./butler-sheet-icons "$ZIP"
 
       # codesign -dv writes to stderr, hence the redirect. Assert the two properties that actually
       # matter and that a wrong signing identity would silently get wrong: the Developer ID
@@ -133,16 +175,16 @@ jobs:
           # --deep is for bundles; this is a bare Mach-O executable.
           codesign --verify --strict --verbose=2 "./${DIST_FILE_NAME}"
 
-          echo "Signature OK. Check the notarization status printed by notarytool in the"
-          echo "'Build, sign and notarize' step above - it must read 'status: Accepted'."
+          echo "Signature OK. The signing step above refuses anything but an Accepted notarization,"
+          echo "and printed Apple's log for the submission."
 
-      # The same test as the release job's, on the binary this run signed. env -i keeps the Apple
-      # secrets in this job's env out of the binary's environment, as there.
+      # The same test as the release job's, on the binary this run signed. It holds no secret, as
+      # there: those are on the signing step alone.
       - name: Test the signed binary
-        run: >-
-          env -i PATH="$PATH" HOME="$HOME" TMPDIR="$RUNNER_TEMP"
-          BSI_BINARY="./${DIST_FILE_NAME}" REQUIRE_BINARY=1
-          npm run test:binary
+        run: npm run test:binary
+        env:
+          BSI_BINARY: ./butler-sheet-icons
+          REQUIRE_BINARY: '1'
 
       # Unconditional: a failed or cancelled signing run is exactly the case where the keychain is
       # most likely to have been left behind, so that is when the assertion matters most.

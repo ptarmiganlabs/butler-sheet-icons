@@ -742,9 +742,10 @@ jobs:
 
   release-macos-arm64:
     needs: release-please
-    # scripts/release-macos.sh builds its own ephemeral keychain from MACOS_CERTIFICATE and
-    # notarizes via xcrun notarytool, so signing needs no on-premise state. Pinned rather than
-    # macos-latest because the artifact must be arm64.
+    # scripts/release-macos.sh builds the binary, and scripts/sign-macos.sh signs and notarizes it
+    # from a throwaway keychain it makes from MACOS_CERTIFICATE, so signing needs no on-premise
+    # state. They run as two steps, so that the Apple secrets are on the one step that signs: see
+    # it below. Pinned rather than macos-latest because the artifact must be arm64.
     runs-on: macos-15
     # In the release-signing environment, which admits main alone, like sign-win64 (and like
     # butler-sos's macOS release). The Apple signing secrets are organisation secrets today,
@@ -757,16 +758,11 @@ jobs:
       contents: write
 
     if: needs.release-please.outputs.releases_created == 'true'
+    # No secret at job level. Every one this job used to set here reached npm ci and the build: the
+    # Apple secrets, which are on the signing step now, and the organisation token, which no step
+    # reads.
     env:
       DIST_FILE_NAME: butler-sheet-icons
-      GITHUB_TOKEN: ${{ secrets.PAT }}
-      MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
-      MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
-      MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
-      MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
-      PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
-      PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
-      PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
     steps:
       - name: Release tag and upload url from previous job
         run: |
@@ -788,6 +784,19 @@ jobs:
           # the tag name failed all four release jobs on 5.0.0. Issue #1145.
           ref: ${{ needs.release-please.outputs.release_sha }}
           persist-credentials: false
+
+      # Before any dependency runs. npm ci executes install scripts, which could rewrite what the
+      # signing step runs. A step's outputs are fixed once it ends, so nothing after this can change
+      # the digest it records, and the signing step recomputes it over the same files and refuses
+      # to sign on any difference.
+      - name: Record the signing kit before any dependency runs
+        id: kit
+        run: |
+          digest=$(/usr/bin/shasum -a 256 scripts/sign-macos.sh scripts/lib/macos-signing-keychain.sh \
+                       release-config/butler-sheet-icons.entitlements release-config/apple-ca/*.cer \
+                   | /usr/bin/shasum -a 256 | /usr/bin/cut -d ' ' -f 1)
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+          echo "signing kit: $digest"
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -824,20 +833,77 @@ jobs:
           pwd 
           npm ci --include=dev --include=prod
 
-      - name: Build binaries
-        env:
-          RELEASE_VERSION: ${{ needs.release-please.outputs.release_tag_name }}
+      - name: Build the binary
         run: bash ./scripts/release-macos.sh
+
+      # The one step whose env holds the Developer ID certificate and the notarization password,
+      # because it is the one step that needs them. scripts/sign-macos.sh signs, verifies, zips and
+      # notarizes, and that is all: no npm, and it never runs the binary. So no dependency code runs
+      # with the secrets in reach, as it did for the whole job while they were set at job level.
+      #
+      # It also trusts nothing the steps before it could have changed. npm ci ran install scripts in
+      # this job, and those can rewrite files in the workspace and append to GITHUB_ENV and
+      # GITHUB_PATH, which reach every later step: a PATH entry that shadows codesign, a BASH_ENV
+      # that bash sources first, a DEVELOPER_DIR that points xcrun at a fake notarytool, which is
+      # handed the Apple ID password. So this step:
+      #
+      # - runs bash in privileged mode (-p), which sources no BASH_ENV and imports no function from
+      #   the environment;
+      # - drops every variable except the ones it names, and refuses to sign if one cannot be
+      #   dropped - an injected function, or SHELLOPTS, which bash will not unset;
+      # - sets PATH to the system directories, which System Integrity Protection keeps read-only,
+      #   reads HOME from the directory service rather than the environment, and takes the temp
+      #   folder, where the keychain is made, from the runner's own context;
+      # - checks the signing kit against the digest recorded before npm ci.
+      #
+      # It drops the variables one by one rather than starting over with env -i, which would put
+      # the secrets it keeps on a command line. insiders-build.yaml and macos-signing-canary.yaml
+      # sign the same way; change the three together.
+      - name: Sign with the Developer ID and notarize
+        shell: /bin/bash --noprofile --norc -p -e -o pipefail {0}
+        env:
+          ZIP: ./${{ needs.release-please.outputs.release_tag_name }}-macos-arm64.zip
+          KIT_SHA256: ${{ steps.kit.outputs.sha256 }}
+          SIGNING_TEMP: ${{ runner.temp }}
+          MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
+          MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
+          PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
+          PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
+          PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
+        run: |
+          IFS=$' \t\n'
+          keep=" ZIP KIT_SHA256 SIGNING_TEMP MACOS_CERTIFICATE MACOS_CERTIFICATE_PWD MACOS_CERTIFICATE_NAME PROD_MACOS_NOTARIZATION_APPLE_ID PROD_MACOS_NOTARIZATION_TEAM_ID PROD_MACOS_NOTARIZATION_PWD "
+          for name in $(compgen -e); do
+            case "$keep" in *" $name "*) ;; *) unset "$name" 2>/dev/null || true ;; esac
+          done
+          for name in $(compgen -e); do
+            case "$keep" in *" $name "*) ;; *) echo "::error::$name could not be cleared from the environment. Refusing to sign."; exit 1 ;; esac
+          done
+          export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+          export RUNNER_TEMP="$SIGNING_TEMP" TMPDIR="$SIGNING_TEMP"
+          USER=$(id -un); LOGNAME="$USER"; export USER LOGNAME
+          HOME=$(dscl . -read "/Users/$USER" NFSHomeDirectory | awk '{print $2}'); export HOME
+
+          actual=$(shasum -a 256 scripts/sign-macos.sh scripts/lib/macos-signing-keychain.sh \
+                       release-config/butler-sheet-icons.entitlements release-config/apple-ca/*.cer \
+                   | shasum -a 256 | cut -d ' ' -f 1)
+          if [ "$actual" != "$KIT_SHA256" ]; then
+            echo "::error::The signing kit changed after the checkout ($KIT_SHA256 then, $actual now). Refusing to sign."
+            exit 1
+          fi
+
+          exec /bin/bash --noprofile --norc -p ./scripts/sign-macos.sh ./butler-sheet-icons "$ZIP"
 
       # The signed binary, run beside the source before it is attached, so that a hardened runtime
       # or an entitlement that stops it starting fails here rather than in somebody's download. It
-      # runs the binary, which carries dependency code, so env -i keeps this job's Apple secrets
-      # and token out of its environment: it gets only what npm and node need.
+      # runs the binary, which carries dependency code, and holds no secret: those are on the step
+      # above alone.
       - name: Test the signed binary
-        run: >-
-          env -i PATH="$PATH" HOME="$HOME" TMPDIR="$RUNNER_TEMP"
-          BSI_BINARY="./${DIST_FILE_NAME}" REQUIRE_BINARY=1
-          npm run test:binary
+        run: npm run test:binary
+        env:
+          BSI_BINARY: ./butler-sheet-icons
+          REQUIRE_BINARY: '1'
 
       - name: Upload to existing release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0

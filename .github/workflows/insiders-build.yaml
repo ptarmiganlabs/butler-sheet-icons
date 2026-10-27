@@ -165,6 +165,17 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
 
+      # As in release-macos-arm64 in ci.yaml: before any dependency runs, so that the signing step
+      # can refuse a kit that npm ci's install scripts rewrote.
+      - name: Record the signing kit before any dependency runs
+        id: kit
+        run: |
+          digest=$(/usr/bin/shasum -a 256 scripts/sign-macos.sh scripts/lib/macos-signing-keychain.sh \
+                       release-config/butler-sheet-icons.entitlements release-config/apple-ca/*.cer \
+                   | /usr/bin/shasum -a 256 | /usr/bin/cut -d ' ' -f 1)
+          echo "sha256=$digest" >> "$GITHUB_OUTPUT"
+          echo "signing kit: $digest"
+
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
@@ -188,23 +199,57 @@ jobs:
       - name: Run unit tests
         run: npm run test:unit
 
-      - name: Create binaries (macOS)
+      # No secret here: the build runs npm dependencies. Nor the organisation token it used to be
+      # given, which nothing in the build reads.
+      - name: Build the macOS binary
         env:
           DIST_FILE_NAME: butler-sheet-icons
-          GITHUB_TOKEN: ${{ secrets.PAT }}
+        run: bash ./scripts/insider-build-mac.sh
+
+      # The one step that holds the Apple secrets, run the way release-macos-arm64 in ci.yaml runs
+      # its own, which says why: privileged bash, every inherited variable dropped but the ones it
+      # names, the system PATH, and the signing kit checked against the digest recorded before npm
+      # ci. Change the three signing steps together.
+      - name: Sign with the Developer ID and notarize
+        shell: /bin/bash --noprofile --norc -p -e -o pipefail {0}
+        env:
+          ZIP: ./butler-sheet-icons--macos-arm64--${{ github.sha }}.zip
+          KIT_SHA256: ${{ steps.kit.outputs.sha256 }}
+          SIGNING_TEMP: ${{ runner.temp }}
           MACOS_CERTIFICATE: ${{ secrets.PROD_MACOS_CERTIFICATE_BASE64_CODESIGN }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_PWD }}
           MACOS_CERTIFICATE_NAME: ${{ secrets.PROD_MACOS_CERTIFICATE_CODESIGN_NAME }}
-          MACOS_CI_KEYCHAIN_PWD: ${{ secrets.PROD_MACOS_CI_KEYCHAIN_PWD }}
           PROD_MACOS_NOTARIZATION_APPLE_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_APPLE_ID }}
           PROD_MACOS_NOTARIZATION_TEAM_ID: ${{ secrets.PROD_MACOS_NOTARIZATION_TEAM_ID }}
           PROD_MACOS_NOTARIZATION_PWD: ${{ secrets.PROD_MACOS_NOTARIZATION_PWD }}
-        run: bash ./scripts/insider-build-mac.sh
+        run: |
+          IFS=$' \t\n'
+          keep=" ZIP KIT_SHA256 SIGNING_TEMP MACOS_CERTIFICATE MACOS_CERTIFICATE_PWD MACOS_CERTIFICATE_NAME PROD_MACOS_NOTARIZATION_APPLE_ID PROD_MACOS_NOTARIZATION_TEAM_ID PROD_MACOS_NOTARIZATION_PWD "
+          for name in $(compgen -e); do
+            case "$keep" in *" $name "*) ;; *) unset "$name" 2>/dev/null || true ;; esac
+          done
+          for name in $(compgen -e); do
+            case "$keep" in *" $name "*) ;; *) echo "::error::$name could not be cleared from the environment. Refusing to sign."; exit 1 ;; esac
+          done
+          export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+          export RUNNER_TEMP="$SIGNING_TEMP" TMPDIR="$SIGNING_TEMP"
+          USER=$(id -un); LOGNAME="$USER"; export USER LOGNAME
+          HOME=$(dscl . -read "/Users/$USER" NFSHomeDirectory | awk '{print $2}'); export HOME
+
+          actual=$(shasum -a 256 scripts/sign-macos.sh scripts/lib/macos-signing-keychain.sh \
+                       release-config/butler-sheet-icons.entitlements release-config/apple-ca/*.cer \
+                   | shasum -a 256 | cut -d ' ' -f 1)
+          if [ "$actual" != "$KIT_SHA256" ]; then
+            echo "::error::The signing kit changed after the checkout ($KIT_SHA256 then, $actual now). Refusing to sign."
+            exit 1
+          fi
+
+          exec /bin/bash --noprofile --norc -p ./scripts/sign-macos.sh ./butler-sheet-icons "$ZIP"
 
       # The signed binary, run beside the source before it is uploaded, so that a hardened runtime
       # or an entitlement that stops it starting fails here rather than in somebody's download. It
-      # runs the binary, which carries dependency code, and holds no secret: those are on the step
-      # above alone.
+      # runs the binary, which carries dependency code, and holds no secret: those are on the
+      # signing step alone.
       - name: Test the signed binary
         run: npm run test:binary
         env:
