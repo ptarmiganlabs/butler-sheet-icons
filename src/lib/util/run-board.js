@@ -16,6 +16,7 @@ import {
     describeAppOwnerPlan,
     appOwnerSummary,
     notRestoredOwnerLine,
+    notReturnedLine,
 } from './run-report-render.js';
 
 /**
@@ -427,7 +428,7 @@ export const renderBoardPlan = (report, ctx) => {
             planRow(ctx, {
                 label: 'app owner',
                 value: appOwner.target ?? 'browser login user',
-                detail: `${appOwner.would ? 'would be ' : ''}temporary, restored after each app${sep}${appOwner.waitSeconds}s wait`,
+                detail: `${appOwner.would ? 'would be ' : ''}temporary, restored after each app${appOwner.givesObjectsBack ? `${sep}own objects given back` : ''}${sep}${appOwner.waitSeconds}s wait`,
             })
         );
     }
@@ -850,13 +851,11 @@ export const renderBoardVerdict = (report, ctx) => {
     }
 
     if (facts.stopped) {
-        lines.push(
-            `    ${palette.red('stopped: an app owner could not be restored, so no further app was started')}`
-        );
+        lines.push(`    ${palette.red(`stopped: ${facts.stopReason}`)}`);
     }
 
-    // Each app that may still have the temporary owner gets a red line of its own, as in the
-    // plain verdict (issue #1209).
+    // Each app that may still have the temporary owner, or whose temporary owner may still be
+    // missing objects, gets a red line of its own, as in the plain verdict (issue #1209).
     if (facts.appOwners) {
         lines.push(
             `    ${palette.dim(`app owner${dotSep(ctx)}${appOwnerSummary(facts.appOwners)}`)}`
@@ -864,6 +863,10 @@ export const renderBoardVerdict = (report, ctx) => {
 
         for (const owner of facts.appOwners.notRestored) {
             lines.push(`    ${palette.red(`NOT RESTORED: ${notRestoredOwnerLine(owner)}`)}`);
+        }
+
+        for (const owner of facts.appOwners.notReturned) {
+            lines.push(`    ${palette.red(`NOT RETURNED: ${notReturnedLine(owner)}`)}`);
         }
     }
 

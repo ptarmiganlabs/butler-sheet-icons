@@ -820,4 +820,37 @@ describe('--change-app-owner on the board (issue #1209)', () => {
         expect(stripAnsi(renderBoardVerdict(report, asciiCtx()))).toContain('NOT RESTORED');
         expect(stripAnsi(renderBoardPlan(report, asciiCtx()))).toContain('app owner');
     });
+
+    test('the plan says the own objects are given back, where an owner change moves them', () => {
+        const report = ownerReport([]);
+        report.plan.appOwner.givesObjectsBack = true;
+
+        expect(stripAnsi(renderBoardPlan(report, uniCtx()))).toContain('own objects given back');
+        expect(stripAnsi(renderBoardPlan(ownerReport([]), uniCtx()))).not.toContain('own objects');
+    });
+
+    test('objects that may not have been returned get a red line of their own', () => {
+        const report = ownerReport([
+            {
+                ...RESTORED,
+                state: 'give-back-failed',
+                notGivenBack: [{ id: 'o-1', name: "Joe's notes", objectType: 'sheet' }],
+            },
+        ]);
+        report.stopped = {
+            appId: 'app-1',
+            reason: 'objects in an app could not be given back to their owner, so no further app was started',
+        };
+        report.succeeded = false;
+
+        const coloured = renderBoardVerdict(report, uniCtx(true));
+        const verdict = stripAnsi(coloured);
+
+        expect(verdict).toContain(
+            `NOT RETURNED: app app-1 "Sales": 1 object(s) ACME\\joe owned before the run may now be owned by the app's owner - sheet "Joe's notes"`
+        );
+        expect(verdict).toContain('stopped: objects in an app could not be given back');
+        expect(verdict).toContain('1 object(s) NOT RETURNED');
+        expect(coloured).toMatch(ANSI);
+    });
 });

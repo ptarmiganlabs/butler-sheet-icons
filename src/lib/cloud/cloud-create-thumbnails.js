@@ -17,7 +17,7 @@ import {
     buildAppOwnerPlanSection,
 } from '../util/run-report.js';
 import { restoreLiveTerminal } from '../util/run-live.js';
-import { withAppOwnerChange } from '../util/temporary-app-owner.js';
+import { movesObjectsWithOwner, withAppOwnerChange } from '../util/temporary-app-owner.js';
 import { cloudAppOwners, resolveCloudOwnerTarget } from './cloud-app-owner.js';
 import { CLOUD_SHEET_PARTS, CLOUD_SHEET_PART_LABELS } from './sheet-parts.js';
 import { logError } from '../util/log-error.js';
@@ -189,10 +189,11 @@ export const qscloudCreateThumbnails = async (options) => {
             live?.stepDone('app owner', ownerTarget?.label ?? 'browser login user');
         }
 
+        const owners = cloudAppOwners(saasInstance);
         const { planApp, processApp } = withAppOwnerChange(
             {
                 options,
-                owners: cloudAppOwners(saasInstance),
+                owners,
                 target: ownerTarget,
                 logPrefix: 'CLOUD APP OWNER',
                 ErrorClass: CloudError,
@@ -216,7 +217,9 @@ export const qscloudCreateThumbnails = async (options) => {
                     logonUserId: options.logonuserid ?? null,
                     skipLogin: options.skipLogin === true,
                 },
-                appOwner: buildAppOwnerPlanSection(options, ownerTarget),
+                appOwner: buildAppOwnerPlanSection(options, ownerTarget, {
+                    givesObjectsBack: movesObjectsWithOwner(owners),
+                }),
                 sheetPart: buildSheetPartSection(options.includesheetpart, CLOUD_SHEET_PART_LABELS),
                 // No tag rules: Cloud cannot tag individual sheets, and the
                 // warning above already covers a tag option that was supplied.

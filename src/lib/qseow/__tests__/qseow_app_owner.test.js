@@ -45,6 +45,7 @@ jest.unstable_mockModule('../qseow-app-session.js', () => ({ readQseowBrowserUse
 const { findQseowOwner, qseowAppOwners, resolveQseowOwnerTarget } =
     await import('../qseow-app-owner.js');
 const { QseowError } = await import('../../util/errors.js');
+const { logger } = await import('../../../globals.js');
 
 const OPTIONS = {
     host: 'sense.example.com',
@@ -190,6 +191,76 @@ describe('qseowAppOwners', () => {
     });
 });
 
+describe('qseowAppOwners - the objects an owner change moves', () => {
+    const owners = qseowAppOwners(OPTIONS);
+    const USER_ID = '7e1c0000-0000-4000-8000-0000000000aa';
+    const OBJECT = '5f2a0000-0000-4000-8000-000000000002';
+
+    test('lists the objects one user owns in an app, by owner id', async () => {
+        respond = () => ({
+            statusCode: 200,
+            body: [
+                { id: 'o-1', name: "Joe's notes", objectType: 'sheet', engineObjectId: 'abc' },
+                { id: 'o-2', objectType: 'app_appscript' },
+            ],
+        });
+
+        await expect(owners.objectsOwnedBy(APP, USER_ID)).resolves.toEqual([
+            { id: 'o-1', name: "Joe's notes", objectType: 'sheet' },
+            { id: 'o-2', name: '', objectType: 'app_appscript' },
+        ]);
+        expect(requests[0].path.startsWith('app/object?filter=')).toBe(true);
+        expect(filterOf(requests[0].path)).toBe(`app.id eq ${APP} and owner.id eq ${USER_ID}`);
+    });
+
+    test('refuses an owner id that is not a QRS id, before asking QRS', async () => {
+        // The ids are unquoted filter terms, so anything else could change what is matched.
+        await expect(owners.objectsOwnedBy(APP, `${USER_ID} or 1 eq 1`)).rejects.toBeInstanceOf(
+            QseowError
+        );
+        expect(requests).toHaveLength(0);
+    });
+
+    test('gives an object a new owner by writing back a fresh read of it, as JSON', async () => {
+        const objectEntity = {
+            id: OBJECT,
+            name: "Joe's notes",
+            modifiedDate: '2026-10-26T10:00:00.000Z',
+            owner: ANNA,
+        };
+        respond = (method, path, body) => ({
+            statusCode: 200,
+            body: method === 'PUT' ? body : objectEntity,
+        });
+
+        await owners.changeObjectOwner(OBJECT, {
+            id: 'u-joe',
+            label: 'ACME\\joe',
+            reference: { id: 'u-joe' },
+        });
+
+        expect(requests.map(({ method, path }) => `${method} ${path}`)).toEqual([
+            `GET app/object/${OBJECT}`,
+            `PUT app/object/${OBJECT}`,
+        ]);
+        expect(requests[1].body).toEqual({ ...objectEntity, owner: { id: 'u-joe' } });
+        expect(requests[1].contentType).toBe('application/json');
+    });
+
+    test('refuses an object id that is not a QRS id, before asking QRS', async () => {
+        await expect(
+            owners.changeObjectOwner('../app/x', { reference: { id: 'u-joe' } })
+        ).rejects.toBeInstanceOf(QseowError);
+        expect(requests).toHaveLength(0);
+    });
+
+    test('says how to give objects back in the QMC', () => {
+        expect(owners.manualObjectFix('sheet "Joe\'s notes" (o-1)', { label: 'ACME\\joe' })).toBe(
+            `In the QMC, open App objects and set the owner of each of these back to ACME\\joe: sheet "Joe's notes" (o-1).`
+        );
+    });
+});
+
 describe('resolveQseowOwnerTarget', () => {
     test('with form login, is the logon user, without opening a browser', async () => {
         const target = await resolveQseowOwnerTarget(OPTIONS, { dryRun: false });
@@ -197,6 +268,16 @@ describe('resolveQseowOwnerTarget', () => {
         expect(target.label).toBe('ACME\\joe');
         expect(filterOf(requests[0].path)).toBe("userDirectory eq 'ACME' and userId eq 'joe'");
         expect(readQseowBrowserUser).not.toHaveBeenCalled();
+    });
+
+    test('says at the start that the objects an owner change moves are given back', async () => {
+        await resolveQseowOwnerTarget(OPTIONS, { dryRun: false });
+
+        expect(logger.info).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'any that ACME\\joe already owns in an app are given back to ACME\\joe'
+            )
+        );
     });
 
     test('with --skip-login, asks the browser who it signs in as', async () => {

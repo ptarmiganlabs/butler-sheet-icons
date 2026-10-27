@@ -25,7 +25,7 @@ import {
     buildBrowserPlanSection,
     buildAppOwnerPlanSection,
 } from '../util/run-report.js';
-import { withAppOwnerChange } from '../util/temporary-app-owner.js';
+import { movesObjectsWithOwner, withAppOwnerChange } from '../util/temporary-app-owner.js';
 import { qseowAppOwners, resolveQseowOwnerTarget } from './qseow-app-owner.js';
 
 /**
@@ -198,10 +198,11 @@ export const qseowCreateThumbnails = async (options) => {
             live?.stepDone('app owner', ownerTarget?.label ?? 'browser login user');
         }
 
+        const owners = qseowAppOwners(options);
         const { planApp, processApp } = withAppOwnerChange(
             {
                 options,
-                owners: qseowAppOwners(options),
+                owners,
                 target: ownerTarget,
                 logPrefix: 'QSEOW APP OWNER',
                 ErrorClass: QseowError,
@@ -242,7 +243,9 @@ export const qseowCreateThumbnails = async (options) => {
                             : { directory: options.logonuserdir, userId: options.logonuserid },
                     skipLogin: options.skipLogin === true,
                 },
-                appOwner: buildAppOwnerPlanSection(options, ownerTarget),
+                appOwner: buildAppOwnerPlanSection(options, ownerTarget, {
+                    givesObjectsBack: movesObjectsWithOwner(owners),
+                }),
                 sheetPart: buildSheetPartSection(options.includesheetpart, QSEOW_SHEET_PART_LABELS),
                 rules: buildSheetRules(options, {
                     includeTagRules: true,

@@ -484,13 +484,20 @@ export const buildBrowserPlanSection = (options) => ({
  * @param {object} options - The command's options bag.
  * @param {{label: string}|null} target - Who owns each app while it is processed, or null when
  *     only a real run's sign-in can tell.
+ * @param {object} [platform] - What the platform's owner change does.
+ * @param {boolean} [platform.givesObjectsBack] - Whether an owner change moves the objects in
+ *     the app, so the temporary owner's own objects are given back after each app (QSEoW).
  *
- * @returns {{target: string|null, waitSeconds: number}|null} The section, or null when the
- *     option is off.
+ * @returns {{target: string|null, waitSeconds: number, givesObjectsBack: boolean}|null} The
+ *     section, or null when the option is off.
  */
-export const buildAppOwnerPlanSection = (options, target) =>
+export const buildAppOwnerPlanSection = (options, target, { givesObjectsBack = false } = {}) =>
     options.changeAppOwner === true
-        ? { target: target?.label ?? null, waitSeconds: options.changeAppOwnerWait }
+        ? {
+              target: target?.label ?? null,
+              waitSeconds: options.changeAppOwnerWait,
+              givesObjectsBack,
+          }
         : null;
 
 /**
@@ -747,14 +754,17 @@ export const recordAppOutcome = (appEntry, { sheetsUpdated, imagesDir, imageFile
  *
  * States: `unchanged` (already owned by the target), `kept` (owner must not change; `reason`
  * says why), `changing` (the change was sent), `changed` (the app is being processed with the
- * temporary owner), `restored`, `changed-elsewhere` (someone else changed it meanwhile and BSI
- * left it), `change-failed` (the app was not processed), `restore-failed`, and on a dry run
- * `planned`.
+ * temporary owner), `giving-back` (the app's owner is restored and the target's own objects are
+ * being given back), `restored`, `changed-elsewhere` (someone else changed it meanwhile and BSI
+ * left it), `change-failed` (the app was not processed), `restore-failed`, `give-back-failed`,
+ * and on a dry run `planned`.
  *
  * @param {object|null} report - The report; nothing is recorded without one.
  * @param {string} appId - The app.
  * @param {object} fields - Fields to set: `appName`, `from` and `to` (owner labels), `state`,
- *     `reason`, `manualFix`.
+ *     `reason`, `manualFix`; and where an owner change moves objects, `ownObjects` (what the
+ *     target owned in the app beforehand), `givenBack` (how many were given back) and
+ *     `notGivenBack` (what may still be with the app's owner).
  *
  * @returns {object|null} The app's owner entry.
  */
@@ -786,12 +796,13 @@ export const recordAppOwner = (report, appId, fields) => {
  * @param {object|null} report - The report.
  * @param {object} stop - The stop.
  * @param {string} stop.appId - The app whose failure stopped the run.
+ * @param {string} [stop.reason] - Why, as the verdict says it.
  *
  * @returns {void}
  */
-export const recordRunStop = (report, { appId }) => {
+export const recordRunStop = (report, { appId, reason }) => {
     if (report) {
-        report.stopped = { appId };
+        report.stopped = reason ? { appId, reason } : { appId };
     }
 };
 

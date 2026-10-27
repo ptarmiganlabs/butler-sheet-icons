@@ -345,6 +345,42 @@ describe('runOverAppsWithReport - --change-app-owner (issue #1209)', () => {
         };
     };
 
+    /**
+     * A platform half whose owner change moves objects, as QRS does, with one sheet of Joe's in
+     * every app.
+     *
+     * @param {object} [behaviour] - How it behaves.
+     * @param {boolean} [behaviour.giveBackFails] - Whether giving an object back fails.
+     *
+     * @returns {object} The fake.
+     */
+    const fakeObjectOwners = ({ giveBackFails = false } = {}) => {
+        const base = fakeOwners();
+        const sheetOwners = new Map();
+        const sheetOwner = (appId) => sheetOwners.get(appId) ?? JOE;
+
+        return {
+            ...base,
+            change: async (appId, owner) => {
+                if (sheetOwner(appId) === (await base.inspect(appId)).owner) {
+                    sheetOwners.set(appId, owner);
+                }
+                await base.change(appId, owner);
+            },
+            objectsOwnedBy: async (appId, ownerId) =>
+                sheetOwner(appId).id === ownerId
+                    ? [{ id: `${appId}-sheet`, name: "Joe's notes", objectType: 'sheet' }]
+                    : [],
+            changeObjectOwner: async (objectId, owner) => {
+                if (giveBackFails) {
+                    throw new Error('Received error code: 500::boom');
+                }
+                sheetOwners.set(objectId.replace(/-sheet$/, ''), owner);
+            },
+            manualObjectFix: (objectList, owner) => `give ${objectList} back to ${owner.label}`,
+        };
+    };
+
     const waits = { settle: async () => {}, pause: async () => {} };
 
     /**
@@ -391,6 +427,64 @@ describe('runOverAppsWithReport - --change-app-owner (issue #1209)', () => {
         expect(log).toContain('stopped       an app owner could not be restored');
         expect(log).toContain(
             'NOT RESTORED  app app-1 "App app-1" may still be owned by ACME\\joe - its owner was ACME\\anna'
+        );
+    });
+
+    test('a failed give-back of objects stops the run, and the verdict names them', async () => {
+        const processApp = processWithOwner(fakeObjectOwners({ giveBackFails: true }));
+
+        const result = await runOverAppsWithReport(
+            runArgs({
+                appIds: ['app-1', 'app-2'],
+                namedAppIds: ['app-1', 'app-2'],
+                processApp,
+            })
+        );
+
+        expect(result).toBe(false);
+        expect(processApp).toHaveBeenCalledTimes(1);
+
+        const log = timeline.join('\n');
+        expect(log).toContain('apps          0 ok, 1 failed, 1 not started');
+        expect(log).toContain(
+            'stopped       objects in an app could not be given back to their owner'
+        );
+        expect(log).toContain(
+            `NOT RETURNED  app app-1 "App app-1": 1 object(s) ACME\\joe owned before the run may now be owned by the app's owner - sheet "Joe's notes"`
+        );
+    });
+
+    test('a run that gave objects back counts them in the verdict', async () => {
+        const result = await runOverAppsWithReport(
+            runArgs({ processApp: processWithOwner(fakeObjectOwners()) })
+        );
+
+        expect(result).toBe(true);
+        expect(timeline.join('\n')).toContain(
+            'app owner     2 changed and restored, 2 object(s) given back to ACME\\joe'
+        );
+    });
+
+    test('a dry run names the objects a real run would give back', async () => {
+        const owners = fakeObjectOwners();
+        const planApp = jest.fn((appId, report) =>
+            planTemporaryAppOwner(
+                { appId, owners, target: JOE, report, ErrorClass: QseowError },
+                async () => {
+                    report.apps.push({
+                        id: appId,
+                        name: `App ${appId}`,
+                        sheetCount: null,
+                        sheets: [],
+                    });
+                }
+            )
+        );
+
+        await runOverAppsWithReport(runArgs({ dryRun: true, planApp }));
+
+        expect(timeline.join('\n')).toContain(
+            `ACME\\joe already owns 1 object(s) in the app, which the change back would move to ACME\\anna; they would be given back to ACME\\joe after: sheet "Joe's notes"`
         );
     });
 
