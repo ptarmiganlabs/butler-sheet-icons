@@ -104,9 +104,9 @@ jobs:
         shell: pwsh
         run: ./scripts/diag/win-strip-check.ps1
 
-      # Again under Windows PowerShell 5.1, because butler-sheet-icons-premium dot-sources the same
-      # library under 5.1. This leg is what stops a PowerShell 7-only construct reaching it: it would
-      # pass every job here and then fail the premium build.
+      # Again under Windows PowerShell 5.1, because a variant build may dot-source the same library
+      # under 5.1. This leg is what stops a PowerShell 7-only construct reaching it: it would pass
+      # every job here and then fail that build.
       - name: Check the signature strip under Windows PowerShell 5.1
         if: matrix.os == 'windows-latest'
         shell: powershell
