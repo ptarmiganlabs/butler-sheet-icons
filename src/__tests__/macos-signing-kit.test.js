@@ -162,9 +162,13 @@ const makeKit = ({
 /**
  * Runs the kit, or some other bash, to the end, in the kit's copy of the repository.
  *
+ * Every argument is a constant, paths relative to the kit included: a path reaches bash through its
+ * working directory or its environment, never on its command line. A temp-folder path on a shell's
+ * command line is what CodeQL's js/shell-command-injection-from-environment flags.
+ *
  * @param {object} kit - From makeKit.
- * @param {string[]} [args] - Arguments for bash. The signing script, with the binary and the zip a
- *     release passes it, when omitted.
+ * @param {string[]} [args] - Arguments for bash, all of them constants. The signing script, with the
+ *     binary and the zip a release passes it, when omitted.
  * @param {object} [env] - Variables to set beside the kit's.
  *
  * @returns {{code: (number|null), output: string}} The exit status, and stdout with stderr.
@@ -216,12 +220,27 @@ const signalDuringNotarization = async (kit, signal) => {
         output += chunk;
     });
 
-    const closed = new Promise((resolve) => {
-        child.on('close', (code) => {
+    const exited = new Promise((resolve) => {
+        child.on('exit', (code) => {
             ended = true;
             resolve(code);
         });
     });
+    const closed = new Promise((resolve) => {
+        child.on('close', resolve);
+    });
+
+    /**
+     * Waits a moment.
+     *
+     * @param {number} ms - How long.
+     *
+     * @returns {Promise<undefined>} Settles when the time is up.
+     */
+    const pause = (ms) =>
+        new Promise((resolve) => {
+            setTimeout(resolve, ms);
+        });
 
     // The stand-in logs the submission, then sleeps in it. Waited for as long as the kit runs,
     // rather than for a time that a slow runner might not keep to.
@@ -230,14 +249,36 @@ const signalDuringNotarization = async (kit, signal) => {
             throw new Error(`the kit ended before it reached notarization:\n${output}`);
         }
 
-        await new Promise((resolve) => {
-            setTimeout(resolve, 25);
-        });
+        await pause(25);
     }
 
-    process.kill(-child.pid, signal);
+    // Sent again until the kit has exited, as a runner escalates a cancellation. The stand-in forks
+    // its sleep just after it logs the submission, and a signal that lands in between misses the
+    // sleep, which would then hold the kit's child, and with it the kit, for its whole thirty
+    // seconds. The kit's trap is pending from the first signal either way; it runs once that child
+    // has ended.
+    let code;
 
-    return { code: await closed, output };
+    do {
+        try {
+            process.kill(-child.pid, signal);
+        } catch {
+            // The group is gone already; the exit below says how it ended.
+        }
+
+        code = await Promise.race([exited, pause(2000)]);
+    } while (code === undefined);
+
+    // Nothing of the group outlives the test, and its output is complete once the pipes close.
+    try {
+        process.kill(-child.pid, 'SIGKILL');
+    } catch {
+        // Nothing left of it.
+    }
+
+    await closed;
+
+    return { code, output };
 };
 
 describeKit("the macOS signing kit, against stand-ins for Apple's tools", () => {
@@ -407,8 +448,10 @@ describeKit("the macOS signing kit, against stand-ins for Apple's tools", () => 
         // Teardown runs whenever the script stops, before setup too, and an empty snapshot written
         // back then would wipe the person's list.
         const kit = makeKit();
-        const library = path.join(kit.root, 'scripts', 'lib', 'macos-signing-keychain.sh');
-        const { code, output } = run(kit, ['-c', '. "$1"; bsi_keychain_teardown', 'bash', library]);
+        const { code, output } = run(kit, [
+            '-c',
+            '. scripts/lib/macos-signing-keychain.sh; bsi_keychain_teardown',
+        ]);
 
         expect({ code, output }).toEqual({ code: 0, output: expect.any(String) });
         expect(lines(kit.log).filter((call) => call.startsWith('security list-keychains'))).toEqual(
@@ -642,18 +685,23 @@ const onHostedMac =
                 });
                 expect(searchList()).toEqual(planted);
 
+                // The library is found from the working directory, and the folder for the
+                // keychain arrives in the environment, so that the command line is a constant, as
+                // run() keeps it.
                 const setUpAndTearDown = spawnSync(
                     BASH,
                     [
                         '-c',
-                        '. "$1"; BSI_KEYCHAIN_DIR="$2"; trap bsi_keychain_teardown EXIT; bsi_keychain_setup "$(od -An -tx1 -N24 /dev/urandom | tr -d " \\n")"',
-                        'bash',
-                        path.join(repoRoot, 'scripts', 'lib', 'macos-signing-keychain.sh'),
-                        dir,
+                        '. scripts/lib/macos-signing-keychain.sh; BSI_KEYCHAIN_DIR="$KEYCHAIN_DIR"; trap bsi_keychain_teardown EXIT; bsi_keychain_setup "$(od -An -tx1 -N24 /dev/urandom | tr -d " \\n")"',
                     ],
                     {
+                        cwd: repoRoot,
                         encoding: 'utf8',
-                        env: { PATH: '/usr/bin:/bin:/usr/sbin:/sbin', HOME: os.homedir() },
+                        env: {
+                            PATH: '/usr/bin:/bin:/usr/sbin:/sbin',
+                            HOME: os.homedir(),
+                            KEYCHAIN_DIR: dir,
+                        },
                     }
                 );
 
