@@ -8,7 +8,7 @@ $ErrorActionPreference = 'Stop'
 # can rehearse between releases with ci.yaml's rehearse_signing input.
 #
 # The signtool lookup and the signature stripping come from the shared helpers, which the release
-# build and butler-sheet-icons-premium use as well.
+# build and variant builds use as well.
 . "$PSScriptRoot/lib/win-signing.ps1"
 
 $signtool = Get-BsiSigntoolPath

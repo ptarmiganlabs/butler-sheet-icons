@@ -11,7 +11,7 @@ $ErrorActionPreference = 'Stop'
 #   <DIST_FILE_NAME>.exe.sha256   its SHA-256, which sign-win64 checks before signing anything
 #
 # The signtool lookup and the signature stripping come from the shared helpers, which the insider
-# build and butler-sheet-icons-premium use as well.
+# build and variant builds use as well.
 . "$PSScriptRoot/lib/win-signing.ps1"
 
 $signtool = Get-BsiSigntoolPath

@@ -1,8 +1,8 @@
 # Shared Windows helpers for the SEA builds, dot-sourced by the release build, the insider build and
-# butler-sheet-icons-premium's build. Two of them are meant to be called: Get-BsiSigntoolPath finds
-# signtool.exe, and Invoke-BsiStripSignature removes the Authenticode signature a copied node.exe
-# carries, which every Windows build needs before postject rewrites the binary. The rest are what
-# those two are built from.
+# variant builds. Two of them are meant to be called: Get-BsiSigntoolPath finds signtool.exe, and
+# Invoke-BsiStripSignature removes the Authenticode signature a copied node.exe carries, which
+# every Windows build needs before postject rewrites the binary. The rest are what those two are
+# built from.
 #
 # Nothing here signs. Releases are signed through Azure Artifact Signing by sign-win64 in ci.yaml, a
 # job that runs no repository code - this file included - and insiders builds are not signed at all
@@ -10,8 +10,8 @@
 # live here, with its SimplySign session handling, was removed in October 2026 and is in this
 # file's history.
 #
-# This file must keep working under Windows PowerShell 5.1 as well as PowerShell 7:
-# butler-sheet-icons-premium runs it under 5.1, and pr-unit-tests.yaml checks it under both
+# This file must keep working under Windows PowerShell 5.1 as well as PowerShell 7: a variant
+# build may dot-source it under 5.1, and pr-unit-tests.yaml checks it under both
 # (scripts/diag/win-strip-check.ps1).
 
 # Deliberately no Set-StrictMode here. Dot-sourcing runs this in the caller's scope, so a strict
