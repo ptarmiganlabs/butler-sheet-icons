@@ -5,9 +5,9 @@ $ErrorActionPreference = 'Stop'
 # node.exe carries. It strips a scratch copy of the node.exe running the build and asks Windows
 # whether anything is left.
 #
-# pr-unit-tests.yaml runs it under PowerShell 7 and again under Windows PowerShell 5.1, because
-# butler-sheet-icons-premium dot-sources the library under 5.1: a PowerShell 7-only construct would
-# pass every job here and break the premium build.
+# pr-unit-tests.yaml runs it under PowerShell 7 and again under Windows PowerShell 5.1, because a
+# variant build may dot-source the library under 5.1: a PowerShell 7-only construct would pass
+# every job here and break that build.
 . "$PSScriptRoot/../lib/win-signing.ps1"
 
 Write-Host "PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))"
