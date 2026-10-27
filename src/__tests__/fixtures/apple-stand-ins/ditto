@@ -1,0 +1,20 @@
+#!/bin/bash
+# ditto -c -k --norsrc --keepParent <folder> <zip>: records the folder the zip would hold, each file
+# in it with its mode, and leaves an empty file where the zip would be.
+printf 'ditto %s\n' "$*" >> "$LOG"
+if [ "$1" = "-c" ]; then
+  folder=
+  zip=
+  for argument in "$@"; do folder=$zip; zip=$argument; done
+  staged=
+  LC_ALL=C
+  for file in "$folder"/*; do
+    # GNU stat first, BSD stat second: this runs under Linux's bash and under the Mac's. BSD stat
+    # refuses -c and prints nothing; GNU stat takes -f for a file system, and would print one.
+    mode=$(stat -c '%a' "$file" 2>/dev/null || stat -f '%Lp' "$file" 2>/dev/null || echo '?')
+    staged="$staged${folder##*/}/${file##*/}=$mode "
+  done
+  printf 'staged: %s\n' "$staged" >> "$LOG"
+  : > "$zip"
+fi
+exit 0

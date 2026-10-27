@@ -1,0 +1,17 @@
+#!/bin/bash
+# xcrun notarytool store-credentials|submit|log: answers as notarytool does with --output-format
+# json. store-credentials stores nothing, since the stand-in security keeps no keychain: the tests
+# read the log to see which call was given a password. submit exits 0 whatever the status, which is
+# what makes the script read the verdict rather than the exit code.
+printf 'xcrun %s\n' "$*" >> "$LOG"
+case "$1 $2" in
+  'notarytool submit')
+    # /bin/sleep, not sleep: the stand-in sleep beside this file returns at once.
+    if [ -n "${FAKE_NOTARY_SLEEP:-}" ]; then /bin/sleep "$FAKE_NOTARY_SLEEP"; fi
+    printf '{"id":"submission-1","status":"%s"}\n' "${FAKE_NOTARY_STATUS:-Accepted}"
+    ;;
+  'notarytool log')
+    printf '{"status":"%s","issues":null}\n' "${FAKE_NOTARY_STATUS:-Accepted}"
+    ;;
+esac
+exit 0

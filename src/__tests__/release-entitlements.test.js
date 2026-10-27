@@ -5,8 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// What the macOS binary is signed with, beside the hardened runtime, by scripts/release-macos.sh
-// and scripts/insider-build-mac.sh. The binary is a copy of node, and the official node binary is
+// What scripts/sign-macos.sh signs the macOS binary with, beside the hardened runtime, for release
+// and insider builds alike. The binary is a copy of node, and the official node binary is
 // signed with six entitlements. V8 needs two of them, for memory that is writable and executable,
 // which the hardened runtime refuses without them: signed with the runtime and no entitlements,
 // the binary dies at start. The other four are node's needs as a development tool. get-task-allow
@@ -39,7 +39,7 @@ describe('the macOS entitlements', () => {
     // codesign reads the file with AMFI's XML parser, which is stricter than plutil: a `--` inside
     // a comment, which XML forbids, failed otlet's first signing rehearsal with
     // "AMFIUnserializeXML: syntax error near line 6" while `plutil -lint` called the file OK. Say
-    // why beside the codesign call in scripts/release-macos.sh instead.
+    // why beside the codesign call in scripts/sign-macos.sh instead.
     test('carry no comment for codesign to parse', () => {
         expect(readFileSync(ENTITLEMENTS, 'utf8')).not.toMatch(/<!--/);
     });

@@ -1,0 +1,4 @@
+#!/bin/bash
+# sleep: logs the call and returns at once, so that codesign's retries cost the tests nothing.
+printf 'sleep %s\n' "$*" >> "$LOG"
+exit 0

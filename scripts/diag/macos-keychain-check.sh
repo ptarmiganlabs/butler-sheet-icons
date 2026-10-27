@@ -9,8 +9,10 @@ set -uo pipefail
 # build keychain" on the self-hosted Mac - and, when a run was killed, left the machine in that
 # state permanently.
 #
-# This script asserts that none of that is happening. It changes nothing: repair belongs to
-# scripts/lib/macos-signing-keychain.sh, which runs at the start of every build. Keeping the audit
+# This script asserts that none of that is happening. It changes nothing, and neither does the
+# signing run, beyond its own debris: scripts/lib/macos-signing-keychain.sh drops a stale signing
+# keychain of its own from the search list, and writes everything else back exactly as it found it.
+# A dangling entry or a broken default keychain belongs to whoever left it. Keeping the audit
 # read-only means it can be run on a developer's own Mac without consequences, and means a CI
 # failure here reports a real state rather than one the checker just fixed.
 #
@@ -60,13 +62,20 @@ is_signing_keychain() {
   esac
 }
 
+# The paths `security` prints, one a line, without their indent and quotes. Line by line, as the
+# library reads them, because a path may hold a space: split on whitespace, "Work
+# Keychain.keychain-db" would be reported as two entries that do not exist.
+unquote() {
+  sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//'
+}
+
 note "--- keychain audit on $(hostname -s), user $(id -un) ---"
 
 # ---------------------------------------------------------------------------------------------
 # The default keychain. This is the one that caused the dialog: it is where applications create
 # new items, so pointing it at a keychain locked with a CI-only password makes macOS ask a human.
 # ---------------------------------------------------------------------------------------------
-DEFAULT_KEYCHAIN=$(security default-keychain -d user 2>/dev/null | tr -d '"' | xargs || true)
+DEFAULT_KEYCHAIN=$(security default-keychain -d user 2>/dev/null | unquote || true)
 note "default keychain: ${DEFAULT_KEYCHAIN:-(none)}"
 
 if [ -z "$DEFAULT_KEYCHAIN" ]; then
@@ -108,7 +117,7 @@ while IFS= read -r keychain; do
       fail "a build signing keychain is still on the search list: $keychain"
     fi
   fi
-done < <(security list-keychains -d user | tr -d '"' | xargs -n1 || true)
+done < <(security list-keychains -d user | unquote || true)
 
 # During a build the signing keychain is expected to be present - but appended, never ahead of the
 # user's own keychain. This is the assertion that would have caught the original bug.
@@ -124,7 +133,8 @@ if [ "$FAILURES" -eq 0 ]; then
 fi
 
 echo "$FAILURES keychain problem(s) found." >&2
-echo "Repair: the next macOS build clears this automatically, or run" >&2
+echo "A signing run sweeps only a stale signing keychain of its own; it repairs nothing else, because" >&2
+echo "nothing else is its own. To repair this host by hand:" >&2
 echo "  security list-keychains -d user -s \"$LOGIN_KEYCHAIN\"" >&2
 echo "  security default-keychain -d user -s \"$LOGIN_KEYCHAIN\"" >&2
 exit 1

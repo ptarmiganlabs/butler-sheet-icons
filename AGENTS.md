@@ -132,9 +132,9 @@ The section above is about the browser BSI drives. This one is about the browser
 ## SEA (Single Executable App)
 
 - SEA config: `build-script/sea-config.json` — bundles `build.cjs` and enigma.js JSON schemas as assets
-- `scripts/release-*.sh` / `scripts/release-*.ps1` build the release binaries: macOS signed and notarized, Linux unsigned, and Windows **unsigned** — `sign-win64` in `ci.yaml` signs it (see below)
-- `scripts/insider-build-*.sh` / `scripts/insider-build-*.ps1` produce insider builds — signed and notarized on macOS, unsigned on Windows and Linux
-- The macOS binary is tested after it is signed, by `npm run test:binary`, in the release job, the insider build and the signing canary; the macOS leg of `pr-unit-tests` builds one, signs it ad hoc with the hardened runtime and `release-config/butler-sheet-icons.entitlements`, and tests that. A missing JIT entitlement makes the binary die at start (exit 133). Where a job holds the Apple secrets in its `env`, the test runs under `env -i`, because it runs the binary and its dependency code
+- `scripts/release-*.sh` / `scripts/release-*.ps1` build the release binaries, **all three unsigned**: `scripts/sign-macos.sh` signs and notarizes the macOS one in a step of its own, `sign-win64` in `ci.yaml` signs Windows, and Linux is not signed (see below)
+- `scripts/insider-build-*.sh` / `scripts/insider-build-*.ps1` produce insider builds, unsigned. The macOS one is then signed and notarized by `scripts/sign-macos.sh`, as a release is; Windows and Linux insiders stay unsigned
+- The macOS binary is tested after it is signed, by `npm run test:binary`, in the release job, the insider build and the signing canary; the macOS leg of `pr-unit-tests` builds one, signs it ad hoc with the hardened runtime and `release-config/butler-sheet-icons.entitlements`, and tests that. A missing JIT entitlement makes the binary die at start (exit 133). No step that runs the binary or npm holds the Apple secrets: they are on the signing step alone
 - The macOS binary is signed with the identifier `com.ptarmiganlabs.butler-sheet-icons`, releases and insider builds alike, as homing and xray sign with theirs. It goes into the designated requirement, which is how macOS recognises a later build as the same program, so it never changes. `src/__tests__/binary.test.js` pins it, and under a Developer ID signature the whole requirement, team included. Builds up to 5.2.0 were named after the file
 - In SEA binaries, `__dirname`/`__filename` are unavailable; use the helpers in `src/lib/util/import-meta-url.js` (injected at build time)
 - Always clean up `build.cjs` and `sea-prep.blob` after builds
@@ -150,6 +150,25 @@ Releases are signed through **Azure Artifact Signing**, on GitHub-hosted runners
 - Two things live outside the repository. The `release-signing` environment holds six variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `SIGNING_ENDPOINT`, `SIGNING_ACCOUNT_NAME`, `SIGNING_CERT_PROFILE_NAME`. And the Entra app needs a federated credential whose subject matches exactly what GitHub presents: `repo:ptarmiganlabs@6304190/butler-sheet-icons@381155354:environment:release-signing`. A mismatch fails the login with AADSTS700213. Regenerate the prefix rather than retyping it (`gh api repos/ptarmiganlabs/butler-sheet-icons/actions/oidc/customization/sub --jq .sub_claim_prefix`), and expect a repository or environment rename to break it.
 - Insiders builds are not signed.
 - `scripts/lib/win-signing.ps1` keeps the signtool lookup and the signature strip that every Windows build needs before postject, and `Test-BsiVersionReport`, the smoke test's `--version` match. A variant build may dot-source it under Windows PowerShell 5.1, so `pr-unit-tests` runs `scripts/diag/win-strip-check.ps1` and `scripts/diag/win-version-check.ps1` under both 5.1 and PowerShell 7.
+
+### macOS code signing
+
+Releases, insider builds and the weekly `macos-signing-canary` are signed with the Developer ID on GitHub-hosted `macos-15`, in two steps of one job. Building and signing are separate scripts so that the Apple secrets are only ever in the environment of the step that signs, and no dependency code runs in that step.
+
+- `scripts/release-macos.sh`, or `scripts/insider-build-mac.sh`, builds the binary and signs it ad hoc. It holds no secret.
+- `scripts/sign-macos.sh <binary> <zip>` signs it with the Developer ID and verifies the signature. It then zips it as `butler-sheet-icons/butler-sheet-icons`, the layout every release has had, and has Apple notarize the zip, refusing any verdict but `Accepted`. It runs no npm and never runs the binary.
+- **The signing step trusts nothing earlier steps could have changed.**
+  - It runs privileged bash, drops every variable but the six secrets and the few it names, and uses the system `PATH`.
+  - It refuses to sign if the signing kit differs from a digest recorded before `npm ci`. The kit is the script, its keychain library, the entitlements and `release-config/apple-ca/`.
+  - **Do not give the secrets back to the job or to the build step**, and change the three signing steps together.
+- `scripts/lib/macos-signing-keychain.sh` makes a throwaway keychain in a folder of the run's own, with a password made per run, and imports Apple's CAs into it from `release-config/apple-ca/`.
+  - It never writes the default keychain.
+  - It refuses when the search list cannot be read.
+  - It writes the list back exactly as it found it, minus only its own `bsi-signing-*` entries.
+
+  That is what makes the scripts safe on a persistent Mac, such as a self-hosted runner or a maintainer's own machine, and not only on a runner that is thrown away.
+- Notarization authenticates from that keychain (`notarytool store-credentials`, then `--keychain-profile`), so the twenty-minute wait carries no password on its command line. `PROD_MACOS_CI_KEYCHAIN_PWD` is no longer read.
+- `src/__tests__/macos-signing-kit.test.js` runs the kit against stand-ins for Apple's tools on every pull request. Apple's side, a real signature and notarization, is the canary's to prove. Run it after changing any of these: `gh workflow run macos-signing-canary.yaml -R ptarmiganlabs/butler-sheet-icons --ref main`.
 
 ### CI runners
 

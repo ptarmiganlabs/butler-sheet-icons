@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Keychain lifecycle for the macOS signing scripts. Sourced, never executed.
+# Keychain lifecycle for scripts/sign-macos.sh. Sourced, never executed.
 #
-# Both release-macos.sh and insider-build-mac.sh need a throwaway keychain holding the Developer ID
-# certificate. They each used to carry their own copy of this logic, and that copy did three things
-# that are fine on an ephemeral hosted runner and actively hostile on a self-hosted Mac somebody
-# is logged in to:
+# Signing needs a throwaway keychain holding the Developer ID certificate. release-macos.sh and
+# insider-build-mac.sh each used to carry their own copy of this logic, back when they signed as
+# well as built, and that copy did three things that are fine on an ephemeral hosted runner and
+# actively hostile on a self-hosted Mac somebody is logged in to:
 #
 #   1. It created the keychain as ~/Library/Keychains/build.keychain, next to the user's own.
 #   2. It put that keychain at the *head* of the user's keychain search list.
@@ -21,15 +21,25 @@
 # that poisoned state as "the original", deleted the keychain, and on exit faithfully restored a
 # search-list entry and a default keychain that no longer existed. Nothing ever recovered it.
 #
-# So: the keychain now lives in the runner's temp directory, it is appended to the search list
-# rather than prepended, and the default keychain is never touched at all. Nothing needs it -
-# `security import`, `unlock-keychain` and `set-key-partition-list` all name the keychain
-# explicitly, `codesign` resolves the identity from the search list, and `notarytool` authenticates
-# with --apple-id/--password.
+# So: the keychain lives in a folder the signing run makes for itself, under the runner's temp
+# directory. It is appended to the search list rather than prepended, and the default keychain is
+# never touched at all. Nothing needs it - `security import`, `unlock-keychain` and
+# `set-key-partition-list` all name the keychain explicitly, `codesign` resolves the identity from
+# the search list, and `notarytool` is given the keychain its credentials are stored in with
+# --keychain.
 #
 # It stays *on* the search list because it has to: `man codesign` is explicit that a keychain given
 # via --keychain is not searched when building the certificate chain unless it is also on the
 # user's list.
+#
+# What this library writes back is exactly what it read, minus its own entries. On a persistent Mac
+# - a self-hosted runner shared with other projects, or a maintainer's own machine - everything else
+# on the search list belongs to somebody else, and so does the default keychain. That includes a
+# path that no longer exists, and a default that points at nothing. The library used to "repair"
+# those two, dropping dangling entries from the list and pointing a broken default at the login
+# keychain. Both repairs changed state this build did not create, so both are gone: whichever
+# project left a dangling entry is the one to clear it. The search list reads the same after a
+# signing run as before it, and the default keychain is never written.
 #
 # The library no longer touches build.keychain, the name the scripts above used until August 2026,
 # and every build since has swept what they left. butler and ctrl-q still create
@@ -39,19 +49,40 @@
 # Mac ran one job at a time. Every name this library recognises is Butler Sheet Icons' own (decided
 # with Goran, 2026-10-17).
 #
-# Written for bash 3.2 - GitHub's macOS runners still execute these scripts under /bin/bash 3.2,
-# where expanding an empty array under `set -u` is a fatal error. Hence the ${arr[@]+"${arr[@]}"}
-# guards.
+# One hazard this does not solve. If the search list changes while a signing run is under way - a
+# build overlapping on the same Mac, or a person in Keychain Access - the run still restores the
+# list it read at the start, and the change is lost.
+#
+# Written for bash 3.2 - macOS still runs these scripts under /bin/bash 3.2, where expanding an empty
+# array under `set -u` is a fatal error. Hence the ${arr[@]+"${arr[@]}"} guards.
 
 # Absolute path of the keychain this build owns. Callers pass it to `security import`,
-# `set-key-partition-list` and `codesign --keychain`.
+# `set-key-partition-list`, `codesign --keychain` and `notarytool --keychain`.
 BSI_KEYCHAIN_PATH=""
+
+# Directory to create that keychain in. scripts/sign-macos.sh sets it to the folder it makes for
+# the run, so that one cleanup removes the keychain along with everything else the run wrote. Falls
+# back to the runner's temp directory.
+BSI_KEYCHAIN_DIR=""
 
 # The user's keychain search list as found, minus anything of ours. Restored verbatim on teardown.
 BSI_ORIGINAL_KEYCHAINS=()
 
-# Guards teardown against running twice - it is wired to four signals plus EXIT.
+# Set once the search list has been read, so that teardown writes it back only when there is a
+# snapshot to write. Teardown also runs when the script stops before setup, and writing an empty
+# list then would wipe the person's own.
+BSI_KEYCHAIN_SNAPSHOT_TAKEN=""
+
+# Guards teardown against running twice - it is wired to three signals plus EXIT.
 BSI_KEYCHAIN_TORN_DOWN=""
+
+# The keychain paths `security list-keychains` and `default-keychain` print, one a line, without the
+# indent and the quotes they come with. Read line by line because a path may hold a space:
+# splitting on whitespace, as `xargs` did here, broke "Work Keychain.keychain-db" in two, dropped
+# both halves as missing, and so took the person's keychain off their search list for good.
+bsi_keychain_unquote() {
+  sed -e 's/^[[:space:]]*"//' -e 's/"[[:space:]]*$//'
+}
 
 # Reports whether a search-list entry is one of ours. Never another project's: a build of theirs on
 # the same Mac needs its entry left alone.
@@ -66,16 +97,25 @@ bsi_keychain_is_ours() {
   esac
 }
 
-# Snapshots the user's keychain search list, dropping entries that must not be restored.
+# Snapshots the user's keychain search list, minus our own entries.
 #
-# Two kinds are dropped. Ours - a stale bsi-signing keychain from a run that never cleaned up -
-# because restoring those is what made the old bug permanent. And paths that no
-# longer exist, because a search list containing a dangling path is the state the old cleanup left
-# behind, and quietly writing it back would preserve it.
+# Ours - a stale bsi-signing keychain from a run that never cleaned up - are dropped, because
+# restoring those is what made the old bug permanent. Nothing else is: another project's keychain,
+# and a path that no longer exists, are written back exactly as they were found.
+#
+# Refuses when the list cannot be read. A list that could not be read is not an empty one: taken as
+# empty, setup would put the signing keychain on the list in place of the person's own, and teardown
+# would then write the empty snapshot back, taking their login keychain off the list for good.
 bsi_keychain_snapshot() {
   local keychain
+  local listed
 
   BSI_ORIGINAL_KEYCHAINS=()
+
+  if ! listed="$(security list-keychains -d user)"; then
+    echo "::error::could not read the keychain search list; refusing to change it, or to sign"
+    return 1
+  fi
 
   while IFS= read -r keychain; do
     [ -n "$keychain" ] || continue
@@ -85,40 +125,35 @@ bsi_keychain_snapshot() {
       continue
     fi
 
-    if [ ! -f "$keychain" ]; then
-      echo "keychain: dropping search-list entry that no longer exists: $keychain"
-      continue
-    fi
-
     BSI_ORIGINAL_KEYCHAINS+=("$keychain")
-  done < <(security list-keychains -d user | tr -d '"' | xargs -n1 || true)
+  done < <(printf '%s\n' "$listed" | bsi_keychain_unquote)
 
+  BSI_KEYCHAIN_SNAPSHOT_TAKEN="yes"
   echo "keychain: search list to preserve: ${BSI_ORIGINAL_KEYCHAINS[*]:-(empty)}"
 }
 
-# Repairs the default keychain, when an interrupted run left it broken.
+# Puts Apple's intermediate and root into the signing keychain.
 #
-# A default keychain that points at a keychain of ours, at a file that is gone, or at nothing keeps
-# prompting the person at that Mac long after the build that caused it, and does not heal on its
-# own. `security default-keychain -d user` answers an error rather than a path when there is no
-# default at all, so an empty answer counts as needing repair just as much as a stale one. A default
-# that is another project's live keychain, butler's build.keychain during its build say, is not
-# broken, and is theirs to restore.
-bsi_keychain_clear_legacy_state() {
-  local default_keychain
-  local login_keychain="${HOME}/Library/Keychains/login.keychain-db"
+# codesign has to build the whole chain from the signing identity up to a self-signed root, and the
+# .p12 in MACOS_CERTIFICATE carries the leaf and its private key and nothing above it. GitHub's
+# hosted macOS images ship Apple's CAs; a self-hosted Mac, or a maintainer's own, may not. See
+# release-config/apple-ca/README.md.
+#
+# Imported into this keychain rather than installed on the machine, so that the keychain is
+# self-contained and the Mac needs no preparation.
+bsi_keychain_import_apple_cas() {
+  local ca_dir
+  ca_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../release-config/apple-ca" && pwd)"
 
-  default_keychain=$(security default-keychain -d user 2>/dev/null | tr -d '"' | xargs || true)
-
-  # The only case where this script writes the default keychain at all: it points at our debris, at
-  # a file that is gone, or at nothing. Anything the user chose deliberately is left alone.
-  if [ -z "$default_keychain" ]; then
-    echo "keychain: this host has no default keychain - pointing it at the login keychain"
-    security default-keychain -d user -s "$login_keychain" >/dev/null 2>&1 || true
-  elif bsi_keychain_is_ours "$default_keychain" || [ ! -f "$default_keychain" ]; then
-    echo "keychain: default keychain is stale ($default_keychain) - restoring the login keychain"
-    security default-keychain -d user -s "$login_keychain" >/dev/null 2>&1 || true
-  fi
+  local ca
+  for ca in "$ca_dir"/*.cer; do
+    # A literal glob means the directory is empty, which is a packaging mistake rather than
+    # something to sign through: without these, codesign fails later and far less legibly.
+    [ -f "$ca" ] || { echo "::error::no Apple CA certificates in $ca_dir"; return 1; }
+    echo "keychain: trusting $(basename "$ca")"
+    # No -T: these are certificates, not identities, so nothing needs key access.
+    security import "$ca" -k "$BSI_KEYCHAIN_PATH"
+  done
 }
 
 # Creates the signing keychain and makes it usable by codesign.
@@ -129,14 +164,14 @@ bsi_keychain_clear_legacy_state() {
 # before calling this.
 bsi_keychain_setup() {
   local keychain_password="$1"
-  local keychain_dir="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
+  local keychain_dir="${BSI_KEYCHAIN_DIR:-${RUNNER_TEMP:-${TMPDIR:-/tmp}}}"
 
-  bsi_keychain_snapshot
-  bsi_keychain_clear_legacy_state
+  # Before anything is created or written, so that a refusal leaves nothing for teardown to undo.
+  bsi_keychain_snapshot || return 1
 
   # Outside ~/Library/Keychains on purpose: it never shows up in Keychain Access, it cannot collide
-  # with another project's keychain there, and on a runner it is swept with RUNNER_TEMP even if this script
-  # is killed hard enough that no trap runs.
+  # with another project's keychain there, and on a runner it sits under RUNNER_TEMP, swept with it
+  # even if the script is killed hard enough that no trap runs.
   BSI_KEYCHAIN_PATH="${keychain_dir%/}/bsi-signing-$$.keychain-db"
 
   echo "keychain: creating $BSI_KEYCHAIN_PATH"
@@ -156,9 +191,11 @@ bsi_keychain_setup() {
 
   security unlock-keychain -p "$keychain_password" "$BSI_KEYCHAIN_PATH"
 
+  bsi_keychain_import_apple_cas
+
   echo "keychain: search list is now"
   security list-keychains -d user
-  echo "keychain: default keychain left at $(security default-keychain -d user 2>/dev/null | tr -d '"' | xargs)"
+  echo "keychain: default keychain is $(security default-keychain -d user 2>/dev/null | bsi_keychain_unquote), left as it is"
 }
 
 # Deletes the signing keychain and puts the search list back exactly as it was found.
@@ -174,9 +211,10 @@ bsi_keychain_teardown() {
     rm -f "$BSI_KEYCHAIN_PATH"
   fi
 
-  if [ "${#BSI_ORIGINAL_KEYCHAINS[@]}" -gt 0 ]; then
-    security list-keychains -d user -s "${BSI_ORIGINAL_KEYCHAINS[@]}" >/dev/null 2>&1 || true
+  # Whenever a snapshot was taken, an empty one included: setup put the signing keychain on the
+  # list, and only writing the snapshot back takes the deleted file off it again.
+  if [ -n "$BSI_KEYCHAIN_SNAPSHOT_TAKEN" ]; then
+    security list-keychains -d user -s \
+      ${BSI_ORIGINAL_KEYCHAINS[@]+"${BSI_ORIGINAL_KEYCHAINS[@]}"} >/dev/null 2>&1 || true
   fi
-
-  rm -f certificate.p12
 }
