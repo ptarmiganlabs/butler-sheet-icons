@@ -47,3 +47,7 @@ img/** export-ignore
 *.gif binary
 *.png binary
 *.jpeg binary
+# Apple's CA certificates in release-config/apple-ca/, which the macOS signing keychain imports. They
+# are DER, and `* text eol=lf` above would otherwise treat them as text, normalising any CRLF pair
+# in their bytes on commit.
+*.cer binary
