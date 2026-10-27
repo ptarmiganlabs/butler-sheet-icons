@@ -1,4 +1,17 @@
 <!--
+PUBLISHED 2026-08-22 to the doc site via ptarmiganlabs/butler-sheet-icons-docs#117 (into `next`,
+then to production with the 5.0-5.2 docs release, ptarmiganlabs/butler-sheet-icons-docs#119).
+Shipped in BSI 5.0.0.
+
+Where it went:
+- guide/concepts/interrupting-a-run.md - the new page, with its sidebar entry in .vitepress/config.js.
+- guide/concepts/live-view.md - the Ctrl-C caveat replaced, as note 2 below asks.
+- reference/commands.md - exit codes 130, 143 and 129 added to the table, as note 3 asks.
+
+ARCHIVED 2026-10-27: the content was confirmed on `next` (fa92197). Only this move had been missed.
+-->
+
+<!--
 DRAFT — not yet published.
 
 Covers issue #1107: Butler Sheet Icons now handles SIGINT and SIGTERM instead of being

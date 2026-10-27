@@ -1,3 +1,15 @@
+<!--
+PUBLISHED 2026-08-22 to the doc site via ptarmiganlabs/butler-sheet-icons-docs#116 (into `next`,
+then to production with the 5.0-5.2 docs release, ptarmiganlabs/butler-sheet-icons-docs#119).
+Shipped in BSI 5.0.0 (fcb39b7, issue #1091).
+
+Where it went:
+- guide/troubleshooting.md - what a failed QSEoW run can now leave behind, and the 5.0.0
+  exception for an app with one sheet that could not be captured.
+
+ARCHIVED 2026-10-27: the content was confirmed on `next` (fa92197). Only this move had been missed.
+-->
+
 # A QSEoW app with one unusable sheet now updates the rest
 
 Until now, if Butler Sheet Icons could not capture one sheet in a Qlik Sense Enterprise on Windows

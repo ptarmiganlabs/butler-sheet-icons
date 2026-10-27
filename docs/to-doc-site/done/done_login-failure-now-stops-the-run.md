@@ -1,3 +1,15 @@
+<!--
+PUBLISHED 2026-08-22 to the doc site via ptarmiganlabs/butler-sheet-icons-docs#115 (into `next`,
+then to production with the 5.0-5.2 docs release, ptarmiganlabs/butler-sheet-icons-docs#119).
+Shipped in BSI 5.0.0.
+
+Where it went:
+- guide/troubleshooting.md - section "Every sheet's thumbnail is a picture of the login screen"
+  (#thumbnails-show-the-login-screen), quoting both platforms' messages.
+
+ARCHIVED 2026-10-27: the content was confirmed on `next` (fa92197). Only this move had been missed.
+-->
+
 # A failed login now stops the run instead of capturing the login screen
 
 If Butler Sheet Icons could not sign in to Qlik Sense, it used to carry on regardless. The browser
