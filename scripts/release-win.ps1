@@ -48,13 +48,13 @@ if ($LASTEXITCODE -ne 0) { throw "Injecting the SEA blob failed with exit code $
 # -------------------
 # Smoke-test it: the cheapest check that postject produced something that runs, and that it is the
 # version being built. One line of --version output must be exactly "butler-sheet-icons <version>",
-# so a substring match cannot accept 5.1.10 for 5.1.1, or an error message that mentions the
-# version.
+# or that followed by the variant a variant build names, so a substring match cannot accept 5.1.10
+# for 5.1.1, or an error message that mentions the version (Test-BsiVersionReport).
 $expected = node -p "require('./package.json').version"
 $reported = (& $binary --version | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw "The built binary failed to run: --version exited $LASTEXITCODE." }
-if ($reported -notmatch "(?m)^\s*butler-sheet-icons $([regex]::Escape($expected))\s*$") {
-    throw "The built binary reports '$reported', expected 'butler-sheet-icons $expected'."
+if (-not (Test-BsiVersionReport -Report $reported -Version $expected)) {
+    throw "The built binary reports '$reported', expected 'butler-sheet-icons $expected', with or without a variant in brackets."
 }
 Write-Host "smoke test: --version reports $reported"
 

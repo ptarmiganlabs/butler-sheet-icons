@@ -143,13 +143,13 @@ The section above is about the browser BSI drives. This one is about the browser
 
 Releases are signed through **Azure Artifact Signing**, on GitHub-hosted runners, by three jobs in `ci.yaml`. No certificate is stored anywhere and no session has to be open: the signing job authenticates with GitHub's OIDC token.
 
-- `build-win64` runs `scripts/release-win.ps1`, which builds the binary unsigned, smoke-tests `--version`, checks it carries no signature and records its SHA-256.
+- `build-win64` runs `scripts/release-win.ps1`, which builds the binary unsigned, smoke-tests `--version` (a variant build's `butler-sheet-icons <version> (<variant>)` headline passes, as a stock one does), checks it carries no signature and records its SHA-256.
 - `sign-win64` checks that digest, signs in the `release-signing` environment, verifies the signature with signtool and with Windows, and fails unless the signer is **Ptarmigan Labs AB**. **It must never gain an `actions/checkout`, an `npm` step or a `./scripts` call** — that is what keeps a compromised dependency away from the signing identity. A step that needs the repository belongs in `build-win64` or `publish-win64`.
 - `publish-win64` zips `<tag>-win.zip` (`butler-sheet-icons.exe` only), checks the zipped executable is the one `sign-win64` verified, and attaches it to the draft release.
 - **Rehearse before a release depends on it:** `gh workflow run ci.yaml -R ptarmiganlabs/butler-sheet-icons --ref main -f rehearse_signing=true` builds and signs `main`'s HEAD and releases nothing; the signed binary stays as the `win64-signed` artifact for three days. It has to be `main`, because `release-signing` admits no other branch. Check that `sign-win64` actually ran, not just that the run is green.
 - Two things live outside the repository. The `release-signing` environment holds six variables: `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `SIGNING_ENDPOINT`, `SIGNING_ACCOUNT_NAME`, `SIGNING_CERT_PROFILE_NAME`. And the Entra app needs a federated credential whose subject matches exactly what GitHub presents: `repo:ptarmiganlabs@6304190/butler-sheet-icons@381155354:environment:release-signing`. A mismatch fails the login with AADSTS700213. Regenerate the prefix rather than retyping it (`gh api repos/ptarmiganlabs/butler-sheet-icons/actions/oidc/customization/sub --jq .sub_claim_prefix`), and expect a repository or environment rename to break it.
 - Insiders builds are not signed.
-- `scripts/lib/win-signing.ps1` keeps only the signtool lookup and the signature strip that every Windows build needs before postject. A variant build may dot-source it under Windows PowerShell 5.1, so `pr-unit-tests` runs `scripts/diag/win-strip-check.ps1` under both 5.1 and PowerShell 7.
+- `scripts/lib/win-signing.ps1` keeps the signtool lookup and the signature strip that every Windows build needs before postject, and `Test-BsiVersionReport`, the smoke test's `--version` match. A variant build may dot-source it under Windows PowerShell 5.1, so `pr-unit-tests` runs `scripts/diag/win-strip-check.ps1` and `scripts/diag/win-version-check.ps1` under both 5.1 and PowerShell 7.
 
 ### CI runners
 
