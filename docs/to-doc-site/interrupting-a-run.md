@@ -35,6 +35,14 @@ session is signed out on the way past. It is not, and cannot be: stopping the ru
 browser the logout needs. The "What is cleaned up" section now says the session stays until
 Qlik Sense times it out, and quotes the line the run actually prints. That claim had been
 written from intent rather than from a run — exactly what README step 3 warns about.
+
+CORRECTED 2026-10-27, after publication. This page said that for `create-sheet-thumbnails`
+"nothing is changed" in the app a run was stopped in, on both platforms. That holds on QSEoW only.
+On Qlik Sense Cloud the run deletes the images in the app's `thumbnails` media folder before it
+captures, so an app stopped during the capture is left with sheets pointing at deleted images
+(issue #1217, from reading the code, not yet seen on a tenant). The section below now says so, and
+the published page and the troubleshooting section on sheets that fail to capture were corrected
+on the doc site's `next` branch to match. Do not restore the old sentence when processing this file.
 -->
 
 # Stopping a run part-way through
@@ -77,11 +85,11 @@ run proceeds, app by app, and **there is no undo**. Before, an interrupted run l
 guessing which apps had new thumbnails and which still had their old ones. Now the run tells
 you, and the three counts say exactly what you are looking at:
 
-| Count         | Meaning                                                                           |
-| ------------- | --------------------------------------------------------------------------------- |
-| `ok`          | Finished completely. New thumbnails are in Qlik Sense.                            |
-| `interrupted` | Was being worked on when you stopped it. See below — usually nothing was changed. |
-| `not started` | Never touched. Exactly as they were.                                              |
+| Count         | Meaning                                                                         |
+| ------------- | ------------------------------------------------------------------------------- |
+| `ok`          | Finished completely. New thumbnails are in Qlik Sense.                          |
+| `interrupted` | Was being worked on when you stopped it. See below for what that leaves behind. |
+| `not started` | Never touched. Exactly as they were.                                            |
 
 The same three counts appear whichever output style you get. On a normal terminal Butler Sheet
 Icons draws the summary as a card, where the line reads `INTERRUPTED after 3m 12s · 2 app(s) ok
@@ -90,13 +98,24 @@ shown above. The words and the numbers match.
 
 ## What happens to the app it was in the middle of
 
-For `create-sheet-thumbnails` on both Qlik Sense Cloud and Qlik Sense Enterprise on Windows:
-**nothing is changed in that app.**
+For `create-sheet-thumbnails` on Qlik Sense Enterprise on Windows: **nothing is changed in that
+app.**
 
 That is not luck, it is the order of the work. Butler Sheet Icons captures every sheet in an
 app first, and only then uploads the images and points the sheets at them. Stopping during
 the capture means it never reaches the part that writes, so the app keeps the thumbnails it
 already had.
+
+::: warning Qlik Sense Cloud: the old thumbnail images may already be gone
+On Qlik Sense Cloud, `create-sheet-thumbnails` deletes the images in the app's `thumbnails` media
+folder — where its earlier runs put them — _before_ it captures new ones. The sheets keep pointing
+at those images until the run uploads new ones and points the sheets at them. An app you stop
+during the capture, which is where nearly all of the time goes, never gets that far: every sheet
+whose thumbnail came from an earlier run is left pointing at an image that no longer exists.
+
+Re-run the command on that app to give its sheets new thumbnails. This is tracked as
+[issue #1217](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1217).
+:::
 
 ::: warning `remove-sheet-icons` is different
 The removal commands clear icons **one sheet at a time**, so an app that was being processed
