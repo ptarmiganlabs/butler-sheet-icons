@@ -7,7 +7,7 @@ import errorCodes from 'enigma.js/error-codes.js';
 
 import { logger } from '../../globals.js';
 import { getErrorCategory } from './error-categorizer.js';
-import { isInterrupted } from './interrupt.js';
+import { isInterrupted, interruptAbortSignal } from './interrupt.js';
 
 /**
  * The `qData` projection every caller needs: enough to place a sheet and see its thumbnail.
@@ -386,9 +386,20 @@ export const runOverSheets = async (sheets, ctx, processSheet) => {
             // erased four genuine failures at sheets 1-4: the app was reported
             // as merely abandoned, `failedApps` was 0, and the operator re-ran
             // without ever learning those sheets were broken.
+            //
+            // The run's own abort goes with it as the cause, and that is what
+            // tells this apart from a failure: both app loops and the
+            // processors' logging ask `isAbortArtifact`, which finds it down the
+            // chain. Thrown bare, an app the operator stopped was counted as
+            // failed and logged as an error (issue #1210). It is the abort and
+            // not the error of the sheet that was in flight, because the loop
+            // also stops at a sheet boundary with no error in hand - and where
+            // there was one, it was already filed as abandoned on the interrupt
+            // alone, so its wording must not get a second say.
             if (interrupted) {
                 throw new ErrorClass(
-                    `App ${appId} was abandoned when the run was interrupted, after ${changed} sheet(s) had been processed`
+                    `App ${appId} was abandoned when the run was interrupted, after ${changed} sheet(s) had been processed`,
+                    { cause: interruptAbortSignal().reason }
                 );
             }
 

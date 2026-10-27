@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 
 const enigmaCreate = jest.fn();
 
@@ -46,6 +46,7 @@ jest.unstable_mockModule('../../../globals.js', () => ({
 
 const { logger } = await import('../../../globals.js');
 const { qseowRemoveSheetIcons } = await import('../qseow-remove-sheet-icons.js');
+const { markInterrupted, resetInterruptState } = await import('../../util/interrupt.js');
 
 const BASE_OPTIONS = {
     host: 'sense.example.com',
@@ -792,5 +793,48 @@ describe('qseowRemoveSheetIcons', () => {
 
             expect(sheets[0].obj.setProperties).toHaveBeenCalled();
         });
+    });
+});
+
+describe('an app interrupted mid-removal (issue #1210)', () => {
+    let savedOutput;
+
+    beforeEach(() => {
+        // The verdict is read from the logger, so the plain rung is pinned: a terminal running
+        // these tests would otherwise get the board, which writes to stdout instead.
+        savedOutput = process.env.BSI_OUTPUT;
+        process.env.BSI_OUTPUT = 'plain';
+    });
+
+    afterEach(() => {
+        if (savedOutput === undefined) {
+            delete process.env.BSI_OUTPUT;
+        } else {
+            process.env.BSI_OUTPUT = savedOutput;
+        }
+        resetInterruptState();
+    });
+
+    test('is counted as interrupted, not failed, and nothing is logged as an error', async () => {
+        const sheets = [makeSheet('sheet-1', 1), makeSheet('sheet-2', 2)];
+        // The signal lands while the first sheet's icon is being cleared. The loop stops at the
+        // next sheet boundary - this command writes per sheet, so stopping there is the point.
+        sheets[0].obj.setProperties.mockImplementation(async () => {
+            markInterrupted('SIGINT');
+            return { ok: true };
+        });
+        wireEnigma(sheets);
+
+        await expect(qseowRemoveSheetIcons({ ...BASE_OPTIONS })).resolves.toBe(false);
+
+        // The verdict's `apps` line - the plan block has one of its own.
+        const verdict = logger.info.mock.calls
+            .map(([line]) => String(line))
+            .filter((line) => /^ {2}apps +\d+ ok/.test(line));
+        expect(verdict).toEqual(['  apps          0 ok, 1 interrupted']);
+        // Not this processor's catch - its check runs after it - but the app loop's, which counted
+        // the app as failed.
+        expect(logger.error).not.toHaveBeenCalled();
+        expect(sheets[1].obj.setProperties).not.toHaveBeenCalled();
     });
 });

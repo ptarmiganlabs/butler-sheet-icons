@@ -1,4 +1,4 @@
-import { jest, describe, test, expect, beforeEach } from '@jest/globals';
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 
 jest.unstable_mockModule('../../../globals.js', () => ({
     logger: {
@@ -11,8 +11,9 @@ jest.unstable_mockModule('../../../globals.js', () => ({
     isSea: false,
 }));
 
-const { logError } = await import('../log-error.js');
+const { logError, logAppFailure } = await import('../log-error.js');
 const { logger } = await import('../../../globals.js');
+const { markInterrupted, resetInterruptState } = await import('../interrupt.js');
 
 describe('logError', () => {
     beforeEach(() => {
@@ -211,5 +212,50 @@ describe('logError', () => {
         expect(logger.error).toHaveBeenCalledTimes(1);
         expect(logger.error).toHaveBeenCalledWith('just a message');
         expect(logger.debug).not.toHaveBeenCalled();
+    });
+});
+
+describe('logAppFailure (issue #1210)', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        resetInterruptState();
+    });
+
+    afterEach(() => {
+        resetInterruptState();
+    });
+
+    test('logs a failure exactly as logError does', () => {
+        logAppFailure('CTX', new Error('boom'));
+
+        expect(logger.error).toHaveBeenCalledWith('CTX: boom');
+        expect(logger.debug).toHaveBeenCalledTimes(1);
+    });
+
+    test('says nothing about an app the shutdown abandoned', () => {
+        // The app loop reports the abandonment at info. An error line here would be a second,
+        // louder account of a Ctrl-C the operator asked for.
+        markInterrupted('SIGINT');
+
+        logAppFailure('CTX', new Error('Protocol error (Page.captureScreenshot): Target closed'));
+
+        expect(logger.error).not.toHaveBeenCalled();
+    });
+
+    test('still logs a genuine failure that was unwinding when the signal arrived', () => {
+        // Keyed on the interrupt alone, this failure would vanish without a trace.
+        markInterrupted('SIGINT');
+
+        logAppFailure('CTX', new Error('Request failed with status code 500'));
+
+        expect(logger.error).toHaveBeenCalledWith('CTX: Request failed with status code 500');
+    });
+
+    test('still logs a browser that went away with no signal involved', () => {
+        logAppFailure('CTX', new Error('Protocol error (Page.navigate): Target closed'));
+
+        expect(logger.error).toHaveBeenCalledWith(
+            'CTX: Protocol error (Page.navigate): Target closed'
+        );
     });
 });

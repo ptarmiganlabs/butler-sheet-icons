@@ -23,6 +23,8 @@
  */
 
 import { logger } from '../../globals.js';
+import { isInterrupted } from './interrupt.js';
+import { isAbortArtifact } from './abort-artifact.js';
 
 /**
  * `String(value)` that cannot throw.
@@ -174,3 +176,34 @@ export function logError(message, error) {
         logger.debug(error.stack);
     }
 }
+
+/**
+ * Logs a failed app as {@link logError} does - unless the failure is the shutdown abandoning it.
+ *
+ * The four per-app processors - create and remove, on both platforms - end in the same `catch`:
+ * log the error, then rethrow so the app loop counts the app. When a signal stops the run, the
+ * app's last await rejects into that `catch` like any failure, and logging it there printed an
+ * error line, cause chain and all, for an app the loop then reported at `info` as abandoned: a
+ * second, louder account of a Ctrl-C the operator pressed. The create processors carried this
+ * check inline and the removal processors did not, which is how `qscloud remove-sheet-icons` came
+ * to log an interrupted app as an error (issue #1210). One helper, so the four cannot drift apart
+ * again.
+ *
+ * Decided per error, not per run, and both halves matter. Keyed on the interrupt alone, a genuine
+ * failure that happened to be unwinding when the signal landed lost its error line and its cause
+ * chain, and a run could end with a real defect recorded nowhere (issue #1107). Keyed on the
+ * error's shape alone, a browser that crashed with no signal involved - `Target closed` - would go
+ * unreported.
+ *
+ * @param {string} message - Context for the error, as for {@link logError}.
+ * @param {Error|unknown} error - The caught value.
+ *
+ * @returns {void}
+ */
+export const logAppFailure = (message, error) => {
+    if (isInterrupted() && isAbortArtifact(error)) {
+        return;
+    }
+
+    logError(message, error);
+};

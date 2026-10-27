@@ -21,7 +21,7 @@ import {
     addAppToReport,
 } from '../util/run-report.js';
 import { appProgressLine } from '../util/run-report-render.js';
-import { logError } from '../util/log-error.js';
+import { logError, logAppFailure } from '../util/log-error.js';
 
 /**
  * Best-effort app-name lookup for the run report, from the already-open app.
@@ -151,7 +151,10 @@ const removeSheetIconsQSEoWApp = async (appId, options, report = null) => {
         // anyone debugging at verbose.
         logger.verbose(`Done processing app ${appId}`);
     } catch (err) {
-        logError('QSEOW REMOVE SHEET ICONS 1', err);
+        // Not logged when the shutdown itself caused it: an interrupted app
+        // is abandoned, not failed, and the app loop says so at info. The
+        // rule is shared by all four processors (issue #1210).
+        logAppFailure('QSEOW REMOVE SHEET ICONS 1', err);
         // Rethrow so the app loop can count this app as failed. Logging and returning
         // normally made a run in which every app failed look exactly like a clean run.
         throw err;
