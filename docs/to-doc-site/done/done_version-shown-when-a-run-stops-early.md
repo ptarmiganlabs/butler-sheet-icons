@@ -1,3 +1,25 @@
+<!--
+PUBLISHED 2026-10-27 to the doc site via ptarmiganlabs/butler-sheet-icons-docs#126 (into `next`;
+production follows when `next` is next merged to the doc site's `main`). Shipped in BSI 5.4.0
+(abfe485, PR #1208, issue #1207).
+
+Where it went:
+- guide/concepts/run-card.md - new section "When a run stops before the header"
+  (#when-a-run-stops-before-the-header), gated 5.4.0.
+- reference/commands.md - a paragraph at the end of "Getting Help", linking to it.
+
+The published sample differs from this draft's:
+- It leads with the downloadable executables' line, `butler-sheet-icons x.y.z - built yyyy-mm-dd`.
+- The Docker form, with no build date, is described in a bullet.
+- The option left out is `--host`. That output was checked by running `qseow
+  create-sheet-thumbnails` without `--host` from source at 576c744.
+
+Imprecise here and on the site: "every run opens with a header naming the version" does not hold
+for a real run of the three thumbnail commands at `--log-level warn` or `error`. Such a run prints
+no header, because the header logs at `info` (run-card.md, "Log levels"). This was found after
+publishing and had not been corrected on the site when the draft was archived.
+-->
+
 # The version is shown even when a run stops before it starts
 
 Every Butler Sheet Icons run opens with a header naming the version, and that header is the first
