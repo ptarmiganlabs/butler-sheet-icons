@@ -9,7 +9,7 @@ reference/qseow.md.
 CORRECTION: the site gates this change at "BSI 5.0.1", a release that never existed. Releases
 went from 5.0.0 straight to 5.1.0, and the fix (1e6add3, "fix(cli): accept a pasted URL in
 --tenanturl and --host") first shipped in 5.1.0. The draft named no version. On 2026-10-27 the
-site still said 5.0.1 in ten places on five pages.
+site still said 5.0.1 in eleven places on five pages.
 
 ARCHIVED 2026-10-27: the content was confirmed on `next` (fa92197). Only this move had been missed.
 -->
