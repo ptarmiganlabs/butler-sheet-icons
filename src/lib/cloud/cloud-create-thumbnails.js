@@ -174,6 +174,7 @@ export const qscloudCreateThumbnails = async (options) => {
         return await runOverAppsWithReport({
             command: 'qscloud create-sheet-thumbnails',
             dryRun,
+            options,
             rung,
             ...selection,
             plan: {

@@ -216,6 +216,7 @@ export const qseowCreateThumbnails = async (options) => {
         return await runOverAppsWithReport({
             command: 'qseow create-sheet-thumbnails',
             dryRun,
+            options,
             rung,
             appIds: appIdsToProcess,
             namedAppIds,

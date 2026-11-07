@@ -366,6 +366,7 @@ export const qscloudRemoveSheetIcons = async (options) => {
         return await runOverAppsWithReport({
             command: 'qscloud remove-sheet-icons',
             dryRun,
+            options,
             rung,
             ...selection,
             plan: {

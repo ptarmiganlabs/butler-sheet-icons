@@ -1,6 +1,14 @@
-import { describe, test, expect } from '@jest/globals';
+import { afterEach, beforeEach, describe, jest, test, expect } from '@jest/globals';
 import { Command, Option } from 'commander';
-import { applyExtensions, runBeforeAction, runImageTransform, contributionOf } from '../apply.js';
+import {
+    applyExtensions,
+    runBeforeAction,
+    runImageTransform,
+    runPlanRows,
+    contributionOf,
+    PLAN_ROW_LABEL_MAX,
+} from '../apply.js';
+import { logger } from '../../../globals.js';
 import { isSessionLevelFailure } from '../../util/sheet-list.js';
 import { isExpectedFailure } from '../../util/errors.js';
 
@@ -372,6 +380,200 @@ describe('runImageTransform', () => {
     });
 });
 
+describe('runPlanRows', () => {
+    const path = 'qseow create-sheet-thumbnails';
+    const options = { watermarkText: 'DRAFT' };
+
+    let warn;
+    let debug;
+
+    beforeEach(() => {
+        warn = jest.spyOn(logger, 'warn').mockImplementation(() => {});
+        debug = jest.spyOn(logger, 'debug').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        warn.mockRestore();
+        debug.mockRestore();
+    });
+
+    const withHook = (planRows) => ({ ...nothing(), hooks: { planRows } });
+
+    // The committed default's every-run path: every command that shows a plan comes through here
+    // once, and with no hook the plan must be exactly core's.
+    test.each([
+        ['a description with no hooks', { seamVersion: 1, commands: [], options: [] }],
+        ['a description describing nothing', nothing()],
+        [
+            'a description with only the other hooks',
+            { ...nothing(), hooks: { beforeAction: () => {}, imageTransform: async () => {} } },
+        ],
+        ['no description at all', undefined],
+    ])('returns no rows for %s', async (_name, description) => {
+        await expect(runPlanRows(description, path, options)).resolves.toEqual([]);
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    test('calls the hook once with the command path and the options', async () => {
+        const seen = [];
+
+        await runPlanRows(
+            withHook((...args) => {
+                seen.push(args);
+
+                return [];
+            }),
+            path,
+            options
+        );
+
+        expect(seen).toEqual([[path, options]]);
+    });
+
+    test.each([
+        ['a synchronous hook', () => [{ label: 'watermark', value: '"DRAFT", bottom right' }]],
+        [
+            'an async hook',
+            async () => {
+                await Promise.resolve();
+
+                return [{ label: 'watermark', value: '"DRAFT", bottom right' }];
+            },
+        ],
+    ])('normalises the rows of %s', async (_name, planRows) => {
+        await expect(runPlanRows(withHook(planRows), path, options)).resolves.toEqual([
+            { label: 'watermark', lines: ['"DRAFT", bottom right'] },
+        ]);
+    });
+
+    test('keeps a list value as lines, in order', async () => {
+        const rows = await runPlanRows(
+            withHook(() => [
+                { label: 'watermark', value: ['"DRAFT"', 'bottom right, 40% opacity'] },
+            ]),
+            path,
+            options
+        );
+
+        expect(rows).toEqual([
+            { label: 'watermark', lines: ['"DRAFT"', 'bottom right, 40% opacity'] },
+        ]);
+    });
+
+    // Both renderers align the value column themselves, so a line break inside a value, or a line
+    // carrying its own indentation, would otherwise break the alignment of every row after it.
+    test('splits at line breaks, trims each line and drops blank ones', async () => {
+        const rows = await runPlanRows(
+            withHook(() => [
+                { label: '  watermark ', value: ['  "DRAFT"\r\nbottom right  ', '', '   '] },
+            ]),
+            path,
+            options
+        );
+
+        expect(rows).toEqual([{ label: 'watermark', lines: ['"DRAFT"', 'bottom right'] }]);
+    });
+
+    test.each([
+        ['nothing', () => undefined],
+        ['null', () => null],
+        ['an empty list', () => []],
+    ])('adds no rows, and says nothing, when the hook returns %s', async (_name, planRows) => {
+        await expect(runPlanRows(withHook(planRows), path, options)).resolves.toEqual([]);
+        expect(warn).not.toHaveBeenCalled();
+    });
+
+    test('ignores a result that is not a list, with a warning', async () => {
+        const rows = await runPlanRows(
+            withHook(() => ({ label: 'watermark', value: 'DRAFT' })),
+            path,
+            options
+        );
+
+        expect(rows).toEqual([]);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toContain('returned object rather than a list of rows');
+    });
+
+    // Each case is the one mistake most likely to reach a renderer and misalign or blank a row.
+    test.each([
+        ['a row that is not an object', 'watermark', 'it is not a row object'],
+        ['a row with no label', { value: 'DRAFT' }, 'it has no label'],
+        ['a row whose label is blank', { label: '   ', value: 'DRAFT' }, 'it has no label'],
+        [
+            'a row whose label spans lines',
+            { label: 'water\nmark', value: 'DRAFT' },
+            'is not on one line',
+        ],
+        [
+            'a row whose label is too long for the run card',
+            { label: 'x'.repeat(PLAN_ROW_LABEL_MAX + 1), value: 'DRAFT' },
+            `longer than ${PLAN_ROW_LABEL_MAX} characters`,
+        ],
+        ['a row with no value', { label: 'watermark' }, "its value for 'watermark' is not text"],
+        [
+            'a row whose value is not text',
+            { label: 'watermark', value: ['DRAFT', 40] },
+            "its value for 'watermark' is not text",
+        ],
+        [
+            'a row whose value is blank',
+            { label: 'watermark', value: ['', '  '] },
+            "its value for 'watermark' is empty",
+        ],
+    ])('leaves out %s, with a warning, and keeps the others', async (_name, bad, reason) => {
+        const good = { label: 'other', value: 'kept' };
+        const rows = await runPlanRows(
+            withHook(() => [bad, good]),
+            path,
+            options
+        );
+
+        expect(rows).toEqual([{ label: 'other', lines: ['kept'] }]);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toContain('Row 1 from the build');
+        expect(warn.mock.calls[0][0]).toContain(reason);
+    });
+
+    test(`accepts a label of exactly ${PLAN_ROW_LABEL_MAX} characters`, async () => {
+        const label = 'x'.repeat(PLAN_ROW_LABEL_MAX);
+
+        await expect(
+            runPlanRows(
+                withHook(() => [{ label, value: 'fits' }]),
+                path,
+                options
+            )
+        ).resolves.toEqual([{ label, lines: ['fits'] }]);
+    });
+
+    // The plan describes the run; it does not gate it. A hook that fails must leave the run - and
+    // core's own plan - exactly as they would have been without it.
+    test.each([
+        [
+            'a synchronous throw',
+            () => {
+                throw new Error('cannot describe that', { cause: new Error('no such option') });
+            },
+        ],
+        [
+            'a rejection',
+            async () =>
+                Promise.reject(
+                    new Error('cannot describe that', { cause: new Error('no such option') })
+                ),
+        ],
+    ])('turns %s into no rows and a warning, never a failed run', async (_name, planRows) => {
+        await expect(runPlanRows(withHook(planRows), path, options)).resolves.toEqual([]);
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0][0]).toContain('could not describe this run');
+        expect(warn.mock.calls[0][0]).toContain('cannot describe that');
+        expect(warn.mock.calls[0][0]).toContain('no such option');
+        expect(debug.mock.calls.some(([line]) => line.includes('cannot describe that'))).toBe(true);
+    });
+});
+
 describe('hook types are checked at registration', () => {
     // A hook that is not a function would otherwise fail where it is called: for beforeAction at
     // preAction, before any work; for imageTransform once per sheet, after every capture and blur
@@ -380,6 +582,7 @@ describe('hook types are checked at registration', () => {
         ['imageTransform', true],
         ['imageTransform', { run: () => {} }],
         ['beforeAction', 'yes'],
+        ['planRows', [{ label: 'watermark', value: 'DRAFT' }]],
     ])('refuses a description whose %s hook is not a function', (name, value) => {
         const program = new Command('bsi');
 

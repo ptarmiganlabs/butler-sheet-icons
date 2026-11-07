@@ -9,6 +9,7 @@ import {
     renderBoardVerdict,
     stripForApp,
 } from '../run-board.js';
+import { PLAN_ROW_LABEL_MAX } from '../../extensions/apply.js';
 
 /**
  * Tests for the contact-sheet renderer (issue #1074).
@@ -406,6 +407,63 @@ describe('the plan block', () => {
         const dryPlan = renderBoardPlan(dry, uniCtx());
         expect(dryPlan).toContain('(dry run)');
         expect(dryPlan).toContain('would be overwritten');
+    });
+
+    describe('rows a build contributes (issue #1232)', () => {
+        const withRows = (extensionRows) => {
+            const report = makeReport();
+            report.plan.extensionRows = extensionRows;
+
+            return report;
+        };
+
+        test('no rows leave the block exactly as it was', () => {
+            expect(renderBoardPlan(withRows([]), uniCtx())).toBe(
+                renderBoardPlan(makeReport(), uniCtx())
+            );
+        });
+
+        test('rows follow the uploads row and precede the warning, extra lines as detail', () => {
+            const lines = stripAnsi(
+                renderBoardPlan(
+                    withRows([
+                        { label: 'watermark', lines: ['"DRAFT"'] },
+                        { label: 'frame', lines: ['2px', 'dark blue', 'blurred copy too'] },
+                    ]),
+                    uniCtx()
+                )
+            ).split('\n');
+
+            const at = (text) => lines.findIndex((line) => line.includes(text));
+
+            expect(at('uploads to')).toBeLessThan(at('watermark'));
+            expect(at('watermark')).toBeLessThan(at('frame'));
+            expect(at('frame')).toBeLessThan(at('will be overwritten'));
+            expect(lines[at('watermark')]).toMatch(/watermark\s+"DRAFT"$/);
+            expect(lines[at('frame')]).toMatch(/frame\s+2px\s+dark blue · blurred copy too$/);
+        });
+
+        // The label limit runPlanRows enforces is this column's width: a
+        // label at the limit must still put its value where core's values are.
+        test(`a label of ${PLAN_ROW_LABEL_MAX} characters keeps the value column`, () => {
+            const label = 'x'.repeat(PLAN_ROW_LABEL_MAX);
+            const lines = stripAnsi(
+                renderBoardPlan(withRows([{ label, lines: ['aligned'] }]), uniCtx())
+            ).split('\n');
+
+            const uploads = lines.find((line) => line.includes('uploads to'));
+            const contributed = lines.find((line) => line.includes(label));
+
+            expect(contributed.indexOf('aligned')).toBe(uploads.indexOf('content library'));
+        });
+
+        test('renders on the ASCII symbol set too', () => {
+            const plan = stripAnsi(
+                renderBoardPlan(withRows([{ label: 'frame', lines: ['2px', 'blue'] }]), asciiCtx())
+            );
+
+            expect(plan).toMatch(/frame\s+2px\s+blue/);
+        });
     });
 
     test('a QSEoW run with --skip-login shows the logon as skipped, not a logon user', () => {

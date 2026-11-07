@@ -501,6 +501,14 @@ export const renderBoardPlan = (report, ctx) => {
         }
     }
 
+    // The build's own rows (issue #1232), in the plain block's position: after
+    // core's rows, ahead of the warning. A row's further lines become its dim
+    // detail - the board's one-line-per-row shape - joined the way every other
+    // detail here is.
+    for (const { label, lines } of plan.extensionRows ?? []) {
+        rows.push(planRow(ctx, { label, value: lines[0], detail: lines.slice(1).join(sep) }));
+    }
+
     const heading = report.dryRun
         ? `  ${palette.bold('PLAN')}  ${report.command}  ${palette.dim('(dry run)')}`
         : `  ${palette.bold('PLAN')}  ${report.command}`;

@@ -1,4 +1,6 @@
+import { extensions } from '#extensions';
 import { logger, getLoggingLevel, setLoggingLevel } from '../../globals.js';
+import { runPlanRows } from '../extensions/apply.js';
 import { runOverApps } from './run-over-apps.js';
 import {
     RUN_FRAME,
@@ -1136,8 +1138,14 @@ export const emitRunVerdictOnce = () => {
  * @param {string[]} run.namedAppIds - The `--appid` subset.
  * @param {string[]} run.selectorAppIds - The tag/collection subset.
  * @param {{option: string, value: string}|null} run.selector - The selector used, if any.
- * @param {object} [run.plan] - Structural plan sections (target, auth, sheetPart,
- *     rules, browser, output, writes), assembled by the worker.
+ * @param {object} [run.plan] - Structural plan sections (target, auth, appOwner,
+ *     sheetPart, rules, browser, output, writes), assembled by the worker. This
+ *     function adds one more, `extensionRows`: the rows the build's extensions
+ *     contribute through `hooks.planRows`, empty in a build without any.
+ * @param {object} [run.options] - The command's options, as the run will use
+ *     them. Read only to hand to `hooks.planRows`, which is called here rather
+ *     than in each worker so that every command showing a plan calls it from
+ *     one place (issue #1232).
  * @param {string} run.rung - The output rung returned by the worker's
  *     `emitRunHeader` call, so header and blocks share one decision. Required,
  *     not defaulted: a fallback deciding fresh here would quietly re-derive
@@ -1159,6 +1167,7 @@ export const runOverAppsWithReport = async ({
     selectorAppIds,
     selector,
     plan = null,
+    options = {},
     rung,
     logPrefix,
     emptySelectionHint,
@@ -1174,7 +1183,14 @@ export const runOverAppsWithReport = async ({
 
     const report = createRunReport({ command, dryRun });
     recordSelection(report, { namedAppIds, selectorAppIds, selector });
-    report.plan = plan;
+
+    // The build's own rows join the plan before either renderer reads it, so
+    // the plain block and the run card show the same rows from one call. A
+    // copy rather than a mutation: the worker's object is its own. No plan, no
+    // rows - there is no block for them to appear in.
+    report.plan = plan
+        ? { ...plan, extensionRows: await runPlanRows(extensions, command, options) }
+        : plan;
 
     // Decided once, at the start of the run (issue #1076): the worker's
     // emitRunHeader call decided the rung and passed it here, so the header

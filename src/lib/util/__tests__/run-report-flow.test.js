@@ -15,6 +15,13 @@ import { describe, test, expect, beforeEach, afterEach, jest } from '@jest/globa
 
 const timeline = [];
 
+// What the build's extensions describe. Reset to describing nothing - the
+// community build's every-run case - before each test; the plan-rows tests
+// give it a hook (issue #1232).
+const description = { seamVersion: 1, commands: [], options: [], hooks: {} };
+
+jest.unstable_mockModule('#extensions', () => ({ extensions: description }));
+
 jest.unstable_mockModule('../../../globals.js', () => ({
     logger: {
         info: jest.fn((line) => timeline.push(`LOG ${line}`)),
@@ -69,6 +76,7 @@ const runArgs = (overrides = {}) => ({
 
 beforeEach(() => {
     timeline.length = 0;
+    description.hooks = {};
     jest.clearAllMocks();
     // clearAllMocks clears call records but NOT return values, so a
     // mockReturnValue('warn') set in one describe would silently leak into
@@ -106,6 +114,85 @@ describe('runOverAppsWithReport - the plan renders before the first write', () =
         expect(planIndex).toBeGreaterThan(-1);
         expect(firstPlanApp).toBeGreaterThan(-1);
         expect(planIndex).toBeLessThan(firstPlanApp);
+    });
+});
+
+describe('runOverAppsWithReport - rows the build contributes (issue #1232)', () => {
+    const planLines = () =>
+        timeline.filter((entry) => entry.startsWith('LOG ')).map((entry) => entry.slice(4));
+
+    test('the hook is called once, with the command and the options, before PLAN is logged', async () => {
+        const options = { watermarkText: 'DRAFT' };
+        description.hooks = {
+            planRows: jest.fn((path, seen) => {
+                timeline.push(`HOOK ${path}`);
+
+                return [{ label: 'watermark', value: `"${seen.watermarkText}"` }];
+            }),
+        };
+
+        await runOverAppsWithReport(runArgs({ options }));
+
+        expect(description.hooks.planRows).toHaveBeenCalledTimes(1);
+        expect(description.hooks.planRows).toHaveBeenCalledWith(
+            'qseow create-sheet-thumbnails',
+            options
+        );
+        expect(timeline.indexOf('HOOK qseow create-sheet-thumbnails')).toBeLessThan(
+            timeline.indexOf('LOG PLAN')
+        );
+
+        const lines = planLines();
+        const row = lines.indexOf('  watermark     "DRAFT"');
+        expect(row).toBeGreaterThan(lines.indexOf('  uploads to    content library "lib"'));
+        expect(row).toBeLessThan(lines.findIndex((line) => line.includes('WILL OVERWRITE')));
+    });
+
+    test('a hook that throws costs its rows and a warning, never the run', async () => {
+        description.hooks = {
+            planRows: () => {
+                throw new Error('cannot describe that');
+            },
+        };
+
+        const result = await runOverAppsWithReport(runArgs());
+
+        expect(result).toBe(true);
+        expect(timeline).toContain('PROCESS app-2');
+        const { logger } = await import('../../../globals.js');
+        expect(logger.warn.mock.calls.some(([line]) => line.includes('cannot describe that'))).toBe(
+            true
+        );
+    });
+
+    test('a worker without a plan never calls the hook', async () => {
+        description.hooks = { planRows: jest.fn(() => []) };
+
+        await runOverAppsWithReport(runArgs({ plan: null }));
+
+        expect(description.hooks.planRows).not.toHaveBeenCalled();
+    });
+
+    test("the worker's own plan object is left as the worker built it", async () => {
+        description.hooks = { planRows: () => [{ label: 'watermark', value: 'DRAFT' }] };
+        const plan = {
+            writes: { kind: 'thumbnails', contentLibrary: 'lib', publishedAppCount: 1 },
+        };
+
+        await runOverAppsWithReport(runArgs({ plan }));
+
+        expect(plan).not.toHaveProperty('extensionRows');
+    });
+
+    test('without a hook the logged plan is the one core renders alone', async () => {
+        await runOverAppsWithReport(runArgs());
+        const withoutHook = planLines();
+
+        timeline.length = 0;
+        description.hooks = { planRows: () => [] };
+        await runOverAppsWithReport(runArgs());
+
+        expect(planLines()).toEqual(withoutHook);
     });
 });
 
