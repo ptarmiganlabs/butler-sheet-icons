@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.4.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.4.0...butler-sheet-icons-v5.4.1) (2026-10-27)
+
+
+### Documentation
+
+* rebase a Dependabot PR older than the last release before an empty-body merge ([9bc03b1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9bc03b107c985ac63f8f6b7e2a6f5e92af02937c))
+
 ## [5.4.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.3.1...butler-sheet-icons-v5.4.0) (2026-10-27)
 
 
