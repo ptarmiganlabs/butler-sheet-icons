@@ -314,6 +314,7 @@ export const qseowRemoveSheetIcons = async (options) => {
         return await runOverAppsWithReport({
             command: 'qseow remove-sheet-icons',
             dryRun,
+            options,
             rung,
             appIds: appIdsToProcess,
             namedAppIds,

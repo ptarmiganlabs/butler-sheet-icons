@@ -193,6 +193,79 @@ describe('renderRunPlanLines - QSEoW create', () => {
     });
 });
 
+describe('renderRunPlanLines - rows a build contributes (issue #1232)', () => {
+    const contributed = [
+        { label: 'watermark', lines: ['"DRAFT", bottom right'] },
+        { label: 'frame', lines: ['2px, dark blue', 'on the blurred copy too'] },
+    ];
+
+    const withRows = (extensionRows, overrides) => {
+        const report = qseowReport(overrides);
+        report.plan.extensionRows = extensionRows;
+
+        return report;
+    };
+
+    // The community build's every-run case: the runner always records the
+    // section, and an empty one must leave the block byte for byte as it was.
+    test('no rows leave the representative plan exactly as it was', () => {
+        expect(renderRunPlanLines(withRows([]))).toEqual(renderRunPlanLines(qseowReport()));
+    });
+
+    test('rows land after core rows and before the warning, extra lines as continuations', () => {
+        expect(renderRunPlanLines(withRows(contributed)).slice(-6)).toEqual([
+            '  images        ./img/qseow/<app-id>',
+            '  uploads to    content library "Butler sheet thumbnails"',
+            '  watermark     "DRAFT", bottom right',
+            '  frame         2px, dark blue',
+            '                on the blurred copy too',
+            '  WILL OVERWRITE existing sheet thumbnails in 7 app(s), 6 of them published',
+        ]);
+    });
+
+    // They describe the run rather than its writes, so the guard that hides
+    // the warning for an empty selection does not hide them.
+    test('an empty selection hides the warning but keeps the rows', () => {
+        const report = withRows(contributed);
+        recordSelection(report, { namedAppIds: [], selectorAppIds: [], selector: null });
+
+        const lines = renderRunPlanLines(report);
+        expect(lines.slice(-3)).toEqual([
+            '  watermark     "DRAFT", bottom right',
+            '  frame         2px, dark blue',
+            '                on the blurred copy too',
+        ]);
+        expect(lines.join('\n')).not.toContain('OVERWRITE');
+    });
+
+    test('a removal plan shows them ahead of its warning too', () => {
+        const report = createRunReport({ command: 'qscloud remove-sheet-icons', dryRun: true });
+        recordSelection(report, { namedAppIds: ['a'], selectorAppIds: [], selector: null });
+        report.plan = {
+            target: { platform: 'cloud', tenantUrl: 'tenant.eu.qlikcloud.com' },
+            auth: { apiKey: true },
+            writes: { kind: 'clear-icons', mediaFiles: true },
+            extensionRows: [{ label: 'audit', lines: ['recorded to ./audit.log'] }],
+        };
+
+        expect(renderRunPlanLines(report).slice(-2)).toEqual([
+            '  audit         recorded to ./audit.log',
+            '  WOULD REMOVE sheet icons and thumbnail media files from 1 app(s)',
+        ]);
+    });
+
+    test('a report built without the runner, and so without the section, renders as before', () => {
+        const report = qseowReport();
+        delete report.plan.extensionRows;
+
+        expect(renderRunPlanLines(report)).toEqual(renderRunPlanLines(withRows([])));
+    });
+
+    test('the block stays pure ASCII when the rows are', () => {
+        expect(PURE_ASCII.test(renderRunPlanLines(withRows(contributed)).join('\n'))).toBe(true);
+    });
+});
+
 describe('renderRunPlanLines - Cloud', () => {
     test('renders tenant, API key auth and the media-library destination', () => {
         const report = createRunReport({

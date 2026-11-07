@@ -9,7 +9,8 @@
  * Issue #1135.
  */
 
-import { logError } from '../util/log-error.js';
+import { logger } from '../../globals.js';
+import { describeWithCauses, logError } from '../util/log-error.js';
 
 /**
  * What a build contributes to the CLI beyond what core declares itself.
@@ -57,6 +58,8 @@ import { logError } from '../util/log-error.js';
  * @property {BeforeAction} [beforeAction] - Runs once after parse, before the action handler runs.
  * @property {ImageTransform} [imageTransform] - Runs once per captured sheet, after its image and
  *     blurred copy are on disk and before either is recorded for upload. Issue #1158.
+ * @property {PlanRows} [planRows] - Runs once per run, after the worker's plan is recorded and
+ *     before the PLAN block is shown, and returns rows for that block. Issue #1232.
  */
 
 /**
@@ -138,6 +141,67 @@ export const IMAGE_TRANSFORM_CONTEXT_KEYS = Object.freeze([
  * @param {ImageTransformContext} context - What core knows about them.
  *
  * @returns {void|Promise<void>} Nothing, or a promise the caller will await.
+ */
+
+/**
+ * The longest label a contributed plan row may carry.
+ *
+ * The run card's label column is this wide (`LABEL_WIDTH` in `src/lib/util/run-board.js`), and the
+ * plain block's is wider, so a label within it lines up with core's own rows in both. A longer one
+ * would push its value out of the column on the run card, which reads as a rendering fault. Core's
+ * own longest label, `uploads to`, is one shorter.
+ */
+export const PLAN_ROW_LABEL_MAX = 11;
+
+/**
+ * One row a build contributes to the run's PLAN block.
+ *
+ * @typedef {object} PlanRow
+ * @property {string} label - Short and lower-case, like core's own labels (`browser`, `uploads
+ *     to`), at most {@link PLAN_ROW_LABEL_MAX} characters, on one line.
+ * @property {string|string[]} value - One line, or several. The first is shown beside the label;
+ *     the plain block shows the rest as continuation lines under it, and the run card shows them
+ *     as the row's dim detail. A line break inside a string starts a new line, and blank lines are
+ *     dropped.
+ */
+
+/**
+ * A contributed plan row as the report stores it and both renderers read it.
+ *
+ * @typedef {object} ExtensionPlanRow
+ * @property {string} label - The label, trimmed.
+ * @property {string[]} lines - At least one line, each trimmed and non-empty.
+ */
+
+/**
+ * Describes what a build's own contributions will do in this run, as rows for the PLAN block.
+ *
+ * The plan is what a dry run exists to show and what a real run shows before its first write, so
+ * an option a build contributes is invisible there unless the build can say what it does. This is
+ * how it says so. Core renders the rows after its own and before the writes warning, on the plain
+ * rung and on the run card alike, and stores them on the report as `plan.extensionRows`.
+ *
+ * **Called once per run, for every command that shows a plan** - both `create-sheet-thumbnails`
+ * commands and both `remove-sheet-icons` commands - from `runOverAppsWithReport`, after the
+ * worker's plan is recorded and before the block is shown. A hook with rows for some commands only
+ * decides that from `path`. On `-i` it runs after the wizard, so `options` are the ones the run
+ * will use.
+ *
+ * **It describes; it does not decide.** Throwing does not stop the run: the error is logged at warn
+ * and the plan shows none of the hook's rows - a run should not fail because its description of
+ * itself did. Anything that must stop a run belongs in `beforeAction`, which runs first.
+ *
+ * A row that cannot be rendered - no usable label, a label longer than
+ * {@link PLAN_ROW_LABEL_MAX}, or no usable value - is left out with a warning naming the reason,
+ * and the other rows stay. A result that is not a list is ignored with a warning. Returning
+ * nothing, or an empty list, adds no rows: the plan is exactly core's.
+ *
+ * @callback PlanRows
+ * @param {string} path - Space-separated path of the running command, the form `beforeAction`
+ *     receives, e.g. `'qseow create-sheet-thumbnails'`.
+ * @param {object} options - The options the run will use.
+ *
+ * @returns {PlanRow[]|void|Promise<PlanRow[]|void>} The rows, in the order to show them.
  */
 
 /**
@@ -460,4 +524,131 @@ export const runImageTransform = async (extensions, images, context) => {
             cause: err,
         });
     }
+};
+
+/**
+ * Why a contributed plan row cannot be rendered, or nothing when it can.
+ *
+ * @param {unknown} row - One entry of what the hook returned.
+ *
+ * @returns {string|undefined} The reason, worded to finish "left out of the plan: ...".
+ */
+const planRowProblem = (row) => {
+    if (row === null || typeof row !== 'object' || Array.isArray(row)) {
+        return 'it is not a row object';
+    }
+
+    const { label, value } = row;
+
+    if (typeof label !== 'string' || label.trim() === '') {
+        return 'it has no label';
+    }
+
+    if (/[\r\n\t]/.test(label)) {
+        return `its label ${JSON.stringify(label)} is not on one line`;
+    }
+
+    if (label.trim().length > PLAN_ROW_LABEL_MAX) {
+        return `its label '${label.trim()}' is longer than ${PLAN_ROW_LABEL_MAX} characters`;
+    }
+
+    const values = Array.isArray(value) ? value : [value];
+
+    if (values.some((line) => typeof line !== 'string')) {
+        return `its value for '${label.trim()}' is not text`;
+    }
+
+    if (planRowLines(values).length === 0) {
+        return `its value for '${label.trim()}' is empty`;
+    }
+
+    return undefined;
+};
+
+/**
+ * A row's value as the lines the renderers print: split at line breaks, trimmed, blanks dropped.
+ *
+ * Trimmed because both renderers align the value column themselves, and a line carrying its own
+ * indentation would land beside it rather than in it.
+ *
+ * @param {string[]} values - The row's value, already checked to be strings.
+ *
+ * @returns {string[]} The lines, possibly none.
+ */
+const planRowLines = (values) =>
+    values
+        .flatMap((value) => value.split(/\r?\n/))
+        .map((line) => line.trim())
+        .filter((line) => line !== '');
+
+/**
+ * Run a description's `planRows` hook, if it has one, and return the rows it is fit to show.
+ *
+ * Called once per run by `runOverAppsWithReport`, which stores the result as
+ * `report.plan.extensionRows` for both renderers. Everything a hook could get wrong is handled
+ * here, once, rather than in each renderer: a renderer only ever sees rows that have a usable
+ * label and at least one line.
+ *
+ * **Nothing it does can stop the run.** A throw is logged at warn, with its causes, and the stack at
+ * debug, and the result is no rows - the plan block is then exactly core's, which is what the run
+ * would have shown without the build's contributions. A row that cannot be rendered is left out
+ * with a warning that says why; the others stay.
+ *
+ * @param {SeamDescription} extensions - The description, which may describe no hooks at all.
+ * @param {string} path - Space-separated command path, e.g. `'qseow create-sheet-thumbnails'`.
+ * @param {object} options - The options the run will use.
+ *
+ * @returns {Promise<ExtensionPlanRow[]>} The rows to show, in order; empty when no hook is described,
+ *     which is the committed default's case.
+ */
+export const runPlanRows = async (extensions, path, options) => {
+    const hook = extensions?.hooks?.planRows;
+
+    if (!hook) {
+        return [];
+    }
+
+    let rows;
+
+    try {
+        rows = await hook(path, options);
+    } catch (err) {
+        logger.warn(
+            `PLAN ROWS: The build's extensions could not describe this run, so the plan shows none of their rows: ${describeWithCauses(err)}`
+        );
+
+        if (err?.stack) {
+            logger.debug(`PLAN ROWS: ${err.stack}`);
+        }
+
+        return [];
+    }
+
+    if (rows === undefined || rows === null) {
+        return [];
+    }
+
+    if (!Array.isArray(rows)) {
+        logger.warn(
+            `PLAN ROWS: The build's extensions returned ${typeof rows} rather than a list of rows, so the plan shows none of them.`
+        );
+
+        return [];
+    }
+
+    return rows.flatMap((row, index) => {
+        const problem = planRowProblem(row);
+
+        if (problem) {
+            logger.warn(
+                `PLAN ROWS: Row ${index + 1} from the build's extensions is left out of the plan: ${problem}.`
+            );
+
+            return [];
+        }
+
+        const values = Array.isArray(row.value) ? row.value : [row.value];
+
+        return [{ label: row.label.trim(), lines: planRowLines(values) }];
+    });
 };

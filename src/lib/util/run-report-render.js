@@ -319,6 +319,25 @@ const renderWrites = (report) => {
 };
 
 /**
+ * The rows a build's extensions contribute to the plan, as plan lines.
+ *
+ * Each row's first line sits beside its label and every further line is a
+ * continuation under it - the `server` row's pattern. The rows arrive
+ * normalised by `runPlanRows`, so every one has a label and at least one line;
+ * this only lays them out.
+ *
+ * @param {Array<{label: string, lines: string[]}>|undefined} rows - The plan's
+ *     `extensionRows`, absent in a report built without the runner.
+ *
+ * @returns {string[]} The lines, none when there are no rows.
+ */
+const renderExtensionRows = (rows = []) =>
+    rows.flatMap(({ label, lines }) => [
+        row(label, lines[0]),
+        ...lines.slice(1).map((line) => row('', line)),
+    ]);
+
+/**
  * The plan block: everything the run resolved, rendered before the first write.
  *
  * Sheet selection fails silently where connection problems fail loudly (issue
@@ -402,12 +421,23 @@ export const renderRunPlanLines = (report) => {
     // The writes warning is suppressed for an empty selection: "WILL
     // OVERWRITE ... 0 app(s)" in capitals right before the no-apps error
     // would describe a write that was never possible.
-    if (plan.writes && (report.selection?.total ?? report.apps.length) > 0) {
+    const showsWrites = Boolean(plan.writes) && (report.selection?.total ?? report.apps.length) > 0;
+
+    if (showsWrites) {
         if (plan.writes.contentLibrary) {
             lines.push(row('uploads to', `content library "${plan.writes.contentLibrary}"`));
         } else if (plan.writes.kind === 'thumbnails') {
             lines.push(row('uploads to', `each app's media library, "thumbnails" folder`));
         }
+    }
+
+    // What the build's own contributions will do (issue #1232): after core's
+    // rows, so they never displace one, and before the warning, so the line
+    // with no undo stays the block's last. Not behind the writes guard -
+    // they describe the run, not its writes.
+    lines.push(...renderExtensionRows(plan.extensionRows));
+
+    if (showsWrites) {
         lines.push(renderWrites(report));
     }
 
