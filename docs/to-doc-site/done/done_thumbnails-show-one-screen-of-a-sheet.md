@@ -5,6 +5,20 @@ A sheet's thumbnail shows what fits on one screen. Butler Sheet Icons opens ever
 This is not the browser being zoomed, and it is not a setting in Butler Sheet Icons. The doc site never explains it. One page even points to sizing tips that do not exist. This draft proposes changes to three pages.
 
 <!--
+Published 2026-11-07 via butler-sheet-icons-docs PR #131, into `next`. What shipped differs from this draft:
+- Held back until checked live:
+  - How sheet parts 2-4 behave on an extended sheet. The pages speak only of the default part, 1. Not published:
+    "Whichever you choose, the thumbnail shows what is on screen" and the troubleshooting line "Choosing a
+    larger sheet part with --includesheetpart does not help".
+  - Qlik Sense Cloud. "This applies to both Qlik Sense Enterprise on Windows and Qlik Sense Cloud" was dropped.
+  A follow-up page can add each claim back once it has been seen on a live run.
+- Corrected: "values 1 to 3 are smaller areas inside it" is wrong for Qlik Sense Cloud, which has no part 3.
+  The page says "the lower values".
+- Added beyond this draft: /guide/introduction and /guide/quick-start also said images are resized. Both
+  lines were corrected in the same PR.
+-->
+
+<!--
 Verification status (2026-11-03):
 - Verified live on QSEoW 2026-May (qs-2605-cn01). Eight sheets were extended once (150%), and all were captured with
   --includesheetpart 1. Each capture is 1230 x 681 pixels. On a 12-row sheet it shows grid rows 1-8,
