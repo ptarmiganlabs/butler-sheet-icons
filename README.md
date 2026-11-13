@@ -1,40 +1,46 @@
-# Butler Sheet Icons
-
 <!-- markdownlint-disable MD033 MD045 -->
 
-<p align="center"><img src="docs/butler sheet icons_small.png" alt="Butler Sheet Icons logo"><p>
-<h3 align="center">Automatically create Qlik Sense sheet thumbnail images</h3>
-</p>
+<p align="center"><img src="docs/butler sheet icons_small.png" alt="Butler Sheet Icons logo"></p>
 
----
+<h1 align="center">Butler Sheet Icons</h1>
+
+<p align="center"><strong>Automatic sheet icons for client-managed Qlik Sense and Qlik Cloud</strong></p>
 
 <p align="center">
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons"><img src="https://img.shields.io/badge/Source---" alt="Source"></a>
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/ci.yaml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/ci.yaml/badge.svg?branch=main" alt="Build status"></a>
 <a href="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yaml"><img src="https://github.com/ptarmiganlabs/butler-sheet-icons/actions/workflows/docker-image-build.yaml/badge.svg" alt="Docker image build"></a>
 <a href="https://www.repostatus.org/#active"><img src="https://www.repostatus.org/badges/latest/active.svg" alt="Project Status: Active"></a>
+<a href="https://github.com/sponsors/ptarmiganlabs"><img src="https://img.shields.io/badge/Sponsor-%E2%9D%A4-db61a2?logo=githubsponsors" alt="Sponsor Ptarmigan Labs on GitHub"></a>
 </p>
 
----
+<p align="center">
+<a href="https://butler-sheet-icons.ptarmiganlabs.com">Documentation</a> ·
+<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/discussions">Questions</a> ·
+<a href="https://github.com/ptarmiganlabs/butler-sheet-icons/issues">Report a bug</a> ·
+<a href="https://github.com/sponsors/ptarmiganlabs">❤️ Sponsor</a>
+</p>
+
+A cross-platform, command-line tool (plus Docker!) for creating sheet thumbnails based on the
+actual layout of sheets in Qlik Sense apps. Works on both Qlik Sense Cloud apps and Qlik Sense
+Enterprise on Windows (QSEoW) apps.
 
 ## ❤️ Support the project
 
-If you find this project helpful and use it in your Qlik Sense environment, please consider supporting it financially! Your sponsorship helps ensure the project's long-term sustainability and allows me to continue maintaining it, fixing bugs, and adding new features.
+Butler Sheet Icons is free and open source, under the MIT licence. If you use it, please consider sponsoring its development: sponsorships pay for maintenance, bug fixes and new features, and keep the project going.
 
-**👉 [Sponsor the project on GitHub](https://github.com/sponsors/ptarmiganlabs)** - Click the "Sponsor" button at the repository page to become a sponsor.
+**[❤️ Sponsor Ptarmigan Labs on GitHub](https://github.com/sponsors/ptarmiganlabs)**
 
-- ⭐ **Star the repository** on GitHub - it helps others discover the project
-- 🍴 **Fork and contribute** - pull requests are welcome!
-- 💬 **Share your feedback** - let me know how you're using it
-- 🐛 **Report issues** - help improve stability and functionality
+Other ways to help:
 
-_This project is maintained by [Göran Sander](https://github.com/mountaindude) and supported by [Ptarmigan Labs](https://ptarmiganlabs.com)._
+- ⭐ **Star the repository**: it helps others find the project.
+- 💬 **Share your feedback** in [Discussions](https://github.com/ptarmiganlabs/butler-sheet-icons/discussions): tell us how you use it.
+- 🐛 **Report issues** in [Issues](https://github.com/ptarmiganlabs/butler-sheet-icons/issues).
+- 🍴 **Contribute**: pull requests are welcome.
+
+_Maintained by [Göran Sander](https://github.com/mountaindude) and supported by [Ptarmigan Labs](https://ptarmiganlabs.com)._
 
 ---
-
-A cross-platform, command-line tool (plus Docker!) for creating sheet thumbnails based on the actual layout of sheets in Qlik Sense apps.
-
-Works on both Qlik Sense Cloud apps and Qlik Sense Enterprise on Windows (QSEoW) apps.
 
 ## Key Features
 
