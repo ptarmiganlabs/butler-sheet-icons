@@ -21,6 +21,10 @@
 <a href="https://github.com/sponsors/ptarmiganlabs">❤️ Sponsor</a>
 </p>
 
+<p align="center">
+  <img src="docs/img/butler-sheet-icons-demo.gif" alt="Butler Sheet Icons in a terminal: its plan for a Qlik Sense app, then three sheets captured in a headless browser, six images uploaded, every sheet given a new icon, and the result" width="880">
+</p>
+
 A cross-platform, command-line tool (plus Docker!) for creating sheet thumbnails based on the
 actual layout of sheets in Qlik Sense apps. Works on both Qlik Sense Cloud apps and Qlik Sense
 Enterprise on Windows (QSEoW) apps.
