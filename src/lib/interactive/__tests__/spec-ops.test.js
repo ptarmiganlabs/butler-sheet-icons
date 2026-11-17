@@ -7,6 +7,7 @@ import {
     openingOn,
     assertAppSelectionNotEmpty,
     appSourceQuestion,
+    askedAsGpuQuestion,
     APP_SOURCES,
     SHEET_FILTER_KEYS,
 } from '../spec-ops.js';
@@ -290,5 +291,23 @@ describe('appSourceQuestion', () => {
             APP_SOURCES.GROUPED,
             APP_SOURCES.TYPED,
         ]);
+    });
+});
+
+describe('askedAsGpuQuestion (issue #1235)', () => {
+    test('rewords the --browser-gpu question and keeps the rest of it', () => {
+        const asked = askedAsGpuQuestion(spec('browserGpu', { type: 'confirm' }));
+
+        expect(asked.message).toBe(
+            'Do any sheets have charts drawn with WebGL, such as the Network.qs extension?'
+        );
+        expect(asked.hint).toMatch(/GPU/);
+        expect(asked.type).toBe('confirm');
+    });
+
+    test('leaves every other question alone', () => {
+        const other = spec('headless');
+
+        expect(askedAsGpuQuestion(other)).toBe(other);
     });
 });
