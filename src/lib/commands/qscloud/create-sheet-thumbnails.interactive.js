@@ -9,6 +9,7 @@ import {
     inSections,
     openingOn,
     askedUnlessSkipLogin,
+    askedAsGpuQuestion,
     isSupplied,
     appSourceQuestion,
     appPickerQuestion,
@@ -52,6 +53,7 @@ const ADVANCED_KEYS = [
     'browserPageTimeout',
     'browserCacheDir',
     'browserExecutablePath',
+    'browserGpu',
     'headless',
 ];
 
@@ -216,7 +218,8 @@ export default {
             // rewritten to remove, re-armed by nothing more than moving a key
             // into PER_RUN_KEYS.
             .map(gatedBy(ADVANCED, ADVANCED_KEYS, answers))
-            .map(gatedBy(FILTERING, SHEET_FILTER_KEYS, answers));
+            .map(gatedBy(FILTERING, SHEET_FILTER_KEYS, answers))
+            .map(askedAsGpuQuestion);
 
         // markPerRun last, over everything: PER_RUN_KEYS in spec-ops.js is the
         // one statement of which options describe this run rather than this

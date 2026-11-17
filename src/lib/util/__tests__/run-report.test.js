@@ -5,6 +5,7 @@ import {
     addAppToReport,
     recordSheetDecision,
     renderDryRunReport,
+    buildBrowserPlanSection,
 } from '../run-report.js';
 import { renderRunPlanLines, renderRunVerdictLines } from '../run-report-render.js';
 import { EXCLUDE_REASON, BLUR_REASON, CLEAR_REASON } from '../sheet-decision-reasons.js';
@@ -222,5 +223,34 @@ describe('renderDryRunReport', () => {
         renderDryRunReport(sampleReport(), log);
 
         expect(/^[\x20-\x7e\n]*$/.test(log.text())).toBe(true);
+    });
+});
+
+describe('buildBrowserPlanSection', () => {
+    const OPTIONS = {
+        browser: 'chrome',
+        browserVersion: 'recommended',
+        headless: true,
+        pagewait: 5,
+    };
+
+    test('copies what was asked for, with the GPU off by default', () => {
+        expect(buildBrowserPlanSection(OPTIONS)).toEqual({
+            name: 'chrome',
+            version: 'recommended',
+            headless: true,
+            gpu: false,
+            pageWaitSeconds: 5,
+        });
+    });
+
+    // Matches the launch, which takes --disable-gpu out only for the boolean true (issue #1235).
+    test.each([
+        [true, true],
+        [false, false],
+        ['true', false],
+        [undefined, false],
+    ])('reports browserGpu %p as gpu %p', (browserGpu, gpu) => {
+        expect(buildBrowserPlanSection({ ...OPTIONS, browserGpu }).gpu).toBe(gpu);
     });
 });

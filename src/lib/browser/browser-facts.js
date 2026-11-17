@@ -42,8 +42,8 @@ import { parseHeadlessOption } from '../util/headless-option.js';
  *
  * **It does launch the browser.** Resolving a path proves far less than starting the process, so
  * unless `--skip-launch` is given the selected browser is started with the production arguments
- * and asked for its version. No page is opened, nothing is navigated to, and Qlik Sense is never
- * contacted.
+ * and asked for its version. Then one blank page is opened and asked whether it can draw WebGL 2
+ * (issue #1235). Nothing is navigated to, and Qlik Sense is never contacted.
  *
  * Gathering is therefore expensive and has side effects on the host, which is why
  * `buildCheckContext` calls this only when the `browser` area is actually being checked - a
@@ -152,6 +152,143 @@ const unusableReason = (build, requestedBrowser) => {
 };
 
 /**
+ * How long the WebGL question may take, once the browser has answered its version query.
+ *
+ * Generous, because it covers opening a page as well as the answer, and a slow first page on a
+ * loaded server is not what this is asking about. Bounded all the same: the probe is an extra, and
+ * must never be the reason `browser check` hangs.
+ */
+export const WEBGL_PROBE_TIMEOUT_MS = 20_000;
+
+/**
+ * Renderers that draw in software rather than on a GPU: SwiftShader (Chrome's own), Mesa's llvmpipe
+ * and softpipe on Linux, and Microsoft's Basic Render Driver (WARP) on Windows.
+ */
+const SOFTWARE_RENDERER = /swiftshader|llvmpipe|softpipe|basic render/i;
+
+/**
+ * Runs in the page: asks for a WebGL 2 and a WebGL context, and names the renderer of each.
+ *
+ * `WEBGL_debug_renderer_info` gives the real renderer ("ANGLE (Apple, ANGLE Metal Renderer: Apple
+ * M4 Max ...)"), which is what tells a GPU from SwiftShader. Without it, only the masked
+ * `RENDERER` ("WebKit WebGL") is left, which names no hardware - so `masked` says so, and the
+ * caller treats GPU-or-software as unknown rather than guessing.
+ *
+ * @returns {{webgl2: string|null, webgl: string|null, masked: boolean}} The renderer of each
+ * context, or `null` where the browser would not create one; `masked` for the context the
+ * renderer is reported from.
+ */
+const webglProbe = () => {
+    const describe = (kind) => {
+        // `globalThis.document`, as in `sheet-loading.js`: this runs inside the page, where a
+        // document exists, but is linted as Node source, where it does not.
+        const gl = globalThis.document.createElement('canvas').getContext(kind);
+
+        if (!gl) {
+            return { renderer: null, masked: false };
+        }
+
+        const info = gl.getExtension('WEBGL_debug_renderer_info');
+
+        return info
+            ? { renderer: String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)), masked: false }
+            : { renderer: String(gl.getParameter(gl.RENDERER)), masked: true };
+    };
+
+    const two = describe('webgl2');
+    const one = describe('webgl');
+
+    return {
+        webgl2: two.renderer,
+        webgl: one.renderer,
+        masked: (two.renderer === null ? one : two).masked,
+    };
+};
+
+/**
+ * An error's message, or the error itself as text when it has none.
+ *
+ * `||`, not `??`: an Error carrying an empty message is not `null`, so `??` kept it and produced a
+ * finding that named nothing at all.
+ *
+ * @param {unknown} err - What was thrown.
+ *
+ * @returns {string} Text that names the failure.
+ */
+const messageOf = (err) => (err instanceof Error ? err.message : String(err)) || String(err);
+
+/**
+ * Asks a launched browser whether it can draw WebGL 2, and on what (issue #1235).
+ *
+ * Charts that draw with WebGL - the Network.qs extension is the case that prompted this - show
+ * their own error message in a thumbnail when the browser offers no WebGL, and nothing in the run
+ * says so. This answers the question before a run, on the browser and with the arguments the run
+ * would use.
+ *
+ * A blank page, never navigated: the no-network rule this module keeps holds. A failure is
+ * recorded, never thrown - the launch has already succeeded by the time this runs, and a
+ * diagnostic that could no longer answer one extra question must still report the launch.
+ *
+ * @param {object} browser - A launched Puppeteer browser that has answered its version query.
+ *
+ * @returns {Promise<{checked: boolean, webgl2: boolean, webgl: boolean, renderer: string|null, software: boolean|null, error: string|null}>}
+ * What the page said, or why it could not be asked. `software` is `null` when the browser hides its
+ * renderer, so whether it draws on a GPU or in software is unknown.
+ */
+const probeWebgl = async (browser) => {
+    let timer;
+
+    try {
+        const answer = (async () => {
+            // The blank tab the browser starts with, rather than a second one: no extra target
+            // or renderer for a question that one can answer.
+            const [blank] = await browser.pages();
+            const page = blank ?? (await browser.newPage());
+
+            return page.evaluate(webglProbe);
+        })();
+        const deadline = new Promise((_resolve, reject) => {
+            timer = setTimeout(
+                () => reject(new Error(`no answer within ${WEBGL_PROBE_TIMEOUT_MS / 1000}s`)),
+                WEBGL_PROBE_TIMEOUT_MS
+            );
+        });
+
+        const { webgl2, webgl, masked } = await Promise.race([answer, deadline]);
+        const renderer = webgl2 ?? webgl ?? null;
+        let software = false;
+
+        if (renderer !== null) {
+            software = masked === true ? null : SOFTWARE_RENDERER.test(renderer);
+        }
+
+        return {
+            checked: true,
+            webgl2: webgl2 !== null,
+            webgl: webgl !== null,
+            renderer,
+            software,
+            error: null,
+        };
+    } catch (err) {
+        const error = messageOf(err);
+
+        logger.debug(`Could not ask the browser whether it can draw WebGL: ${error}`);
+
+        return {
+            checked: false,
+            webgl2: false,
+            webgl: false,
+            renderer: null,
+            software: false,
+            error,
+        };
+    } finally {
+        clearTimeout(timer);
+    }
+};
+
+/**
  * Starts the selected browser and asks it for its version.
  *
  * The production `buildBrowserArgs()` and `parseHeadlessOption()`, and the production timeouts, so
@@ -176,13 +313,17 @@ const unusableReason = (build, requestedBrowser) => {
  * Sense servers - where an NTP step correction mid-launch is routine, and a wall clock that jumps
  * would invent a stall or hide one behind a negative elapsed time.
  *
- * @param {object} options - Options bag; `headless` is read from it.
+ * `gpu` records whether the browser was started with `--browser-gpu`, read here once with the
+ * same `=== true` the launch uses, so the WebGL check judges the launch that actually happened.
+ *
+ * @param {object} options - Options bag; `headless` and `browserGpu` are read from it.
  * @param {string} executablePath - The browser to start.
  *
- * @returns {Promise<{attempted: boolean, started: boolean, ok: boolean, version: string|null, error: string|null, skipped: boolean, elapsedMs: number}>}
- * What happened.
+ * @returns {Promise<{attempted: boolean, started: boolean, ok: boolean, version: string|null, error: string|null, skipped: boolean, elapsedMs: number, gpu: boolean, webgl: object|null}>}
+ * What happened. `webgl` is `null` unless the browser answered, and then what `probeWebgl` found.
  */
 const tryLaunch = async (options, executablePath) => {
+    const gpu = options.browserGpu === true;
     const result = {
         attempted: true,
         started: false,
@@ -191,9 +332,11 @@ const tryLaunch = async (options, executablePath) => {
         error: null,
         skipped: false,
         elapsedMs: 0,
+        gpu,
+        webgl: null,
     };
     const headless = parseHeadlessOption(options.headless);
-    const args = await buildBrowserArgs();
+    const args = await buildBrowserArgs({ gpu });
 
     logger.verbose(`Starting ${executablePath} to check that it runs on this machine`);
 
@@ -220,10 +363,12 @@ const tryLaunch = async (options, executablePath) => {
         // and then dies on the first command sent to it.
         result.version = await browser.version();
         result.ok = true;
+
+        // Only now: a browser that cannot answer its version query has nothing to say about
+        // WebGL, and the launch check already explains why.
+        result.webgl = await probeWebgl(browser);
     } catch (err) {
-        // `||`, not `??`: an Error carrying an empty message is not `null`, so `??` kept it and
-        // produced a finding that named nothing at all.
-        result.error = (err instanceof Error ? err.message : String(err)) || String(err);
+        result.error = messageOf(err);
 
         if (!result.started) {
             result.elapsedMs = performance.now() - startedAt;
@@ -376,6 +521,8 @@ export const gatherBrowserFacts = async (options) => {
                   error: null,
                   skipped: Boolean(selection && options.skipLaunch),
                   elapsedMs: 0,
+                  gpu: options.browserGpu === true,
+                  webgl: null,
               };
 
     return {

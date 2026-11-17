@@ -140,6 +140,21 @@ const checkById = (id) => {
 const findingsOf = async (id, ctx) => checkById(id).run(ctx);
 
 /**
+ * A healthy context whose browser also answered the WebGL question.
+ *
+ * @param {object} params - What the launch recorded.
+ * @param {boolean} params.gpu - Whether it was started with `--browser-gpu`.
+ * @param {object} params.webgl - What the page said.
+ *
+ * @returns {object} The context.
+ */
+const webglCtx = ({ gpu, webgl }) => {
+    const ctx = ctxWith();
+
+    return { ...ctx, launch: { ...ctx.launch, gpu, webgl } };
+};
+
+/**
  * The scenarios every check is held to.
  *
  * Data rather than a `describe` per check, because the last test in this file compares the ids
@@ -633,7 +648,165 @@ const SCENARIOS = [
         ids: ['BSI-BROWSER-016'],
         severities: [SEVERITY.INFO],
     },
+    {
+        check: 'browser-webgl',
+        name: 'WebGL 2 on a GPU',
+        ctx: webglCtx({
+            gpu: true,
+            webgl: {
+                checked: true,
+                webgl2: true,
+                webgl: true,
+                renderer: 'ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Max, Unspecified Version)',
+                software: false,
+                error: null,
+            },
+        }),
+        ids: ['BSI-BROWSER-024'],
+        severities: [SEVERITY.OK],
+    },
+    {
+        check: 'browser-webgl',
+        // The browser hides its renderer: WebGL 2 is there, but neither GPU nor software is claimed.
+        name: 'WebGL 2 from a browser that does not name its renderer',
+        ctx: webglCtx({
+            gpu: true,
+            webgl: {
+                checked: true,
+                webgl2: true,
+                webgl: true,
+                renderer: 'WebKit WebGL',
+                software: null,
+                error: null,
+            },
+        }),
+        ids: ['BSI-BROWSER-024'],
+        severities: [SEVERITY.OK],
+    },
+    {
+        check: 'browser-webgl',
+        name: 'WebGL 2 in software, as on a server without a GPU',
+        ctx: webglCtx({
+            gpu: true,
+            webgl: {
+                checked: true,
+                webgl2: true,
+                webgl: true,
+                renderer:
+                    'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)',
+                software: true,
+                error: null,
+            },
+        }),
+        ids: ['BSI-BROWSER-025'],
+        severities: [SEVERITY.INFO],
+    },
+    {
+        check: 'browser-webgl',
+        // Issue #1235: every machine on the default would warn, and most sheets need no WebGL.
+        name: 'no WebGL 2 with the GPU off, the default, is not a warning',
+        ctx: webglCtx({
+            gpu: false,
+            webgl: {
+                checked: true,
+                webgl2: false,
+                webgl: false,
+                renderer: null,
+                software: false,
+                error: null,
+            },
+        }),
+        ids: ['BSI-BROWSER-026'],
+        severities: [SEVERITY.INFO],
+    },
+    {
+        check: 'browser-webgl',
+        name: 'no WebGL 2 although --browser-gpu is on',
+        ctx: webglCtx({
+            gpu: true,
+            webgl: {
+                checked: true,
+                webgl2: false,
+                webgl: false,
+                renderer: null,
+                software: false,
+                error: null,
+            },
+        }),
+        ids: ['BSI-BROWSER-027'],
+        severities: [SEVERITY.WARNING],
+    },
+    {
+        check: 'browser-webgl',
+        name: 'the page could not be asked',
+        ctx: webglCtx({
+            gpu: false,
+            webgl: {
+                checked: false,
+                webgl2: false,
+                webgl: false,
+                renderer: null,
+                software: false,
+                error: 'no answer within 20s',
+            },
+        }),
+        ids: ['BSI-BROWSER-028'],
+        severities: [SEVERITY.WARNING],
+    },
 ];
+
+describe('the WebGL check (issue #1235)', () => {
+    const NO_WEBGL = {
+        checked: true,
+        webgl2: false,
+        webgl: false,
+        renderer: null,
+        software: false,
+        error: null,
+    };
+
+    test('does not call a hidden renderer a GPU', async () => {
+        const [result] = await findingsOf(
+            'browser-webgl',
+            webglCtx({
+                gpu: true,
+                webgl: {
+                    ...NO_WEBGL,
+                    webgl2: true,
+                    webgl: true,
+                    renderer: 'WebKit WebGL',
+                    software: null,
+                },
+            })
+        );
+
+        expect(result.facts).toContainEqual({
+            label: 'WebGL 2',
+            value: 'yes, renderer not disclosed',
+        });
+        expect(result.detail).toMatch(/whether it draws on a GPU or in software .* is not known/);
+    });
+
+    test('says when BSI_BROWSER_GPU turned the GPU on', async () => {
+        const ctx = webglCtx({ gpu: true, webgl: NO_WEBGL });
+        const [result] = await findingsOf('browser-webgl', {
+            ...ctx,
+            env: { ...ctx.env, BSI_BROWSER_GPU: 'true' },
+        });
+
+        expect(result.id).toBe('BSI-BROWSER-027');
+        expect(result.detail).toContain('BSI_BROWSER_GPU is set to "true" in this environment.');
+    });
+
+    test('names no variable when none is set', async () => {
+        const [result] = await findingsOf(
+            'browser-webgl',
+            webglCtx({ gpu: true, webgl: NO_WEBGL })
+        );
+
+        expect(result.detail).not.toContain('BSI_BROWSER_GPU');
+    });
+});
 
 describe('every check is a pure function of its context', () => {
     test.each(SCENARIOS.map((s) => [`${s.check}: ${s.name}`, s]))('%s', async (_name, scenario) => {

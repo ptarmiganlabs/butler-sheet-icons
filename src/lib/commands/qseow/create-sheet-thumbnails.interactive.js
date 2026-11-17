@@ -14,6 +14,7 @@ import {
     openingOn,
     askedUnlessSkipLogin,
     askedOnlyWithChangeAppOwner,
+    askedAsGpuQuestion,
     isSupplied,
     appSourceQuestion,
     appPickerQuestion,
@@ -82,6 +83,7 @@ const ADVANCED_KEYS = [
     'browserPageTimeout',
     'browserCacheDir',
     'browserExecutablePath',
+    'browserGpu',
 ];
 
 /** Which section each question belongs under, in the order the sections run. */
@@ -285,6 +287,7 @@ export default {
             // into PER_RUN_KEYS.
             .map(gatedBy(ADVANCED, ADVANCED_KEYS, answers))
             .map(gatedBy(FILTERING, SHEET_FILTER_KEYS, answers))
+            .map(askedAsGpuQuestion)
             // After the gates, never before: gatedBy replaces a question's `when`.
             .map(askedOnlyWithChangeAppOwner);
 

@@ -240,6 +240,35 @@ const buildBrowserExecutablePathOption = () =>
     ).env('BSI_BROWSER_EXECUTABLE_PATH');
 
 /**
+ * The `--browser-gpu` option, for every command that launches a browser (issue #1235).
+ *
+ * A factory for the same reason as {@link buildBrowserCacheDirOption}: Commander stores parsed
+ * values on the Option object, so commands cannot share one instance.
+ *
+ * The environment variable is shared across commands rather than per-command prefixed, like the
+ * cache directory's. Whether the browser can use the GPU on this machine is a property of the
+ * machine, and `browser check` and `doctor check` exist to predict what a real run will do - so
+ * they must read the same variable the run reads, or the check reports on a browser the run never
+ * starts.
+ *
+ * The argument is optional, not absent, for the reason {@link buildSkipLoginOption} spells out: a
+ * bare flag would be set by the mere presence of `BSI_BROWSER_GPU`, so `BSI_BROWSER_GPU=false`
+ * would turn it **on**. A bare `--browser-gpu` on the command line still means true.
+ *
+ * Stored under `browserGpu`.
+ *
+ * @returns {Option} A new `--browser-gpu` option.
+ */
+const buildBrowserGpuOption = () =>
+    new Option(
+        '--browser-gpu [true|false]',
+        'Let the browser use the GPU, so charts drawn with WebGL (for example the Network.qs extension) appear in thumbnails instead of an error message. Where there is no GPU, as on most servers and in containers, WebGL is drawn in software instead. Off by default, because GPU drivers on servers and in containers can make the browser unstable.'
+    )
+        .default(false)
+        .argParser(booleanOptionParser({ whenEmpty: false }))
+        .env('BSI_BROWSER_GPU');
+
+/**
  * The `--skip-login` option, for the two create-sheet-thumbnails commands.
  *
  * A factory for the same reason as {@link buildTenantUrlOption}: each command binds its own
@@ -334,6 +363,7 @@ export {
     buildTenantUrlOption,
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
+    buildBrowserGpuOption,
     buildSkipLoginOption,
     buildChangeAppOwnerOption,
     buildChangeAppOwnerWaitOption,

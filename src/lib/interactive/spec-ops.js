@@ -154,6 +154,29 @@ export const askedOnlyWithChangeAppOwner = (spec) => {
 };
 
 /**
+ * Put the `--browser-gpu` question as one the operator can answer (issue #1235).
+ *
+ * Derived from the option, the question would be its help text, which reads as an instruction
+ * and leaves open whether "yes" means "my sheets need it" or "I accept the risk". The same
+ * reason `--skip-login` gets its own question.
+ *
+ * Both wizards use it, so the two platforms ask the same question.
+ *
+ * @param {object} spec - Any question.
+ *
+ * @returns {object} The question, reworded when it is `browserGpu`.
+ */
+export const askedAsGpuQuestion = (spec) =>
+    spec.key === 'browserGpu'
+        ? {
+              ...spec,
+              message:
+                  'Do any sheets have charts drawn with WebGL, such as the Network.qs extension?',
+              hint: 'A yes lets the browser use the GPU, or draw WebGL in software where there is none, so those charts appear in thumbnails instead of an error message. Leave it at no otherwise: GPU drivers on servers can make the browser unstable.',
+          }
+        : spec;
+
+/**
  * Refuse to go on when the run would have no apps to process.
  *
  * `runOverApps` already treats an empty selection as a failure rather than a

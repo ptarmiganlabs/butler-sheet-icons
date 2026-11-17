@@ -14,6 +14,7 @@ import {
     buildTenantUrlOption,
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
+    buildBrowserGpuOption,
     buildSkipLoginOption,
 } from '../helpers.js';
 import { toAppIdList } from '../../util/app-ids.js';
@@ -295,7 +296,8 @@ const buildCloudCreateSheetThumbnailsCommand = () => {
                 .env('BSI_BROWSER_PAGE_TIMEOUT')
         )
         .addOption(buildBrowserCacheDirOption())
-        .addOption(buildBrowserExecutablePathOption());
+        .addOption(buildBrowserExecutablePathOption())
+        .addOption(buildBrowserGpuOption());
 
     addInteractiveOption(command);
     addDryRunOption(command);

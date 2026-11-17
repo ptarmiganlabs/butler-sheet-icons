@@ -409,6 +409,16 @@ describe('the plan block', () => {
         expect(dryPlan).toContain('would be overwritten');
     });
 
+    test('names the GPU on the browser row only when --browser-gpu is on (issue #1235)', () => {
+        const off = renderBoardPlan(makeReport(), uniCtx());
+        expect(off).not.toContain('GPU');
+
+        const report = makeReport();
+        report.plan.browser = { ...report.plan.browser, gpu: true };
+
+        expect(renderBoardPlan(report, uniCtx())).toContain('GPU on');
+    });
+
     describe('rows a build contributes (issue #1232)', () => {
         const withRows = (extensionRows) => {
             const report = makeReport();

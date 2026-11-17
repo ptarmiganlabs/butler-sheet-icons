@@ -169,6 +169,11 @@ beforeEach(() => {
     getBrowserInventory.mockResolvedValue([]);
     launchMock.mockResolvedValue({
         version: jest.fn().mockResolvedValue('Chrome/138.0.7204.94'),
+        // What a browser started with the default --disable-gpu says about WebGL: nothing at all.
+        pages: jest.fn().mockResolvedValue([]),
+        newPage: jest.fn().mockResolvedValue({
+            evaluate: jest.fn().mockResolvedValue({ webgl2: null, webgl: null }),
+        }),
         close: jest.fn().mockResolvedValue(undefined),
     });
 });
@@ -231,6 +236,10 @@ const HEALTHY = [
     'info:     Launched            : yes',
     'info:     Reported version    : Chrome/138.0.7204.94',
     'verbose:     The browser started and responded',
+    // Added by issue #1235, on purpose: whether charts drawn with WebGL will appear. Not a warning
+    // on the default, so the result and the exit code are unchanged.
+    'info:     WebGL 2             : no - GPU off, see --browser-gpu',
+    'verbose:     The browser cannot draw WebGL 2, because it is not allowed to use the GPU',
     'info: Note: these findings are best-effort. Butler Sheet Icons reports what it can observe on this',
     'info: machine, and cannot see everything about your environment - group policy, antivirus, proxy rules',
     'info: and Qlik Sense itself are all invisible to it. Review suggested commands before running them on a',

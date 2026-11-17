@@ -702,6 +702,7 @@ describe('progressive disclosure', () => {
                 browserPageTimeout: '90',
                 browserCacheDir: '',
                 browserExecutablePath: '',
+                browserGpu: false,
                 headless: true,
             })
         );
@@ -714,6 +715,12 @@ describe('progressive disclosure', () => {
         // browser cache directory, and an unplaced key would be asked last and ungated.
         expect(runtime.asked.map((a) => a.key)).toContain('browserCacheDir');
         expect(runtime.asked.map((a) => a.key)).toContain('browserExecutablePath');
+        // Likewise --browser-gpu (issue #1235): only sheets with WebGL charts need it.
+        expect(runtime.asked.map((a) => a.key)).toContain('browserGpu');
+        // As a question the operator can answer, not the option's help text.
+        expect(runtime.asked.find((a) => a.key === 'browserGpu').message).toBe(
+            'Do any sheets have charts drawn with WebGL, such as the Network.qs extension?'
+        );
     });
 
     test('never asks for the log level up front', async () => {

@@ -470,14 +470,19 @@ export const buildSheetPartSection = (value, labels) => {
  * may involve the network, and the plan block must stay a pure read of what
  * was asked for. The launch still logs the build it actually uses.
  *
+ * `gpu` is `true` only for the boolean `true`, matching what the launch does with
+ * `--browser-gpu` (issue #1235) - the plan must not say "GPU on" for a browser that starts
+ * without it.
+ *
  * @param {object} options - The command's options bag.
  *
- * @returns {{name: string, version: string, headless: boolean|string, pageWaitSeconds: number|string}} The section.
+ * @returns {{name: string, version: string, headless: boolean|string, gpu: boolean, pageWaitSeconds: number|string}} The section.
  */
 export const buildBrowserPlanSection = (options) => ({
     name: options.browser,
     version: options.browserVersion,
     headless: options.headless,
+    gpu: options.browserGpu === true,
     pageWaitSeconds: options.pagewait,
 });
 
