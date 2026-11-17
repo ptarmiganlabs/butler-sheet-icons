@@ -72,6 +72,7 @@ export const buildBaseContext = (options, { hostPlatform, command = 'browser che
         PUPPETEER_EXECUTABLE_PATH: process.env.PUPPETEER_EXECUTABLE_PATH,
         BSI_BROWSER_CACHE_DIR: process.env.BSI_BROWSER_CACHE_DIR,
         BSI_BROWSER_EXECUTABLE_PATH: process.env.BSI_BROWSER_EXECUTABLE_PATH,
+        BSI_BROWSER_GPU: process.env.BSI_BROWSER_GPU,
     },
     host: {
         hostPlatform,

@@ -667,6 +667,24 @@ const SCENARIOS = [
     },
     {
         check: 'browser-webgl',
+        // The browser hides its renderer: WebGL 2 is there, but neither GPU nor software is claimed.
+        name: 'WebGL 2 from a browser that does not name its renderer',
+        ctx: webglCtx({
+            gpu: true,
+            webgl: {
+                checked: true,
+                webgl2: true,
+                webgl: true,
+                renderer: 'WebKit WebGL',
+                software: null,
+                error: null,
+            },
+        }),
+        ids: ['BSI-BROWSER-024'],
+        severities: [SEVERITY.OK],
+    },
+    {
+        check: 'browser-webgl',
         name: 'WebGL 2 in software, as on a server without a GPU',
         ctx: webglCtx({
             gpu: true,
@@ -736,6 +754,59 @@ const SCENARIOS = [
         severities: [SEVERITY.WARNING],
     },
 ];
+
+describe('the WebGL check (issue #1235)', () => {
+    const NO_WEBGL = {
+        checked: true,
+        webgl2: false,
+        webgl: false,
+        renderer: null,
+        software: false,
+        error: null,
+    };
+
+    test('does not call a hidden renderer a GPU', async () => {
+        const [result] = await findingsOf(
+            'browser-webgl',
+            webglCtx({
+                gpu: true,
+                webgl: {
+                    ...NO_WEBGL,
+                    webgl2: true,
+                    webgl: true,
+                    renderer: 'WebKit WebGL',
+                    software: null,
+                },
+            })
+        );
+
+        expect(result.facts).toContainEqual({
+            label: 'WebGL 2',
+            value: 'yes, renderer not disclosed',
+        });
+        expect(result.detail).toMatch(/whether it draws on a GPU or in software .* is not known/);
+    });
+
+    test('says when BSI_BROWSER_GPU turned the GPU on', async () => {
+        const ctx = webglCtx({ gpu: true, webgl: NO_WEBGL });
+        const [result] = await findingsOf('browser-webgl', {
+            ...ctx,
+            env: { ...ctx.env, BSI_BROWSER_GPU: 'true' },
+        });
+
+        expect(result.id).toBe('BSI-BROWSER-027');
+        expect(result.detail).toContain('BSI_BROWSER_GPU is set to "true" in this environment.');
+    });
+
+    test('names no variable when none is set', async () => {
+        const [result] = await findingsOf(
+            'browser-webgl',
+            webglCtx({ gpu: true, webgl: NO_WEBGL })
+        );
+
+        expect(result.detail).not.toContain('BSI_BROWSER_GPU');
+    });
+});
 
 describe('every check is a pure function of its context', () => {
     test.each(SCENARIOS.map((s) => [`${s.check}: ${s.name}`, s]))('%s', async (_name, scenario) => {

@@ -234,8 +234,26 @@ describe('whether the browser can draw WebGL 2 (issue #1235)', () => {
         expect(report.ok).toBe(true);
     });
 
+    test('a browser that hides its renderer is not said to draw on a GPU', async () => {
+        launchMock.mockResolvedValue(
+            browserAnswering({ webgl2: 'WebKit WebGL', webgl: 'WebKit WebGL', masked: true })
+        );
+
+        const report = await browserCheck(options({ browserGpu: true }));
+
+        expect(report.webgl).toMatchObject({
+            webgl2: true,
+            renderer: 'WebKit WebGL',
+            software: null,
+        });
+        expect(idsOf(report)).toContain('BSI-BROWSER-024');
+        expect(loggedText()).toContain('yes, renderer not disclosed');
+    });
+
     test('asks the tab the browser starts with, rather than opening another', async () => {
-        const evaluate = jest.fn().mockResolvedValue({ webgl2: METAL, webgl: METAL });
+        const evaluate = jest
+            .fn()
+            .mockResolvedValue({ webgl2: METAL, webgl: METAL, masked: false });
         const newPage = jest.fn();
         launchMock.mockResolvedValue(
             fakeBrowser({ pages: jest.fn().mockResolvedValue([{ evaluate }]), newPage })

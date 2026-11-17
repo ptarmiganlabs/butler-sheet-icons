@@ -87,6 +87,25 @@ export const check = {
             ];
         }
 
+        // The browser hides its real renderer, so the name it gives ("WebKit WebGL") says nothing
+        // about the hardware. WebGL 2 is there, which is what decides whether charts appear; what
+        // it is drawn on is not claimed either way.
+        if (webgl.webgl2 && webgl.software === null) {
+            return [
+                finding({
+                    id: 'BSI-BROWSER-024',
+                    severity: SEVERITY.OK,
+                    title: 'The browser can draw WebGL 2',
+                    detail: `The browser draws WebGL 2, so charts drawn with WebGL will appear in thumbnails. It names its renderer only as "${webgl.renderer}", so whether it draws on a GPU or in software - which is slower - is not known.`,
+                    facts: [
+                        { label: 'WebGL 2', value: 'yes, renderer not disclosed' },
+                        { label: 'WebGL renderer', value: webgl.renderer },
+                    ],
+                    evidence,
+                }),
+            ];
+        }
+
         if (webgl.webgl2 && !webgl.software) {
             return [
                 finding({
@@ -141,6 +160,13 @@ export const check = {
             ];
         }
 
+        // Named when set, because a value left in a service's environment turns the GPU on without
+        // anything on the command line saying so.
+        const fromEnv =
+            ctx.env?.BSI_BROWSER_GPU === undefined
+                ? ''
+                : ` BSI_BROWSER_GPU is set to "${ctx.env.BSI_BROWSER_GPU}" in this environment.`;
+
         return [
             finding({
                 id: 'BSI-BROWSER-027',
@@ -150,7 +176,7 @@ export const check = {
                 // warning's remediation reaches the JSON report but is not printed, and this is
                 // the one line the administrator reads. A fact about SwiftShader, not a claim that
                 // it is the cause here - that cannot be observed from inside the browser.
-                detail: 'The browser was started with --browser-gpu and still offers no WebGL 2, neither on a GPU nor in software. Charts drawn with WebGL, such as Network.qs charts, will show an error message in thumbnails instead of the chart. Without a GPU, the browser needs SwiftShader to draw WebGL in software; a Linux distribution\'s Chromium may ship it as a separate package - on Alpine Linux, "chromium-swiftshader".',
+                detail: `The browser was started with --browser-gpu and still offers no WebGL 2, neither on a GPU nor in software.${fromEnv} Charts drawn with WebGL, such as Network.qs charts, will show an error message in thumbnails instead of the chart. Without a GPU, the browser needs SwiftShader to draw WebGL in software; a Linux distribution's Chromium may ship it as a separate package - on Alpine Linux, "chromium-swiftshader".`,
                 facts: [{ label: 'WebGL 2', value: 'no, although --browser-gpu is on' }],
                 evidence,
                 remediation: missingWithGpuRemediation(),

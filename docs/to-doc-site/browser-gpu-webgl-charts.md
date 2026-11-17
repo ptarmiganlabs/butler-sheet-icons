@@ -143,6 +143,7 @@ The `WebGL 2` row says one of these:
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `yes`                              | Drawn on the graphics card. The next row, `WebGL renderer`, names it.                                                                            |
 | `yes, in software`                 | Drawn by SwiftShader or another software renderer. Charts will appear, more slowly.                                                              |
+| `yes, renderer not disclosed`      | Charts will appear. The browser hides what it draws on, so whether that is the graphics card or software is not known.                           |
 | `no - GPU off, see --browser-gpu`  | The default. Charts drawn with WebGL will show an error. Turn the option on if a sheet needs it.                                                 |
 | `no, although --browser-gpu is on` | Printed with a warning. The browser offers no WebGL even in software. A Linux distribution's Chromium may need SwiftShader installed separately. |
 | `not checked`                      | Printed with a warning. The browser started, but could not be asked.                                                                             |
@@ -150,8 +151,10 @@ The `WebGL 2` row says one of these:
 None of these changes the result or the exit code of `browser check` or `doctor check`. A run
 without WebGL still writes every thumbnail; only the charts that need WebGL come out wrong.
 
-For scripts, the findings are `BSI-BROWSER-024` (on a graphics card), `025` (in software), `026`
-(off), `027` (on, but none) and `028` (not checked).
+For scripts, the findings are `BSI-BROWSER-024` (on a graphics card, or on a renderer the browser
+does not name), `025` (in software), `026` (off), `027` (on, but none) and `028` (not checked).
+When `027` is reported and `BSI_BROWSER_GPU` is set, its text says so, because a value left in a
+service's environment turns the option on without anything on the command line showing it.
 
 ## In the Docker image
 

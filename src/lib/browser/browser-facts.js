@@ -170,30 +170,39 @@ const SOFTWARE_RENDERER = /swiftshader|llvmpipe|softpipe|basic render/i;
  * Runs in the page: asks for a WebGL 2 and a WebGL context, and names the renderer of each.
  *
  * `WEBGL_debug_renderer_info` gives the real renderer ("ANGLE (Apple, ANGLE Metal Renderer: Apple
- * M4 Max ...)"), which is what tells a GPU from SwiftShader. Without it, the masked `RENDERER` is
- * the best there is.
+ * M4 Max ...)"), which is what tells a GPU from SwiftShader. Without it, only the masked
+ * `RENDERER` ("WebKit WebGL") is left, which names no hardware - so `masked` says so, and the
+ * caller treats GPU-or-software as unknown rather than guessing.
  *
- * @returns {{webgl2: string|null, webgl: string|null}} The renderer of each context, or `null`
- * where the browser would not create one.
+ * @returns {{webgl2: string|null, webgl: string|null, masked: boolean}} The renderer of each
+ * context, or `null` where the browser would not create one; `masked` for the context the
+ * renderer is reported from.
  */
 const webglProbe = () => {
-    const rendererOf = (kind) => {
+    const describe = (kind) => {
         // `globalThis.document`, as in `sheet-loading.js`: this runs inside the page, where a
         // document exists, but is linted as Node source, where it does not.
         const gl = globalThis.document.createElement('canvas').getContext(kind);
 
         if (!gl) {
-            return null;
+            return { renderer: null, masked: false };
         }
 
         const info = gl.getExtension('WEBGL_debug_renderer_info');
 
-        return String(
-            info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)
-        );
+        return info
+            ? { renderer: String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)), masked: false }
+            : { renderer: String(gl.getParameter(gl.RENDERER)), masked: true };
     };
 
-    return { webgl2: rendererOf('webgl2'), webgl: rendererOf('webgl') };
+    const two = describe('webgl2');
+    const one = describe('webgl');
+
+    return {
+        webgl2: two.renderer,
+        webgl: one.renderer,
+        masked: (two.renderer === null ? one : two).masked,
+    };
 };
 
 /**
@@ -222,8 +231,9 @@ const messageOf = (err) => (err instanceof Error ? err.message : String(err)) ||
  *
  * @param {object} browser - A launched Puppeteer browser that has answered its version query.
  *
- * @returns {Promise<{checked: boolean, webgl2: boolean, webgl: boolean, renderer: string|null, software: boolean, error: string|null}>}
- * What the page said, or why it could not be asked.
+ * @returns {Promise<{checked: boolean, webgl2: boolean, webgl: boolean, renderer: string|null, software: boolean|null, error: string|null}>}
+ * What the page said, or why it could not be asked. `software` is `null` when the browser hides its
+ * renderer, so whether it draws on a GPU or in software is unknown.
  */
 const probeWebgl = async (browser) => {
     let timer;
@@ -244,15 +254,20 @@ const probeWebgl = async (browser) => {
             );
         });
 
-        const { webgl2, webgl } = await Promise.race([answer, deadline]);
+        const { webgl2, webgl, masked } = await Promise.race([answer, deadline]);
         const renderer = webgl2 ?? webgl ?? null;
+        let software = false;
+
+        if (renderer !== null) {
+            software = masked === true ? null : SOFTWARE_RENDERER.test(renderer);
+        }
 
         return {
             checked: true,
             webgl2: webgl2 !== null,
             webgl: webgl !== null,
             renderer,
-            software: Boolean(renderer && SOFTWARE_RENDERER.test(renderer)),
+            software,
             error: null,
         };
     } catch (err) {
