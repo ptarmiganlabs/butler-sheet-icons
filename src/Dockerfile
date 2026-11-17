@@ -37,8 +37,19 @@ LABEL description="Creates thumbnail images based on sheets in QLik Sense applic
 #
 # su-exec is not a Puppeteer dependency: docker-entrypoint.sh uses it to drop privileges to the
 # owner of the mounted image directory. See that file for why (issue #915).
+#
+# chromium-swiftshader lets Chromium draw WebGL in software, which is the only way a container
+# without a GPU can draw it (issue #1235). Without it, charts that draw with WebGL - Network.qs, for
+# example - show an error message in their thumbnails instead of the chart. Alpine ships it as a
+# separate package, about 19 MiB installed.
+#
+# Measured on Alpine's Chromium 156: with it installed, WebGL 2 is drawn in software whether or not
+# --browser-gpu is set, because this build does not hold software WebGL back behind
+# --enable-unsafe-swiftshader the way Chrome for Testing does. So in this image, WebGL charts draw
+# by default. Göran chose that on 2026-11-17, over an image in which --browser-gpu does nothing.
 RUN apk add --no-cache \
     chromium \
+    chromium-swiftshader \
     nss \
     freetype \
     harfbuzz \

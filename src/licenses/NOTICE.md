@@ -17,13 +17,13 @@ Chromium is **not** Google Chrome, and it is not Chrome for Testing. Those are G
 distributed under Google's own terms. Chromium is the open-source project underneath them, and the
 Alpine package is recorded as `BSD-3-Clause`.
 
-| | |
-| --- | --- |
-| Licence of Chromium itself | BSD-3-Clause - full text in `chromium-LICENSE`, next to this file |
+|                                               |                                                                                     |
+| --------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Licence of Chromium itself                    | BSD-3-Clause - full text in `chromium-LICENSE`, next to this file                   |
 | Licences of Chromium's 740 bundled components | `chrome://credits`, inside the browser in this image - see below for how to read it |
-| Source | <https://chromium.googlesource.com/chromium/src/> |
-| Alpine packaging | <https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/community/chromium> |
-| Version in this image | run `chromium-browser --version` |
+| Source                                        | <https://chromium.googlesource.com/chromium/src/>                                   |
+| Alpine packaging                              | <https://gitlab.alpinelinux.org/alpine/aports/-/tree/master/community/chromium>     |
+| Version in this image                         | run `chromium-browser --version`                                                    |
 
 Chromium incorporates code under a number of other licences besides BSD-3-Clause - including LGPL,
 MPL and MIT. Those components, and their licence texts, are enumerated on the `chrome://credits`
@@ -56,12 +56,25 @@ anywhere else. Opened in an ordinary browser it therefore renders unstyled, with
 expanded inline rather than behind a collapsed control - which is what you want for a review, and
 means the file can be searched or printed as it stands.
 
-> The obvious approaches do not work, which is why this one is spelled out. `--dump-dom
-> chrome://credits` returns the New Tab page, as it does for every `chrome://` page including
-> `chrome://version`. Starting the browser with `--remote-debugging-port` and connecting from
+> The obvious approaches do not work, which is why this one is spelled out.
+> `--dump-dom chrome://credits` returns the New Tab page, as it does for every `chrome://` page
+> including `chrome://version`. Starting the browser with `--remote-debugging-port` and connecting from
 > outside the container does not work either: Chromium binds the debugging port to `127.0.0.1`
 > inside the container regardless of `--remote-debugging-address`, so publishing the port with
 > `-p` does not expose it. Driving the browser from inside the container, as above, avoids both.
+
+### SwiftShader
+
+The image also installs Alpine's `chromium-swiftshader` package: SwiftShader, Google's software
+implementation of the Vulkan graphics interface, built as part of Chromium. It lets the browser
+draw WebGL charts in a container that has no graphics card.
+
+|                                        |                                                                                                          |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Licence of SwiftShader                 | Apache License 2.0 - the full text is SwiftShader's entry on `chrome://credits`, read as described above |
+| Alpine's licence field for the package | `BSD-3-Clause`, the Chromium package's, which the subpackage inherits                                    |
+| Source                                 | <https://swiftshader.googlesource.com/SwiftShader>                                                       |
+| Files in this image                    | `/usr/lib/chromium/libvk_swiftshader.so` and `/usr/lib/chromium/vk_swiftshader_icd.json`                 |
 
 ### A note on media codecs
 
@@ -89,8 +102,8 @@ docker run --rm --entrypoint sh ptarmiganlabs/butler-sheet-icons:latest \
 
 ## Alpine system packages
 
-The image installs `chromium`, `nss`, `freetype`, `harfbuzz`, `ca-certificates`, `font-dejavu`,
-`tini` and `su-exec` from the Alpine repositories. Licence metadata for every installed package is
+The image installs `chromium`, `chromium-swiftshader`, `nss`, `freetype`, `harfbuzz`,
+`ca-certificates`, `font-dejavu`, `tini` and `su-exec` from the Alpine repositories. Licence metadata for every installed package is
 in the Alpine package database inside the image:
 
 ```bash
