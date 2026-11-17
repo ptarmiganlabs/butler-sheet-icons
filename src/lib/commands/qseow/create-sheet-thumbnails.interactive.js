@@ -82,6 +82,7 @@ const ADVANCED_KEYS = [
     'browserPageTimeout',
     'browserCacheDir',
     'browserExecutablePath',
+    'browserGpu',
 ];
 
 /** Which section each question belongs under, in the order the sections run. */

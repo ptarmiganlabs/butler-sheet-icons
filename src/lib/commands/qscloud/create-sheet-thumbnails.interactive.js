@@ -52,6 +52,7 @@ const ADVANCED_KEYS = [
     'browserPageTimeout',
     'browserCacheDir',
     'browserExecutablePath',
+    'browserGpu',
     'headless',
 ];
 

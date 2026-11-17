@@ -79,6 +79,9 @@ const {
     isPlainHost,
     resolveBrowserExecutablePath,
     closeBrowserQuietly,
+    BASE_BROWSER_ARGS,
+    BROWSER_GPU_ARGS,
+    DISABLE_GPU_ARG,
     BROWSER_LAUNCH_TIMEOUT_MS,
     BROWSER_PROTOCOL_TIMEOUT_MS,
 } = await import('../browser-launch.js');
@@ -173,6 +176,79 @@ describe('buildBrowserArgs', () => {
         // Windows check short-circuiting ahead of it.
         expect(await buildBrowserArgs({ platform: 'linux' })).not.toContain('--single-process');
     });
+});
+
+describe('the GPU switch (--browser-gpu, issue #1235)', () => {
+    // win32 throughout, so --single-process stays out and the whole list can be compared exactly.
+    test('leaves the default argument list exactly as it was', async () => {
+        expect(await buildBrowserArgs({ platform: 'win32' })).toEqual(BASE_BROWSER_ARGS);
+        expect(await buildBrowserArgs({ platform: 'win32', gpu: false })).toEqual(
+            BASE_BROWSER_ARGS
+        );
+        expect(BASE_BROWSER_ARGS).toContain('--disable-gpu');
+    });
+
+    test('takes out --disable-gpu and lets Chrome draw WebGL in software where there is no GPU', async () => {
+        const args = await buildBrowserArgs({ platform: 'win32', gpu: true });
+
+        expect(DISABLE_GPU_ARG).toBe('--disable-gpu');
+        expect(BROWSER_GPU_ARGS).toEqual(['--enable-unsafe-swiftshader']);
+        expect(args).not.toContain('--disable-gpu');
+        expect(args).toEqual([
+            ...BASE_BROWSER_ARGS.filter((arg) => arg !== '--disable-gpu'),
+            '--enable-unsafe-swiftshader',
+        ]);
+    });
+
+    test.each(['true', 1, 'yes'])(
+        'stays off for %p, which is not the boolean true',
+        async (gpu) => {
+            expect(await buildBrowserArgs({ platform: 'win32', gpu })).toEqual(BASE_BROWSER_ARGS);
+        }
+    );
+
+    // On macOS, GPU on plus --single-process hung a real run's screenshots at the third WebGL
+    // sheet; without --single-process the same app captured every sheet.
+    test('leaves --single-process out, and keeps the allowlist', async () => {
+        const args = await buildBrowserArgs({
+            platform: 'linux',
+            gpu: true,
+            ambientAuthHost: 'sense.example.com',
+        });
+
+        expect(args).not.toContain('--single-process');
+        expect(args).toContain('--auth-server-allowlist=sense.example.com');
+        expect(args).toContain('--enable-unsafe-swiftshader');
+    });
+
+    test('still adds --single-process on the same host with the GPU off', async () => {
+        expect(await buildBrowserArgs({ platform: 'linux', gpu: false })).toContain(
+            '--single-process'
+        );
+    });
+
+    test.each([
+        [true, false],
+        [false, true],
+        [undefined, true],
+    ])(
+        'launchBrowserForApp with browserGpu %p launches with --disable-gpu: %p',
+        async (browserGpu, disabled) => {
+            detectAvailableBrowser.mockResolvedValue({
+                executablePath: '/cached/chrome',
+                source: 'cache',
+                browser: 'chrome',
+                buildId: '138.0.0.1',
+            });
+            puppeteer.launch.mockResolvedValue(fakeBrowser());
+
+            await launchBrowserForApp({ ...OPTIONS, browserGpu }, CONTEXT);
+
+            const { args } = puppeteer.launch.mock.calls[0][0];
+            expect(args.includes('--disable-gpu')).toBe(disabled);
+            expect(args.includes('--enable-unsafe-swiftshader')).toBe(!disabled);
+        }
+    );
 });
 
 describe('resolveBrowserExecutablePath', () => {

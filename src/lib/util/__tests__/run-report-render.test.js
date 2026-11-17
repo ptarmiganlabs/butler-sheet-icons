@@ -125,6 +125,15 @@ describe('renderRunPlanLines - QSEoW create', () => {
         ]);
     });
 
+    test('names the GPU on the browser row only when --browser-gpu is on (issue #1235)', () => {
+        const report = qseowReport();
+        report.plan.browser = { ...report.plan.browser, gpu: true };
+
+        expect(renderRunPlanLines(report)).toContain(
+            '  browser       chrome (version: recommended), headless, GPU on, 5s per sheet'
+        );
+    });
+
     test('a zero-match tag count is printed, not omitted', () => {
         // The one number that matters most: a renderer that silently dropped
         // "(0 sheets)" would reintroduce the silent no-op from #840.

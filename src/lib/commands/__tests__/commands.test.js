@@ -1549,6 +1549,121 @@ describe('option keys match the property names the code reads (issue #890)', () 
     const logLevelOption = (command) =>
         command.options.find((opt) => opt.long === '--loglevel' || opt.short === '--loglevel');
 
+    describe('--browser-gpu (issue #1235)', () => {
+        // Both platforms' create-sheet-thumbnails commands, with one machine-scoped variable
+        // between them.
+        const GPU_COMMANDS = [
+            [
+                'qseow create-sheet-thumbnails',
+                () =>
+                    buildQseowCommand().commands.find(
+                        (cmd) => cmd.name() === 'create-sheet-thumbnails'
+                    ),
+            ],
+            [
+                'qscloud create-sheet-thumbnails',
+                () =>
+                    buildQscloudCommand().commands.find(
+                        (cmd) => cmd.name() === 'create-sheet-thumbnails'
+                    ),
+            ],
+        ];
+
+        /**
+         * The declared `--browser-gpu` option of a command.
+         *
+         * @param {Function} build - Builds the leaf command.
+         *
+         * @returns {import('commander').Option} The declared option.
+         */
+        const gpuOption = (build) => build().options.find((opt) => opt.long === '--browser-gpu');
+
+        /**
+         * Parse `--browser-gpu` in isolation, from argv words and a `BSI_BROWSER_GPU` value.
+         *
+         * @param {Function} build - Builds the leaf command.
+         * @param {string[]} argv - Words after the program name.
+         * @param {string} [envValue] - What the variable holds; unset when omitted.
+         *
+         * @returns {{ value: unknown, error: Error|undefined }} The parsed value, or the error.
+         */
+        const parseGpu = (build, argv, envValue) => {
+            const option = gpuOption(build);
+            const saved = process.env.BSI_BROWSER_GPU;
+
+            if (envValue === undefined) {
+                delete process.env.BSI_BROWSER_GPU;
+            } else {
+                process.env.BSI_BROWSER_GPU = envValue;
+            }
+
+            try {
+                const parent = new Command();
+                parent.exitOverride().configureOutput({ writeErr: () => {} });
+                parent.addOption(option);
+                parent.parse(['node', 'test', ...argv]);
+
+                return { value: parent.opts().browserGpu, error: undefined };
+            } catch (error) {
+                return { value: undefined, error };
+            } finally {
+                if (saved === undefined) {
+                    delete process.env.BSI_BROWSER_GPU;
+                } else {
+                    process.env.BSI_BROWSER_GPU = saved;
+                }
+            }
+        };
+
+        test.each(GPU_COMMANDS)(
+            '%s stores it under browserGpu, read from BSI_BROWSER_GPU',
+            (_name, build) => {
+                const option = gpuOption(build);
+
+                expect(option.attributeName()).toBe('browserGpu');
+                expect(option.envVar).toBe('BSI_BROWSER_GPU');
+            }
+        );
+
+        test.each(GPU_COMMANDS)('%s leaves it off by default', (_name, build) => {
+            // The boolean false, so the `=== true` reads in the launch code see a real value.
+            expect(parseGpu(build, []).value).toBe(false);
+        });
+
+        test.each(GPU_COMMANDS)('%s takes a bare flag as true', (_name, build) => {
+            expect(parseGpu(build, ['--browser-gpu']).value).toBe(true);
+        });
+
+        test.each(GPU_COMMANDS)('%s takes an explicit false as false', (_name, build) => {
+            expect(parseGpu(build, ['--browser-gpu', 'false']).value).toBe(false);
+        });
+
+        // Declared as a bare flag, the variable's mere presence would have turned it on.
+        test.each(
+            GPU_COMMANDS.flatMap(([name, build]) =>
+                ['false', '0', 'off', 'no', ''].map((value) => [
+                    name,
+                    JSON.stringify(value),
+                    build,
+                    value,
+                ])
+            )
+        )('%s reads %s from the environment as off', (_name, _label, build, value) => {
+            expect(parseGpu(build, [], value).value).toBe(false);
+        });
+
+        test.each(GPU_COMMANDS)('%s reads "true" from the environment as on', (_name, build) => {
+            expect(parseGpu(build, [], 'true').value).toBe(true);
+        });
+
+        test.each(GPU_COMMANDS)('%s refuses a value that is not true or false', (_name, build) => {
+            const { error } = parseGpu(build, [], 'oops');
+
+            expect(error).toBeDefined();
+            expect(error.code).toBe('commander.invalidArgument');
+        });
+    });
+
     describe('--skip-login', () => {
         // Both platforms' create-sheet-thumbnails commands, which share one declaration.
         const SKIP_LOGIN_COMMANDS = [

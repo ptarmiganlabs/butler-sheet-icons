@@ -464,11 +464,13 @@ export const renderBoardPlan = (report, ctx) => {
 
     if (plan.browser) {
         const window = parseHeadlessOption(plan.browser.headless) ? 'headless' : 'visible window';
+        // Named only when on (issue #1235), so the default row reads exactly as it always has.
+        const gpu = plan.browser.gpu === true ? `${sep}GPU on` : '';
         rows.push(
             planRow(ctx, {
                 label: 'browser',
                 value: `${plan.browser.name} (${plan.browser.version})`,
-                detail: `${window}${sep}${plan.browser.pageWaitSeconds}s per sheet`,
+                detail: `${window}${gpu}${sep}${plan.browser.pageWaitSeconds}s per sheet`,
             })
         );
     }

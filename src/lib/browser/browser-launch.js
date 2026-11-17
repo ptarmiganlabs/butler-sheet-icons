@@ -22,17 +22,54 @@ import { logError } from '../util/log-error.js';
 import { registerInterruptAction, interruptAbortSignal } from '../util/interrupt.js';
 
 /**
+ * The flag that keeps the browser off the GPU, and the one `--browser-gpu` takes out (issue #1235).
+ *
+ * Without a GPU, Chrome offers no WebGL at all - not even in a visible window on a Mac that has
+ * one - so a chart that draws with WebGL (the Network.qs extension, for example) shows its own error
+ * message in the thumbnail instead of the chart.
+ *
+ * It stays in by default. A GPU driver on a server or in a container is a common source of browser
+ * crashes and hangs, and most sheets draw without WebGL, so leaving the GPU alone is the safer
+ * default for the many who do not need it.
+ */
+export const DISABLE_GPU_ARG = '--disable-gpu';
+
+/**
+ * The flags `--browser-gpu` adds once {@link DISABLE_GPU_ARG} is gone (issue #1235).
+ *
+ * Measured, not assumed, on Chrome 151 for Testing on an Apple M4 Max, headless and in a visible
+ * window, with and without `--single-process`:
+ *
+ * - with `--disable-gpu` (today's default): no WebGL and no WebGL 2, in every mode;
+ * - without it: WebGL 2 on the Metal renderer, in every mode - `--single-process` does not stop it
+ *   on a blank page, and `--enable-gpu` made no difference, which is why it is not here. A real
+ *   run is another matter: `buildBrowserArgs` leaves `--single-process` out when the GPU is on,
+ *   and says why;
+ * - `--enable-unsafe-swiftshader` on top: still the Metal renderer. Chrome prefers the GPU, and uses
+ *   SwiftShader only when there is none it can use.
+ *
+ * `--enable-unsafe-swiftshader` is what makes the option useful where most Sense servers run: a VM
+ * or a container with no GPU at all. There, WebGL can only be drawn in software, by SwiftShader, and
+ * since Chrome 137 Chrome does that only when this flag asks it to. "Unsafe" is Chrome's word for
+ * running untrusted web content through SwiftShader's JIT. Butler Sheet Icons opens only the Sense
+ * server it was pointed at, and whatever that server's sheets and extensions load, and it already
+ * launches with `--no-sandbox` - so the flag adds little to what is already accepted.
+ */
+export const BROWSER_GPU_ARGS = Object.freeze(['--enable-unsafe-swiftshader']);
+
+/**
  * Chromium flags used for every Butler Sheet Icons browser launch.
  *
  * Copied verbatim from the two process-app modules this was extracted from; the list was
- * already identical in both.
+ * already identical in both. `buildBrowserArgs` takes {@link DISABLE_GPU_ARG} out again when
+ * `--browser-gpu` is on.
  *
  * Exported so `scripts/diag/browser-flag-probe.mjs` can A/B the real launch arguments rather than
  * a hand-copied list. A diagnostic that has drifted from the product proves nothing.
  */
 export const BASE_BROWSER_ARGS = [
     '--proxy-bypass-list=*',
-    '--disable-gpu',
+    DISABLE_GPU_ARG,
     '--disable-dev-shm-usage',
     '--disable-setuid-sandbox',
     '--no-first-run',
@@ -115,11 +152,28 @@ export const isPlainHost = (host) =>
  * regardless of which host runs the suite.
  * @param {string} [options.ambientAuthHost] - The one host the browser may sign in to as the
  * account running BSI, for `--skip-login` on QSEoW. Omitted everywhere else.
+ * @param {boolean} [options.gpu] - Whether the browser may use the GPU, so charts that draw with
+ * WebGL appear in thumbnails (`--browser-gpu`, issue #1235). Off unless exactly `true`.
  *
  * @returns {Promise<string[]>} Browser arguments, including `--single-process` where safe.
  */
-export const buildBrowserArgs = async ({ platform = process.platform, ambientAuthHost } = {}) => {
-    const browserArgs = [...BASE_BROWSER_ARGS];
+export const buildBrowserArgs = async ({
+    platform = process.platform,
+    ambientAuthHost,
+    gpu = false,
+} = {}) => {
+    // `=== true` rather than truthiness: the string "false" is truthy, and a caller handing on a raw
+    // option value must not be able to turn the GPU on by accident.
+    const useGpu = gpu === true;
+    const browserArgs = useGpu
+        ? [...BASE_BROWSER_ARGS.filter((arg) => arg !== DISABLE_GPU_ARG), ...BROWSER_GPU_ARGS]
+        : [...BASE_BROWSER_ARGS];
+
+    if (useGpu) {
+        logger.verbose(
+            `Letting the browser use the GPU, and draw WebGL in software where there is none (--browser-gpu): without ${DISABLE_GPU_ARG}, with ${BROWSER_GPU_ARGS.join(' ')}`
+        );
+    }
 
     // Windows authentication without a prompt needs Chromium's permission to offer the running
     // account's credentials. Without an allowlist, Chromium on Windows decides by security zone,
@@ -144,13 +198,23 @@ export const buildBrowserArgs = async ({ platform = process.platform, ambientAut
     // browser misbehaves, and during the investigation of issue #878 the fact that it could not be
     // seen at the default log level cost real time. It was ruled out as the cause there, but only
     // by reproducing the run outside Butler Sheet Icons.
-    if (platform !== 'win32' && !isDocker) {
+    //
+    // Left out whenever the GPU is on (issue #1235). On macOS, with both, a real run on a Qlik Sense
+    // app whose sheets draw Network.qs charts hung on Page.captureScreenshot at the third sheet, in
+    // both of two runs - after capturing the first two with their networks drawn. The same sheet on
+    // its own captured fine, and the same app without --single-process captured all eight sheets in
+    // each of the runs tried. Why the combination hangs is not known; that it does is.
+    if (platform !== 'win32' && !isDocker && !useGpu) {
         browserArgs.push('--single-process');
         logger.verbose('Added --single-process flag for non-Windows native environment');
     } else if (isDocker) {
         logger.verbose('Skipping --single-process flag in Docker/containerized environment');
-    } else {
+    } else if (platform === 'win32') {
         logger.verbose('Skipping --single-process flag on Windows to keep Chromium stable');
+    } else {
+        logger.verbose(
+            'Skipping --single-process flag because --browser-gpu is on: together they hung screenshots of sheets drawn with WebGL'
+        );
     }
 
     return browserArgs;
@@ -469,7 +533,12 @@ export const launchBrowserForApp = async (
     logger.verbose(`Using browser at ${executablePath}`);
 
     const headless = parseHeadlessOption(options.headless);
-    const browserArgs = await buildBrowserArgs({ ambientAuthHost });
+    // Read from the options, unlike `ambientAuthHost`: whether the browser may use the GPU is the
+    // administrator's setting for this machine, not a decision about how the session signs in.
+    const browserArgs = await buildBrowserArgs({
+        ambientAuthHost,
+        gpu: options.browserGpu === true,
+    });
 
     let browser;
     // performance.now() rather than Date.now(): this measures a duration, and the machines the

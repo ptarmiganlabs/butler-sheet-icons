@@ -14,6 +14,7 @@ import {
     collectAppIds,
     buildBrowserCacheDirOption,
     buildBrowserExecutablePathOption,
+    buildBrowserGpuOption,
     buildSkipLoginOption,
     buildChangeAppOwnerOption,
     buildChangeAppOwnerWaitOption,
@@ -336,7 +337,8 @@ const buildQseowCommand = () => {
                 .env('BSI_BROWSER_PAGE_TIMEOUT')
         )
         .addOption(buildBrowserCacheDirOption())
-        .addOption(buildBrowserExecutablePathOption());
+        .addOption(buildBrowserExecutablePathOption())
+        .addOption(buildBrowserGpuOption());
 
     // Bound to the command itself rather than to qseow.commands[0]: the positional index
     // silently tracks registration order, which now has a second sub-command in it.

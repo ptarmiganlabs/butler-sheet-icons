@@ -931,6 +931,7 @@ describe('progressive disclosure', () => {
                 browserPageTimeout: '90',
                 browserCacheDir: '',
                 browserExecutablePath: '',
+                browserGpu: false,
             })
         );
 
@@ -943,6 +944,8 @@ describe('progressive disclosure', () => {
         // browser cache directory, and an unplaced key would be asked last and ungated.
         expect(asked).toContain('browserCacheDir');
         expect(asked).toContain('browserExecutablePath');
+        // Likewise --browser-gpu (issue #1235): only sheets with WebGL charts need it.
+        expect(asked).toContain('browserGpu');
         // Owner changes are rare enough to sit behind the same gate (issue #1209), and the wait
         // means nothing while the owner is left alone.
         expect(asked).toContain('changeAppOwner');
@@ -974,6 +977,7 @@ describe('progressive disclosure', () => {
                 browserPageTimeout: '90',
                 browserCacheDir: '',
                 browserExecutablePath: '',
+                browserGpu: false,
             })
         );
 

@@ -404,10 +404,12 @@ export const renderRunPlanLines = (report) => {
         // the launch will actually do, and the launch treats every value
         // except an explicit false as headless.
         const window = parseHeadlessOption(plan.browser.headless) ? 'headless' : 'visible window';
+        // Named only when on (issue #1235), so the default row reads exactly as it always has.
+        const gpu = plan.browser.gpu === true ? ', GPU on' : '';
         lines.push(
             row(
                 'browser',
-                `${plan.browser.name} (version: ${plan.browser.version}), ${window}, ${plan.browser.pageWaitSeconds}s per sheet`
+                `${plan.browser.name} (version: ${plan.browser.version}), ${window}${gpu}, ${plan.browser.pageWaitSeconds}s per sheet`
             )
         );
     }
