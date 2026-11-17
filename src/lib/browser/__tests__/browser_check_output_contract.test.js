@@ -170,6 +170,7 @@ beforeEach(() => {
     launchMock.mockResolvedValue({
         version: jest.fn().mockResolvedValue('Chrome/138.0.7204.94'),
         // What a browser started with the default --disable-gpu says about WebGL: nothing at all.
+        pages: jest.fn().mockResolvedValue([]),
         newPage: jest.fn().mockResolvedValue({
             evaluate: jest.fn().mockResolvedValue({ webgl2: null, webgl: null }),
         }),

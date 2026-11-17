@@ -94,6 +94,8 @@ const CACHED_BUILD = {
  */
 const fakeBrowser = (overrides = {}) => ({
     version: jest.fn().mockResolvedValue('Chrome/138.0.7204.94'),
+    // No initial tab, so the WebGL probe opens one with `newPage` - which the tests below fake.
+    pages: jest.fn().mockResolvedValue([]),
     close: jest.fn().mockResolvedValue(undefined),
     ...overrides,
 });
@@ -230,6 +232,20 @@ describe('whether the browser can draw WebGL 2 (issue #1235)', () => {
 
         expect(idsOf(report)).toContain('BSI-BROWSER-027');
         expect(report.ok).toBe(true);
+    });
+
+    test('asks the tab the browser starts with, rather than opening another', async () => {
+        const evaluate = jest.fn().mockResolvedValue({ webgl2: METAL, webgl: METAL });
+        const newPage = jest.fn();
+        launchMock.mockResolvedValue(
+            fakeBrowser({ pages: jest.fn().mockResolvedValue([{ evaluate }]), newPage })
+        );
+
+        const report = await browserCheck(options({ browserGpu: true }));
+
+        expect(evaluate).toHaveBeenCalledTimes(1);
+        expect(newPage).not.toHaveBeenCalled();
+        expect(report.webgl).toMatchObject({ webgl2: true, renderer: METAL, software: false });
     });
 
     test('a page that cannot be opened is reported, and the launch result stands', async () => {

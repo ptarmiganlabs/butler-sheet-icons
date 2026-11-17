@@ -197,6 +197,18 @@ const webglProbe = () => {
 };
 
 /**
+ * An error's message, or the error itself as text when it has none.
+ *
+ * `||`, not `??`: an Error carrying an empty message is not `null`, so `??` kept it and produced a
+ * finding that named nothing at all.
+ *
+ * @param {unknown} err - What was thrown.
+ *
+ * @returns {string} Text that names the failure.
+ */
+const messageOf = (err) => (err instanceof Error ? err.message : String(err)) || String(err);
+
+/**
  * Asks a launched browser whether it can draw WebGL 2, and on what (issue #1235).
  *
  * Charts that draw with WebGL - the Network.qs extension is the case that prompted this - show
@@ -218,7 +230,10 @@ const probeWebgl = async (browser) => {
 
     try {
         const answer = (async () => {
-            const page = await browser.newPage();
+            // The blank tab the browser starts with, rather than a second one: no extra target
+            // or renderer for a question that one can answer.
+            const [blank] = await browser.pages();
+            const page = blank ?? (await browser.newPage());
 
             return page.evaluate(webglProbe);
         })();
@@ -241,7 +256,7 @@ const probeWebgl = async (browser) => {
             error: null,
         };
     } catch (err) {
-        const error = (err instanceof Error ? err.message : String(err)) || String(err);
+        const error = messageOf(err);
 
         logger.debug(`Could not ask the browser whether it can draw WebGL: ${error}`);
 
@@ -338,9 +353,7 @@ const tryLaunch = async (options, executablePath) => {
         // WebGL, and the launch check already explains why.
         result.webgl = await probeWebgl(browser);
     } catch (err) {
-        // `||`, not `??`: an Error carrying an empty message is not `null`, so `??` kept it and
-        // produced a finding that named nothing at all.
-        result.error = (err instanceof Error ? err.message : String(err)) || String(err);
+        result.error = messageOf(err);
 
         if (!result.started) {
             result.elapsedMs = performance.now() - startedAt;
