@@ -6,7 +6,11 @@ import {
     parseBrowserVersionValue,
 } from '../browser/browser-version.js';
 import { booleanOptionParser } from '../util/boolean-option.js';
-import { buildBrowserCacheDirOption, buildBrowserExecutablePathOption } from './helpers.js';
+import {
+    buildBrowserCacheDirOption,
+    buildBrowserExecutablePathOption,
+    buildBrowserGpuOption,
+} from './helpers.js';
 
 /**
  * The options that describe how a real run would find and start a browser.
@@ -22,10 +26,11 @@ import { buildBrowserCacheDirOption, buildBrowserExecutablePathOption } from './
  * @param {string} envPrefix - Per-command environment variable stem, e.g. `BSI_BROWSER_C`.
  * Applies to the four options that describe **this command's run**: `--browser`,
  * `--browser-version`, `--headless` and `--skip-launch`. It deliberately does NOT apply to
- * `--browser-cache-dir` and `--browser-executable-path`, whose variables are the unprefixed
- * `BSI_BROWSER_CACHE_DIR` and `BSI_BROWSER_EXECUTABLE_PATH` on every command that carries them:
- * where the browser lives is a property of the *machine*, not of a command, and the whole point
- * of a diagnostic is to read the same cache the real run reads. A per-command
+ * `--browser-cache-dir`, `--browser-executable-path` and `--browser-gpu`, whose variables are the
+ * unprefixed `BSI_BROWSER_CACHE_DIR`, `BSI_BROWSER_EXECUTABLE_PATH` and `BSI_BROWSER_GPU` on every
+ * command that carries them: where the browser lives, and whether it may use the GPU, are
+ * properties of the *machine*, not of a command, and the whole point of a diagnostic is to read the
+ * same cache and start the browser the same way the real run does. A per-command
  * `BSI_DOCTOR_C_BROWSER_CACHE_DIR` would let the doctor be pointed at a different cache than the
  * run it predicts - the one configuration this file's opening paragraph exists to prevent. An
  * administrator setting it by analogy with the four working siblings gets an "unknown variable"
@@ -52,6 +57,10 @@ export const buildBrowserDiagnosticOptions = (envPrefix) => [
 
     buildBrowserCacheDirOption(),
     buildBrowserExecutablePathOption(),
+
+    // Changes how the browser is started, so a check without it would start a different browser
+    // than the run it predicts - and its WebGL report would answer for the wrong configuration.
+    buildBrowserGpuOption(),
 
     // A headed launch on a display-less server is a genuinely different test from a headless one,
     // which is what earns this option its place on a diagnostic.

@@ -52,6 +52,7 @@ export const BROWSER_CHECK_AREAS = Object.freeze(['environment', 'browser']);
  * @param {string} [options.browserCacheDir] - Cache directory to search.
  * @param {string} [options.browserExecutablePath] - A browser executable to use instead.
  * @param {boolean|string} [options.headless] - Whether to start the browser headless.
+ * @param {boolean} [options.browserGpu] - Whether the browser may use the GPU (`--browser-gpu`).
  * @param {boolean} [options.skipLaunch] - Find a browser but do not start it.
  * @param {string} [options.loglevel] - Log level.
  *
@@ -122,6 +123,9 @@ export const browserCheck = async (options = {}) => {
         launched: ctx.launch?.ok ?? false,
         browserVersion: ctx.launch?.version ?? null,
         launchError: ctx.launch?.error ?? null,
+        // Whether the browser can draw WebGL 2, and on what (issue #1235). `null` when it was not
+        // started or did not answer, so nothing could be asked.
+        webgl: ctx.launch?.webgl ?? null,
         findings,
         results,
         disclaimer: BEST_EFFORT_DISCLAIMER,

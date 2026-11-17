@@ -1550,8 +1550,8 @@ describe('option keys match the property names the code reads (issue #890)', () 
         command.options.find((opt) => opt.long === '--loglevel' || opt.short === '--loglevel');
 
     describe('--browser-gpu (issue #1235)', () => {
-        // Both platforms' create-sheet-thumbnails commands, with one machine-scoped variable
-        // between them.
+        // Every command that starts a browser, with one machine-scoped variable between them: the
+        // two diagnostics must start the browser exactly as the run they predict does.
         const GPU_COMMANDS = [
             [
                 'qseow create-sheet-thumbnails',
@@ -1567,6 +1567,11 @@ describe('option keys match the property names the code reads (issue #890)', () 
                         (cmd) => cmd.name() === 'create-sheet-thumbnails'
                     ),
             ],
+            [
+                'browser check',
+                () => buildBrowserCommand().commands.find((c) => c.name() === 'check'),
+            ],
+            ['doctor check', () => buildDoctorCommand().commands.find((c) => c.name() === 'check')],
         ];
 
         /**
@@ -2324,6 +2329,7 @@ describe('the diagnostic option factory splits its environment variables deliber
             // variable names.
             expect(envOf('--browser-cache-dir')).toBe('BSI_BROWSER_CACHE_DIR');
             expect(envOf('--browser-executable-path')).toBe('BSI_BROWSER_EXECUTABLE_PATH');
+            expect(envOf('--browser-gpu')).toBe('BSI_BROWSER_GPU');
         }
     );
 });

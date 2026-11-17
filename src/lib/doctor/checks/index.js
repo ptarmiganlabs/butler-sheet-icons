@@ -4,6 +4,7 @@ import { check as browserCachePlatform } from './browser-cache-platform.js';
 import { check as browserCacheExecutable } from './browser-cache-executable.js';
 import { check as browserSelection } from './browser-selection.js';
 import { check as browserLaunch } from './browser-launch.js';
+import { check as browserWebgl } from './browser-webgl.js';
 
 /**
  * The check registry.
@@ -29,6 +30,7 @@ export const CHECKS = Object.freeze([
     browserCacheExecutable,
     browserSelection,
     browserLaunch,
+    browserWebgl,
 ]);
 
 /**

@@ -71,6 +71,7 @@ const { detectAvailableBrowser } = await import('../browser-detect.js');
 const { getBrowserInventory, hasUsableExecutable } = await import('../browser-inventory.js');
 const { browserInstall } = await import('../browser-install.js');
 const { browserCheck } = await import('../browser-check.js');
+const { WEBGL_PROBE_TIMEOUT_MS } = await import('../browser-facts.js');
 const { BEST_EFFORT_DISCLAIMER } = await import('../../doctor/render-report.js');
 
 /** A cached build the host can run, with its binary present. */
@@ -150,6 +151,135 @@ afterEach(() => {
     } else {
         process.env.PUPPETEER_EXECUTABLE_PATH = savedPuppeteerExecutablePath;
     }
+});
+
+/**
+ * A browser whose blank page answers the WebGL question with the given renderers.
+ *
+ * @param {{webgl2: string|null, webgl: string|null}} answer - What the page reports.
+ *
+ * @returns {object} A fake Puppeteer browser.
+ */
+const browserAnswering = (answer) =>
+    fakeBrowser({
+        newPage: jest.fn().mockResolvedValue({ evaluate: jest.fn().mockResolvedValue(answer) }),
+    });
+
+const METAL = 'ANGLE (Apple, ANGLE Metal Renderer: Apple M4 Max, Unspecified Version)';
+const SWIFTSHADER =
+    'ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0) (0x0000C0DE)), SwiftShader driver)';
+
+describe('whether the browser can draw WebGL 2 (issue #1235)', () => {
+    beforeEach(() => {
+        detectAvailableBrowser.mockResolvedValue({
+            executablePath: '/usr/bin/chromium',
+            source: 'system',
+            browser: 'chrome',
+            buildId: 'system-installed',
+        });
+    });
+
+    const idsOf = (report) => report.findings.map((entry) => entry.id);
+
+    test('by default the browser starts without the GPU, and says it has no WebGL 2', async () => {
+        launchMock.mockResolvedValue(browserAnswering({ webgl2: null, webgl: null }));
+
+        const report = await browserCheck(options());
+        const { args } = launchMock.mock.calls[0][0];
+
+        expect(args).toContain('--disable-gpu');
+        expect(args).not.toContain('--enable-unsafe-swiftshader');
+        expect(report.webgl).toEqual({
+            checked: true,
+            webgl2: false,
+            webgl: false,
+            renderer: null,
+            software: false,
+            error: null,
+        });
+        expect(idsOf(report)).toContain('BSI-BROWSER-026');
+        // Not a warning and not an error: the exit code of a deployment gate is unchanged.
+        expect(report.ok).toBe(true);
+    });
+
+    test('--browser-gpu starts it the way a real run with the option would', async () => {
+        launchMock.mockResolvedValue(browserAnswering({ webgl2: METAL, webgl: METAL }));
+
+        const report = await browserCheck(options({ browserGpu: true }));
+        const { args } = launchMock.mock.calls[0][0];
+
+        expect(args).not.toContain('--disable-gpu');
+        expect(args).toContain('--enable-unsafe-swiftshader');
+        expect(report.webgl).toMatchObject({ webgl2: true, renderer: METAL, software: false });
+        expect(idsOf(report)).toContain('BSI-BROWSER-024');
+    });
+
+    test('tells software rendering from a GPU', async () => {
+        launchMock.mockResolvedValue(browserAnswering({ webgl2: SWIFTSHADER, webgl: SWIFTSHADER }));
+
+        const report = await browserCheck(options({ browserGpu: true }));
+
+        expect(report.webgl).toMatchObject({ webgl2: true, software: true });
+        expect(idsOf(report)).toContain('BSI-BROWSER-025');
+    });
+
+    test('warns when the GPU is allowed and there is still no WebGL 2', async () => {
+        launchMock.mockResolvedValue(browserAnswering({ webgl2: null, webgl: null }));
+
+        const report = await browserCheck(options({ browserGpu: true }));
+
+        expect(idsOf(report)).toContain('BSI-BROWSER-027');
+        expect(report.ok).toBe(true);
+    });
+
+    test('a page that cannot be opened is reported, and the launch result stands', async () => {
+        const browser = fakeBrowser({
+            newPage: jest.fn().mockRejectedValue(new Error('Target closed')),
+        });
+        launchMock.mockResolvedValue(browser);
+
+        const report = await browserCheck(options());
+
+        expect(report.launched).toBe(true);
+        expect(report.webgl).toMatchObject({ checked: false, error: 'Target closed' });
+        expect(idsOf(report)).toContain('BSI-BROWSER-028');
+        expect(report.ok).toBe(true);
+        expect(browser.close).toHaveBeenCalledTimes(1);
+    });
+
+    test('a page that never answers cannot hang the check', async () => {
+        jest.useFakeTimers({
+            doNotFake: ['performance', 'nextTick', 'setImmediate', 'queueMicrotask'],
+        });
+
+        try {
+            const browser = fakeBrowser({ newPage: jest.fn(() => new Promise(() => {})) });
+            launchMock.mockResolvedValue(browser);
+
+            const pending = browserCheck(options());
+            await jest.advanceTimersByTimeAsync(WEBGL_PROBE_TIMEOUT_MS);
+            const report = await pending;
+
+            expect(report.webgl).toMatchObject({
+                checked: false,
+                error: `no answer within ${WEBGL_PROBE_TIMEOUT_MS / 1000}s`,
+            });
+            expect(browser.close).toHaveBeenCalledTimes(1);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    test('a browser that never started is not asked', async () => {
+        launchMock.mockRejectedValue(new Error('Failed to launch the browser process!'));
+
+        const report = await browserCheck(options());
+
+        expect(report.webgl).toBeNull();
+        expect(
+            idsOf(report).some((id) => ['BSI-BROWSER-024', 'BSI-BROWSER-026'].includes(id))
+        ).toBe(false);
+    });
 });
 
 describe('a machine that can take screenshots', () => {
