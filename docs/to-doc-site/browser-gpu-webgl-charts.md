@@ -29,7 +29,10 @@ Verification status (2026-11-17), issue #1235:
     5,000 of 7,912 edges" in both charts. The same sheet with --pagewait 30 was drawn completely.
   - SwiftShader's licence (Apache 2.0) is on chrome://credits in the image; Alpine records the
     package as BSD-3-Clause. The image's licence notice says both.
-  - NOT verified: the amd64 image, which is what most users pull.
+  - The amd64 image, built locally under emulation on the build Mac (the release workflow is the
+    only one that builds the image): chromium-swiftshader installed, browser check says "yes, in
+    software" on SwiftShader with and without --browser-gpu, exit 0. No thumbnail run on amd64
+    hardware.
 - NOT verified:
   - Windows, with or without a GPU.
   - Linux outside Docker with the Chrome BSI downloads. Chrome for Testing has no linux-arm64 build, so it
