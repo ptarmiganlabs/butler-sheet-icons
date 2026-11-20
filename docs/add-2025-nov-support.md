@@ -301,7 +301,7 @@ This file can be used as a reference for updating the Butler Sheet Icons documen
 ## Additional Resources
 
 - [Butler Sheet Icons GitHub Repository](https://github.com/ptarmiganlabs/butler-sheet-icons)
-- [Qlik Sense Enterprise on Windows Documentation](https://help.qlik.com/en-US/sense-admin/Subsystems/DeployAdministerQSE/Content/Sense_DeployAdminister/QSEoW/Administer_QSEoW/Managing_QSEoW.htm)
+- [Qlik Sense Enterprise on Windows Documentation](https://help.qlik.com/en-US/sense-admin/Subsystems/DeployAdministerQSE/Content/Sense_DeployAdminister/QSEoW/Administer_QSEoW/Administer_QSEoW.htm)
 - [Butler Sheet Icons Documentation Site](https://butler-sheet-icons.ptarmiganlabs.com)
 
 ## Questions or Issues?
