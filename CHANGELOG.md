@@ -1,5 +1,42 @@
 # Changelog
 
+## [5.5.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.4.0...butler-sheet-icons-v5.5.0) (2026-11-20)
+
+
+### Features
+
+* ask about WebGL charts in the wizards, not with the option's help text ([6939982](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/6939982c93445e1a9b1cc2169bb72ee1042f740d)), closes [#1235](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1235)
+* draw WebGL charts in the Docker image ([ae8d0ca](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ae8d0caa6c6b8f4820bc46b51426cabb1a5186dd)), closes [#1235](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1235)
+* let a variant build add rows to the run plan ([3f16b2c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3f16b2c74dd2bc410ecc66df143ee53dd9d44fa6))
+* let a variant build post-process the bundle before it is packaged ([496785e](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/496785ed7b855193ad22ada2afef5753b4ee5803)), closes [#1240](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1240)
+* let the browser use the GPU, so WebGL charts appear in thumbnails ([94040c9](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/94040c9e86d159f1193421edf8a347a084eb4679)), closes [#1235](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1235)
+* report whether WebGL 2 is available in browser check and doctor ([f6d712c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f6d712cdcd9a9d7aa6878bd05b87fd906062c6b9)), closes [#1235](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1235)
+* say when a browser hides its WebGL renderer, and when BSI_BROWSER_GPU is set ([3901104](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/39011046b1b95ed695a839e6864072e1e8e9ba2d)), closes [#1235](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1235)
+
+
+### Bug Fixes
+
+* stop the local macOS build at the first failing step ([92d7d31](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/92d7d31cc712ad36e1ca04d0f806436870c994c0))
+
+
+### Miscellaneous
+
+* use the organisation's default FUNDING.yml ([e5ab4d4](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/e5ab4d4109ea56ca6bb565a355cbb78a9d5f63e4))
+
+
+### Documentation
+
+* add sponsor section to README ([4fc6a7c](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/4fc6a7cde710e9dfa16b6f2052e5cef95be0a0d2))
+* archive four drafts that were already on the doc site ([ccedf86](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ccedf86f2173adb953c793c5cc74bb5d5036daf9))
+* archive the thumbnail-window draft as published ([549fd95](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/549fd958ad84d4b1389931e3ce8052e52d25c5f0))
+* archive the version-line and Windows signing drafts as published ([3dfe0cf](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/3dfe0cfb1a8dfdbbdb82e2e934db54a179d2bff5))
+* count eleven 5.0.1 gates, not ten, in an archived draft's note ([d0c5291](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/d0c5291f47b9347845ec7ead650c21d4e7be95a9))
+* rebase a Dependabot PR older than the last release before an empty-body merge ([9bc03b1](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/9bc03b107c985ac63f8f6b7e2a6f5e92af02937c))
+* record the amd64 image check in the --browser-gpu draft ([f425f9d](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/f425f9d99b6ac33587d4c18fe64386d143c4a35a)), closes [#1235](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1235)
+* show the demo GIF under the README header ([034c973](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/034c973d309997c3056cb319a6a421cf2f2850e1))
+* stage a page on extended sheets and the fixed capture window ([ea24d88](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/ea24d88830f7955f70bca86ef2f1329f74c5931b))
+* stage the --browser-gpu page for the doc site ([189e67f](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/189e67f6213b2cf62d64492eb6164394b6a2c80d)), closes [#1235](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1235)
+
 ## [5.4.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.3.1...butler-sheet-icons-v5.4.0) (2026-10-27)
 
 
