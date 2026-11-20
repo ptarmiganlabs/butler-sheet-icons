@@ -162,8 +162,11 @@ jobs:
       - unit-tests
     permissions:
       contents: read
-    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
-    timeout-minutes: 30
+    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone. Longer
+    # than the browser jobs because the Qlik Cloud suites render every sheet of every app in the
+    # test collection, twice: on 2026-11-20 they took 28.7 min for 4 apps and 24 sheets, so 30 left
+    # no margin.
+    timeout-minutes: 45
     # One run at a time against the shared tenant, across runs. queue: max lets the jobs that are
     # waiting line up, up to 100, and start in turn. Without it a group holds one waiting job, and a
     # third arrival cancels the one already waiting ("Canceling since a higher priority waiting
@@ -225,8 +228,11 @@ jobs:
       - test-qscloud-macos
     permissions:
       contents: read
-    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone.
-    timeout-minutes: 30
+    # See the note on test-browser-macos: bounds a hung suite now that --forceExit is gone. Longer
+    # than the browser jobs because the Qlik Cloud suites render every sheet of every app in the
+    # test collection, twice: on 2026-11-20 they took 28.7 min for 4 apps and 24 sheets, so 30 left
+    # no margin.
+    timeout-minutes: 45
     concurrency:
       group: bsi-qscloud-${{ github.repository }}
       cancel-in-progress: false
