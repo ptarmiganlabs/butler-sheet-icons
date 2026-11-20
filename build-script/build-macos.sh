@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
 # Build butler executable using Node.js SEA
 # Execute this script from the repository's root folder
 
