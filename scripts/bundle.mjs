@@ -22,6 +22,10 @@
  * Usage:
  *   node scripts/bundle.mjs bundle
  *   node scripts/bundle.mjs inject <binary path>
+ *
+ * Two optional environment variables let a variant build change the result, and every build in
+ * this repository leaves both unset: `EXTENSIONS_MODULE` changes what is bundled (#1135), and
+ * `BUNDLE_TRANSFORM_MODULE` post-processes the bundle once esbuild has written it (#1240).
  */
 
 import { spawnSync } from 'node:child_process';
@@ -32,6 +36,7 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 
 import { buildDate } from './lib/build-date.mjs';
+import { applyBundleTransform, bundleTransformModuleFrom } from './lib/bundle-transform.mjs';
 
 const require = createRequire(import.meta.url);
 
@@ -55,6 +60,14 @@ const MACHO_SEGMENT_NAME = 'NODE_SEA';
 const extensionsModule = process.env.EXTENSIONS_MODULE
     ? resolve(process.env.EXTENSIONS_MODULE)
     : undefined;
+
+/**
+ * Set by a variant build to post-process the bundle before it is packaged: a module whose default
+ * export takes the bundle's text and returns the text to package. Unset for every build in this
+ * repository, which leaves the bundle byte for byte as esbuild wrote it. Issue #1240, and
+ * `scripts/lib/bundle-transform.mjs` for the rules.
+ */
+const transformModule = bundleTransformModuleFrom(process.env);
 
 /**
  * Stop a build whose extensions module targets a different contract version than this source tree.
@@ -217,6 +230,12 @@ const bundle = async () => {
             ? { '#extensions': extensionsModule, commander: commanderEntry }
             : undefined,
     });
+
+    // After esbuild, so a transform sees exactly the text that is about to be packaged. A failure
+    // throws, and the build stops before the SEA blob is made from an untransformed bundle.
+    if (await applyBundleTransform(OUTFILE, transformModule)) {
+        console.log(`Bundle transformed by ${transformModule}`);
+    }
 };
 
 /**
