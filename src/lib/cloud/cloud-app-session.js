@@ -3,6 +3,7 @@ import { launchBrowserForApp, closeBrowserQuietly } from '../browser/browser-lau
 import { CloudError } from '../util/errors.js';
 import { formLogin, assertAuthenticated } from '../browser/form-login.js';
 import { removeStaleImage } from '../util/image-dir.js';
+import { CAPTURE_VIEWPORT } from '../util/thumbnail-aspect.js';
 
 // Selector paths to elements on login page
 const selectorLoginPageUserName = '[id="\u0031-email"]';
@@ -59,10 +60,11 @@ export const openCloudAppOverviewPage = async (
 ) => {
     const page = await browser.newPage();
 
-    // Thumbnails should be 410x270 pixels, so set the viewport to a multiple of this.
+    // A starting size only: the capture changes the height once the sheet has loaded, so the
+    // sheet part it screenshots comes out 3:2 like the hub's thumbnail box (#1246).
     await page.setViewport({
-        width: 1230,
-        height: 810,
+        width: CAPTURE_VIEWPORT.width,
+        height: CAPTURE_VIEWPORT.height,
         deviceScaleFactor: 1,
     });
 

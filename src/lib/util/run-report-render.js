@@ -1,6 +1,7 @@
 import { CLEAR_REASON } from './sheet-decision-reasons.js';
 import { parseHeadlessOption } from './headless-option.js';
 import { noteVersionShown } from './early-stop.js';
+import { CAPTURE_VIEWPORT, thumbnailHeightForWidth } from './thumbnail-aspect.js';
 
 /**
  * Rung A of the run-output ladder (issue #1073): the plain renderer.
@@ -414,11 +415,18 @@ export const renderRunPlanLines = (report) => {
         );
     }
     if (plan.output) {
-        // No dimensions stated: the files on disk are the raw element
-        // screenshots from a 1230x810 viewport, not the 410x270 the hub
-        // displays them at - a size claim here would be wrong about the
-        // artifacts the run leaves behind.
-        lines.push(row('images', `${plan.output.imageDir}/${plan.output.platformDir}/<app-id>`));
+        // The shape is a promise the capture keeps (#1246): it resizes the
+        // browser until the captured sheet part is 3:2, and warns when it
+        // cannot. The size is stated for a part as wide as the window, which
+        // every part measured on QSEoW and Qlik Cloud was; the hub shows the
+        // files scaled down, at 150x100 in the app overview.
+        const { width } = CAPTURE_VIEWPORT;
+        lines.push(
+            row(
+                'images',
+                `${plan.output.imageDir}/${plan.output.platformDir}/<app-id>   3:2, ${width}x${thumbnailHeightForWidth(width)} for a full-width sheet part`
+            )
+        );
     }
     // The writes warning is suppressed for an empty selection: "WILL
     // OVERWRITE ... 0 app(s)" in capitals right before the no-apps error

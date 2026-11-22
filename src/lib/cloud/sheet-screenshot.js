@@ -3,6 +3,7 @@ import { Jimp } from 'jimp';
 import { sleep } from '../../globals.js';
 import { CLOUD_SHEET_PART_SELECTORS } from './sheet-parts.js';
 import { sheetWasStillLoading, stillLoadingWarning } from '../util/sheet-loading.js';
+import { fitSheetPartToThumbnailAspect } from '../util/thumbnail-aspect-fit.js';
 
 /**
  * Takes a screenshot of a sheet and creates a blurred version.
@@ -41,7 +42,16 @@ export async function takeSheetScreenshot(
     const selector = CLOUD_SHEET_PART_SELECTORS[options.includesheetpart];
 
     await page.waitForSelector(selector);
-    const sheetMainPart = await page.$(selector);
+
+    // The hub shows thumbnails in a 3:2 box and stretches anything else to fill it (#1246), so
+    // bring the captured element to 3:2 by resizing the browser. Done at most once per page;
+    // later sheets of the app keep the new size. Capture the element it returns, because the
+    // new layout can replace the one found before it.
+    const { element: sheetMainPart } = await fitSheetPartToThumbnailAspect(page, selector, {
+        logger,
+        logPrefix: 'CLOUD APP',
+        sheetPart: options.includesheetpart,
+    });
 
     // Checked before the shutter rather than after: the two are milliseconds apart, and of the
     // two ways to be wrong, a spurious warning is far cheaper than staying silent about a
