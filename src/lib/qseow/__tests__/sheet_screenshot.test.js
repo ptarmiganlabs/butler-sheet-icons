@@ -37,9 +37,16 @@ const BASE_OPTIONS = { pagewait: 5, includesheetpart: '1', blurFactor: 5 };
  * @returns {object} A page-shaped object with mocked `goto`, `waitForSelector` and `$`.
  */
 const createPage = () => {
-    const elementHandle = { screenshot: jest.fn().mockResolvedValue(undefined) };
+    // Already 3:2 by default (#1246), so the tests that are not about the aspect fix see no
+    // viewport change.
+    const elementHandle = {
+        screenshot: jest.fn().mockResolvedValue(undefined),
+        boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 0, width: 1230, height: 820 }),
+    };
 
     return {
+        viewport: jest.fn(() => ({ width: 1230, height: 810, deviceScaleFactor: 1 })),
+        setViewport: jest.fn().mockResolvedValue(undefined),
         goto: jest.fn().mockResolvedValue(undefined),
         waitForSelector: jest.fn().mockResolvedValue(undefined),
         $: jest.fn().mockResolvedValue(elementHandle),
@@ -244,5 +251,52 @@ describe('blurSheetImage', () => {
         write.mockRejectedValue(new Error('disk full'));
 
         await expect(blurIt()).rejects.toThrow('disk full');
+    });
+});
+
+describe('captureSheetImage keeps the thumbnail 3:2 (#1246)', () => {
+    /**
+     * A page whose sheet part is 1230x681 until the viewport is made 139 px taller, when Qlik
+     * replaces the element with a 1230x820 one - the shape the hub draws thumbnails in.
+     *
+     * @returns {object} A page stub, with both element handles exposed.
+     */
+    const createSquatPage = () => {
+        const page = createPage();
+        const squat = {
+            screenshot: jest.fn().mockResolvedValue(undefined),
+            boundingBox: jest.fn().mockResolvedValue({ x: 0, y: 129, width: 1230, height: 681 }),
+        };
+        let current = squat;
+        page.$ = jest.fn(async () => current);
+        page.setViewport = jest.fn(async ({ height }) => {
+            if (height === 949) current = page.elementHandle;
+        });
+        page.squat = squat;
+        return page;
+    };
+
+    test('resizes the viewport to make the element 3:2, then captures the re-laid-out element', async () => {
+        const page = createSquatPage();
+        await capture(page);
+
+        expect(page.setViewport).toHaveBeenCalledTimes(1);
+        expect(page.setViewport).toHaveBeenCalledWith({
+            width: 1230,
+            height: 949,
+            deviceScaleFactor: 1,
+        });
+        expect(page.squat.screenshot).not.toHaveBeenCalled();
+        expect(page.elementHandle.screenshot).toHaveBeenCalledWith({
+            path: `${IMG_DIR}/qseow/${APP_ID}/thumbnail-${APP_ID}-1.png`,
+        });
+        expect(mockLogger.warn).not.toHaveBeenCalled();
+    });
+
+    test('does not resize when the element is already 3:2', async () => {
+        const page = createPage();
+        await capture(page);
+
+        expect(page.setViewport).not.toHaveBeenCalled();
     });
 });

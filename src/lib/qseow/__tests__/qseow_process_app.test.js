@@ -99,6 +99,17 @@ const mockQseowQrs = jest.unstable_mockModule('../qseow-qrs.js', () => ({
     setupQseowQrsConnection: jest.fn().mockReturnValue({ host: 'test', cert: 'cert' }),
 }));
 
+// The 3:2 resize step (#1246) has its own tests in util/__tests__/thumbnail-aspect.test.js.
+// Here it hands back the element unchanged, so the sheet handles below need no boundingBox().
+jest.unstable_mockModule('../../util/thumbnail-aspect-fit.js', () => ({
+    fitSheetPartToThumbnailAspect: jest.fn(async (page, selector) => ({
+        element: await page.$(selector),
+        box: null,
+        resized: false,
+        fits: true,
+    })),
+}));
+
 const mockBrowserInstall = jest.unstable_mockModule('../../browser/browser-install.js', () => ({
     browserInstall: jest.fn(),
 }));

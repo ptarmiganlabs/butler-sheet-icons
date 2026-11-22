@@ -119,7 +119,7 @@ describe('renderRunPlanLines - QSEoW create', () => {
             '  exclude       tag "no-thumbnail" (0 sheets), number 1',
             '  blur          tag "confidential" (3 sheets)',
             '  browser       chrome (version: recommended), headless, 5s per sheet',
-            '  images        ./img/qseow/<app-id>',
+            '  images        ./img/qseow/<app-id>   3:2, 1230x820 for a full-width sheet part',
             '  uploads to    content library "Butler sheet thumbnails"',
             '  WILL OVERWRITE existing sheet thumbnails in 7 app(s), 6 of them published',
         ]);
@@ -223,7 +223,7 @@ describe('renderRunPlanLines - rows a build contributes (issue #1232)', () => {
 
     test('rows land after core rows and before the warning, extra lines as continuations', () => {
         expect(renderRunPlanLines(withRows(contributed)).slice(-6)).toEqual([
-            '  images        ./img/qseow/<app-id>',
+            '  images        ./img/qseow/<app-id>   3:2, 1230x820 for a full-width sheet part',
             '  uploads to    content library "Butler sheet thumbnails"',
             '  watermark     "DRAFT", bottom right',
             '  frame         2px, dark blue',
@@ -312,7 +312,7 @@ describe('renderRunPlanLines - Cloud', () => {
             '  exclude       status private',
             '  blur          none',
             '  browser       chrome (version: recommended), headless, 5s per sheet',
-            '  images        ./img/cloud/<app-id>',
+            '  images        ./img/cloud/<app-id>   3:2, 1230x820 for a full-width sheet part',
             '  uploads to    each app\'s media library, "thumbnails" folder',
             '  WILL OVERWRITE existing sheet thumbnails in 1 app(s)',
         ]);
