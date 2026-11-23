@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.5.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.5.0...butler-sheet-icons-v5.5.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* capture sheet thumbnails at 3:2 so the hub does not stretch them ([a6d002a](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/a6d002aa167779bd7305e4fd408738ec978d176e)), closes [#1246](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1246)
+
+
+### Documentation
+
+* stage the 3:2 sheet thumbnail page for the doc site ([b8f7a13](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/b8f7a137a1206a41f6cf458a581072181f229733))
+
 ## [5.5.0](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.4.0...butler-sheet-icons-v5.5.0) (2026-11-20)
 
 
