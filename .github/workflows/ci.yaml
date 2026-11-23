@@ -643,22 +643,6 @@ jobs:
           RELEASE_PLEASE_OUTPUT: ${{ toJSON(steps.release.outputs) }}
         run: echo "$RELEASE_PLEASE_OUTPUT"
 
-      - name: Show output from Release-Please
-        # if: ${{ steps.release.outputs.releases_created }}
-        run: |
-          echo "releases_created: ${{ steps.release.outputs.releases_created }}"
-          echo "release_created : ${{ steps.release.outputs.release_created }}"
-          echo "draft           : ${{ steps.release.outputs['draft'] }}"
-          echo "path            : ${{ steps.release.outputs['path'] }}"
-          echo "upload_url      : ${{ steps.release.outputs['upload_url'] }}"
-          echo "html_url        : ${{ steps.release.outputs['html_url'] }}"
-          echo "tag_name        : ${{ steps.release.outputs['tag_name'] }}"
-          echo "version         : ${{ steps.release.outputs['version'] }}"
-          echo "major           : ${{ steps.release.outputs['major'] }}"
-          echo "minor           : ${{ steps.release.outputs['minor'] }}"
-          echo "patch           : ${{ steps.release.outputs['patch'] }}"
-          echo "sha             : ${{ steps.release.outputs['sha'] }}"
-
   sbom-build:
     needs: release-please
     runs-on: ubuntu-latest
@@ -693,8 +677,10 @@ jobs:
       # build so a mismatch costs seconds rather than a signed, notarized artifact.
       - name: Verify the checkout is the version being released
         shell: bash
+        env:
+          EXPECTED_VERSION: ${{ needs.release-please.outputs.release_version }}
         run: |
-          expected="${{ needs.release-please.outputs.release_version }}"
+          expected="$EXPECTED_VERSION"
           actual=$(node -p "require('./package.json').version")
           echo "release-please version : $expected"
           echo "package.json version   : $actual"
@@ -720,12 +706,20 @@ jobs:
           npm ci --include=dev --include=prod
 
       - name: Generate SBOM
+        env:
+          RELEASE_VERSION: ${{ needs.release-please.outputs.release_version }}
+          # Pinned and checksummed: this job holds a contents: write token, so it must not run
+          # whatever `releases/latest` happens to serve. To upgrade, change both lines together;
+          # the digest is on the release page, or `gh api repos/microsoft/sbom-tool/releases/latest`.
+          SBOM_TOOL_URL: https://github.com/microsoft/sbom-tool/releases/download/v4.1.5/sbom-tool-linux-x64
+          SBOM_TOOL_SHA256: bf5d4f99bc98c119d549d08fc02ae92598a7a42772f17317c01031a92632e05b
         run: |
-          curl -Lo $RUNNER_TEMP/sbom-tool https://github.com/microsoft/sbom-tool/releases/latest/download/sbom-tool-linux-x64
-          chmod +x $RUNNER_TEMP/sbom-tool
+          curl -fsSLo "$RUNNER_TEMP/sbom-tool" "$SBOM_TOOL_URL"
+          echo "${SBOM_TOOL_SHA256}  $RUNNER_TEMP/sbom-tool" | sha256sum --check --strict
+          chmod +x "$RUNNER_TEMP/sbom-tool"
           mkdir -p ./build/sbom
 
-          $RUNNER_TEMP/sbom-tool generate -b ./build/sbom -bc . -pn ${DIST_FILE_NAME} -pv ${{ needs.release-please.outputs.release_version }} -ps "Ptarmigan Labs" -nsb https://sbom.ptarmiganlabs.com -V verbose
+          "$RUNNER_TEMP/sbom-tool" generate -b ./build/sbom -bc . -pn "${DIST_FILE_NAME}" -pv "${RELEASE_VERSION}" -ps "Ptarmigan Labs" -nsb https://sbom.ptarmiganlabs.com -V verbose
 
       - name: Upload SBOM to Release
         uses: ncipollo/release-action@339a81892b84b4eeb0f6e744e4574d79d0d9b8dd # v1.21.0
@@ -770,9 +764,12 @@ jobs:
       DIST_FILE_NAME: butler-sheet-icons
     steps:
       - name: Release tag and upload url from previous job
+        env:
+          RELEASE_TAG_NAME: ${{ needs.release-please.outputs.release_tag_name }}
+          RELEASE_UPLOAD_URL: ${{ needs.release-please.outputs.release_upload_url }}
         run: |
-          echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
-          echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
+          echo "tag_name   : $RELEASE_TAG_NAME"
+          echo "upload_url : $RELEASE_UPLOAD_URL"
 
       - name: Checkout the released tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -811,8 +808,10 @@ jobs:
       # build so a mismatch costs seconds rather than a signed, notarized artifact.
       - name: Verify the checkout is the version being released
         shell: bash
+        env:
+          EXPECTED_VERSION: ${{ needs.release-please.outputs.release_version }}
         run: |
-          expected="${{ needs.release-please.outputs.release_version }}"
+          expected="$EXPECTED_VERSION"
           actual=$(node -p "require('./package.json').version")
           echo "release-please version : $expected"
           echo "package.json version   : $actual"
@@ -1208,9 +1207,12 @@ jobs:
       DIST_FILE_NAME: butler-sheet-icons
     steps:
       - name: Release tag and upload url from previous job
+        env:
+          RELEASE_TAG_NAME: ${{ needs.release-please.outputs.release_tag_name }}
+          RELEASE_UPLOAD_URL: ${{ needs.release-please.outputs.release_upload_url }}
         run: |
-          echo "tag_name   : ${{ needs.release-please.outputs.release_tag_name }}"
-          echo "upload_url : ${{ needs.release-please.outputs.release_upload_url }}"
+          echo "tag_name   : $RELEASE_TAG_NAME"
+          echo "upload_url : $RELEASE_UPLOAD_URL"
 
       - name: Checkout the released tag
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -1236,8 +1238,10 @@ jobs:
       # build so a mismatch costs seconds rather than a signed, notarized artifact.
       - name: Verify the checkout is the version being released
         shell: bash
+        env:
+          EXPECTED_VERSION: ${{ needs.release-please.outputs.release_version }}
         run: |
-          expected="${{ needs.release-please.outputs.release_version }}"
+          expected="$EXPECTED_VERSION"
           actual=$(node -p "require('./package.json').version")
           echo "release-please version : $expected"
           echo "package.json version   : $actual"
@@ -1269,8 +1273,10 @@ jobs:
         run: bash ./scripts/release-linux.sh
 
       - name: Compress release binary
+        env:
+          RELEASE_TAG_NAME: ${{ needs.release-please.outputs.release_tag_name }}
         run: |
-          zip -9 -r ./${{ needs.release-please.outputs.release_tag_name }}-linux.zip ${DIST_FILE_NAME}
+          zip -9 -r "./${RELEASE_TAG_NAME}-linux.zip" "${DIST_FILE_NAME}"
 
       - name: Debug
         run: |
