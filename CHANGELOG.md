@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.5.2](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.5.1...butler-sheet-icons-v5.5.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* skip sheets with no objects instead of failing the app ([7255421](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/7255421cf6ea5348bac633190374becf45dd8a7f)), closes [#1248](https://github.com/ptarmiganlabs/butler-sheet-icons/issues/1248)
+
+
+### Documentation
+
+* stage the empty-sheet page for the doc site ([8614647](https://github.com/ptarmiganlabs/butler-sheet-icons/commit/8614647d474665add38c83c431bd077972ae1f6c))
+
 ## [5.5.1](https://github.com/ptarmiganlabs/butler-sheet-icons/compare/butler-sheet-icons-v5.5.0...butler-sheet-icons-v5.5.1) (2026-11-22)
 
 
