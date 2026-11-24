@@ -265,3 +265,59 @@ describe('determineSheetExcludeStatus (Cloud)', () => {
         });
     });
 });
+
+describe('empty sheets (#1248)', () => {
+    /**
+     * A sheet with the given `cells`, the list of objects the engine reports for it.
+     *
+     * @param {Array|undefined} cells - Value for `qData.cells`.
+     * @param {object} [overrides] - Passed to `createSheet`.
+     *
+     * @returns {object} The sheet.
+     */
+    const sheetWithCells = (cells, overrides = {}) => {
+        const sheet = createSheet(overrides);
+        sheet.qData.cells = cells;
+        return sheet;
+    };
+
+    test('excludes a sheet with no objects, naming the cause', async () => {
+        await expect(run({ sheet: sheetWithCells([]) })).resolves.toEqual({
+            excludeSheet: true,
+            sheetIsHidden: false,
+            excludeReason: EXCLUDE_REASON.EMPTY,
+        });
+    });
+
+    test('processes a sheet with objects', async () => {
+        const sheet = sheetWithCells([{ name: 'abc', type: 'barchart' }]);
+
+        await expect(run({ sheet })).resolves.toMatchObject({ excludeSheet: false });
+    });
+
+    test('does not treat a sheet list without cells as empty', async () => {
+        // A projection that did not ask for cells leaves the field undefined.
+        await expect(run({ sheet: sheetWithCells(undefined) })).resolves.toMatchObject({
+            excludeSheet: false,
+        });
+    });
+
+    test('an exclusion by an option the user passed is reported instead', async () => {
+        const result = await run({
+            sheet: sheetWithCells([]),
+            options: { excludeSheetNumber: ['1'] },
+            iSheetNum: 1,
+        });
+
+        expect(result).toMatchObject({
+            excludeSheet: true,
+            excludeReason: EXCLUDE_REASON.NUMBER,
+        });
+    });
+
+    test('a hidden empty sheet is reported as hidden', async () => {
+        const result = await run({ sheet: sheetWithCells([], { showCondition: 'false' }) });
+
+        expect(result.excludeReason).toBe(EXCLUDE_REASON.HIDDEN);
+    });
+});

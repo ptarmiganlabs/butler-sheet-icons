@@ -44,6 +44,19 @@ export const SHEET_LIST_FIELDS_WITH_SHOW_CONDITION = {
 };
 
 /**
+ * Whether a sheet has no objects on it, judged from the `cells` field of the sheet list.
+ *
+ * Only a `cells` array that is present and empty counts: a projection that did not ask for
+ * `cells` leaves it undefined, and that must not make every sheet look empty.
+ *
+ * @param {object} sheet - A sheet list item.
+ *
+ * @returns {boolean} True when the sheet has no objects.
+ */
+export const sheetHasNoObjects = (sheet) =>
+    Array.isArray(sheet?.qData?.cells) && sheet.qData.cells.length === 0;
+
+/**
  * Fetches an app's sheets through a `SheetList` session object.
  *
  * The same ~15-line session-object literal was written out in all six modules that walk an app's

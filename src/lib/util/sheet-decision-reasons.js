@@ -10,14 +10,18 @@
  * issue #993: a misspelled `--blur-sheet-tag` used to produce a run
  * byte-identical to one where the option was never passed.
  *
- * `HIDDEN` is the one reason with no option behind it: sheets hidden by a show
- * condition are always skipped, so it names the mechanism instead.
+ * `HIDDEN` and `EMPTY` are the reasons with no option behind them: sheets
+ * hidden by a show condition, and sheets with no objects on them, are always
+ * skipped, so they name the cause instead. An empty sheet shows Qlik Sense's
+ * "get started" placeholder rather than a sheet, which has none of the elements
+ * --includesheetpart 1-3 capture, so it used to fail the whole app (#1248).
  */
 export const EXCLUDE_REASON = Object.freeze({
     STATUS_PUBLIC: '--exclude-sheet-status public',
     STATUS_PUBLISHED: '--exclude-sheet-status published',
     STATUS_PRIVATE: '--exclude-sheet-status private',
     HIDDEN: 'hidden by show condition',
+    EMPTY: 'no objects on the sheet',
     TAG: '--exclude-sheet-tag',
     NUMBER: '--exclude-sheet-number',
     TITLE: '--exclude-sheet-title',
