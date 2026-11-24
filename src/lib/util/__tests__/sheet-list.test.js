@@ -21,6 +21,7 @@ const {
     getSheetList,
     SHEET_LIST_FIELDS,
     SHEET_LIST_FIELDS_EXTENDED,
+    sheetHasNoObjects,
 } = await import('../sheet-list.js');
 const { markInterrupted, resetInterruptState } = await import('../interrupt.js');
 const { isAbortArtifact } = await import('../abort-artifact.js');
@@ -818,5 +819,17 @@ describe('the error an interrupted app unwinds with (issue #1210)', () => {
 
         expect(err.message).toMatch(/Failed to create a thumbnail for 1 of/);
         expect(isAbortArtifact(err)).toBe(false);
+    });
+});
+
+describe('sheetHasNoObjects (#1248)', () => {
+    test.each([
+        ['an empty cells list', { qData: { cells: [] } }, true],
+        ['a sheet with one object', { qData: { cells: [{ name: 'a' }] } }, false],
+        ['a projection without cells', { qData: { rank: 1 } }, false],
+        ['a sheet without qData', {}, false],
+        ['no sheet at all', undefined, false],
+    ])('%s -> %s', (_label, sheet, expected) => {
+        expect(sheetHasNoObjects(sheet)).toBe(expected);
     });
 });

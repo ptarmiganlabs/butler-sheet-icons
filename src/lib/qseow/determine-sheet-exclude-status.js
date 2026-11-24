@@ -1,4 +1,4 @@
-import { isSheetTagged } from '../util/sheet-list.js';
+import { isSheetTagged, sheetHasNoObjects } from '../util/sheet-list.js';
 import { EXCLUDE_REASON } from '../util/sheet-decision-reasons.js';
 
 /**
@@ -140,6 +140,18 @@ export const determineSheetExcludeStatus = async (
                 `Excluded sheet (via sheet title): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}', description '${sheet.qMeta.description}', approved '${sheet.qMeta.approved}', published '${sheet.qMeta.published}', hidden '${sheetIsHidden}'`
             );
         }
+    }
+
+    // Is the sheet empty? Never process empty sheets (#1248)
+    // An empty sheet shows Qlik Sense's "get started" placeholder instead of the sheet, and
+    // --includesheetpart 1-3 wait for elements the placeholder does not have, so capturing it
+    // failed the whole app. Checked last, so a reason naming an option the user passed wins.
+    if (excludeSheet === false && sheetHasNoObjects(sheet)) {
+        excludeSheet = true;
+        excludeReason = EXCLUDE_REASON.EMPTY;
+        logger.verbose(
+            `Excluded sheet (no objects): ${iSheetNum}: '${sheet.qMeta.title}', sheet id '${repoDbSheetId}', engine sheet id '${engineSheetId}'`
+        );
     }
 
     return { excludeSheet, sheetIsHidden, excludeReason };
