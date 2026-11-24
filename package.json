@@ -57,7 +57,7 @@
         "form-data": "^4.0.6",
         "fs-extra": "^11.4.1",
         "is-unicode-supported": "^2.1.0",
-        "jimp": "^1.6.1",
+        "jimp": "^1.7.0",
         "os": "^0.1.2",
         "picocolors": "^1.1.1",
         "puppeteer-core": "^25.17.0",
